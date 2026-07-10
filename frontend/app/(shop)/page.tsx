@@ -1,475 +1,347 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import {
-  ChevronRight,
-  ArrowRight,
-  Truck,
-  Shield,
-  RefreshCw,
-  HeadphonesIcon,
-  TrendingUp,
-  Zap,
-  Star,
-} from "lucide-react";
-import ProductCard from "@/components/product/ProductCard";
-import { mockProducts, mockCategories, mockBanners } from "@/lib/mock-data";
+import { ShoppingCart } from "lucide-react";
+import { mockProducts, mockCategories, formatUSD, formatKHR } from "@/lib/mock-data";
 
-// ─── Hero Banner ─────────────────────────────────────────────────────────────
-function HeroBanner() {
-  const [active, setActive] = useState(0);
-  const banners = mockBanners;
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActive((prev) => (prev + 1) % banners.length);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const banner = banners[active];
-
+// ─── Hero Section ─────────────────────────────────────────────────────────────
+function HeroSection() {
   return (
-    <div
+    <section
       style={{
-        position: "relative",
-        height: "520px",
-        overflow: "hidden",
-        borderRadius: "20px",
-        margin: "24px 0",
+        background: "var(--bg-white)",
+        padding: "48px 0 0",
+        borderBottom: "3px solid #e5e5e5",
       }}
     >
-      {/* Background Image */}
-      <img
-        src={banner.image}
-        alt={banner.title}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          transition: "all 0.8s ease",
-        }}
-      />
-
-      {/* Gradient overlay */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(90deg, rgba(10,14,26,0.95) 0%, rgba(10,14,26,0.6) 50%, rgba(10,14,26,0.1) 100%)",
-        }}
-      />
-
-      {/* Content */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          padding: "0 60px",
-        }}
-      >
-        <div style={{ maxWidth: "520px" }} className="animate-fade-in-up">
-          {banner.badge && (
-            <div style={{ marginBottom: "16px" }}>
-              <span
-                className="badge badge-hot"
-                style={{ fontSize: "12px", padding: "5px 14px" }}
-              >
-                🔥 {banner.badge}
-              </span>
-            </div>
-          )}
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--brand-accent)",
-              fontWeight: "600",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              marginBottom: "12px",
-            }}
-          >
-            {banner.subtitle}
-          </p>
-          <h1
-            style={{
-              fontSize: "48px",
-              fontWeight: "900",
-              lineHeight: "1.1",
-              marginBottom: "16px",
-              fontFamily: "Outfit, sans-serif",
-            }}
-          >
-            {banner.title}
-          </h1>
-          <p
-            style={{
-              fontSize: "16px",
-              color: "var(--text-secondary)",
-              marginBottom: "32px",
-              lineHeight: "1.7",
-            }}
-          >
-            {banner.description}
-          </p>
-          <div style={{ display: "flex", gap: "12px" }}>
-            <Link href={banner.link || "/products"} className="btn-primary" style={{ padding: "13px 28px", fontSize: "15px" }}>
-              {banner.cta || "Shop Now"}
-              <ArrowRight size={17} />
+      <div className="container">
+        <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-10 min-h-[300px]">
+          {/* Left — Text */}
+          <div style={{ paddingBottom: "48px" }}>
+            <h1 className="text-[32px] sm:text-[42px] font-black text-[#1a1a1a] leading-[1.15] mb-4 tracking-tight">
+              Your Hub for Genuine
+              <br />
+              Tech in Cambodia
+            </h1>
+            <p
+              style={{
+                fontSize: "15px",
+                color: "#555",
+                marginBottom: "6px",
+                lineHeight: "1.7",
+              }}
+            >
+              Discover top-tier laptops, custom desktop builds, and professional IT
+              services.
+            </p>
+            <p
+              className="font-khmer"
+              style={{
+                fontSize: "14px",
+                color: "#777",
+                marginBottom: "28px",
+              }}
+            >
+              ស្វែងរកកុំព្យូទ័រ, លប់ថប់, និងសេវាកម្ម IT គ្រប់ប្រភេទ
+            </p>
+            <Link href="/products" className="btn-red" style={{ width: "fit-content", padding: "12px 32px", fontSize: "15px" }}>
+              Shop Now
             </Link>
-            <Link href="/products" className="btn-secondary" style={{ padding: "13px 24px" }}>
-              Browse All
-            </Link>
+          </div>
+
+          {/* Right — Laptop Image */}
+          <div className="flex justify-center items-end h-auto md:h-[320px] relative mt-4 md:mt-0">
+            <img
+              src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=700&q=90"
+              alt="Premium Laptop"
+              className="w-full max-w-[480px] object-cover object-center rounded-t-lg"
+            />
           </div>
         </div>
       </div>
 
-      {/* Slide Indicators */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "24px",
-          left: "60px",
-          display: "flex",
-          gap: "8px",
-        }}
-      >
-        {banners.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setActive(i)}
-            style={{
-              height: "4px",
-              width: i === active ? "32px" : "16px",
-              background:
-                i === active ? "var(--brand-primary)" : "rgba(255,255,255,0.3)",
-              border: "none",
-              borderRadius: "99px",
-              cursor: "pointer",
-              transition: "all var(--transition-base)",
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Category Grid ────────────────────────────────────────────────────────────
-function CategoryGrid() {
-  return (
-    <section style={{ marginBottom: "60px" }}>
-      <div className="section-header">
-        <h2 className="section-title">
-          Shop by <span className="gradient-text">Category</span>
-        </h2>
-        <Link
-          href="/products"
-          className="btn-ghost"
-          style={{ color: "var(--brand-primary)", fontWeight: "600", fontSize: "14px" }}
-        >
-          View All <ChevronRight size={16} />
-        </Link>
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: "12px",
-        }}
-        className="stagger-children"
-      >
-        {mockCategories.map((cat) => (
-          <Link
-            key={cat.id}
-            href={`/category/${cat.slug}`}
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-lg)",
-              padding: "20px 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: "14px",
-              transition: "all var(--transition-base)",
-              textDecoration: "none",
-            }}
-            className="animate-fade-in-up"
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement;
-              el.style.borderColor = "var(--brand-primary)";
-              el.style.background = "rgba(37, 99, 235, 0.08)";
-              el.style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLAnchorElement;
-              el.style.borderColor = "var(--border-default)";
-              el.style.background = "var(--bg-surface)";
-              el.style.transform = "translateY(0)";
-            }}
-          >
-            <span style={{ fontSize: "28px" }}>{cat.icon}</span>
-            <div>
-              <div
-                style={{
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {cat.name}
-              </div>
-              <div
-                style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}
-              >
-                {cat.count} products
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {/* Gradient divider line */}
+      <div className="divider-gradient" />
     </section>
   );
 }
 
-// ─── Trust Badges ─────────────────────────────────────────────────────────────
-function TrustBadges() {
-  const badges = [
-    { icon: Truck, title: "Free Shipping", desc: "On orders over $99" },
-    { icon: Shield, title: "Secure Payment", desc: "100% Protected" },
-    { icon: RefreshCw, title: "Easy Returns", desc: "30 day policy" },
-    { icon: HeadphonesIcon, title: "24/7 Support", desc: "Always here for you" },
+// ─── Feature Strip ────────────────────────────────────────────────────────────
+function FeatureStrip() {
+  const features = [
+    { svg: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    ), label: "Genuine Products" },
+    { svg: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+    ), label: "1-Year Warranty" },
+    { svg: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+    ), label: "Local Payments" },
+    { svg: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    ), label: "Same-Day Delivery" },
   ];
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "12px",
-        margin: "0 0 60px",
-      }}
-    >
-      {badges.map(({ icon: Icon, title, desc }) => (
-        <div
-          key={title}
-          style={{
-            background: "var(--bg-surface)",
-            border: "1px solid var(--border-default)",
-            borderRadius: "var(--radius-lg)",
-            padding: "20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          }}
-        >
-          <div
-            style={{
-              width: "44px",
-              height: "44px",
-              background: "rgba(37, 99, 235, 0.12)",
-              borderRadius: "10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Icon size={20} style={{ color: "var(--brand-primary)" }} />
-          </div>
-          <div>
-            <div style={{ fontWeight: "700", fontSize: "14px" }}>{title}</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
-              {desc}
+    <div style={{ background: "#1a1a1a" }}>
+      <div className="container">
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-white/5">
+          {features.map((f, i) => (
+            <div
+              key={i}
+              className="feature-item p-4 sm:p-6 md:p-8 flex flex-col items-center justify-center gap-3 text-center border-b md:border-b-0 border-r-0 md:border-r border-white/5 last:border-r-0"
+            >
+              <div style={{ color: "#1a4fa0" }}>{f.svg}</div>
+              <span style={{ fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)" }}>
+                {f.label}
+              </span>
             </div>
-          </div>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
-// ─── Featured Products ────────────────────────────────────────────────────────
-function FeaturedProducts() {
-  const [activeTab, setActiveTab] = useState("all");
-  const tabs = ["all", "laptops", "monitors", "gaming"];
-  const filtered =
-    activeTab === "all"
-      ? mockProducts
-      : mockProducts.filter((p) =>
-          p.category.toLowerCase().includes(activeTab.split("s")[0])
-        );
+// ─── Category Section ─────────────────────────────────────────────────────────
+function CategorySection() {
+  const categories = [
+    { name: "Laptops", slug: "laptops", icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/>
+      </svg>
+    )},
+    { name: "Desktops", slug: "desktops", icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>
+    )},
+    { name: "Parts", slug: "parts", icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
+        <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+        <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+        <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+        <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+      </svg>
+    )},
+    { name: "Gaming", slug: "gaming", icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/>
+        <circle cx="15" cy="13" r="1"/><circle cx="17" cy="11" r="1"/>
+        <path d="M21 6H3a1 1 0 0 0-1 1v9a5 5 0 0 0 5 5h8a5 5 0 0 0 5-5V7a1 1 0 0 0-1-1Z"/>
+      </svg>
+    )},
+    { name: "Services", slug: "services", icon: (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>
+    )},
+  ];
 
   return (
-    <section style={{ marginBottom: "60px" }}>
-      <div className="section-header">
-        <div>
-          <h2 className="section-title">
-            <Zap size={20} style={{ display: "inline", color: "#f59e0b", marginRight: "8px" }} />
-            Featured <span className="gradient-text">Products</span>
-          </h2>
-        </div>
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: "4px" }}>
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: "7px 16px",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid",
-                borderColor:
-                  activeTab === tab ? "var(--brand-primary)" : "var(--border-default)",
-                background:
-                  activeTab === tab
-                    ? "rgba(37, 99, 235, 0.12)"
-                    : "transparent",
-                color:
-                  activeTab === tab ? "var(--brand-primary)" : "var(--text-muted)",
-                fontSize: "13px",
-                fontWeight: "600",
-                cursor: "pointer",
-                textTransform: "capitalize",
-                transition: "all var(--transition-fast)",
-              }}
+    <section style={{ background: "#1a1a1a", padding: "48px 0" }}>
+      <div className="container">
+        <p className="section-heading">Shop by Category</p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {categories.map((cat) => (
+            <Link
+              key={cat.slug}
+              href={`/category/${cat.slug}`}
+              className="category-card"
+              style={{ textDecoration: "none" }}
             >
-              {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
+              <div style={{ color: "rgba(255,255,255,0.7)" }}>{cat.icon}</div>
+              <span
+                style={{
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "rgba(255,255,255,0.85)",
+                }}
+              >
+                {cat.name}
+              </span>
+            </Link>
           ))}
         </div>
       </div>
 
-      <div className="product-grid stagger-children">
-        {filtered.map((product) => (
-          <div key={product.id} className="animate-fade-in-up">
-            <ProductCard product={product} />
-          </div>
-        ))}
-      </div>
-
-      <div style={{ textAlign: "center", marginTop: "32px" }}>
-        <Link href="/products" className="btn-secondary" style={{ padding: "12px 36px" }}>
-          View All Products
-          <ArrowRight size={16} />
-        </Link>
+      {/* Red separator */}
+      <div style={{ marginTop: "48px" }}>
+        <div className="divider-red" />
       </div>
     </section>
   );
 }
 
-// ─── Promo Banner ─────────────────────────────────────────────────────────────
-function PromoBanner() {
+// ─── Best Sellers ─────────────────────────────────────────────────────────────
+function ProductCard({ product }: { product: typeof mockProducts[0] }) {
   return (
-    <div
-      style={{
-        background: "var(--gradient-brand)",
-        borderRadius: "var(--radius-xl)",
-        padding: "48px 60px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: "60px",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Background decoration */}
-      <div
-        style={{
-          position: "absolute",
-          right: "-60px",
-          top: "-60px",
-          width: "300px",
-          height: "300px",
-          background: "rgba(255,255,255,0.05)",
-          borderRadius: "50%",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          right: "100px",
-          bottom: "-80px",
-          width: "200px",
-          height: "200px",
-          background: "rgba(255,255,255,0.05)",
-          borderRadius: "50%",
-        }}
-      />
+    <div className="product-card-dark">
+      {/* Badge */}
+      {product.badge && (
+        <div
+          style={{ position: "absolute", top: "10px", left: "10px", zIndex: 2 }}
+        >
+          <span className={product.badge === "HOT" ? "badge-hot" : "badge-new"}>
+            {product.badge}
+          </span>
+        </div>
+      )}
 
-      <div>
+      {/* Image */}
+      <Link href={`/products/${product.slug}`}>
+        <div
+          style={{
+            background: "#2a2a2a",
+            height: "200px",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={product.image}
+            alt={product.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transition: "transform 0.4s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLImageElement).style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLImageElement).style.transform = "scale(1)";
+            }}
+          />
+        </div>
+      </Link>
+
+      {/* Info */}
+      <div style={{ padding: "14px" }}>
+        <Link href={`/products/${product.slug}`} style={{ textDecoration: "none" }}>
+          <h3
+            style={{
+              fontSize: "14px",
+              fontWeight: "700",
+              color: "rgba(255,255,255,0.92)",
+              marginBottom: "4px",
+              lineHeight: "1.4",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {product.name}
+          </h3>
+        </Link>
+
         <p
           style={{
-            fontSize: "13px",
-            fontWeight: "700",
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            opacity: 0.8,
-            marginBottom: "8px",
+            fontSize: "12px",
+            color: "rgba(255,255,255,0.4)",
+            marginBottom: "10px",
           }}
         >
-          ⚡ Flash Sale — Today Only
+          {product.specs}
         </p>
-        <h2
-          style={{
-            fontSize: "36px",
-            fontWeight: "900",
-            fontFamily: "Outfit, sans-serif",
-            marginBottom: "8px",
-          }}
+
+        {/* Price */}
+        <div style={{ marginBottom: "12px" }}>
+          <div className="price-usd">{formatUSD(product.price)}</div>
+          <div className="price-khr">{formatKHR(product.price)}</div>
+        </div>
+
+        {/* Add to Cart */}
+        <button
+          className="btn-red"
+          style={{ width: "100%", padding: "9px 16px", fontSize: "13px" }}
         >
-          Up to 40% OFF Gaming Laptops
-        </h2>
-        <p style={{ opacity: 0.8, fontSize: "15px" }}>
-          Limited stock. Don't miss out on these incredible deals!
-        </p>
+          <ShoppingCart size={14} />
+          Add to Cart
+        </button>
       </div>
-      <Link
-        href="/products?category=gaming-gear"
-        style={{
-          background: "white",
-          color: "var(--brand-primary)",
-          padding: "14px 32px",
-          borderRadius: "var(--radius-md)",
-          fontWeight: "800",
-          fontSize: "15px",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          flexShrink: 0,
-          transition: "all var(--transition-base)",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.3)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "none";
-        }}
-      >
-        Shop the Sale
-        <ArrowRight size={17} />
-      </Link>
     </div>
+  );
+}
+
+function BestSellers() {
+  return (
+    <section style={{ background: "#111", padding: "48px 0 60px" }}>
+      <div className="container">
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "28px",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "22px",
+              fontWeight: "800",
+              color: "white",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Best Sellers
+          </h2>
+          <Link
+            href="/products"
+            style={{
+              fontSize: "13px",
+              color: "#1a4fa0",
+              fontWeight: "600",
+              transition: "color 150ms ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLAnchorElement).style.color = "#4a8ff0";
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLAnchorElement).style.color = "#1a4fa0";
+            }}
+          >
+            View All
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {mockProducts.slice(0, 4).map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function HomePage() {
   return (
-    <div className="container-main" style={{ paddingTop: "8px" }}>
-      <HeroBanner />
-      <TrustBadges />
-      <CategoryGrid />
-      <FeaturedProducts />
-      <PromoBanner />
+    <div>
+      <HeroSection />
+      <FeatureStrip />
+      <CategorySection />
+      <BestSellers />
     </div>
   );
 }

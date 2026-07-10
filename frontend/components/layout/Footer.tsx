@@ -1,159 +1,112 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, Phone, MapPin, MessageSquare, Share2, Play, Send } from "lucide-react";
+import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
 
 const footerLinks = {
   shop: [
     { label: "Laptops", href: "/category/laptops" },
     { label: "Desktops", href: "/category/desktops" },
-    { label: "Gaming Gear", href: "/category/gaming-gear" },
-    { label: "Monitors", href: "/category/monitors" },
-    { label: "Accessories", href: "/category/accessories" },
+    { label: "Parts & Components", href: "/category/parts" },
+    { label: "Gaming", href: "/category/gaming" },
+    { label: "IT Services", href: "/category/services" },
     { label: "New Arrivals", href: "/products?sort=newest" },
-    { label: "Sale Items", href: "/products?sale=true" },
   ],
   support: [
-    { label: "My Account", href: "/account/profile" },
-    { label: "Order Tracking", href: "/orders" },
-    { label: "Return Policy", href: "/return-policy" },
+    { label: "My Orders", href: "/orders" },
+    { label: "Return Policy", href: "/returns" },
     { label: "Warranty Info", href: "/warranty" },
     { label: "FAQs", href: "/faqs" },
     { label: "Contact Us", href: "/contact" },
+    { label: "Order via Telegram", href: "https://t.me/stechstore" },
   ],
   company: [
-    { label: "About S Tech Store", href: "/about" },
-    { label: "Careers", href: "/careers" },
+    { label: "About Us", href: "/about" },
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms of Service", href: "/terms" },
-    { label: "Cookie Policy", href: "/cookies" },
   ],
 };
 
 export default function Footer() {
   return (
-    <footer
-      style={{
-        background: "var(--bg-surface)",
-        borderTop: "1px solid var(--border-default)",
-        marginTop: "80px",
-      }}
-    >
-      {/* Main Footer Content */}
-      <div className="container-main" style={{ padding: "60px 48px" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: "48px",
-          }}
-        >
-          {/* Brand Column */}
-          <div style={{ maxWidth: "320px" }}>
-            <Link
-              href="/"
-              style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}
-            >
-              <div
+    <footer style={{ background: "#0a0a0a", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="container" style={{ padding: "48px 24px" }}>
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-12">
+          {/* Brand */}
+          <div>
+            <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+              <img
+                src="/logo.jpg"
+                alt="S Tech Store Logo"
                 style={{
-                  width: "40px",
-                  height: "40px",
-                  background: "var(--gradient-brand)",
-                  borderRadius: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: "900",
-                  fontSize: "20px",
-                  fontFamily: "Outfit, sans-serif",
+                  width: "48px",
+                  height: "48px",
+                  objectFit: "contain",
+                  flexShrink: 0,
+                  borderRadius: "8px",
+                  filter: "brightness(0.9)", // slightly tone down the white on dark bg
                 }}
-              >
-                S
-              </div>
+              />
               <div>
+                <div className="font-dangrek" style={{ fontSize: "24px", color: "white", lineHeight: "1", marginBottom: "2px", letterSpacing: "0.02em" }}>
+                  S <span style={{ color: "#c0392b" }}>Tech</span>{" "}
+                  <span style={{ color: "#4a8ff0" }}>Store</span>
+                </div>
                 <div
+                  className="font-khmer"
                   style={{
-                    fontFamily: "Outfit, sans-serif",
-                    fontWeight: "800",
-                    fontSize: "20px",
+                    fontSize: "12px",
+                    color: "rgba(255,255,255,0.45)",
+                    letterSpacing: "0.05em",
                     lineHeight: "1",
                   }}
                 >
-                  <span className="gradient-text">S Tech</span>
-                  <span style={{ color: "var(--text-secondary)" }}> Store</span>
-                </div>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--text-muted)",
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Premium Tech
+                  ហាងបច្ចេកវិទ្យា
                 </div>
               </div>
             </Link>
-            <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.8", marginBottom: "24px" }}>
-              Your one-stop destination for the latest computers, laptops, gaming gear and tech accessories. 
-              Quality guaranteed, best prices, fast delivery.
+            <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", lineHeight: "1.7", marginBottom: "20px" }}>
+              Your trusted source for genuine tech in Cambodia. Top-tier laptops, custom builds, and professional IT services.
             </p>
-            {/* Contact Info */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
                 { icon: Phone, text: "+855 12 345 678" },
-                { icon: Mail, text: "support@stechstore.com" },
+                { icon: Mail, text: "support@stechstore.com.kh" },
                 { icon: MapPin, text: "Phnom Penh, Cambodia" },
+                { icon: MessageSquare, text: "Telegram: @stechstore" },
               ].map(({ icon: Icon, text }) => (
-                <div
-                  key={text}
-                  style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-muted)", fontSize: "13px" }}
-                >
-                  <Icon size={14} style={{ color: "var(--brand-primary)", flexShrink: 0 }} />
+                <div key={text} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>
+                  <Icon size={13} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
                   {text}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Links Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "32px",
-            }}
-          >
-            {Object.entries(footerLinks).map(([key, links]) => (
+          {/* Links */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+            {(Object.entries(footerLinks) as [string, { label: string; href: string }[]][]).map(([key, links]) => (
               <div key={key}>
                 <h4
                   style={{
-                    fontSize: "13px",
+                    fontSize: "11px",
                     fontWeight: "700",
                     textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    color: "var(--text-primary)",
-                    marginBottom: "16px",
+                    letterSpacing: "0.1em",
+                    color: "rgba(255,255,255,0.5)",
+                    marginBottom: "14px",
                   }}
                 >
                   {key === "shop" ? "Shop" : key === "support" ? "Support" : "Company"}
                 </h4>
-                <ul style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <ul style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {links.map((link) => (
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        style={{
-                          color: "var(--text-muted)",
-                          fontSize: "14px",
-                          transition: "color var(--transition-fast)",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.target as HTMLAnchorElement).style.color = "var(--brand-primary)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.target as HTMLAnchorElement).style.color = "var(--text-muted)";
-                        }}
+                        style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", transition: "color 150ms ease" }}
+                        onMouseEnter={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.85)")}
+                        onMouseLeave={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.4)")}
                       >
                         {link.label}
                       </Link>
@@ -166,85 +119,17 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
-      <div className="divider" />
-      <div className="container-main">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "20px 0",
-            flexWrap: "wrap",
-            gap: "16px",
-          }}
-        >
-          <p style={{ color: "var(--text-muted)", fontSize: "13px" }}>
-            © 2025 S Tech Store. All rights reserved.
-          </p>
-
-          {/* Social Links */}
-          <div style={{ display: "flex", gap: "8px" }}>
-            {[
-              { icon: MessageSquare, href: "#" },
-              { icon: Share2, href: "#" },
-              { icon: Play, href: "#" },
-              { icon: Send, href: "#" },
-            ].map(({ icon: Icon, href }, i) => (
-              <a
-                key={i}
-                href={href}
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  background: "var(--bg-surface-2)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--text-muted)",
-                  transition: "all var(--transition-fast)",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget as HTMLAnchorElement;
-                  el.style.background = "rgba(37, 99, 235, 0.15)";
-                  el.style.borderColor = "var(--brand-primary)";
-                  el.style.color = "var(--brand-primary)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget as HTMLAnchorElement;
-                  el.style.background = "var(--bg-surface-2)";
-                  el.style.borderColor = "var(--border-default)";
-                  el.style.color = "var(--text-muted)";
-                }}
-              >
-                <Icon size={15} />
-              </a>
-            ))}
-          </div>
-
-          {/* Payment icons placeholder */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            {["VISA", "MC", "PayPal", "ABA"].map((pay) => (
-              <span
-                key={pay}
-                style={{
-                  padding: "3px 8px",
-                  background: "var(--bg-surface-2)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "4px",
-                  fontSize: "10px",
-                  fontWeight: "700",
-                  color: "var(--text-muted)",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                {pay}
-              </span>
-            ))}
-          </div>
-        </div>
+      {/* Bottom */}
+      <div
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          padding: "16px 24px",
+          textAlign: "center",
+          fontSize: "12px",
+          color: "rgba(255,255,255,0.25)",
+        }}
+      >
+        © 2025 S Tech Store. All rights reserved. | Phnom Penh, Cambodia 🇰🇭
       </div>
     </footer>
   );

@@ -1,327 +1,249 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Search,
   ShoppingCart,
-  Heart,
   User,
+  Phone,
   Menu,
   X,
-  Bell,
   ChevronDown,
-  Cpu,
-  Monitor,
-  Keyboard,
-  HardDrive,
-  Gamepad2,
-  Wifi,
-  Package,
-  Laptop,
+  Heart,
+  Bell,
 } from "lucide-react";
 
-const categories = [
-  { name: "Laptops", slug: "laptops", icon: Laptop },
-  { name: "Desktops", slug: "desktops", icon: Monitor },
-  { name: "Monitors", slug: "monitors", icon: Monitor },
-  { name: "Keyboards", slug: "keyboards", icon: Keyboard },
-  { name: "Gaming Gear", slug: "gaming-gear", icon: Gamepad2 },
-  { name: "Storage", slug: "storage", icon: HardDrive },
-  { name: "Networking", slug: "networking", icon: Wifi },
-  { name: "Accessories", slug: "accessories", icon: Package },
+const navLinks = [
+  { label: "Home", href: "/" },
+  { label: "Laptops", href: "/category/laptops" },
+  { label: "Desktops", href: "/category/desktops" },
+  { label: "Parts", href: "/category/parts" },
+  { label: "Gaming", href: "/category/gaming" },
+  { label: "Services", href: "/category/services" },
 ];
 
 export default function Navbar() {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [lang, setLang] = useState("EN");
   const pathname = usePathname();
-
-  useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const cartCount = 3; // placeholder
-  const wishlistCount = 5; // placeholder
+  const cartCount = 0;
 
   return (
     <>
-      {/* Top Announcement Bar */}
-      <div
-        style={{
-          background: "var(--gradient-brand)",
-          padding: "8px 0",
-          textAlign: "center",
-          fontSize: "13px",
-          fontWeight: "500",
-          letterSpacing: "0.02em",
-        }}
-      >
-        🎉 Free Shipping on orders over $99 — Use code{" "}
-        <strong>STECH10</strong> for 10% off!
+      {/* Top Bar */}
+      <div className="bg-[#111] text-white/75 text-[12px] py-[7px] border-b border-white/5">
+        <div className="container flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0 text-center md:text-left">
+          <div className="flex items-center justify-center md:justify-start gap-1.5">
+            <Phone size={12} />
+            <span>+855 12 345 678 | support@stechstore.com.kh</span>
+          </div>
+          <div className="flex items-center justify-center md:justify-end gap-4">
+            <span className="hidden md:inline border-r border-white/20 pr-4">🇰🇭 Free Same-Day Delivery in Phnom Penh</span>
+            
+            {/* Language Switcher */}
+            <div className="relative z-50">
+              <button
+                type="button"
+                onClick={() => setLangOpen(!langOpen)}
+                className="flex items-center gap-1.5 hover:text-white transition-colors cursor-pointer"
+              >
+                {lang === "EN" ? "🇺🇸 EN" : "🇰🇭 KHM"}
+                <ChevronDown size={12} />
+              </button>
+              {langOpen && (
+                <div className="absolute top-full right-0 mt-3 w-[120px] bg-white text-[#1a1a1a] rounded-md shadow-2xl overflow-hidden border border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => { setLang("EN"); setLangOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-[13px] hover:bg-gray-100 transition-colors font-medium cursor-pointer"
+                  >
+                    🇺🇸 English
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLang("KM"); setLangOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-[13px] hover:bg-gray-100 transition-colors font-medium cursor-pointer font-khmer"
+                  >
+                    🇰🇭 ខ្មែរ
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <Link
+              href="/login"
+              className="text-white text-[13px] font-semibold bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-md no-underline transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/register"
+              className="text-white text-[13px] font-semibold bg-[#c0392b] hover:bg-[#8B1A1A] px-4 py-1.5 rounded-md no-underline transition-colors"
+            >
+              Register
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Main Navbar */}
-      <nav
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-          background: isScrolled
-            ? "rgba(10, 14, 26, 0.95)"
-            : "var(--bg-surface)",
-          backdropFilter: isScrolled ? "blur(16px)" : "none",
-          borderBottom: "1px solid var(--border-default)",
-          transition: "all var(--transition-base)",
-        }}
-      >
-        <div
-          className="container-main"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "20px",
-            height: "68px",
-          }}
-        >
+      <nav className="navbar bg-white border-b border-gray-100">
+        <div className="container navbar-inner flex items-center justify-between py-3 md:py-0 h-auto md:h-[64px]">
           {/* Logo */}
-          <Link
-            href="/"
-            style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}
-          >
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                background: "var(--gradient-brand)",
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: "900",
-                fontSize: "18px",
-                fontFamily: "Outfit, sans-serif",
-              }}
-            >
-              S
-            </div>
+          <Link href="/" className="nav-logo flex items-center gap-2.5 flex-shrink-0 no-underline">
+            <img
+              src="/logo.jpg"
+              alt="S Tech Store Logo"
+              className="w-[42px] h-[42px] object-contain flex-shrink-0 rounded-lg"
+            />
             <div>
-              <div
-                style={{
-                  fontFamily: "Outfit, sans-serif",
-                  fontWeight: "800",
-                  fontSize: "18px",
-                  lineHeight: "1",
-                }}
-              >
-                <span className="gradient-text">S Tech</span>
-                <span style={{ color: "var(--text-secondary)" }}> Store</span>
+              <div className="font-dangrek text-[22px] leading-none text-[#1a1a1a] tracking-[0.02em] mb-[2px]">
+                S <span className="text-[#8B1A1A]">Tech</span> <span className="text-[#1a4fa0]">Store</span>
               </div>
-              <div
-                style={{
-                  fontSize: "10px",
-                  color: "var(--text-muted)",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Premium Tech
+              <div className="font-khmer text-[11px] text-[#555] tracking-[0.05em] leading-none">
+                ហាងបច្ចេកវិទ្យា
               </div>
             </div>
           </Link>
 
-          {/* Category Dropdown */}
-          <div
-            style={{ position: "relative", flexShrink: 0 }}
-            onMouseEnter={() => setIsCategoryOpen(true)}
-            onMouseLeave={() => setIsCategoryOpen(false)}
-          >
-            <button
-              className="btn-secondary"
-              style={{ padding: "8px 16px", fontSize: "13px" }}
-            >
-              <Menu size={15} />
-              All Categories
-              <ChevronDown
-                size={14}
-                style={{
-                  transform: isCategoryOpen ? "rotate(180deg)" : "none",
-                  transition: "transform var(--transition-fast)",
-                }}
+          {/* Desktop Nav Links */}
+          <div className="nav-links hidden md:flex items-center gap-1 flex-1 ml-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-3.5 py-1.5 text-[14px] font-medium rounded-md transition-colors whitespace-nowrap ${
+                  pathname === link.href ? "text-[#8B1A1A] bg-gray-50" : "text-[#555] hover:text-[#1a1a1a] hover:bg-gray-50"
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          {/* Desktop Right Side (Search + Icons) */}
+          <div className="hidden md:flex items-center gap-4">
+            {/* Search */}
+            <div className="relative w-[280px] flex-shrink-0">
+              <input
+                type="text"
+                className="w-full bg-gray-50 border border-gray-200 rounded-md pl-[38px] pr-4 h-[40px] text-[14px] outline-none focus:border-[#8B1A1A] transition-colors"
+                placeholder="Search products..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
-            </button>
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+            </div>
 
-            {isCategoryOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 8px)",
-                  left: 0,
-                  width: "260px",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "8px",
-                  boxShadow: "var(--shadow-lg)",
-                  animation: "fadeInUp 0.2s ease",
-                  zIndex: 200,
-                }}
+            {/* Icons */}
+            <div className="flex items-center gap-1">
+              <Link
+                href="/wishlist"
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
               >
-                {categories.map((cat) => {
-                  const Icon = cat.icon;
-                  return (
-                    <Link
-                      key={cat.slug}
-                      href={`/category/${cat.slug}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                        padding: "10px 12px",
-                        borderRadius: "var(--radius-md)",
-                        color: "var(--text-secondary)",
-                        fontSize: "14px",
-                        transition: "all var(--transition-fast)",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLAnchorElement).style.background =
-                          "rgba(37, 99, 235, 0.1)";
-                        (e.currentTarget as HTMLAnchorElement).style.color =
-                          "var(--text-primary)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLAnchorElement).style.background = "transparent";
-                        (e.currentTarget as HTMLAnchorElement).style.color =
-                          "var(--text-secondary)";
-                      }}
-                    >
-                      <Icon size={16} />
-                      {cat.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                <Heart size={20} />
+              </Link>
 
-          {/* Search Bar */}
-          <div style={{ flex: 1, position: "relative", maxWidth: "480px" }}>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Search laptops, monitors, keyboards..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: "44px", paddingRight: "44px" }}
-            />
-            <Search
-              size={16}
-              style={{
-                position: "absolute",
-                left: "14px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "var(--text-muted)",
-                pointerEvents: "none",
-              }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                style={{
-                  position: "absolute",
-                  right: "14px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  display: "flex",
-                }}
+              <Link
+                href="/cart"
+                className="relative w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
               >
-                <X size={14} />
+                <ShoppingCart size={20} />
+                {cartCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+
+              <button className="relative w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors">
+                <Bell size={20} />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
               </button>
-            )}
+
+              <Link
+                href="/account/profile"
+                className="w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              >
+                <User size={20} />
+              </Link>
+            </div>
           </div>
 
-          {/* Nav Actions */}
-          <div
-            style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "auto" }}
-          >
-            {/* Wishlist */}
-            <Link href="/wishlist" className="btn-ghost" style={{ position: "relative", padding: "10px" }}>
-              <Heart size={20} />
-              {wishlistCount > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "4px",
-                    right: "4px",
-                    width: "18px",
-                    height: "18px",
-                    background: "#ef4444",
-                    borderRadius: "50%",
-                    fontSize: "10px",
-                    fontWeight: "700",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                  }}
-                >
-                  {wishlistCount}
-                </span>
-              )}
-            </Link>
-
-            {/* Cart */}
-            <Link href="/cart" className="btn-ghost" style={{ position: "relative", padding: "10px" }}>
-              <ShoppingCart size={20} />
-              {cartCount > 0 && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: "4px",
-                    right: "4px",
-                    width: "18px",
-                    height: "18px",
-                    background: "var(--brand-primary)",
-                    borderRadius: "50%",
-                    fontSize: "10px",
-                    fontWeight: "700",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                  }}
-                >
-                  {cartCount}
-                </span>
-              )}
-            </Link>
-
-            {/* Account */}
-            <Link href="/login" className="btn-primary" style={{ padding: "9px 18px" }}>
-              <User size={16} />
-              Sign In
-            </Link>
-          </div>
-
-          {/* Mobile toggle */}
+          {/* Mobile Menu Button */}
           <button
-            className="btn-ghost"
-            style={{ display: "none", padding: "10px" }}
-            onClick={() => setIsMobileOpen(!isMobileOpen)}
+            className="md:hidden w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555]"
+            onClick={() => setMobileOpen(!mobileOpen)}
           >
-            {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-4">
+            <div className="relative w-full">
+              <input
+                type="text"
+                className="w-full bg-gray-50 border border-gray-200 rounded-md pl-[38px] pr-4 h-[40px] text-[14px] outline-none focus:border-[#8B1A1A]"
+                placeholder="Search products..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Search
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+            </div>
+            
+            <div className="flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`px-4 py-2 text-[15px] font-medium rounded-md ${
+                    pathname === link.href ? "text-[#8B1A1A] bg-red-50" : "text-[#555]"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+              <Link href="/wishlist" className="flex flex-col items-center gap-1 text-[#555]">
+                <Heart size={20} />
+                <span className="text-[11px]">Wishlist</span>
+              </Link>
+              <Link href="/cart" className="relative flex flex-col items-center gap-1 text-[#555]">
+                <ShoppingCart size={20} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 right-2 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+                <span className="text-[11px]">Cart</span>
+              </Link>
+              <button className="relative flex flex-col items-center gap-1 text-[#555]">
+                <Bell size={20} />
+                <span className="absolute -top-0.5 right-4 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                <span className="text-[11px]">Alerts</span>
+              </button>
+              <Link href="/account/profile" className="flex flex-col items-center gap-1 text-[#555]">
+                <User size={20} />
+                <span className="text-[11px]">Profile</span>
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
     </>
   );
