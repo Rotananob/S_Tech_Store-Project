@@ -1,0 +1,54 @@
+# ─── Laravel Core ─────────────────────────────────────────────────────────────
+vendor/
+composer.lock
+.phpunit.cache/
+
+# ─── Environment (NEVER commit!) ─────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+# Only .env.example should be committed
+
+# ─── Firebase Service Account Key (CRITICAL — NEVER commit!) ─────────────────
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+storage/app/firebase/
+
+# ─── Storage & Cache ──────────────────────────────────────────────────────────
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/logs/*.log
+bootstrap/cache/*.php
+
+# ─── IDE & Editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+.phpunit.result.cache
+coverage/
+*.lcov
+.jest-cache/
+
+# ─── NPM (if using frontend assets) ──────────────────────────────────────────
+node_modules/
+public/hot
+public/storage
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
+*.orig
+.cache/
+Homestead.json
+Homestead.yaml
+auth.json

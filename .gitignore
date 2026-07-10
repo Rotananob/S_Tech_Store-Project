@@ -1,0 +1,13 @@
+# S Tech Store — Root
+node_modules/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.env
+.env.local
+.env.production
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+.idea/
+.vscode/settings.json
