@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCart, ChevronRight, Check, Send } from "lucide-react";
-import { mockProducts, formatUSD, formatKHR } from "@/lib/mock-data";
-
-// Find or fallback product
-function getProduct(slug: string) {
-  return mockProducts.find((p) => p.slug === slug) ?? mockProducts[4];
-}
+import { formatUSD, formatKHR } from "@/lib/mock-data";
+import api from "@/lib/api";
+import { useCartStore } from "@/store/cartStore";
 
 type TabType = "specs" | "description" | "reviews";
 
@@ -18,14 +15,51 @@ export default function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const product = getProduct(slug);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<TabType>("specs");
+  
+  const addItemToCart = useCartStore((state) => state.addItem);
 
-  const images = (product as any).images ?? [product.image];
-  const specs = (product as any).specs_detail ?? [];
-  const model = (product as any).model ?? product.specs;
+  useEffect(() => {
+    api.get(`/products/${slug}`)
+      .then(res => {
+        setProduct(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [slug]);
+
+  if (loading) {
+    return <div style={{ minHeight: "100vh", background: "#111", display: "flex", justifyContent: "center", alignItems: "center", color: "white" }}>Loading...</div>;
+  }
+
+  if (!product) {
+    return <div style={{ minHeight: "100vh", background: "#111", display: "flex", justifyContent: "center", alignItems: "center", color: "white" }}>Product not found</div>;
+  }
+
+  const handleAddToCart = () => {
+    addItemToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: qty,
+      image_url: product.image_url,
+    });
+    alert("Added to cart!");
+  };
+
+  const images = product.image_url ? [product.image_url] : ["/placeholder.jpg"];
+  const specs = [
+    { key: "Category", value: product.category?.name || "Uncategorized" },
+    { key: "Stock", value: product.stock > 0 ? "In Stock" : "Out of Stock" }
+  ];
+  const model = product.name;
 
   return (
     <div style={{ background: "#111", minHeight: "100vh", color: "white" }}>
@@ -52,12 +86,12 @@ export default function ProductDetailPage({
           </Link>
           <ChevronRight size={13} />
           <Link
-            href={`/category/${product.category.toLowerCase()}`}
+            href={`/category/${product.category?.name?.toLowerCase() || 'uncategorized'}`}
             style={{ color: "rgba(255,255,255,0.45)", transition: "color 150ms" }}
             onMouseEnter={(e) => ((e.target as HTMLAnchorElement).style.color = "white")}
             onMouseLeave={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.45)")}
           >
-            {product.category}
+            {product.category?.name || "Uncategorized"}
           </Link>
           <ChevronRight size={13} />
           <span style={{ color: "rgba(255,255,255,0.7)" }}>{product.name}</span>
@@ -190,20 +224,20 @@ export default function ProductDetailPage({
                   width: "8px",
                   height: "8px",
                   borderRadius: "50%",
-                  background: product.in_stock ? "#22c55e" : "#ef4444",
+                  background: product.stock > 0 ? "#22c55e" : "#ef4444",
                   flexShrink: 0,
                 }}
               />
               <span
                 style={{
                   fontSize: "13px",
-                  color: product.in_stock ? "#22c55e" : "#ef4444",
+                  color: product.stock > 0 ? "#22c55e" : "#ef4444",
                   fontWeight: "600",
                 }}
               >
-                {product.in_stock ? "In Stock" : "Out of Stock"}
+                {product.stock > 0 ? "In Stock" : "Out of Stock"}
               </span>
-              {product.in_stock && (
+              {product.stock > 0 && (
                 <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
                   — Ships today
                 </span>
@@ -254,8 +288,10 @@ export default function ProductDetailPage({
             {/* CTA Buttons */}
             <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
               <button
+                onClick={handleAddToCart}
+                disabled={product.stock === 0}
                 className="btn-red"
-                style={{ flex: 1, padding: "13px 20px", fontSize: "14px" }}
+                style={{ flex: 1, padding: "13px 20px", fontSize: "14px", opacity: product.stock === 0 ? 0.5 : 1 }}
               >
                 <ShoppingCart size={16} />
                 Add to Cart

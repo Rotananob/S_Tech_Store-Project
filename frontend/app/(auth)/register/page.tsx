@@ -2,12 +2,48 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "../../../lib/firebase"; // Fixed import path: app/(auth)/register to lib
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      // You can also use updateProfile to set the user's name if needed.
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Failed to create an account.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Google.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -85,7 +121,13 @@ export default function RegisterPage() {
           Join S Tech Store to start shopping
         </p>
 
-        <form onSubmit={(e) => e.preventDefault()} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        {error && (
+          <div style={{ background: "rgba(255, 0, 0, 0.1)", border: "1px solid rgba(255, 0, 0, 0.3)", color: "#ff4d4d", padding: "10px", borderRadius: "8px", marginBottom: "20px", fontSize: "14px", textAlign: "center" }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Name */}
           <div>
             <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
@@ -201,10 +243,11 @@ export default function RegisterPage() {
             }}
             onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 6px 16px rgba(139,26,26,0.5)")}
             onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(139,26,26,0.3)")}
-            onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-            onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            onMouseDown={(e) => !loading && (e.currentTarget.style.transform = "scale(0.98)")}
+            onMouseUp={(e) => !loading && (e.currentTarget.style.transform = "scale(1)")}
+            disabled={loading}
           >
-            Create Account
+            {loading ? "Creating..." : "Create Account"}
           </button>
         </form>
 
@@ -232,8 +275,10 @@ export default function RegisterPage() {
             cursor: "pointer",
             transition: "background 0.2s",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+          onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#f5f5f5")}
+          onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "white")}
+          onClick={handleGoogleSignIn}
+          disabled={loading}
         >
           <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{ width: "20px", height: "20px" }} />
           Sign up with Google

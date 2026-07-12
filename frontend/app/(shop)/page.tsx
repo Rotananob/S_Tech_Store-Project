@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
-import { mockProducts, mockCategories, formatUSD, formatKHR } from "@/lib/mock-data";
+import { mockCategories, formatUSD, formatKHR } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
+import api from "@/lib/api";
+import { useCartStore } from "@/store/cartStore";
 
 // ─── Hero Section ─────────────────────────────────────────────────────────────
 function HeroSection() {
@@ -188,16 +191,30 @@ function CategorySection() {
 }
 
 // ─── Best Sellers ─────────────────────────────────────────────────────────────
-function ProductCard({ product }: { product: typeof mockProducts[0] }) {
+function ProductCard({ product }: { product: any }) {
+  const addItem = useCartStore((state) => state.addItem);
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    addItem({
+      id: Number(product.id),
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image_url: product.image_url
+    });
+    alert("Added to cart!");
+  };
+
   return (
     <div className="product-card-dark">
       {/* Badge */}
-      {product.badge && (
+      {product.is_featured && (
         <div
           style={{ position: "absolute", top: "10px", left: "10px", zIndex: 2 }}
         >
-          <span className={product.badge === "HOT" ? "badge-hot" : "badge-new"}>
-            {product.badge}
+          <span className="badge-hot">
+            HOT
           </span>
         </div>
       )}
@@ -214,22 +231,26 @@ function ProductCard({ product }: { product: typeof mockProducts[0] }) {
             justifyContent: "center",
           }}
         >
-          <img
-            src={product.image}
-            alt={product.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transition: "transform 0.4s ease",
-            }}
-            onMouseEnter={(e) => {
-              (e.target as HTMLImageElement).style.transform = "scale(1.05)";
-            }}
-            onMouseLeave={(e) => {
-              (e.target as HTMLImageElement).style.transform = "scale(1)";
-            }}
-          />
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                transition: "transform 0.4s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.target as HTMLImageElement).style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                (e.target as HTMLImageElement).style.transform = "scale(1)";
+              }}
+            />
+          ) : (
+            <span style={{fontSize: 40}}>💻</span>
+          )}
         </div>
       </Link>
 
@@ -260,7 +281,7 @@ function ProductCard({ product }: { product: typeof mockProducts[0] }) {
             marginBottom: "10px",
           }}
         >
-          {product.specs}
+          {product.category?.name || "Uncategorized"}
         </p>
 
         {/* Price */}
@@ -273,6 +294,7 @@ function ProductCard({ product }: { product: typeof mockProducts[0] }) {
         <button
           className="btn-red"
           style={{ width: "100%", padding: "9px 16px", fontSize: "13px" }}
+          onClick={handleAddToCart}
         >
           <ShoppingCart size={14} />
           Add to Cart
@@ -283,6 +305,14 @@ function ProductCard({ product }: { product: typeof mockProducts[0] }) {
 }
 
 function BestSellers() {
+  const [products, setProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.get('/products')
+      .then(res => setProducts(res.data.reverse().slice(0, 8)))
+      .catch(console.error);
+  }, []);
+
   return (
     <section style={{ background: "#111", padding: "48px 0 60px" }}>
       <div className="container">
@@ -325,7 +355,7 @@ function BestSellers() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {mockProducts.slice(0, 4).map((product) => (
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

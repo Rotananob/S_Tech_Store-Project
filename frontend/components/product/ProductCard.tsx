@@ -6,14 +6,45 @@ import Image from "next/image";
 import { Heart, ShoppingCart, Star, Eye, Zap } from "lucide-react";
 import { Product } from "@/types";
 import { formatPrice } from "@/lib/utils";
+import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 interface ProductCardProps {
   product: Product;
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const addItem = useCartStore((state) => state.addItem);
+  
+  const { addItem: addWishlist, removeItem: removeWishlist, isInWishlist } = useWishlistStore();
+  const isWishlisted = isInWishlist(Number(product.id));
+
+  const toggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isWishlisted) {
+      removeWishlist(Number(product.id));
+    } else {
+      addWishlist({
+        id: Number(product.id),
+        name: product.name,
+        price: product.sale_price ?? product.price,
+        image: product.image,
+        slug: product.slug,
+      });
+    }
+  };
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    addItem({
+      id: Number(product.id),
+      name: product.name,
+      price: product.sale_price ?? product.price,
+      quantity: 1,
+      image_url: product.image
+    });
+    alert("Added to cart!");
+  };
 
   const discountPercent =
     product.sale_price && product.price
@@ -147,10 +178,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         >
           {/* Wishlist */}
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsWishlisted(!isWishlisted);
-            }}
+            onClick={toggleWishlist}
             style={{
               width: "34px",
               height: "34px",
@@ -201,7 +229,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             className="btn-primary"
             style={{ width: "100%", padding: "9px", fontSize: "13px" }}
-            onClick={(e) => e.preventDefault()}
+            onClick={handleAddToCart}
           >
             <ShoppingCart size={14} />
             Add to Cart

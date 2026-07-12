@@ -10,4 +10,9 @@ desktop.ini
 serviceAccountKey.json
 *-firebase-adminsdk-*.json
 .idea/
-.vscode/settings.json
+.vscode/
+backend_backup/
+frontend/.next/
+frontend/out/
+backend/vendor/
+backend/storage/*.key

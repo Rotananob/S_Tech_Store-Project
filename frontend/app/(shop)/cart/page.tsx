@@ -1,50 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trash2, Lock, Truck, ArrowRight, Check } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
+import { useCartStore } from "@/store/cartStore";
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Razer Blade 16 (2024)",
-      specs: "RTX 4090, 32GB RAM, 2TB NVMe",
-      subtitle: "កុំព្យូទ័រយួរដៃសម្រាប់លេងហ្គេម",
-      price: 4299.0,
-      qty: 1,
-      image: "https://images.unsplash.com/photo-1593640408182-31c228b7f4c4?w=600&q=80",
-    },
-    {
-      id: 2,
-      name: "Dell UltraSharp 32 4K USB-C Hub Monitor",
-      specs: "U3223QE, IPS Black, 98% DCI-P3",
-      subtitle: "អេក្រង់កុំព្យូទ័រ",
-      price: 850.0,
-      qty: 2,
-      image: "https://images.unsplash.com/photo-1527443224154-c4a573d3b9e5?w=600&q=80",
-    },
-  ]);
+  const { items: cartItems, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCartStore();
+  const [mounted, setMounted] = useState(false);
 
-  const updateQty = (id: number, delta: number) => {
-    setCartItems(
-      cartItems.map((item) => {
-        if (item.id === id) {
-          const newQty = Math.max(1, item.qty + delta);
-          return { ...item, qty: newQty };
-        }
-        return item;
-      })
-    );
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const removeItem = (id: number) => {
-    setCartItems(cartItems.filter((item) => item.id !== id));
-  };
+  const subtotal = getTotalPrice();
+  const totalItems = getTotalItems();
 
-  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const totalItems = cartItems.reduce((acc, item) => acc + item.qty, 0);
+  if (!mounted) {
+    return <div style={{ minHeight: "100vh", background: "#fdfdfd" }} />;
+  }
 
   return (
     <div style={{ background: "#fdfdfd", minHeight: "100vh", color: "#1a1a1a" }}>
@@ -106,13 +81,11 @@ export default function CartPage() {
                   className="flex flex-col sm:flex-row border border-[#eaeaea] bg-white p-4 rounded-md gap-4 sm:gap-0"
                 >
                   <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px" }}>
-                    <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    <img src={item.image_url || ""} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                   </div>
 
                   <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginBottom: "6px" }}>{item.name}</h3>
-                    <p style={{ fontFamily: "monospace", fontSize: "12px", color: "#666", marginBottom: "4px" }}>{item.specs}</p>
-                    <p className="font-khmer" style={{ fontSize: "13px", color: "#888" }}>{item.subtitle}</p>
                   </div>
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
@@ -123,16 +96,16 @@ export default function CartPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <div style={{ display: "flex", alignItems: "center", border: "1px solid #ddd", borderRadius: "3px", overflow: "hidden" }}>
                         <button
-                          onClick={() => updateQty(item.id, -1)}
+                          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                           style={{ width: "28px", height: "28px", background: "white", border: "none", borderRight: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
                         >
                           -
                         </button>
                         <div style={{ width: "32px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "600", background: "white" }}>
-                          {item.qty}
+                          {item.quantity}
                         </div>
                         <button
-                          onClick={() => updateQty(item.id, 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           style={{ width: "28px", height: "28px", background: "white", border: "none", borderLeft: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
                         >
                           +

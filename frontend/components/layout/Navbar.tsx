@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 import {
   Search,
   ShoppingCart,
@@ -14,6 +16,7 @@ import {
   Heart,
   Bell,
 } from "lucide-react";
+import { useCartStore } from "@/store/cartStore";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -21,7 +24,8 @@ const navLinks = [
   { label: "Desktops", href: "/category/desktops" },
   { label: "Parts", href: "/category/parts" },
   { label: "Gaming", href: "/category/gaming" },
-  { label: "Services", href: "/category/services" },
+  { label: "Services", href: "/services" },
+  { label: "🔧 Build PC", href: "/build-pc" },
 ];
 
 export default function Navbar() {
@@ -29,8 +33,22 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [lang, setLang] = useState("EN");
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const pathname = usePathname();
-  const cartCount = 0;
+  const [mounted, setMounted] = useState(false);
+  const cartCount = useCartStore((state) => state.getTotalItems());
+
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+      });
+      return () => unsubscribe();
+    } catch (e) {
+      console.error("Firebase auth error:", e);
+    }
+  }, []);
 
   return (
     <>
@@ -74,18 +92,32 @@ export default function Navbar() {
               )}
             </div>
 
-            <Link
-              href="/login"
-              className="text-white text-[13px] font-semibold bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-md no-underline transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/register"
-              className="text-white text-[13px] font-semibold bg-[#c0392b] hover:bg-[#8B1A1A] px-4 py-1.5 rounded-md no-underline transition-colors"
-            >
-              Register
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-4">
+                <span className="text-white text-[13px]">Hi, {user.displayName || user.email?.split('@')[0]}</span>
+                <button
+                  onClick={() => signOut(auth)}
+                  className="text-white text-[13px] font-semibold bg-[#c0392b] hover:bg-[#8B1A1A] px-4 py-1.5 rounded-md no-underline transition-colors cursor-pointer border-none"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="text-white text-[13px] font-semibold bg-white/10 hover:bg-white/20 px-4 py-1.5 rounded-md no-underline transition-colors"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className="text-white text-[13px] font-semibold bg-[#c0392b] hover:bg-[#8B1A1A] px-4 py-1.5 rounded-md no-underline transition-colors"
+                >
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -156,7 +188,7 @@ export default function Navbar() {
                 className="relative w-[38px] h-[38px] flex items-center justify-center rounded-md text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
               >
                 <ShoppingCart size={20} />
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center">
                     {cartCount}
                   </span>
@@ -225,7 +257,7 @@ export default function Navbar() {
               </Link>
               <Link href="/cart" className="relative flex flex-col items-center gap-1 text-[#555]">
                 <ShoppingCart size={20} />
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <span className="absolute -top-1 right-2 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center">
                     {cartCount}
                   </span>
