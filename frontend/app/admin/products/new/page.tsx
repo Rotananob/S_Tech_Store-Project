@@ -15,7 +15,15 @@ export default function AddNewProductPage() {
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [featured, setFeatured] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
+
+  type MediaItem = {
+    id: string;
+    type: "file" | "url";
+    file?: File;
+    url?: string;
+    preview?: string;
+  };
+  const [mediaList, setMediaList] = useState<MediaItem[]>([]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -29,14 +37,26 @@ export default function AddNewProductPage() {
     }
     
     try {
-      await api.post("/products", {
-        name,
-        category_id: parseInt(categoryId),
-        price: parseFloat(price),
-        stock: parseInt(stock),
-        description,
-        is_featured: featured,
-        image_url: imageUrl || null
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("category_id", categoryId);
+      formData.append("price", price);
+      formData.append("stock", stock);
+      formData.append("description", description);
+      formData.append("is_featured", featured ? "1" : "0");
+      
+      mediaList.forEach(item => {
+        if (item.type === "file" && item.file) {
+          formData.append("images[]", item.file);
+        } else if (item.type === "url" && item.url) {
+          formData.append("image_urls[]", item.url);
+        }
+      });
+
+      await api.post("/products", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        }
       });
 
       showToast("Product saved successfully! Redirecting...");
@@ -125,11 +145,77 @@ export default function AddNewProductPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 24 }}>
           {/* Media */}
           <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Media</h2>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Image URL</label>
-              <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://..." style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#111" }}>Media</h2>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button type="button" onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "file" }])} style={{ padding: "6px 12px", fontSize: "12px", backgroundColor: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer" }}>+ Add File</button>
+                <button type="button" onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "url", url: "" }])} style={{ padding: "6px 12px", fontSize: "12px", backgroundColor: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer" }}>+ Add URL</button>
+              </div>
             </div>
+
+            {mediaList.length === 0 && (
+              <div style={{ padding: "32px", textAlign: "center", backgroundColor: "#f8fafc", borderRadius: 8, border: "1px dashed #cbd5e1", color: "#64748b", fontSize: "14px" }}>
+                No media added. Click the buttons above to add images.
+              </div>
+            )}
+
+            {mediaList.map((media, index) => (
+              <div key={media.id} style={{ marginBottom: 16, padding: "16px", border: "1px solid #e2e8f0", borderRadius: 8, position: "relative" }}>
+                <button 
+                  type="button"
+                  onClick={() => setMediaList(mediaList.filter(m => m.id !== media.id))}
+                  style={{ position: "absolute", top: 12, right: 12, width: 24, height: 24, backgroundColor: "#fee2e2", color: "#ef4444", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 12 }}
+                  title="Remove Image"
+                >
+                  X
+                </button>
+                
+                {media.type === "file" ? (
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Upload File {index + 1}</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const file = e.target.files[0];
+                          const newMediaList = [...mediaList];
+                          if (newMediaList[index].preview) URL.revokeObjectURL(newMediaList[index].preview!);
+                          newMediaList[index] = { ...newMediaList[index], file, preview: URL.createObjectURL(file) };
+                          setMediaList(newMediaList);
+                        }
+                      }} 
+                      style={{ width: "calc(100% - 30px)", padding: "8px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14 }} 
+                    />
+                    {media.preview && (
+                      <div style={{ marginTop: "16px", padding: "10px", backgroundColor: "#f9f9f9", border: "1px dashed #ccc", borderRadius: "6px", textAlign: "center" }}>
+                        <img src={media.preview} alt="Preview" style={{ maxWidth: "100%", maxHeight: "150px", objectFit: "contain", borderRadius: 4 }} />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Image URL {index + 1}</label>
+                    <input 
+                      type="text" 
+                      value={media.url || ""} 
+                      onChange={e => {
+                        const newMediaList = [...mediaList];
+                        newMediaList[index] = { ...newMediaList[index], url: e.target.value };
+                        setMediaList(newMediaList);
+                      }} 
+                      placeholder="https://..." 
+                      style={{ width: "calc(100% - 30px)", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} 
+                    />
+                    {media.url && (
+                      <div style={{ marginTop: "16px", padding: "10px", backgroundColor: "#f9f9f9", border: "1px dashed #ccc", borderRadius: "6px", textAlign: "center" }}>
+                        <img src={media.url} alt="Preview" style={{ maxWidth: "100%", maxHeight: "150px", objectFit: "contain", borderRadius: 4 }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Visibility */}
