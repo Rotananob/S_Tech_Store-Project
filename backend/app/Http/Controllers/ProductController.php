@@ -47,14 +47,15 @@ class ProductController extends Controller
 
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
-                $url = Cloudinary::upload($file->getRealPath(), ['folder' => 'stech_store'])->getSecurePath();
-                $finalImages[] = $url;
+                $result = cloudinary()->uploadApi()->upload($file->getRealPath(), ['folder' => 'stech_store']);
+                $finalImages[] = $result['secure_url'];
             }
         }
         
         // Legacy fallback
         if ($request->hasFile('image')) {
-            $uploadedFileUrl = Cloudinary::upload($request->file('image')->getRealPath(), ['folder' => 'stech_store'])->getSecurePath();
+            $result = cloudinary()->uploadApi()->upload($request->file('image')->getRealPath(), ['folder' => 'stech_store']);
+            $uploadedFileUrl = $result['secure_url'];
             $validated['image_url'] = $uploadedFileUrl;
             $finalImages[] = $uploadedFileUrl;
         }
@@ -129,14 +130,15 @@ class ProductController extends Controller
             }
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
-                    $url = Cloudinary::upload($file->getRealPath(), ['folder' => 'stech_store'])->getSecurePath();
-                    $finalImages[] = $url;
+                    $result = cloudinary()->uploadApi()->upload($file->getRealPath(), ['folder' => 'stech_store']);
+                    $finalImages[] = $result['secure_url'];
                 }
             }
         }
 
         if ($request->hasFile('image')) {
-            $uploadedFileUrl = Cloudinary::upload($request->file('image')->getRealPath(), ['folder' => 'stech_store'])->getSecurePath();
+            $result = cloudinary()->uploadApi()->upload($request->file('image')->getRealPath(), ['folder' => 'stech_store']);
+            $uploadedFileUrl = $result['secure_url'];
             $validated['image_url'] = $uploadedFileUrl;
             if (!in_array($uploadedFileUrl, $finalImages)) {
                 $finalImages[] = $uploadedFileUrl;
