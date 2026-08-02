@@ -8,6 +8,8 @@ import { Product } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useLangStore } from "@/store/langStore";
+import { translations } from "@/lib/translations";
 
 interface ProductCardProps {
   product: Product;
@@ -16,6 +18,8 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
+  const { lang } = useLangStore();
+  const t = translations[lang].products;
   
   const { addItem: addWishlist, removeItem: removeWishlist, isInWishlist } = useWishlistStore();
   const isWishlisted = isInWishlist(Number(product.id));
@@ -43,7 +47,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       image_url: product.image
     });
-    alert("Added to cart!");
+    alert(`${product.name} ${t.addToCart}!`);
   };
 
   const discountPercent =
@@ -157,7 +161,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 color: "var(--text-secondary)",
               }}
             >
-              Out of Stock
+              {t.outOfStock}
             </span>
           </div>
         )}
@@ -232,7 +236,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             onClick={handleAddToCart}
           >
             <ShoppingCart size={14} />
-            Add to Cart
+            {t.addToCart}
           </button>
         </div>
       </div>

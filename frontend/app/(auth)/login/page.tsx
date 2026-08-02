@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../../../lib/firebase";
+import { useNotificationStore } from "@/store/notificationStore";
+import api from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -20,7 +22,14 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      // Create a real DB notification for this login
+      await api.post("/user/notifications", {
+        title: "Login Successful 🔐",
+        message: `You signed in to S Tech Store from ${navigator.userAgent.includes("Windows") ? "Windows" : "Mobile"} device.`,
+        type: "login",
+      });
+      useNotificationStore.getState().fetchNotifications();
       router.push("/");
     } catch (err: any) {
       setError("Invalid email or password.");
@@ -34,7 +43,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      // Create real DB notification
+      await api.post("/user/notifications", {
+        title: "Login Successful 🔐",
+        message: `Signed in with Google (${cred.user.email}). Welcome back!`,
+        type: "login",
+      });
+      useNotificationStore.getState().fetchNotifications();
       router.push("/");
     } catch (err: any) {
       console.error(err);

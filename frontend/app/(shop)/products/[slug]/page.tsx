@@ -6,6 +6,8 @@ import { ShoppingCart, ChevronRight, Check, Send } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import api from "@/lib/api";
 import { useCartStore } from "@/store/cartStore";
+import { useLangStore } from "@/store/langStore";
+import { translations } from "@/lib/translations";
 
 type TabType = "specs" | "description" | "reviews";
 
@@ -22,6 +24,8 @@ export default function ProductDetailPage({
   const [tab, setTab] = useState<TabType>("specs");
   
   const addItemToCart = useCartStore((state) => state.addItem);
+  const { lang } = useLangStore();
+  const t = translations[lang].products;
 
   useEffect(() => {
     api.get(`/products/${slug}`)
@@ -51,13 +55,13 @@ export default function ProductDetailPage({
       quantity: qty,
       image_url: product.image_url,
     });
-    alert("Added to cart!");
+    alert(`${product.name} ${t.addToCart}!`);
   };
 
   const images = product.image_url ? [product.image_url] : ["/placeholder.jpg"];
   const specs = [
     { key: "Category", value: product.category?.name || "Uncategorized" },
-    { key: "Stock", value: product.stock > 0 ? "In Stock" : "Out of Stock" }
+    { key: "Stock", value: product.stock > 0 ? t.inStock : t.outOfStock }
   ];
   const model = product.name;
 
@@ -82,7 +86,7 @@ export default function ProductDetailPage({
             onMouseEnter={(e) => ((e.target as HTMLAnchorElement).style.color = "white")}
             onMouseLeave={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.45)")}
           >
-            Home
+            {translations[lang].nav.home}
           </Link>
           <ChevronRight size={13} />
           <Link
@@ -98,7 +102,7 @@ export default function ProductDetailPage({
         </nav>
 
         {/* ── Main Layout ────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           {/* LEFT — Images ─────────────────────────────────────────────── */}
           <div>
             {/* Main Image */}
@@ -147,7 +151,7 @@ export default function ProductDetailPage({
             {product.badge && (
               <div style={{ marginBottom: "14px" }}>
                 <span className="badge-new-arrival">
-                  {product.badge === "NEW" ? "NEW ARRIVAL" : product.badge}
+                  {product.badge === "NEW" ? t.newArrival : product.badge}
                 </span>
               </div>
             )}
@@ -235,11 +239,11 @@ export default function ProductDetailPage({
                   fontWeight: "600",
                 }}
               >
-                {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                {product.stock > 0 ? t.inStock : t.outOfStock}
               </span>
               {product.stock > 0 && (
                 <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
-                  — Ships today
+                  {t.shipsToday}
                 </span>
               )}
             </div>
@@ -266,7 +270,7 @@ export default function ProductDetailPage({
                   marginBottom: "10px",
                 }}
               >
-                Quantity
+                {t.quantity}
               </label>
               <div className="qty-control">
                 <button
@@ -294,14 +298,14 @@ export default function ProductDetailPage({
                 style={{ flex: 1, padding: "13px 20px", fontSize: "14px", opacity: product.stock === 0 ? 0.5 : 1 }}
               >
                 <ShoppingCart size={16} />
-                Add to Cart
+                {t.addToCart}
               </button>
               <button
                 className="btn-outline-blue"
                 style={{ flex: 1, padding: "13px 20px", fontSize: "14px" }}
               >
                 <Send size={15} />
-                Order via Telegram
+                {t.orderTelegram}
               </button>
             </div>
 
@@ -324,7 +328,7 @@ export default function ProductDetailPage({
                 }}
               >
                 <Check size={13} style={{ color: "#22c55e" }} />
-                1-Year Official Warranty
+                {t.oneYearWarranty}
               </div>
               <div
                 style={{
@@ -336,7 +340,7 @@ export default function ProductDetailPage({
                 }}
               >
                 <Check size={13} style={{ color: "#22c55e" }} />
-                100% Genuine Product
+                {t.genuineProduct}
               </div>
             </div>
           </div>
@@ -364,19 +368,19 @@ export default function ProductDetailPage({
             className={`tab-btn${tab === "specs" ? " active" : ""}`}
             onClick={() => setTab("specs")}
           >
-            Specifications
+            {t.specifications}
           </button>
           <button
             className={`tab-btn${tab === "description" ? " active" : ""}`}
             onClick={() => setTab("description")}
           >
-            Description
+            {t.description}
           </button>
           <button
             className={`tab-btn${tab === "reviews" ? " active" : ""}`}
             onClick={() => setTab("reviews")}
           >
-            Reviews ({product.reviews})
+            {t.reviews} ({product.reviews || 0})
           </button>
         </div>
 
@@ -419,8 +423,8 @@ export default function ProductDetailPage({
         {tab === "reviews" && (
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "15px" }}>
             {product.reviews > 0
-              ? `${product.reviews} customer reviews. Sign in to write a review.`
-              : "No reviews yet. Be the first to review this product."}
+              ? `${product.reviews} customer reviews.`
+              : t.noReviews}
           </div>
         )}
       </div>

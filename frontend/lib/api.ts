@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getAuth } from "firebase/auth";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -11,13 +12,21 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Request interceptor — attach Firebase token
+// Request interceptor — attach Firebase UID + user info for user isolation
 api.interceptors.request.use(
   async (config) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("auth_token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      try {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (user) {
+          config.headers["X-Firebase-UID"] = user.uid;
+          config.headers["X-Firebase-Email"] = user.email || "";
+          config.headers["X-Firebase-Name"] = user.displayName || "";
+          config.headers["X-Firebase-Photo"] = user.photoURL || "";
+        }
+      } catch (e) {
+        // Firebase not initialized yet — skip
       }
     }
     return config;
@@ -30,10 +39,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token");
-        window.location.href = "/login";
-      }
+      // Optionally redirect to login
     }
     return Promise.reject(error);
   }

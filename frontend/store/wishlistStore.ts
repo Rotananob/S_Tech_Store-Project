@@ -1,5 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import api from "@/lib/api";
+import { getAuth } from "firebase/auth";
 
 export interface WishlistItem {
   id: number;
@@ -7,52 +8,87 @@ export interface WishlistItem {
   price: number;
   image?: string;
   slug?: string;
+  added_at?: string;
 }
 
 interface WishlistStore {
   items: WishlistItem[];
-  addItem: (item: WishlistItem) => void;
-  removeItem: (id: number) => void;
+  loading: boolean;
+  fetchWishlist: () => Promise<void>;
+  addItem: (item: WishlistItem) => Promise<boolean>;
+  removeItem: (id: number) => Promise<void>;
   isInWishlist: (id: number) => boolean;
   clearWishlist: () => void;
   getTotalItems: () => number;
 }
 
 export const useWishlistStore = create<WishlistStore>()(
-  persist(
-    (set, get) => ({
-      items: [],
+  (set, get) => ({
+    items: [],
+    loading: false,
 
-      addItem: (item) => {
+    fetchWishlist: async () => {
+      try {
+        set({ loading: true });
+        const auth = getAuth();
+        if (!auth.currentUser) {
+          set({ items: [], loading: false });
+          return;
+        }
+        const res = await api.get("/user/wishlist");
+        set({ items: res.data || [], loading: false });
+      } catch (e) {
+        set({ loading: false });
+      }
+    },
+
+    addItem: async (item) => {
+      try {
+        const auth = getAuth();
+        if (!auth.currentUser) {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          return false;
+        }
+        await api.post("/user/wishlist", { product_id: item.id });
         const { items } = get();
-        const existingItem = items.find((i) => i.id === item.id);
-
-        if (!existingItem) {
+        if (!items.some((i) => i.id === item.id)) {
           set({ items: [...items, item] });
         }
-      },
+        return true;
+      } catch (e) {
+        console.error("Failed to add to wishlist", e);
+        return false;
+      }
+    },
 
-      removeItem: (id) => {
-        const { items } = get();
-        set({ items: items.filter((i) => i.id !== id) });
-      },
+    removeItem: async (id) => {
+      try {
+        const auth = getAuth();
+        if (!auth.currentUser) {
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+          return;
+        }
+        await api.delete(`/user/wishlist/${id}`);
+        set({ items: get().items.filter((i) => i.id !== id) });
+      } catch (e) {
+        console.error("Failed to remove from wishlist", e);
+      }
+    },
 
-      isInWishlist: (id) => {
-        const { items } = get();
-        return items.some((i) => i.id === id);
-      },
+    isInWishlist: (id) => {
+      return get().items.some((i) => i.id === id);
+    },
 
-      clearWishlist: () => {
-        set({ items: [] });
-      },
+    clearWishlist: () => {
+      set({ items: [] });
+    },
 
-      getTotalItems: () => {
-        const { items } = get();
-        return items.length;
-      },
-    }),
-    {
-      name: 'stech-wishlist-storage', // Key used in localStorage
-    }
-  )
+    getTotalItems: () => {
+      return get().items.length;
+    },
+  })
 );

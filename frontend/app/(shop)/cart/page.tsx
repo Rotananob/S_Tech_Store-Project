@@ -5,13 +5,18 @@ import Link from "next/link";
 import { Trash2, Lock, Truck, ArrowRight, Check } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
+import { useLangStore } from "@/store/langStore";
+import { translations } from "@/lib/translations";
 
 export default function CartPage() {
   const { items: cartItems, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCartStore();
   const [mounted, setMounted] = useState(false);
+  const { lang } = useLangStore();
+  const t = translations[lang].cart;
 
   useEffect(() => {
     setMounted(true);
+    useCartStore.getState().fetchCart();
   }, []);
 
   const subtotal = getTotalPrice();
@@ -33,7 +38,7 @@ export default function CartPage() {
               <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: "#a92020", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>
                 1
               </div>
-              Cart
+              {t.cartStep}
             </div>
             
             <span>›</span>
@@ -42,7 +47,7 @@ export default function CartPage() {
               <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #ccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>
                 2
               </div>
-              Delivery
+              {t.deliveryStep}
             </div>
 
             <span>›</span>
@@ -51,7 +56,7 @@ export default function CartPage() {
               <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #ccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>
                 3
               </div>
-              Payment
+              {t.paymentStep}
             </div>
 
             <span>›</span>
@@ -60,7 +65,7 @@ export default function CartPage() {
               <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #ccc", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" }}>
                 4
               </div>
-              Done
+              {t.doneStep}
             </div>
 
           </div>
@@ -71,7 +76,7 @@ export default function CartPage() {
           {/* LEFT — Cart Items */}
           <div>
             <h1 style={{ fontFamily: "Georgia, serif", fontSize: "36px", fontWeight: "700", marginBottom: "32px", color: "#111" }}>
-              Your Cart
+              {t.title}
             </h1>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -134,28 +139,28 @@ export default function CartPage() {
           {/* RIGHT — Order Summary */}
           <div className="bg-[#fafbfd] border border-[#dbe3ed] p-6 rounded-md lg:mt-[78px]">
             <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#111", marginBottom: "24px" }}>
-              Order Summary
+              {t.orderSummary}
             </h2>
 
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", fontSize: "14px", color: "#555" }}>
-              <span>Subtotal ({totalItems} items)</span>
+              <span>{t.subtotal} ({totalItems} items)</span>
               <span style={{ fontWeight: "700", color: "#111" }}>${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
             </div>
 
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "14px", color: "#555" }}>
-              <span>Delivery</span>
-              <span style={{ fontWeight: "700", color: "#111" }}>Free</span>
+              <span>{t.delivery}</span>
+              <span style={{ fontWeight: "700", color: "#111" }}>{t.free}</span>
             </div>
             
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "6px", color: "#2563eb", fontSize: "12px", fontWeight: "500", marginBottom: "24px" }}>
               <Truck size={14} />
-              Phnom Penh Same-Day
+              {t.sameDayPhnomPenh}
             </div>
 
             <div style={{ height: "1px", background: "#dbe3ed", marginBottom: "24px" }} />
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
-              <span style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginTop: "4px" }}>Total</span>
+              <span style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginTop: "4px" }}>{t.total}</span>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontSize: "20px", fontWeight: "700", color: "#a92020", fontFamily: "monospace" }}>
                   ${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
@@ -187,13 +192,13 @@ export default function CartPage() {
               onMouseEnter={(e) => (e.currentTarget.style.background = "#8b1a1a")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "#a92020")}
             >
-              Proceed to Checkout
+              {t.proceedToCheckout}
               <ArrowRight size={16} />
             </button>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "12px", color: "#888" }}>
               <Lock size={12} />
-              Secure encrypted checkout
+              {t.secureCheckout}
             </div>
           </div>
         </div>

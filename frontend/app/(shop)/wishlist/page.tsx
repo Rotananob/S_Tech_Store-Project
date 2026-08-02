@@ -13,6 +13,7 @@ export default function WishlistPage() {
 
   useEffect(() => {
     setMounted(true);
+    useWishlistStore.getState().fetchWishlist();
   }, []);
 
   const handleAddToCart = (item: any) => {

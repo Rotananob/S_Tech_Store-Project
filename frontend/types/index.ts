@@ -27,8 +27,8 @@ export interface Product {
   description?: string;
   price: number;
   sale_price?: number | null;
-  stock: number;
-  category: string;
+  stock?: number;
+  category?: string;
   brand?: string;
   sku?: string;
   badge?: string | null;

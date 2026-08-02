@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
+import { useLangStore } from "@/store/langStore";
+import { translations } from "@/lib/translations";
 
 const footerLinks = {
   shop: [
@@ -9,7 +11,7 @@ const footerLinks = {
     { label: "Desktops", href: "/category/desktops" },
     { label: "Parts & Components", href: "/category/parts" },
     { label: "Gaming", href: "/category/gaming" },
-    { label: "IT Services", href: "/category/services" },
+    { label: "IT Services", href: "/services" },
     { label: "New Arrivals", href: "/products?sort=newest" },
   ],
   support: [
@@ -28,10 +30,13 @@ const footerLinks = {
 };
 
 export default function Footer() {
+  const { lang } = useLangStore();
+  const t = translations[lang].footer;
+
   return (
     <footer style={{ background: "#0a0a0a", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="container" style={{ padding: "48px 24px" }}>
-        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-10 lg:gap-12">
           {/* Brand */}
           <div>
             <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
@@ -44,7 +49,7 @@ export default function Footer() {
                   objectFit: "contain",
                   flexShrink: 0,
                   borderRadius: "8px",
-                  filter: "brightness(0.9)", // slightly tone down the white on dark bg
+                  filter: "brightness(0.9)",
                 }}
               />
               <div>
@@ -66,7 +71,7 @@ export default function Footer() {
               </div>
             </Link>
             <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", lineHeight: "1.7", marginBottom: "20px" }}>
-              Your trusted source for genuine tech in Cambodia. Top-tier laptops, custom builds, and professional IT services.
+              {t.desc}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
@@ -84,7 +89,7 @@ export default function Footer() {
           </div>
 
           {/* Links */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
             {(Object.entries(footerLinks) as [string, { label: string; href: string }[]][]).map(([key, links]) => (
               <div key={key}>
                 <h4
@@ -97,7 +102,7 @@ export default function Footer() {
                     marginBottom: "14px",
                   }}
                 >
-                  {key === "shop" ? "Shop" : key === "support" ? "Support" : "Company"}
+                  {key === "shop" ? t.shop : key === "support" ? t.support : t.company}
                 </h4>
                 <ul style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {links.map((link) => (
@@ -129,7 +134,7 @@ export default function Footer() {
           color: "rgba(255,255,255,0.25)",
         }}
       >
-        © 2025 S Tech Store. All rights reserved. | Phnom Penh, Cambodia 🇰🇭
+        {t.copyright}
       </div>
     </footer>
   );

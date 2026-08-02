@@ -4,6 +4,8 @@ import {
   SLOTS, COMPONENTS_BY_SLOT, checkCompatibility,
   type ComponentSlot, type PCComponent,
 } from "@/lib/pc-builder-data";
+import { useLangStore } from "@/store/langStore";
+import { translations } from "@/lib/translations";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -160,6 +162,8 @@ export default function BuildPCPage() {
   const [selected, setSelected] = useState<Partial<Record<ComponentSlot, PCComponent>>>({});
   const [openSlot, setOpenSlot] = useState<ComponentSlot | null>(null);
   const [checked, setChecked] = useState(false);
+  const { lang } = useLangStore();
+  const t = translations[lang].buildPc;
 
   const issues = useMemo(() => checked ? checkCompatibility(selected) : [], [selected, checked]);
 
@@ -177,8 +181,8 @@ export default function BuildPCPage() {
       {/* Page Header */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "28px 0 0" }}>
         <div className="container">
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#1a1a1a", letterSpacing: "-0.02em" }}>Build Your PC</h1>
-          <p style={{ fontSize: 14, color: "#777", marginTop: 4, marginBottom: 16 }}>Select compatible components to build your custom rig.</p>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#1a1a1a", letterSpacing: "-0.02em" }}>{t.title}</h1>
+          <p style={{ fontSize: 14, color: "#777", marginTop: 4, marginBottom: 16 }}>{t.subtitle}</p>
           <div style={{ width: 48, height: 3, background: "linear-gradient(90deg,#8B1A1A,#1a4fa0)", borderRadius: 2 }} />
         </div>
       </div>
@@ -224,7 +228,7 @@ export default function BuildPCPage() {
               onMouseEnter={e => { e.currentTarget.style.background = "#1a1a1a"; e.currentTarget.style.color = "#fff"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#1a1a1a"; }}
             >
-              Run Check
+              {t.runCheck}
             </button>
           </div>
         </div>
@@ -232,7 +236,7 @@ export default function BuildPCPage() {
 
       {/* Main content */}
       <div className="container" style={{ padding: "28px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
 
           {/* Component Slots */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -304,7 +308,7 @@ export default function BuildPCPage() {
 
           {/* Build Summary Sidebar */}
           <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, padding: 24, position: "sticky", top: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a", marginBottom: 20 }}>Build Summary</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a", marginBottom: 20 }}>{t.buildSummary}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
               {SLOTS.map(slot => (
                 <div key={slot.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -318,11 +322,11 @@ export default function BuildPCPage() {
 
             <div style={{ borderTop: "2px solid #e5e5e5", paddingTop: 14, marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>Total (USD)</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{t.totalUsd}</span>
                 <span style={{ fontSize: 16, fontWeight: 800, color: "#8B1A1A" }}>{fmtUSD(totalUSD)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#aaa" }}>Total (KHR)</span>
+                <span style={{ fontSize: 13, color: "#aaa" }}>{t.totalKhr}</span>
                 <span style={{ fontSize: 13, color: "#aaa" }}>{fmtKHR(totalUSD)}</span>
               </div>
             </div>
@@ -339,7 +343,7 @@ export default function BuildPCPage() {
               onMouseEnter={e => { if (totalUSD > 0) e.currentTarget.style.background = "#6B1010"; }}
               onMouseLeave={e => { if (totalUSD > 0) e.currentTarget.style.background = "#8B1A1A"; }}
             >
-              Add to Cart
+              {t.addToCart}
             </button>
             <button
               style={{
@@ -351,7 +355,7 @@ export default function BuildPCPage() {
               onMouseEnter={e => { e.currentTarget.style.background = "#1a4fa0"; e.currentTarget.style.color = "#fff"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#1a4fa0"; }}
             >
-              Save Build
+              {t.saveBuild}
             </button>
           </div>
         </div>

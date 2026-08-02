@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth } from "../../../lib/firebase"; // Fixed import path: app/(auth)/register to lib
+import { auth } from "../../../lib/firebase";
+import { useNotificationStore } from "@/store/notificationStore";
+import api from "@/lib/api";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -21,8 +23,14 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // You can also use updateProfile to set the user's name if needed.
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      // Create real welcome notification in database
+      await api.post("/user/notifications", {
+        title: "Welcome to S Tech Store! 🎉",
+        message: "Thank you for joining Cambodia's #1 genuine tech store. Enjoy 1-year official warranty on all products!",
+        type: "welcome",
+      });
+      useNotificationStore.getState().fetchNotifications();
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to create an account.");
@@ -36,7 +44,14 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      // Create real welcome notification in database
+      await api.post("/user/notifications", {
+        title: "Welcome to S Tech Store! 🎉",
+        message: `Welcome ${cred.user.displayName || cred.user.email}! Your S Tech account is ready.`,
+        type: "welcome",
+      });
+      useNotificationStore.getState().fetchNotifications();
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
