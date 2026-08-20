@@ -7,20 +7,60 @@ import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
+import { getCart, updateCartItem, removeFromCart } from "@/lib/services/cart.service";
+import { CartItem } from "@/types";
 
 export default function CartPage() {
-  const { items: cartItems, updateQuantity, removeItem, getTotalPrice, getTotalItems } = useCartStore();
   const [mounted, setMounted] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { lang } = useLangStore();
   const t = translations[lang].cart;
 
+  const refreshGlobalCart = useCartStore((s) => s.fetchCart);
+
+  const fetchLocalCart = async () => {
+    try {
+      const res = await getCart();
+      if (res.success) {
+        setCartItems(res.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
-    useCartStore.getState().fetchCart();
+    fetchLocalCart();
+    refreshGlobalCart();
   }, []);
 
-  const subtotal = getTotalPrice();
-  const totalItems = getTotalItems();
+  const handleUpdateQuantity = async (id: number, quantity: number) => {
+    try {
+      await updateCartItem(id, quantity);
+      await fetchLocalCart();
+      refreshGlobalCart();
+    } catch (e) {
+      console.error("Failed to update quantity", e);
+    }
+  };
+
+  const handleRemoveItem = async (id: number) => {
+    try {
+      await removeFromCart(id);
+      await fetchLocalCart();
+      refreshGlobalCart();
+    } catch (e) {
+      console.error("Failed to remove item", e);
+    }
+  };
+
+  const subtotal = cartItems.reduce((acc, item) => {
+    const price = item.product.sale_price ?? item.product.price;
+    return acc + price * item.quantity;
+  }, 0);
+
+  const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   if (!mounted) {
     return <div style={{ minHeight: "100vh", background: "#fdfdfd" }} />;
@@ -80,50 +120,53 @@ export default function CartPage() {
             </h1>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {cartItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col sm:flex-row border border-[#eaeaea] bg-white p-4 rounded-md gap-4 sm:gap-0"
-                >
-                  <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px" }}>
-                    <img src={item.image_url || ""} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                  </div>
-
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginBottom: "6px" }}>{item.name}</h3>
-                  </div>
-
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
-                    <div style={{ fontSize: "16px", fontWeight: "700", color: "#111", fontFamily: "monospace" }}>
-                      ${(item.price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {cartItems.map((item) => {
+                const price = item.product.sale_price ?? item.product.price;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col sm:flex-row border border-[#eaeaea] bg-white p-4 rounded-md gap-4 sm:gap-0"
+                  >
+                    <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px" }}>
+                      <img src={item.product.image || ""} alt={item.product.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", border: "1px solid #ddd", borderRadius: "3px", overflow: "hidden" }}>
-                        <button
-                          onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                          style={{ width: "28px", height: "28px", background: "white", border: "none", borderRight: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
-                        >
-                          -
-                        </button>
-                        <div style={{ width: "32px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "600", background: "white" }}>
-                          {item.quantity}
-                        </div>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          style={{ width: "28px", height: "28px", background: "white", border: "none", borderLeft: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
-                        >
-                          +
-                        </button>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginBottom: "6px" }}>{item.product.name}</h3>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
+                      <div style={{ fontSize: "16px", fontWeight: "700", color: "#111", fontFamily: "monospace" }}>
+                        ${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
 
-                      <button onClick={() => removeItem(item.id)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer" }}>
-                        <Trash2 size={18} />
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", border: "1px solid #ddd", borderRadius: "3px", overflow: "hidden" }}>
+                          <button
+                            onClick={() => handleUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                            style={{ width: "28px", height: "28px", background: "white", border: "none", borderRight: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
+                          >
+                            -
+                          </button>
+                          <div style={{ width: "32px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "600", background: "white" }}>
+                            {item.quantity}
+                          </div>
+                          <button
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                            style={{ width: "28px", height: "28px", background: "white", border: "none", borderLeft: "1px solid #ddd", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#555" }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button onClick={() => handleRemoveItem(item.id)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer" }}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {cartItems.length === 0 && (
                 <div style={{ padding: "48px", textAlign: "center", border: "1px solid #eaeaea", background: "white", borderRadius: "4px" }}>
@@ -133,6 +176,7 @@ export default function CartPage() {
                   </Link>
                 </div>
               )}
+
             </div>
           </div>
 

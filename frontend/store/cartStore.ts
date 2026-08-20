@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import api from '@/lib/api';
 import { getAuth } from 'firebase/auth';
+import { getCart, addToCart, updateCartItem, removeFromCart, clearCart as clearCartService } from '@/lib/services/cart.service';
 
 export interface CartItem {
   id: number;
@@ -34,8 +34,22 @@ export const useCartStore = create<CartState>()((set, get) => ({
         set({ items: [], loading: false });
         return;
       }
-      const res = await api.get('/user/cart');
-      set({ items: res.data || [], loading: false });
+      const res = await getCart();
+      if (res.success) {
+        // Map the real API CartItem from @/types to the store's CartItem format
+        // Backend CartItem: { id, quantity, product: { name, price, sale_price, image } }
+        const mappedItems: CartItem[] = res.data.map((item: any) => ({
+          id: item.id,
+          name: item.product.name,
+          price: item.product.sale_price ?? item.product.price,
+          quantity: item.quantity,
+          image_url: item.product.image,
+          product_id: item.product.id // keeping product_id for API calls
+        }));
+        set({ items: mappedItems, loading: false });
+      } else {
+        set({ items: [], loading: false });
+      }
     } catch (e) {
       set({ loading: false });
     }
@@ -51,24 +65,16 @@ export const useCartStore = create<CartState>()((set, get) => ({
         return false;
       }
 
-      await api.post('/user/cart', {
-        product_id: item.id,
-        quantity: item.quantity || 1,
-      });
-
-      // Update state
-      const { items } = get();
-      const existing = items.find((i) => i.id === item.id);
-      if (existing) {
-        set({
-          items: items.map((i) =>
-            i.id === item.id ? { ...i, quantity: i.quantity + (item.quantity || 1) } : i
-          ),
-        });
-      } else {
-        set({ items: [...items, item] });
+      // Add to API
+      const productId = (item as any).product_id || item.id;
+      const res = await addToCart(productId, item.quantity || 1);
+      
+      if (res.success) {
+        // Optimistic UI update or fetch from server again
+        await get().fetchCart();
+        return true;
       }
-      return true;
+      return false;
     } catch (e) {
       console.error('Failed to add item to cart', e);
       return false;
@@ -84,10 +90,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
         }
         return;
       }
-      await api.delete(`/user/cart/${id}`);
-      set((state) => ({
-        items: state.items.filter((i) => i.id !== id),
-      }));
+      await removeFromCart(id);
+      await get().fetchCart();
     } catch (e) {
       console.error('Failed to remove item from cart', e);
     }
@@ -98,10 +102,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
       const auth = getAuth();
       if (!auth.currentUser) return;
 
-      await api.put(`/user/cart/${id}`, { quantity });
-      set((state) => ({
-        items: state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
-      }));
+      await updateCartItem(id, quantity);
+      await get().fetchCart();
     } catch (e) {
       console.error('Failed to update cart item quantity', e);
     }
@@ -111,7 +113,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
     try {
       const auth = getAuth();
       if (auth.currentUser) {
-        await api.delete('/user/cart');
+        await clearCartService();
       }
       set({ items: [] });
     } catch (e) {
