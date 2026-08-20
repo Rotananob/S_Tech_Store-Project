@@ -1,17 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCartStore } from "@/store/cartStore";
+import { createOrder } from "@/lib/services/order.service";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 const fmtKHR = (n: number) => `~ ${(Math.round(n * USD_TO_KHR / 1000) * 1000).toLocaleString()} KHR`;
 
-// ─── Mock cart items ───────────────────────────────────────────────────────────
-const CART_ITEMS = [
-  { id: 1, name: "ASUS ROG Strix G16 (2024)", specs: "i7-13650HX / 16GB / 512GB", qty: 1, price: 1899 },
-  { id: 2, name: "Logitech G Pro X Superlight", specs: "Wireless Gaming Mouse", qty: 1, price: 149 },
-];
+
 
 // ─── Payment options ───────────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
@@ -114,6 +113,8 @@ function StepBar({ step }: { step: number }) {
 
 // ─── Main Checkout Page ────────────────────────────────────────────────────────
 export default function CheckoutPage() {
+  const router = useRouter();
+  const { items, fetchCart, clearCart } = useCartStore();
   const [delivery, setDelivery] = useState<"pnompenh" | "province">("pnompenh");
   const [payment, setPayment] = useState("cod");
   const [name, setName] = useState("");
@@ -121,18 +122,53 @@ export default function CheckoutPage() {
   const [address, setAddress] = useState("");
   const [step, setStep] = useState(2);
   const [confirmed, setConfirmed] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
 
   const deliveryFee = delivery === "pnompenh" ? 2 : 3;
-  const subtotal = CART_ITEMS.reduce((s, i) => s + i.price * i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const total = subtotal + deliveryFee;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!name.trim() || !phone.trim() || !address.trim()) {
       alert("Please fill in all delivery fields.");
       return;
     }
-    setConfirmed(true);
-    setStep(3);
+    if (items.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    setLoading(true);
+    const payload = {
+      delivery_type: delivery,
+      payment_method: payment,
+      name,
+      phone,
+      address,
+      items: items.map(item => ({
+        product_id: (item as any).product_id || item.id,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      subtotal,
+      delivery_fee: deliveryFee,
+      total_amount: total
+    };
+
+    const res = await createOrder(payload);
+    setLoading(false);
+
+    if (res.success) {
+      await clearCart();
+      setConfirmed(true);
+      setStep(3);
+    } else {
+      alert(res.error || "Failed to place order. Please try again.");
+    }
   };
 
   // ─── Done Screen ────────────────────────────────────────────────────────────
@@ -358,14 +394,14 @@ export default function CheckoutPage() {
 
             {/* Items */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 18 }}>
-              {CART_ITEMS.map(item => (
+              {items.map(item => (
                 <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", marginBottom: 2 }}>{item.name}</p>
-                    <p style={{ fontSize: 11, color: "#aaa" }}>Qty: {item.qty}</p>
+                    <p style={{ fontSize: 11, color: "#aaa" }}>Qty: {item.quantity}</p>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>
-                    {fmtUSD(item.price * item.qty)}
+                    {fmtUSD(item.price * item.quantity)}
                   </span>
                 </div>
               ))}
@@ -398,21 +434,24 @@ export default function CheckoutPage() {
             <button
               id="confirm-order-btn"
               onClick={handleConfirm}
+              disabled={loading || items.length === 0}
               style={{
                 width: "100%", padding: "14px", fontSize: 15, fontWeight: 800,
-                background: "#8B1A1A", color: "#fff", border: "none", borderRadius: 8,
-                cursor: "pointer", letterSpacing: ".03em", transition: "background 150ms",
+                background: loading || items.length === 0 ? "#ccc" : "#8B1A1A", color: "#fff", border: "none", borderRadius: 8,
+                cursor: loading || items.length === 0 ? "not-allowed" : "pointer", letterSpacing: ".03em", transition: "background 150ms",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 marginBottom: 12,
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#6B1010")}
-              onMouseLeave={e => (e.currentTarget.style.background = "#8B1A1A")}
+              onMouseEnter={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#6B1010"; }}
+              onMouseLeave={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#8B1A1A"; }}
             >
-              Confirm Order
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
+              {loading ? "Processing..." : "Confirm Order"}
+              {!loading && (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              )}
             </button>
 
             {/* Security note */}
