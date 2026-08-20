@@ -21,10 +21,11 @@ class OrderController extends Controller
     {
         // Validate incoming request
         $validated = $request->validate([
-            'user_id' => 'nullable|string',
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'shipping_address' => 'required|string',
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|max:20',
+            'address' => 'required|string',
+            'delivery_type' => 'nullable|string',
+            'payment_method' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -61,12 +62,16 @@ class OrderController extends Controller
 
             // Create Order
             $order = Order::create([
-                'user_id' => $validated['user_id'] ?? null,
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'],
-                'shipping_address' => $validated['shipping_address'],
+                'user_id' => $request->header('X-Firebase-UID'),
+                'customer_name' => $validated['name'],
+                'customer_phone' => $validated['phone'],
+                'shipping_address' => $validated['address'],
+                'delivery_type' => $validated['delivery_type'] ?? null,
+                'payment_method' => $validated['payment_method'] ?? null,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
+                // Generate a random order_id
+                'order_id' => 'ORD-' . strtoupper(uniqid()),
             ]);
 
             // Save Order Items
@@ -86,5 +91,17 @@ class OrderController extends Controller
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 400);
         }
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $order = Order::findOrFail($id);
+        $order->update(['status' => $validated['status']]);
+
+        return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
     }
 }

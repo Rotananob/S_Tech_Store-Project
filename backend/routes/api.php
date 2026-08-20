@@ -31,28 +31,33 @@ Route::post('/orders', [OrderController::class, 'store']);
 
 // ─── User-Scoped APIs (keyed by X-Firebase-UID header) ──────────────────────
 
+// Admin Stats
+Route::get('/admin/stats', [\App\Http\Controllers\AdminController::class, 'stats']);
+
 // Profile
-Route::get('/user/profile', [UserController::class, 'getProfile']);
-Route::put('/user/profile', [UserController::class, 'updateProfile']);
+Route::get('/profile', [UserController::class, 'getProfile']);
+Route::put('/profile', [UserController::class, 'updateProfile']);
 
 // Notifications
-Route::get('/user/notifications', [UserController::class, 'getNotifications']);
-Route::post('/user/notifications', [UserController::class, 'createNotification']);
-Route::put('/user/notifications/read-all', [UserController::class, 'markAllNotificationsRead']);
-Route::put('/user/notifications/{id}/read', [UserController::class, 'markNotificationRead']);
-Route::delete('/user/notifications', [UserController::class, 'clearNotifications']);
+Route::get('/notifications', [UserController::class, 'getNotifications']);
+Route::post('/notifications', [UserController::class, 'createNotification']);
+Route::put('/notifications/read-all', [UserController::class, 'markAllNotificationsRead']);
+Route::put('/notifications/{id}/read', [UserController::class, 'markNotificationRead']);
+Route::delete('/notifications', [UserController::class, 'clearNotifications']);
 
 // Wishlist
-Route::get('/user/wishlist', [UserController::class, 'getWishlist']);
-Route::post('/user/wishlist', [UserController::class, 'addToWishlist']);
-Route::delete('/user/wishlist/{productId}', [UserController::class, 'removeFromWishlist']);
+Route::get('/wishlist', [UserController::class, 'getWishlist']);
+Route::post('/wishlist', [UserController::class, 'addToWishlist']);
+Route::delete('/wishlist/{productId}', [UserController::class, 'removeFromWishlist']);
 
 // Cart
-Route::get('/user/cart', [UserController::class, 'getCart']);
-Route::post('/user/cart', [UserController::class, 'addToCart']);
-Route::put('/user/cart/{productId}', [UserController::class, 'updateCartItem']);
-Route::delete('/user/cart/{productId}', [UserController::class, 'removeFromCart']);
-Route::delete('/user/cart', [UserController::class, 'clearCart']);
+Route::get('/cart', [UserController::class, 'getCart']);
+Route::post('/cart', [UserController::class, 'addToCart']);
+Route::put('/cart/{productId}', [UserController::class, 'updateCartItem']);
+Route::delete('/cart/{productId}', [UserController::class, 'removeFromCart']);
+Route::delete('/cart', [UserController::class, 'clearCart']);
 
 // User Orders (isolated per user)
 Route::get('/user/orders', [UserController::class, 'getUserOrders']);
+// Patch Order status
+Route::patch('/orders/{id}', [OrderController::class, 'updateStatus']);
