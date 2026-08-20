@@ -161,7 +161,7 @@ export default function CartPage() {
                 );
               })}
 
-              {cartItems.length === 0 && (
+              {items.length === 0 && (
                 <div style={{ padding: "48px", textAlign: "center", border: "1px solid #eaeaea", background: "white", borderRadius: "4px" }}>
                   <p style={{ fontSize: "15px", color: "#666", marginBottom: "16px" }}>Your cart is empty.</p>
                   <Link href="/category/laptops" className="btn-outline-blue">
