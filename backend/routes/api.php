@@ -36,6 +36,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/notifications/{id}/read', [UserController::class, 'markNotificationRead']);
     Route::delete('/notifications', [UserController::class, 'clearNotifications']);
 
+    // Alias: /user/notifications (used by frontend auth pages)
+    Route::get('/user/notifications', [UserController::class, 'getNotifications']);
+    Route::post('/user/notifications', [UserController::class, 'createNotification']);
+    Route::put('/user/notifications/read-all', [UserController::class, 'markAllNotificationsRead']);
+    Route::put('/user/notifications/{id}/read', [UserController::class, 'markNotificationRead']);
+    Route::delete('/user/notifications', [UserController::class, 'clearNotifications']);
+
     // Wishlist
     Route::get('/wishlist', [UserController::class, 'getWishlist']);
     Route::post('/wishlist', [UserController::class, 'addToWishlist']);
