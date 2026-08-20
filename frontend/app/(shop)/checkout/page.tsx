@@ -150,9 +150,9 @@ export default function CheckoutPage() {
       phone,
       address,
       items: items.map(item => ({
-        product_id: (item as any).product_id || item.id,
+        product_id: item.product?.id || (item as any).product_id || item.id,
         quantity: item.quantity,
-        price: item.price
+        price: item.product?.sale_price ?? item.product?.price ?? item.price
       })),
       subtotal,
       delivery_fee: deliveryFee,
