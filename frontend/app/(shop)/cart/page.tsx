@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Trash2, Lock, Truck, ArrowRight, Check } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
@@ -12,34 +13,22 @@ import { CartItem } from "@/types";
 
 export default function CartPage() {
   const [mounted, setMounted] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const { lang } = useLangStore();
-  const t = translations[lang].cart;
-
-  const refreshGlobalCart = useCartStore((s) => s.fetchCart);
-
-  const fetchLocalCart = async () => {
-    try {
-      const res = await getCart();
-      if (res.success) {
-        setCartItems(res.data);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const { items, fetchCart, updateQuantity, removeItem } = useCartStore();
 
   useEffect(() => {
     setMounted(true);
-    fetchLocalCart();
-    refreshGlobalCart();
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchCart();
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const handleUpdateQuantity = async (id: number, quantity: number) => {
     try {
-      await updateCartItem(id, quantity);
-      await fetchLocalCart();
-      refreshGlobalCart();
+      await updateQuantity(id, quantity);
     } catch (e) {
       console.error("Failed to update quantity", e);
     }
@@ -47,20 +36,21 @@ export default function CartPage() {
 
   const handleRemoveItem = async (id: number) => {
     try {
-      await removeFromCart(id);
-      await fetchLocalCart();
-      refreshGlobalCart();
+      await removeItem(id);
     } catch (e) {
       console.error("Failed to remove item", e);
     }
   };
 
-  const subtotal = cartItems.reduce((acc, item) => {
-    const price = item.product.sale_price ?? item.product.price;
+  const subtotal = items.reduce((acc, item) => {
+    const price = item.product?.sale_price ?? item.product?.price ?? item.price;
     return acc + price * item.quantity;
   }, 0);
 
-  const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
+
+  const { lang } = useLangStore();
+  const t = translations[lang].cart;
 
   if (!mounted) {
     return <div style={{ minHeight: "100vh", background: "#fdfdfd" }} />;
@@ -120,19 +110,22 @@ export default function CartPage() {
             </h1>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {cartItems.map((item) => {
-                const price = item.product.sale_price ?? item.product.price;
+              {items.map((item) => {
+                const price = item.product?.sale_price ?? item.product?.price ?? item.price;
+                const name = item.product?.name ?? item.name;
+                const image = item.product?.image ?? item.image_url;
+                
                 return (
                   <div
                     key={item.id}
                     className="flex flex-col sm:flex-row border border-[#eaeaea] bg-white p-4 rounded-md gap-4 sm:gap-0"
                   >
                     <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px" }}>
-                      <img src={item.product.image || ""} alt={item.product.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                      <img src={image || ""} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     </div>
 
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginBottom: "6px" }}>{item.product.name}</h3>
+                      <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#111", marginBottom: "6px" }}>{name}</h3>
                     </div>
 
                     <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
