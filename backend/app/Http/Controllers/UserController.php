@@ -248,11 +248,16 @@ class UserController extends Controller
             ->get()
             ->map(function ($c) {
                 return [
-                    'id' => $c->product_id,
-                    'name' => $c->product->name ?? '',
-                    'price' => $c->product->price ?? 0,
+                    'id' => $c->id,
+                    'product_id' => $c->product_id,
                     'quantity' => $c->quantity,
-                    'image_url' => $c->product->image_url ?? '',
+                    'product' => [
+                        'id' => $c->product->id ?? $c->product_id,
+                        'name' => $c->product->name ?? '',
+                        'price' => $c->product->price ?? 0,
+                        'sale_price' => $c->product->sale_price ?? null,
+                        'image' => $c->product->image_url ?? '',
+                    ]
                 ];
             });
 

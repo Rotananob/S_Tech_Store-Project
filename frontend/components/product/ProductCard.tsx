@@ -187,17 +187,22 @@ export default function ProductCard({ product }: ProductCardProps) {
               width: "34px",
               height: "34px",
               borderRadius: "8px",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              background: "rgba(255, 255, 255, 0.9)",
+              border: "1px solid #e5e5e5",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               transition: "all var(--transition-fast)",
-              color: isWishlisted ? "#ef4444" : "var(--text-secondary)",
+              color: isWishlisted ? "#ef4444" : "#444",
             }}
+            title="Add to Wishlist"
           >
-            <Heart size={15} fill={isWishlisted ? "#ef4444" : "none"} />
+            <Heart size={20} fill={isWishlisted ? "#ef4444" : "none"} strokeWidth={isWishlisted ? 0 : 2} />
           </button>
           {/* Quick view */}
           <button

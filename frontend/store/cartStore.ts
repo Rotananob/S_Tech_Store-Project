@@ -39,24 +39,24 @@ export const useCartStore = create<CartState>()((set, get) => ({
         // Backend returns array of items directly
         const mappedItems: CartItem[] = res.map((item: any) => ({
           id: item.id,
-          name: item.name,
-          price: item.price,
+          product: item.product,
           quantity: item.quantity,
-          image_url: item.image_url,
-          product_id: item.id // product_id is the id mapped in backend
+          name: item.product?.name, // fallback for other usages
+          price: item.product?.sale_price ?? item.product?.price ?? 0,
+          image_url: item.product?.image
         }));
-        set({ items: mappedItems, loading: false });
+        set({ items: mappedItems as any, loading: false });
       } else if (res && (res as any).success) {
         // Fallback if backend wraps it
         const mappedItems: CartItem[] = (res as any).data.map((item: any) => ({
           id: item.id,
-          name: item.product?.name || item.name,
-          price: item.product?.sale_price ?? item.product?.price ?? item.price,
+          product: item.product,
           quantity: item.quantity,
-          image_url: item.product?.image || item.image_url,
-          product_id: item.product?.id || item.id
+          name: item.product?.name,
+          price: item.product?.sale_price ?? item.product?.price ?? 0,
+          image_url: item.product?.image
         }));
-        set({ items: mappedItems, loading: false });
+        set({ items: mappedItems as any, loading: false });
       } else {
         set({ items: [], loading: false });
       }
