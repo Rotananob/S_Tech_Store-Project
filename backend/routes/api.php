@@ -47,12 +47,22 @@ Route::get('/wishlist', [UserController::class, 'getWishlist']);
 Route::post('/wishlist', [UserController::class, 'addToWishlist']);
 Route::delete('/wishlist/{productId}', [UserController::class, 'removeFromWishlist']);
 
+Route::get('/user/wishlist', [UserController::class, 'getWishlist']);
+Route::post('/user/wishlist', [UserController::class, 'addToWishlist']);
+Route::delete('/user/wishlist/{productId}', [UserController::class, 'removeFromWishlist']);
+
 // Cart
 Route::get('/cart', [UserController::class, 'getCart']);
 Route::post('/cart', [UserController::class, 'addToCart']);
 Route::put('/cart/{productId}', [UserController::class, 'updateCartItem']);
 Route::delete('/cart/{productId}', [UserController::class, 'removeFromCart']);
 Route::delete('/cart', [UserController::class, 'clearCart']);
+
+Route::get('/user/cart', [UserController::class, 'getCart']);
+Route::post('/user/cart', [UserController::class, 'addToCart']);
+Route::put('/user/cart/{productId}', [UserController::class, 'updateCartItem']);
+Route::delete('/user/cart/{productId}', [UserController::class, 'removeFromCart']);
+Route::delete('/user/cart', [UserController::class, 'clearCart']);
 
 // User Orders
 Route::get('/user/orders', [UserController::class, 'getUserOrders']);

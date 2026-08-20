@@ -29,6 +29,11 @@ export const useNotificationStore = create<NotificationState>()(
     fetchNotifications: async () => {
       try {
         set({ loading: true });
+        const auth = (await import("firebase/auth")).getAuth();
+        if (!auth.currentUser) {
+          set({ notifications: [], loading: false });
+          return;
+        }
         const res = await api.get("/user/notifications");
         set({ notifications: res.data || [], loading: false });
       } catch (e) {

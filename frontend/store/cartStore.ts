@@ -35,16 +35,26 @@ export const useCartStore = create<CartState>()((set, get) => ({
         return;
       }
       const res = await getCart();
-      if (res.success) {
-        // Map the real API CartItem from @/types to the store's CartItem format
-        // Backend CartItem: { id, quantity, product: { name, price, sale_price, image } }
-        const mappedItems: CartItem[] = res.data.map((item: any) => ({
+      if (Array.isArray(res)) {
+        // Backend returns array of items directly
+        const mappedItems: CartItem[] = res.map((item: any) => ({
           id: item.id,
-          name: item.product.name,
-          price: item.product.sale_price ?? item.product.price,
+          name: item.name,
+          price: item.price,
           quantity: item.quantity,
-          image_url: item.product.image,
-          product_id: item.product.id // keeping product_id for API calls
+          image_url: item.image_url,
+          product_id: item.id // product_id is the id mapped in backend
+        }));
+        set({ items: mappedItems, loading: false });
+      } else if (res && (res as any).success) {
+        // Fallback if backend wraps it
+        const mappedItems: CartItem[] = (res as any).data.map((item: any) => ({
+          id: item.id,
+          name: item.product?.name || item.name,
+          price: item.product?.sale_price ?? item.product?.price ?? item.price,
+          quantity: item.quantity,
+          image_url: item.product?.image || item.image_url,
+          product_id: item.product?.id || item.id
         }));
         set({ items: mappedItems, loading: false });
       } else {
@@ -69,7 +79,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       const productId = (item as any).product_id || item.id;
       const res = await addToCart(productId, item.quantity || 1);
       
-      if (res.success) {
+      if (res && ((res as any).success || (res as any).item || (res as any).message)) {
         // Optimistic UI update or fetch from server again
         await get().fetchCart();
         return true;
