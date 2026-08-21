@@ -182,7 +182,7 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               title={t('wishlist')}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <Heart size={20} />
             </Link>
@@ -334,15 +334,6 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* Mobile Profile Link for small screens */}
-            <Link
-              href="/account/profile"
-              title={t('profile')}
-              className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
-            >
-              <User size={20} />
-            </Link>
-
             {/* Hamburger Button (Visible only on screens below lg) */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -395,7 +386,7 @@ export default function Navbar() {
 
         {/* ── 5. Mobile Drawer Menu (Visible when hamburger opened) ── */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-200 bg-white shadow-2xl animate-in slide-in-from-top-2 duration-200">
+          <div className="lg:hidden absolute left-0 right-0 top-full border-t border-gray-200 bg-white shadow-2xl animate-in slide-in-from-top-2 duration-200">
             {/* Category Nav Links */}
             <div className="px-4 py-3 space-y-1">
               {navLinks.map((link) => (

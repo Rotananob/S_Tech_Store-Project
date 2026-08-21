@@ -63,7 +63,7 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {items.map((item) => (
               <div key={item.id} style={{ background: "white", border: "1px solid #eaeaea", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <Link href={item.slug ? `/products/${item.slug}` : `/products/${item.id}`} style={{ position: "relative", aspectRatio: "1/1", display: "block", background: "#f9f9f9" }}>
