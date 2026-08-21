@@ -1,0 +1,24 @@
+{
+  "Navigation": {
+    "home": "Home",
+    "products": "Products",
+    "cart": "Cart",
+    "checkout": "Checkout",
+    "admin": "Admin Dashboard",
+    "login": "Login",
+    "register": "Register"
+  },
+  "Product": {
+    "addToCart": "Add to Cart",
+    "outOfStock": "Out of Stock",
+    "price": "Price",
+    "details": "Product Details",
+    "search": "Search products..."
+  },
+  "Cart": {
+    "title": "Shopping Cart",
+    "empty": "Your cart is empty",
+    "total": "Total",
+    "proceedToCheckout": "Proceed to Checkout"
+  }
+}

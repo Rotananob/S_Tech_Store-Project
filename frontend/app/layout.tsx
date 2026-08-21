@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { Inter, Suwannaphum } from "next/font/google";
 import "./globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const suwannaphum = Suwannaphum({ 
+  weight: ["100", "300", "400", "700", "900"],
+  subsets: ["khmer"], 
+  variable: "--font-suwannaphum" 
+});
 
 export const metadata: Metadata = {
   title: {
@@ -23,11 +31,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Khmer:wght@300;400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dangrek&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body className={`${inter.variable} ${suwannaphum.variable}`}>
         {children}
         <FloatingBackButton />
       </body>
