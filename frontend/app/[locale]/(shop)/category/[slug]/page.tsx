@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import api from "@/lib/api";
 import ProductCard from "@/components/product/ProductCard";
 import { useLangStore } from "@/store/langStore";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";

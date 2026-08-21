@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
-import { auth } from "../../../../lib/firebase";
+import { auth } from "@/lib/firebase";
 import {
   User, Shield, Bell, Package, Heart, Wrench, Award,
   CheckCircle2, Key, Smartphone, History, MapPin, Mail, Phone,

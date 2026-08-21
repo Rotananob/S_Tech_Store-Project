@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Trash2, Lock, Truck, ArrowRight, Check } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";

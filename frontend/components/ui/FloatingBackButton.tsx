@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { ArrowLeft } from "lucide-react";
 import { useLangStore } from "@/store/langStore";
 

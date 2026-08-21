@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Suwannaphum } from "next/font/google";
-import "./globals.css";
+import "@/app/globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const suwannaphum = Suwannaphum({ 
@@ -20,13 +22,18 @@ export const metadata: Metadata = {
   keywords: ["computer shop", "laptops", "Cambodia", "Phnom Penh", "S Tech Store", "ហាងដែក"],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  params
 }: Readonly<{
   children: React.ReactNode;
+  params: Promise<{ locale: string }>;
 }>) {
+  const { locale } = await params;
+  const messages = await getMessages();
+
   return (
-    <html lang="km">
+    <html lang={locale}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -36,8 +43,10 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${suwannaphum.variable}`}>
-        {children}
-        <FloatingBackButton />
+        <NextIntlClientProvider messages={messages}>
+          {children}
+          <FloatingBackButton />
+        </NextIntlClientProvider>
       </body>
     </html>
   );
