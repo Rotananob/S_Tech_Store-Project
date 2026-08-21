@@ -2,8 +2,32 @@ import { getCategories, getProducts } from "@/lib/services/product.service";
 import { Category, Product } from "@/types";
 import { HeroSection, FeatureStrip, CategorySection, BestSellers } from "./home-client";
 
+import { Metadata } from "next";
+
 export const dynamic = 'force-dynamic';
 
+type Props = {
+  params: Promise<{ locale: string }>;
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params;
+  const isKm = locale === 'km';
+  const title = isKm ? 'ទំព័រដើម | S Tech Store' : 'Home | S Tech Store';
+  const description = isKm 
+    ? 'ស្វែងរកម៉ាស៊ីន​កំព្យូទ័រ និងឧបករណ៍ IT គ្រប់ប្រភេទ។ S Tech Store ផ្តល់ជូននូវផលិតផលពិតប្រាកដនៅកម្ពុជា។' 
+    : 'Discover top-tier laptops, custom desktop builds, and professional IT services. S Tech Store provides genuine products in Cambodia.';
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `https://s-tech-store-project.vercel.app/${locale}`,
+    }
+  };
+}
 export default async function HomePage() {
   let categories: Category[] = [];
   let products: Product[] = [];
