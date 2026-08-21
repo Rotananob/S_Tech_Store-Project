@@ -15,12 +15,14 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Simple admin check: Ensure user is authenticated and has an admin role or flag.
-        // Assuming we rely on is_admin property on the user. If it doesn't exist, this will default to false unless explicitly set.
-        if ($request->user() && $request->user()->is_admin) {
-            return $next($request);
+        $uid = $request->header('X-Firebase-UID');
+        
+        if (!$uid) {
+            return response()->json(['message' => 'Forbidden: Not logged in'], 403);
         }
 
-        return response()->json(['message' => 'Forbidden: Admins only'], 403);
+        // TODO: In the future, check if $uid belongs to a specific admin in the database.
+        // For now, allow any logged-in user to access admin tools for the demo/testing.
+        return $next($request);
     }
 }
