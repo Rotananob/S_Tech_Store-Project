@@ -6,7 +6,30 @@
     "checkout": "ទូទាត់ប្រាក់",
     "admin": "ផ្ទាំងគ្រប់គ្រង",
     "login": "ចូលគណនី",
-    "register": "ចុះឈ្មោះ"
+    "register": "ចុះឈ្មោះ",
+    "laptops": "កុំព្យូទ័រយួរដៃ",
+    "desktops": "កុំព្យូទ័រលើតុ",
+    "parts": "គ្រឿងបន្លាស់",
+    "gaming": "ហ្គេម",
+    "buildPc": "ដំឡើងកុំព្យូទ័រ",
+    "services": "សេវាកម្ម",
+    "promotions": "ប្រូម៉ូសិន",
+    "orders": "ការបញ្ជាទិញ",
+    "contact": "ទំនាក់ទំនង",
+    "searchPlaceholder": "ស្វែងរកផលិតផល...",
+    "wishlist": "ចំណូលចិត្ត",
+    "alerts": "ការជូនដំណឹង",
+    "signOut": "ចាកចេញ",
+    "signIn": "ចូលគណនី",
+    "profile": "ប្រវត្តិរូប",
+    "freeDelivery": "ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងភ្នំពេញ"
+  },
+  "Notifications": {
+    "title": "ការជូនដំណឹង",
+    "markAllRead": "សម្គាល់ថាបានអាន",
+    "clearAll": "លុបទាំងអស់",
+    "empty": "មិនទាន់មានការជូនដំណឹងទេ",
+    "timeJustNow": "អម្បាញ់មិញ"
   },
   "Product": {
     "addToCart": "បន្ថែមចូលកន្ត្រក",
@@ -19,6 +42,16 @@
     "title": "កន្ត្រកទំនិញ",
     "empty": "កន្ត្រករបស់អ្នកទទេ",
     "total": "សរុប",
-    "proceedToCheckout": "បន្តទៅទូទាត់ប្រាក់"
+    "proceedToCheckout": "បន្តទៅទូទាត់ប្រាក់",
+    "cartStep": "កន្ត្រក",
+    "deliveryStep": "ដឹកជញ្ជូន",
+    "paymentStep": "ទូទាត់",
+    "doneStep": "រួចរាល់",
+    "orderSummary": "សង្ខេបការបញ្ជាទិញ",
+    "subtotal": "សរុបរង",
+    "delivery": "ដឹកជញ្ជូន",
+    "free": "ឥតគិតថ្លៃ",
+    "sameDayPhnomPenh": "ដឹកជញ្ជូនក្នុងថ្ងៃតែមួយនៅភ្នំពេញ",
+    "secureCheckout": "ទូទាត់ប្រាក់ដោយសុវត្ថិភាព"
   }
 }

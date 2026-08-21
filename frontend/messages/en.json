@@ -6,7 +6,30 @@
     "checkout": "Checkout",
     "admin": "Admin Dashboard",
     "login": "Login",
-    "register": "Register"
+    "register": "Register",
+    "laptops": "Laptops",
+    "desktops": "Desktops",
+    "parts": "PC Parts",
+    "gaming": "Gaming",
+    "buildPc": "Build PC",
+    "services": "Services",
+    "promotions": "Promotions",
+    "orders": "Orders",
+    "contact": "Contact",
+    "searchPlaceholder": "Search products...",
+    "wishlist": "Wishlist",
+    "alerts": "Alerts",
+    "signOut": "Sign Out",
+    "signIn": "Sign In",
+    "profile": "Profile",
+    "freeDelivery": "Free delivery in Phnom Penh"
+  },
+  "Notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "clearAll": "Clear all",
+    "empty": "No notifications yet",
+    "timeJustNow": "Just now"
   },
   "Product": {
     "addToCart": "Add to Cart",
@@ -19,6 +42,16 @@
     "title": "Shopping Cart",
     "empty": "Your cart is empty",
     "total": "Total",
-    "proceedToCheckout": "Proceed to Checkout"
+    "proceedToCheckout": "Proceed to Checkout",
+    "cartStep": "Cart",
+    "deliveryStep": "Delivery",
+    "paymentStep": "Payment",
+    "doneStep": "Done",
+    "orderSummary": "Order Summary",
+    "subtotal": "Subtotal",
+    "delivery": "Delivery",
+    "free": "Free",
+    "sameDayPhnomPenh": "Same Day Delivery in Phnom Penh",
+    "secureCheckout": "Secure Checkout"
   }
 }

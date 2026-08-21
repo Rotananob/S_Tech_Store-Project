@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
+import { useTranslations } from "next-intl";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { translations } from "@/lib/translations";
@@ -29,6 +31,8 @@ export default function Navbar() {
   const notifRef = useRef<HTMLDivElement>(null);
   const cartCount = useCartStore((s) => s.getTotalItems());
   const { lang, setLang } = useLangStore();
+  const t = useTranslations("Navigation");
+  const tNotif = useTranslations("Notifications");
   const {
     notifications,
     fetchNotifications,
@@ -38,20 +42,17 @@ export default function Navbar() {
     getUnreadCount,
   } = useNotificationStore();
 
-  const t = translations[lang].nav;
-  const tNotif = translations[lang].notifications;
-
   const navLinks = [
-    { label: t.home, href: "/" },
-    { label: t.laptops, href: "/category/laptops" },
-    { label: t.desktops, href: "/category/desktops" },
-    { label: t.parts, href: "/category/parts" },
-    { label: t.gaming, href: "/category/gaming" },
-    { label: t.buildPc, href: "/build-pc" },
-    { label: t.services, href: "/services" },
-    { label: t.promotions, href: "/promotions" },
-    { label: t.orders, href: "/orders" },
-    { label: t.contact, href: "/contact" },
+    { label: t('home'), href: "/" },
+    { label: t('laptops'), href: "/category/laptops" },
+    { label: t('desktops'), href: "/category/desktops" },
+    { label: t('parts'), href: "/category/parts" },
+    { label: t('gaming'), href: "/category/gaming" },
+    { label: t('buildPc'), href: "/build-pc" },
+    { label: t('services'), href: "/services" },
+    { label: t('promotions'), href: "/promotions" },
+    { label: t('orders'), href: "/orders" },
+    { label: t('contact'), href: "/contact" },
   ];
 
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function Navbar() {
     const date = new Date(dateStr);
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return tNotif.timeJustNow;
+    if (diffMin < 1) return tNotif('timeJustNow');
     if (diffMin < 60) return `${diffMin}m`;
     const diffH = Math.floor(diffMin / 60);
     if (diffH < 24) return `${diffH}h`;
@@ -136,7 +137,7 @@ export default function Navbar() {
             <span>+855 12 345 678 | support@stechstore.com.kh</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden md:inline">{t.freeDelivery}</span>
+            <span className="hidden md:inline">{t('freeDelivery')}</span>
           </div>
         </div>
       </div>
@@ -162,7 +163,7 @@ export default function Navbar() {
               <input
                 type="search"
                 className="w-full bg-gray-50 border border-gray-200 rounded-full pl-10 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
-                placeholder={t.searchPlaceholder}
+                placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -180,7 +181,7 @@ export default function Navbar() {
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Link
               href="/wishlist"
-              title={t.wishlist}
+              title={t('wishlist')}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <Heart size={20} />
@@ -188,7 +189,7 @@ export default function Navbar() {
 
             <Link
               href="/cart"
-              title={t.cart}
+              title={t('cart')}
               className="relative w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <ShoppingCart size={20} />
@@ -204,7 +205,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setNotifOpen(!notifOpen)}
-                title={t.alerts}
+                title={t('alerts')}
                 className="relative w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors cursor-pointer border-none bg-transparent"
               >
                 <Bell size={20} />
@@ -219,7 +220,7 @@ export default function Navbar() {
                   {/* Header */}
                   <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-[14px] text-[#1a1a1a]">{tNotif.title}</span>
+                      <span className="font-bold text-[14px] text-[#1a1a1a]">{tNotif('title')}</span>
                       {unreadCount > 0 && (
                         <span className="px-2 py-0.5 text-[11px] font-bold bg-[#8B1A1A] text-white rounded-full">
                           {unreadCount}
@@ -234,13 +235,13 @@ export default function Navbar() {
                           className="text-[12px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
                         >
                           <CheckCheck size={13} />
-                          {tNotif.markAllRead}
+                          {tNotif('markAllRead')}
                         </button>
                         <button
                           type="button"
                           onClick={clearAll}
                           className="text-[12px] font-semibold text-gray-400 hover:text-red-600 transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
-                          title={tNotif.clearAll}
+                          title={tNotif('clearAll')}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -253,7 +254,7 @@ export default function Navbar() {
                     {notifications.length === 0 ? (
                       <div className="py-10 px-4 text-center text-gray-400 text-[13px] flex flex-col items-center gap-2">
                         <Bell size={28} className="text-gray-300" />
-                        <span>{tNotif.empty}</span>
+                        <span>{tNotif('empty')}</span>
                       </div>
                     ) : (
                       notifications.map((n) => {
@@ -293,40 +294,7 @@ export default function Navbar() {
             </div>
 
             {/* ── Prominent Language Switcher Pill ── */}
-            <div className="relative" ref={langRef}>
-              <button
-                type="button"
-                onClick={() => setLangOpen(!langOpen)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-xs sm:text-sm border border-gray-200/80 hover:border-red-200 transition-all shadow-sm cursor-pointer"
-              >
-                <span className="text-sm sm:text-base">{lang === "EN" ? "🇺🇸" : "🇰🇭"}</span>
-                <span>{lang === "EN" ? "EN" : "ខ្មែរ"}</span>
-                <ChevronDown size={13} className="text-gray-400" />
-              </button>
-              {langOpen && (
-                <div className="absolute top-full right-0 mt-2 w-44 bg-white text-[#1a1a1a] rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150">
-                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                    Select Language / ជ្រើសរើសភាសា
-                  </div>
-                  {(["EN", "KM"] as const).map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => { setLang(l); setLangOpen(false); }}
-                      className={`w-full text-left px-3.5 py-2.5 text-xs sm:text-sm font-semibold hover:bg-red-50/70 transition-colors cursor-pointer border-none flex items-center justify-between ${
-                        lang === l ? "text-[#8B1A1A] bg-red-50 font-bold" : "text-gray-700"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="text-base">{l === "EN" ? "🇺🇸" : "🇰🇭"}</span>
-                        <span>{l === "EN" ? "English" : "ភាសាខ្មែរ"}</span>
-                      </span>
-                      {lang === l && <span className="w-1.5 h-1.5 rounded-full bg-[#8B1A1A]" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <LanguageSwitcher />
 
             {/* ── Prominent Sign In / Register Buttons or User Profile ── */}
             {user ? (
@@ -344,7 +312,7 @@ export default function Navbar() {
                   type="button"
                   onClick={() => signOut(auth)}
                   className="px-2.5 py-1.5 bg-gray-100 hover:bg-red-600 hover:text-white text-gray-700 rounded-xl text-xs font-bold transition-all border border-gray-200 cursor-pointer flex items-center gap-1"
-                  title={t.signOut}
+                  title={t('signOut')}
                 >
                   <LogOut size={14} />
                 </button>
@@ -355,13 +323,13 @@ export default function Navbar() {
                   href="/login"
                   className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline"
                 >
-                  {t.signIn}
+                  {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
                   className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1"
                 >
-                  <span>{t.register}</span>
+                  <span>{t('register')}</span>
                 </Link>
               </div>
             )}
@@ -369,7 +337,7 @@ export default function Navbar() {
             {/* Mobile Profile Link for small screens */}
             <Link
               href="/account/profile"
-              title={t.profile}
+              title={t('profile')}
               className="sm:hidden w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <User size={20} />
@@ -411,7 +379,7 @@ export default function Navbar() {
             <input
               type="search"
               className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:shadow-sm transition-all"
-              placeholder={t.searchPlaceholder}
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -462,7 +430,7 @@ export default function Navbar() {
                     onClick={() => { signOut(auth); setMobileOpen(false); }}
                     className="px-3 py-1.5 bg-[#c0392b] text-white rounded-lg text-xs font-semibold border-none cursor-pointer"
                   >
-                    {t.signOut}
+                    {t('signOut')}
                   </button>
                 </div>
               ) : (
@@ -472,14 +440,14 @@ export default function Navbar() {
                     onClick={() => setMobileOpen(false)}
                     className="flex-1 py-3 text-center border-2 border-gray-200 rounded-xl text-sm font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm"
                   >
-                    {t.signIn}
+                    {t('signIn')}
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => setMobileOpen(false)}
                     className="flex-1 py-3 text-center bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white rounded-xl text-sm font-bold no-underline shadow-md"
                   >
-                    {t.register}
+                    {t('register')}
                   </Link>
                 </div>
               )}
@@ -491,7 +459,7 @@ export default function Navbar() {
                   className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
                 >
                   <Heart size={18} />
-                  <span className="text-[11px] font-medium">{t.wishlist}</span>
+                  <span className="text-[11px] font-medium">{t('wishlist')}</span>
                 </Link>
                 <Link
                   href="/cart"
@@ -499,7 +467,7 @@ export default function Navbar() {
                   className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
                 >
                   <ShoppingCart size={18} />
-                  <span className="text-[11px] font-medium">{t.cart}</span>
+                  <span className="text-[11px] font-medium">{t('cart')}</span>
                 </Link>
                 <Link
                   href="/account/profile"
@@ -507,7 +475,7 @@ export default function Navbar() {
                   className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
                 >
                   <User size={18} />
-                  <span className="text-[11px] font-medium">{t.profile}</span>
+                  <span className="text-[11px] font-medium">{t('profile')}</span>
                 </Link>
               </div>
             </div>
