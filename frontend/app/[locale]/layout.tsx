@@ -50,6 +50,14 @@ export const metadata: Metadata = {
       km: "/km",
     },
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'S Tech Store',
+  },
+  icons: {
+    apple: '/icons/icon-192.png',
+  },
 };
 
 export default async function RootLayout({
