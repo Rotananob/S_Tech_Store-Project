@@ -184,9 +184,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={toggleWishlist}
             style={{
-              width: "34px",
-              height: "34px",
-              borderRadius: "8px",
               width: "40px",
               height: "40px",
               borderRadius: "50%",
