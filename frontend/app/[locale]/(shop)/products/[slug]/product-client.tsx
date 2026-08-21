@@ -5,8 +5,7 @@ import { Link } from "@/i18n/routing";
 import { ShoppingCart, ChevronRight, Check, Send } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
-import { useLangStore } from "@/store/langStore";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "next-intl";
 
 type TabType = "specs" | "description" | "reviews";
 
@@ -16,8 +15,8 @@ export function ProductDetailClient({ product }: { product: any }) {
   const [tab, setTab] = useState<TabType>("specs");
   
   const addItemToCart = useCartStore((state) => state.addItem);
-  const { lang } = useLangStore();
-  const t = translations[lang].products;
+  const t = useTranslations("Products");
+  const tNav = useTranslations("Navigation");
 
   const handleAddToCart = () => {
     addItemToCart({
@@ -27,13 +26,13 @@ export function ProductDetailClient({ product }: { product: any }) {
       quantity: qty,
       image_url: product.image_url,
     });
-    alert(`${product.name} ${t.addToCart}!`);
+    alert(`${product.name} ${t("addToCart")}!`);
   };
 
   const images = product.image_url ? [product.image_url] : ["/placeholder.jpg"];
   const specs = [
     { key: "Category", value: product.category?.name || "Uncategorized" },
-    { key: "Stock", value: product.stock > 0 ? t.inStock : t.outOfStock }
+    { key: "Stock", value: product.stock > 0 ? t("inStock") : t("outOfStock") }
   ];
   const model = product.name;
 
@@ -57,7 +56,7 @@ export function ProductDetailClient({ product }: { product: any }) {
             onMouseEnter={(e) => ((e.target as HTMLAnchorElement).style.color = "white")}
             onMouseLeave={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.45)")}
           >
-            {translations[lang].nav.home}
+            {tNav("home")}
           </Link>
           <ChevronRight size={13} />
           <Link
@@ -116,7 +115,7 @@ export function ProductDetailClient({ product }: { product: any }) {
             {product.badge && (
               <div style={{ marginBottom: "14px" }}>
                 <span className="badge-new-arrival">
-                  {product.badge === "NEW" ? t.newArrival : product.badge}
+                  {product.badge === "NEW" ? t("newArrival") : product.badge}
                 </span>
               </div>
             )}
@@ -200,11 +199,11 @@ export function ProductDetailClient({ product }: { product: any }) {
                   fontWeight: "600",
                 }}
               >
-                {product.stock > 0 ? t.inStock : t.outOfStock}
+                {product.stock > 0 ? t("inStock") : t("outOfStock")}
               </span>
               {product.stock > 0 && (
                 <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)" }}>
-                  {t.shipsToday}
+                  {t("shipsToday")}
                 </span>
               )}
             </div>
@@ -229,7 +228,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                   marginBottom: "10px",
                 }}
               >
-                {t.quantity}
+                {t("quantity")}
               </label>
               <div className="qty-control">
                 <button
@@ -256,14 +255,14 @@ export function ProductDetailClient({ product }: { product: any }) {
                 style={{ flex: 1, padding: "13px 20px", fontSize: "14px", opacity: product.stock === 0 ? 0.5 : 1 }}
               >
                 <ShoppingCart size={16} />
-                {t.addToCart}
+                {t("addToCart")}
               </button>
               <button
                 className="btn-outline-blue"
                 style={{ flex: 1, padding: "13px 20px", fontSize: "14px" }}
               >
                 <Send size={15} />
-                {t.orderTelegram}
+                {t("orderTelegram")}
               </button>
             </div>
 
@@ -285,7 +284,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                 }}
               >
                 <Check size={13} style={{ color: "#22c55e" }} />
-                {t.oneYearWarranty}
+                {t("oneYearWarranty")}
               </div>
               <div
                 style={{
@@ -297,7 +296,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                 }}
               >
                 <Check size={13} style={{ color: "#22c55e" }} />
-                {t.genuineProduct}
+                {t("genuineProduct")}
               </div>
             </div>
           </div>
@@ -323,19 +322,19 @@ export function ProductDetailClient({ product }: { product: any }) {
             className={`tab-btn${tab === "specs" ? " active" : ""}`}
             onClick={() => setTab("specs")}
           >
-            {t.specifications}
+            {t("specifications")}
           </button>
           <button
             className={`tab-btn${tab === "description" ? " active" : ""}`}
             onClick={() => setTab("description")}
           >
-            {t.description}
+            {t("description")}
           </button>
           <button
             className={`tab-btn${tab === "reviews" ? " active" : ""}`}
             onClick={() => setTab("reviews")}
           >
-            {t.reviews} ({product.reviews || 0})
+            {t("reviews")} ({product("reviews") || 0})
           </button>
         </div>
 
@@ -376,9 +375,9 @@ export function ProductDetailClient({ product }: { product: any }) {
 
         {tab === "reviews" && (
           <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "15px" }}>
-            {product.reviews > 0
-              ? `${product.reviews} customer reviews.`
-              : t.noReviews}
+            {product("reviews") > 0
+              ? `${product("reviews")} customer reviews.`
+              : t("noReviews")}
           </div>
         )}
       </div>

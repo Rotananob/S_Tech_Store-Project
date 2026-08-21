@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
 import { useCartStore } from "@/store/cartStore";
 import { createOrder } from "@/lib/services/order.service";
 
@@ -76,7 +77,8 @@ const PAYMENT_METHODS = [
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepBar({ step }: { step: number }) {
-  const steps = ["Cart", "Delivery & Payment", "Done"];
+  const t = useTranslations("Checkout");
+  const steps = [t("stepCart"), t("stepDeliveryPayment"), t("stepDone")];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 28 }}>
       {steps.map((label, i) => {
@@ -113,6 +115,7 @@ function StepBar({ step }: { step: number }) {
 
 // ─── Main Checkout Page ────────────────────────────────────────────────────────
 export default function CheckoutPage() {
+  const t = useTranslations("Checkout");
   const router = useRouter();
   const { items, fetchCart, clearCart } = useCartStore();
   const [delivery, setDelivery] = useState<"pnompenh" | "province">("pnompenh");
@@ -134,11 +137,11 @@ export default function CheckoutPage() {
 
   const handleConfirm = async () => {
     if (!name.trim() || !phone.trim() || !address.trim()) {
-      alert("Please fill in all delivery fields.");
+      alert(t("alertFillFields"));
       return;
     }
     if (items.length === 0) {
-      alert("Your cart is empty.");
+      alert(t("alertEmptyCart"));
       return;
     }
 
@@ -167,7 +170,7 @@ export default function CheckoutPage() {
       setConfirmed(true);
       setStep(3);
     } else {
-      alert(res.error || "Failed to place order. Please try again.");
+      alert(res.error || t("alertFailed"));
     }
   };
 
@@ -177,7 +180,7 @@ export default function CheckoutPage() {
       <div style={{ background: "#f9f9f9", minHeight: "100vh" }}>
         <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "24px 0" }}>
           <div className="container">
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a" }}>Checkout</h1>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a" }}>{t("title")}</h1>
             <div style={{ marginTop: 10 }}><StepBar step={3} /></div>
           </div>
         </div>
@@ -197,16 +200,16 @@ export default function CheckoutPage() {
                 <polyline points="22 4 12 14.01 9 11.01"/>
               </svg>
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>Order Confirmed!</h2>
-            <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>Your order has been placed successfully.</p>
-            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 28 }}>We'll contact you at <strong style={{ color: "#1a1a1a" }}>{phone}</strong> to confirm delivery.</p>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>{t("orderConfirmed")}</h2>
+            <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>{t("orderPlacedSuccess")}</p>
+            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 28 }}>{t("contactConfirm")} <strong style={{ color: "#1a1a1a" }}>{phone}</strong> {t("toConfirmDelivery")}</p>
             <div style={{ background: "#f9f9f9", borderRadius: 8, padding: "16px 20px", marginBottom: 28, textAlign: "left" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: "#777" }}>Order Total</span>
+                <span style={{ fontSize: 13, color: "#777" }}>{t("orderTotal")}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: "#8B1A1A" }}>{fmtUSD(total)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#777" }}>Payment</span>
+                <span style={{ fontSize: 13, color: "#777" }}>{t("payment")}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>
                   {PAYMENT_METHODS.find(p => p.id === payment)?.label}
                 </span>
@@ -216,7 +219,7 @@ export default function CheckoutPage() {
               display: "block", padding: "12px", background: "#8B1A1A",
               color: "#fff", borderRadius: 6, fontWeight: 700, fontSize: 14,
               textDecoration: "none", textAlign: "center",
-            }}>Back to Home</Link>
+            }}>{t("backToHome")}</Link>
           </div>
         </div>
       </div>
@@ -228,7 +231,7 @@ export default function CheckoutPage() {
       {/* Header */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "24px 0 0" }}>
         <div className="container">
-          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a", marginBottom: 12 }}>Checkout</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a", marginBottom: 12 }}>{t("title")}</h1>
           <StepBar step={step} />
         </div>
       </div>
@@ -248,14 +251,14 @@ export default function CheckoutPage() {
                   <circle cx="5.5" cy="18.5" r="2.5"/>
                   <circle cx="18.5" cy="18.5" r="2.5"/>
                 </svg>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>Delivery Details</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>{t("deliveryDetails")}</h2>
               </div>
 
               {/* Delivery Type Cards */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
                 {[
-                  { id: "pnompenh", label: "Phnom Penh (Same-Day)", sub: "Delivered within 2–4 hours", fee: 2 },
-                  { id: "province", label: "Province Delivery", sub: "Vireak Buntham / J&T (1–2 Days)", fee: 3 },
+                  { id: "pnompenh", label: t("deliveryPhnomPenh"), sub: "Delivered within 2–4 hours", fee: 2 },
+                  { id: "province", label: t("deliveryProvince"), sub: "Vireak Buntham / J&T (1–2 Days)", fee: 3 },
                 ].map(opt => (
                   <button key={opt.id} onClick={() => setDelivery(opt.id as typeof delivery)}
                     style={{
@@ -283,12 +286,12 @@ export default function CheckoutPage() {
               {/* Form Fields */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Full Name</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>{t("fullName")}</label>
                   <input
                     id="checkout-name"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Sok San"
+                    placeholder={t("fullName")}
                     style={{
                       width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0",
                       borderRadius: 6, fontSize: 14, color: "#1a1a1a", outline: "none",
@@ -299,12 +302,12 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Phone Number</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>{t("phoneNumber")}</label>
                   <input
                     id="checkout-phone"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    placeholder="012 345 678"
+                    placeholder={t("phoneNumber")}
                     style={{
                       width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0",
                       borderRadius: 6, fontSize: 14, color: "#1a1a1a", outline: "none",
@@ -316,12 +319,12 @@ export default function CheckoutPage() {
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Detailed Address / Map Link</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>{t("addressMap")}</label>
                 <textarea
                   id="checkout-address"
                   value={address}
                   onChange={e => setAddress(e.target.value)}
-                  placeholder="Street number, house number, or paste Google Maps link..."
+                  placeholder={t("addressPlaceholder")}
                   rows={3}
                   style={{
                     width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0",
@@ -342,7 +345,7 @@ export default function CheckoutPage() {
                   <rect x="2" y="5" width="20" height="14" rx="2"/>
                   <line x1="2" y1="10" x2="22" y2="10"/>
                 </svg>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>Payment Method</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a" }}>{t("paymentMethod")}</h2>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
@@ -380,7 +383,7 @@ export default function CheckoutPage() {
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
                   <p style={{ fontSize: 13, color: "#3b82f6" }}>
-                    After confirming, you'll receive a QR code to complete payment via{" "}
+                    {t("qrHint")}{" "}
                     <strong>{PAYMENT_METHODS.find(p => p.id === payment)?.label}</strong>.
                   </p>
                 </div>
@@ -390,7 +393,7 @@ export default function CheckoutPage() {
 
           {/* ── RIGHT COLUMN — Order Summary ─────────────────────────────────── */}
           <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: 24, position: "sticky", top: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a", marginBottom: 18 }}>Order Summary</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a", marginBottom: 18 }}>{t("orderSummary")}</h2>
 
             {/* Items */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 18 }}>
@@ -398,7 +401,7 @@ export default function CheckoutPage() {
                 <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", marginBottom: 2 }}>{item.name}</p>
-                    <p style={{ fontSize: 11, color: "#aaa" }}>Qty: {item.quantity}</p>
+                    <p style={{ fontSize: 11, color: "#aaa" }}>{t("qty")} {item.quantity}</p>
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", whiteSpace: "nowrap" }}>
                     {fmtUSD(item.price * item.quantity)}
@@ -410,11 +413,11 @@ export default function CheckoutPage() {
             {/* Divider */}
             <div style={{ borderTop: "1px solid #e5e5e5", paddingTop: 14, marginBottom: 14, display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#777" }}>Subtotal</span>
+                <span style={{ fontSize: 13, color: "#777" }}>{t("subtotal")}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{fmtUSD(subtotal)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#777" }}>Delivery Fee</span>
+                <span style={{ fontSize: 13, color: "#777" }}>{t("deliveryFee")}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{fmtUSD(deliveryFee)}</span>
               </div>
             </div>
@@ -422,7 +425,7 @@ export default function CheckoutPage() {
             {/* Total */}
             <div style={{ borderTop: "2px solid #e5e5e5", paddingTop: 14, marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>Total</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>{t("total")}</span>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 20, fontWeight: 900, color: "#8B1A1A" }}>{fmtUSD(total)}</div>
                   <div style={{ fontSize: 12, color: "#aaa" }}>{fmtKHR(total)}</div>
@@ -445,7 +448,7 @@ export default function CheckoutPage() {
               onMouseEnter={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#6B1010"; }}
               onMouseLeave={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#8B1A1A"; }}
             >
-              {loading ? "Processing..." : "Confirm Order"}
+              {loading ? t("processing") : t("confirmOrder")}
               {!loading && (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -460,7 +463,7 @@ export default function CheckoutPage() {
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
-              <span style={{ fontSize: 12 }}>Secure encrypted checkout</span>
+              <span style={{ fontSize: 12 }}>{t("secureCheckout")}</span>
             </div>
           </div>
 

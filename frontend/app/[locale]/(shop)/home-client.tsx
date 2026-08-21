@@ -4,12 +4,10 @@ import { Link } from "@/i18n/routing";
 import { ShoppingCart } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
-import { useLangStore } from "@/store/langStore";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "next-intl";
 
 export function HeroSection() {
-  const { lang } = useLangStore();
-  const t = translations[lang].hero;
+  const t = useTranslations("Hero");
 
   return (
     <section
@@ -23,9 +21,9 @@ export function HeroSection() {
         <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-10 min-h-[300px]">
           <div style={{ paddingBottom: "48px" }}>
             <h1 className="text-[30px] sm:text-[38px] lg:text-[44px] font-black text-[#1a1a1a] leading-[1.15] mb-4 tracking-tight">
-              {t.titleLine1}
+              {t("titleLine1")}
               <br />
-              {t.titleLine2}
+              {t("titleLine2")}
             </h1>
             <p
               style={{
@@ -35,7 +33,7 @@ export function HeroSection() {
                 lineHeight: "1.7",
               }}
             >
-              {t.subtitle}
+              {t("subtitle")}
             </p>
             <p
               className="font-khmer"
@@ -45,10 +43,10 @@ export function HeroSection() {
                 marginBottom: "28px",
               }}
             >
-              {t.khmerSubtitle}
+              {t("khmerSubtitle")}
             </p>
             <Link href="/category/all" className="btn-red inline-flex items-center gap-2 shadow-lg hover:shadow-red-900/40" style={{ width: "fit-content", padding: "12px 32px", fontSize: "15px" }}>
-              {t.shopNow}
+              {t("shopNow")}
             </Link>
           </div>
 
@@ -68,8 +66,7 @@ export function HeroSection() {
 }
 
 export function FeatureStrip() {
-  const { lang } = useLangStore();
-  const t = translations[lang].features;
+  const t = useTranslations("Features");
 
   const featuresList = [
     { svg: (
@@ -77,24 +74,24 @@ export function FeatureStrip() {
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>
-    ), label: t.genuine },
+    ), label: t("genuine") },
     { svg: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
       </svg>
-    ), label: t.warranty },
+    ), label: t("warranty") },
     { svg: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
       </svg>
-    ), label: t.localPayments },
+    ), label: t("localPayments") },
     { svg: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
         <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
       </svg>
-    ), label: t.sameDayDelivery },
+    ), label: t("sameDayDelivery") },
   ];
 
   return (
@@ -119,8 +116,7 @@ export function FeatureStrip() {
 }
 
 export function CategorySection({ categories = [] }: { categories: any[] }) {
-  const { lang } = useLangStore();
-  const t = translations[lang].categories;
+  const t = useTranslations("Categories");
 
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
@@ -166,12 +162,12 @@ export function CategorySection({ categories = [] }: { categories: any[] }) {
   };
 
   const defaultCategories = [
-    { name: t.laptops, slug: "laptops" },
-    { name: t.desktops, slug: "desktops" },
-    { name: t.parts, slug: "parts" },
-    { name: t.gaming, slug: "gaming" },
-    { name: t.secondHand, slug: "secondhand", badge: "99% New" },
-    { name: t.services, slug: "services" },
+    { name: t("laptops"), slug: "laptops" },
+    { name: t("desktops"), slug: "desktops" },
+    { name: t("parts"), slug: "parts" },
+    { name: t("gaming"), slug: "gaming" },
+    { name: t("secondHand"), slug: "secondhand", badge: "99% New" },
+    { name: t("services"), slug: "services" },
   ];
 
   const hasSecondHand = categories.some((c: any) =>
@@ -181,14 +177,14 @@ export function CategorySection({ categories = [] }: { categories: any[] }) {
   const displayCategories = categories.length > 0
     ? (hasSecondHand ? categories : [
         ...categories,
-        { name: t.secondHand, slug: "secondhand", badge: "99% New" }
+        { name: t("secondHand"), slug: "secondhand", badge: "99% New" }
       ])
     : defaultCategories;
 
   return (
     <section style={{ background: "#1a1a1a", padding: "48px 0" }}>
       <div className="container">
-        <p className="section-heading">{t.shopByCategory}</p>
+        <p className="section-heading">{t("shopByCategory")}</p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {displayCategories.map((cat) => (
@@ -226,8 +222,7 @@ export function CategorySection({ categories = [] }: { categories: any[] }) {
 }
 
 export function ProductCard({ product }: { product: any }) {
-  const { lang } = useLangStore();
-  const t = translations[lang].products;
+  const t = useTranslations("Products");
   const addItem = useCartStore((state) => state.addItem);
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -246,7 +241,7 @@ export function ProductCard({ product }: { product: any }) {
     <div className="product-card-dark">
       {product.is_featured && (
         <div style={{ position: "absolute", top: "10px", left: "10px", zIndex: 2 }}>
-          <span className="badge-hot">{t.hot}</span>
+          <span className="badge-hot">{t("hot")}</span>
         </div>
       )}
 
@@ -324,7 +319,7 @@ export function ProductCard({ product }: { product: any }) {
           onClick={handleAddToCart}
         >
           <ShoppingCart size={14} />
-          {t.addToCart}
+          {t("addToCart")}
         </button>
       </div>
     </div>
@@ -332,8 +327,7 @@ export function ProductCard({ product }: { product: any }) {
 }
 
 export function BestSellers({ products = [] }: { products: any[] }) {
-  const { lang } = useLangStore();
-  const t = translations[lang].products;
+  const t = useTranslations("Products");
 
   return (
     <section style={{ background: "#111", padding: "48px 0 60px" }}>
@@ -354,7 +348,7 @@ export function BestSellers({ products = [] }: { products: any[] }) {
               letterSpacing: "-0.01em",
             }}
           >
-            {t.bestSellers}
+            {t("bestSellers")}
           </h2>
           <Link
             href="/products"
@@ -371,7 +365,7 @@ export function BestSellers({ products = [] }: { products: any[] }) {
               (e.target as HTMLAnchorElement).style.color = "#1a4fa0";
             }}
           >
-            {t.viewAll}
+            {t("viewAll")}
           </Link>
         </div>
 

@@ -2,8 +2,7 @@
 
 import { Link } from "@/i18n/routing";
 import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
-import { useLangStore } from "@/store/langStore";
-import { translations } from "@/lib/translations";
+import { useTranslations } from "next-intl";
 
 const footerLinks = {
   shop: [
@@ -30,8 +29,7 @@ const footerLinks = {
 };
 
 export default function Footer() {
-  const { lang } = useLangStore();
-  const t = translations[lang].footer;
+  const t = useTranslations("Footer");
 
   return (
     <footer style={{ background: "#0a0a0a", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
@@ -71,7 +69,7 @@ export default function Footer() {
               </div>
             </Link>
             <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.45)", lineHeight: "1.7", marginBottom: "20px" }}>
-              {t.desc}
+              {t("desc")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
@@ -102,7 +100,7 @@ export default function Footer() {
                     marginBottom: "14px",
                   }}
                 >
-                  {key === "shop" ? t.shop : key === "support" ? t.support : t.company}
+                  {key === "shop" ? t("shop") : key === "support" ? t("support") : t("company")}
                 </h4>
                 <ul style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {links.map((link) => (
@@ -134,7 +132,7 @@ export default function Footer() {
           color: "rgba(255,255,255,0.25)",
         }}
       >
-        {t.copyright}
+        {t("copyright")}
       </div>
     </footer>
   );
