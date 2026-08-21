@@ -10,7 +10,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
   const { slug, locale } = await params;
-  const productRes = await getProduct(slug);
+  const productRes: any = await getProduct(slug);
   const product = productRes?.data ? productRes.data : productRes;
   
   if (!product) {
@@ -41,7 +41,7 @@ export default async function ProductDetailPage({
   const { slug } = await params;
   
   try {
-    const productRes = await getProduct(slug);
+    const productRes: any = await getProduct(slug);
     const product = productRes?.data ? productRes.data : productRes;
 
     if (!product) {
