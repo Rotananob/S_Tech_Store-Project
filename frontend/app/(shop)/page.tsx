@@ -2,6 +2,8 @@ import { getCategories, getProducts } from "@/lib/services/product.service";
 import { Category, Product } from "@/types";
 import { HeroSection, FeatureStrip, CategorySection, BestSellers } from "./home-client";
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   let categories: Category[] = [];
   let products: Product[] = [];

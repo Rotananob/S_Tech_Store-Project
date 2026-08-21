@@ -1,6 +1,8 @@
 import { getProduct } from "@/lib/services/product.service";
 import { ProductDetailClient } from "./product-client";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProductDetailPage({
   params,
 }: {
