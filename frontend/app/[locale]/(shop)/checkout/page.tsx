@@ -255,7 +255,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Delivery Type Cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                 {[
                   { id: "pnompenh", label: t("deliveryPhnomPenh"), sub: "Delivered within 2–4 hours", fee: 2 },
                   { id: "province", label: t("deliveryProvince"), sub: "Vireak Buntham / J&T (1–2 Days)", fee: 3 },
@@ -284,7 +284,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Form Fields */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>{t("fullName")}</label>
                   <input
