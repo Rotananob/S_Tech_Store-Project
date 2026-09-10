@@ -2,7 +2,8 @@ import { getProduct } from "@/lib/services/product.service";
 import { ProductDetailClient } from "./product-client";
 import { Metadata, ResolvingMetadata } from "next";
 
-export const dynamic = 'force-dynamic';
+// Revalidate cached product page every 60 seconds
+export const revalidate = 60;
 
 type Props = {
   params: Promise<{ slug: string; locale: string }>;
