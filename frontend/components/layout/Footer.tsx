@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/routing";
+import Image from "next/image";
 import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -38,12 +39,12 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-              <img
+              <Image
                 src="/logo.jpg"
                 alt="S Tech Store Logo"
+                width={48}
+                height={48}
                 style={{
-                  width: "48px",
-                  height: "48px",
                   objectFit: "contain",
                   flexShrink: 0,
                   borderRadius: "8px",

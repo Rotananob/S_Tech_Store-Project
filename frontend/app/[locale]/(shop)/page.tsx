@@ -4,7 +4,8 @@ import { HeroSection, FeatureStrip, CategorySection, BestSellers } from "./home-
 
 import { Metadata } from "next";
 
-export const dynamic = 'force-dynamic';
+// Revalidate this page at most once every 60 seconds
+export const revalidate = 60;
 
 type Props = {
   params: Promise<{ locale: string }>;

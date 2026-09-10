@@ -12,7 +12,18 @@ const withSerwist = withSerwistInit({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      // Firebase Storage
+      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+      // Cloudinary
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      // Unsplash
+      { protocol: "https", hostname: "images.unsplash.com" },
+      // Generic https fallback — covers any other external image host
+      { protocol: "https", hostname: "**" },
+    ],
+  },
 };
 
 export default withSerwist(withNextIntl(nextConfig));

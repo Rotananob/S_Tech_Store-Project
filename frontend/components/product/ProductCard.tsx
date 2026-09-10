@@ -83,13 +83,13 @@ export default function ProductCard({ product }: ProductCardProps) {
       >
         {/* Product Image */}
         {product.image ? (
-          <img
+          <Image
             src={product.image}
             alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover"
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
               transform: isHovered ? "scale(1.07)" : "scale(1)",
               transition: "transform 0.4s ease",
             }}
@@ -102,10 +102,13 @@ export default function ProductCard({ product }: ProductCardProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "48px",
+              opacity: 0.3,
             }}
           >
-            💻
+            <svg viewBox="0 0 24 24" width={48} height={48} fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="2" y1="20" x2="22" y2="20" />
+            </svg>
           </div>
         )}
 

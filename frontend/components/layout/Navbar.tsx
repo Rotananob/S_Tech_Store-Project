@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter, usePathname } from "@/i18n/routing";
+import Image from "next/image";
 import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import {
@@ -148,7 +149,7 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline">
-            <img src="/logo.jpg" alt="S Tech Store" className="w-10 h-10 rounded-lg object-contain" />
+            <Image src="/logo.jpg" alt="S Tech Store" width={40} height={40} className="rounded-lg object-contain" priority />
             <div className="leading-none">
               <div className="font-dangrek text-[21px] text-[#1a1a1a] tracking-wide">
                 S <span className="text-[#8B1A1A]">Tech</span> <span className="text-[#1a4fa0]">Store</span>
