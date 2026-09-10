@@ -38,7 +38,7 @@ export function ProductDetailClient({ product }: { product: any }) {
 
   return (
     <div style={{ background: "#111", minHeight: "100vh", color: "white" }}>
-      <div className="container" style={{ paddingTop: "24px", paddingBottom: "60px" }}>
+      <div className="container" style={{ paddingTop: "24px", paddingBottom: "100px" }}>
 
         <nav
           style={{
@@ -98,13 +98,14 @@ export function ProductDetailClient({ product }: { product: any }) {
               />
             </div>
 
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px", scrollbarWidth: "none" }}>
               {images.map((img: string, i: number) => (
                 <img
                   key={i}
                   src={img}
                   alt={`View ${i + 1}`}
                   className={`thumb ${i === activeImage ? "active" : ""}`}
+                  style={{ flexShrink: 0 }}
                   onClick={() => setActiveImage(i)}
                 />
               ))}
@@ -170,8 +171,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                   marginTop: "4px",
                 }}
               >
-                {formatKHR(product.price)}&nbsp;
-                <span style={{ marginLeft: "6px" }}>🇰🇭</span>
+                {formatKHR(product.price)}
               </div>
             </div>
 
@@ -247,7 +247,8 @@ export function ProductDetailClient({ product }: { product: any }) {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+            {/* Action buttons — hidden on mobile (shown in sticky bar below) */}
+            <div className="hidden sm:flex" style={{ gap: "12px", marginBottom: "20px" }}>
               <button
                 onClick={handleAddToCart}
                 disabled={product.stock === 0}
@@ -266,12 +267,33 @@ export function ProductDetailClient({ product }: { product: any }) {
               </button>
             </div>
 
+            {/* Mobile-only action buttons row */}
+            <div className="flex sm:hidden gap-3 mb-5">
+              <button
+                onClick={handleAddToCart}
+                disabled={product.stock === 0}
+                className="btn-red flex-1"
+                style={{ padding: "13px 16px", fontSize: "14px", opacity: product.stock === 0 ? 0.5 : 1 }}
+              >
+                <ShoppingCart size={16} />
+                {t("addToCart")}
+              </button>
+              <button
+                className="btn-outline-blue"
+                style={{ padding: "13px 16px", fontSize: "14px", flex: 1 }}
+              >
+                <Send size={15} />
+                {t("orderTelegram")}
+              </button>
+            </div>
+
             <div
               style={{
                 display: "flex",
                 gap: "20px",
                 padding: "14px 0",
                 borderTop: "1px solid rgba(255,255,255,0.07)",
+                flexWrap: "wrap",
               }}
             >
               <div

@@ -249,7 +249,7 @@ export function ProductCard({ product }: { product: any }) {
         <div
           style={{
             background: "#2a2a2a",
-            height: "200px",
+            aspectRatio: "4/3",
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
@@ -274,7 +274,9 @@ export function ProductCard({ product }: { product: any }) {
               }}
             />
           ) : (
-            <span style={{fontSize: 40}}>💻</span>
+            <div style={{ width: 48, height: 48, opacity: 0.3 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+            </div>
           )}
         </div>
       </Link>
@@ -369,7 +371,7 @@ export function BestSellers({ products = [] }: { products: any[] }) {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

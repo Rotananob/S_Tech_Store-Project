@@ -59,7 +59,7 @@ export default function CartPage() {
 
   return (
     <div style={{ background: "#fdfdfd", minHeight: "100vh", color: "#1a1a1a" }}>
-      <div className="container" style={{ paddingTop: "40px", paddingBottom: "80px" }}>
+      <div className="container" style={{ paddingTop: "24px", paddingBottom: "120px" }}>
         
         {/* ── Checkout Stepper ────────────────────────────────────────── */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "48px" }}>
@@ -242,6 +242,23 @@ export default function CartPage() {
         </div>
 
       </div>
+
+      {/* Sticky Mobile Checkout Bar — visible only on mobile */}
+      {items.length > 0 && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3"
+          style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#888" }}>{totalItems} item(s)</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#a92020", fontFamily: "monospace" }}>
+              ${subtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+          <Link href="/checkout" className="btn-red flex-1 max-w-[200px] text-center rounded-full py-3 px-6"
+            style={{ fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+            {t("proceedToCheckout")}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

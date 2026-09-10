@@ -34,7 +34,7 @@ export default function Footer() {
 
   return (
     <footer style={{ background: "#0a0a0a", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="container" style={{ padding: "48px 24px" }}>
+      <div className="container" style={{ paddingTop: "36px", paddingBottom: "36px" }}>
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-10 lg:gap-12">
           {/* Brand */}
           <div>
