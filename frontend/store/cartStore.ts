@@ -21,6 +21,9 @@ interface CartState {
   clearCart: () => Promise<void>;
   getTotalItems: () => number;
   getTotalPrice: () => number;
+  isOpen: boolean;
+  toggleCart: () => void;
+  setIsOpen: (open: boolean) => void;
 }
 
 export const useCartStore = create<CartState>()((set, get) => ({
@@ -185,4 +188,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
   getTotalPrice: () => {
     return get().items.reduce((total, item) => total + item.price * item.quantity, 0);
   },
+  isOpen: false,
+  toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
+  setIsOpen: (open: boolean) => set({ isOpen: open })
 }));

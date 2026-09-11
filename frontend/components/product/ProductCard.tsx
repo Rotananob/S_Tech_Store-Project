@@ -49,7 +49,8 @@ export default function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       image_url: product.image
     });
-    alert(`${product.name} ${t.addToCart}!`);
+    // Open slide-over cart instead of alert
+    useCartStore.getState().setIsOpen(true);
   };
 
   const discountPercent =

@@ -92,6 +92,8 @@ export interface TranslationDictionary {
     secureCheckout: string;
     emptyCart: string;
     continueShopping: string;
+    viewCart: string;
+    checkout: string;
   };
   buildPc: {
     title: string;
@@ -265,6 +267,8 @@ export const translations: Record<"EN" | "KM", TranslationDictionary> = {
       secureCheckout: "Secure encrypted checkout",
       emptyCart: "Your cart is empty.",
       continueShopping: "Continue Shopping",
+      viewCart: "View Cart",
+      checkout: "Checkout",
     },
     buildPc: {
       title: "Build Your PC",
@@ -436,6 +440,8 @@ export const translations: Record<"EN" | "KM", TranslationDictionary> = {
       secureCheckout: "ការទូទាត់ប្រាក់មានសុវត្ថិភាពខ្ពស់",
       emptyCart: "កន្ត្រកទំនិញរបស់អ្នកទទេស្អាត។",
       continueShopping: "បន្តការទិញទំនិញ",
+      viewCart: "មើលកន្ត្រកទំនិញ",
+      checkout: "ទូទាត់ប្រាក់",
     },
     buildPc: {
       title: "ដំឡើងកុំព្យូទ័រតាមតម្រូវការ",

@@ -18,6 +18,8 @@ import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { translations } from "@/lib/translations";
+import { AnimatePresence, motion } from "framer-motion";
+import SlideOverCart from "@/components/cart/SlideOverCart";
 
 export default function Navbar() {
   const [search, setSearch] = useState("");
@@ -190,6 +192,10 @@ export default function Navbar() {
 
             <Link
               href="/cart"
+              onClick={(e) => {
+                e.preventDefault();
+                useCartStore.getState().setIsOpen(true);
+              }}
               title={t('cart')}
               className="relative w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
@@ -391,94 +397,108 @@ export default function Navbar() {
         </div>
 
         {/* ── 5. Mobile Drawer Menu (Visible when hamburger opened) ── */}
-        {mobileOpen && (
-          <div className="lg:hidden absolute left-0 right-0 top-full border-t border-gray-200 bg-white shadow-2xl animate-in slide-in-from-top-2 duration-200">
-            {/* Category Nav Links */}
-            <div className="px-4 py-3 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors no-underline ${
-                    pathname === link.href
-                      ? "text-[#8B1A1A] bg-red-50 font-bold"
-                      : "text-[#444] hover:bg-gray-50 hover:text-[#1a1a1a]"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-
-            {/* Mobile Account / Auth & Bottom Navigation Shortcuts */}
-            <div className="px-4 py-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
-              {user ? (
-                <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-sm">
-                      {(user.displayName || user.email || "U")[0].toUpperCase()}
-                    </div>
-                    <span className="text-sm font-semibold text-[#1a1a1a]">
-                      {user.displayName || user.email?.split("@")[0]}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { signOut(auth); setMobileOpen(false); }}
-                    className="px-3 py-1.5 bg-[#c0392b] text-white rounded-lg text-xs font-semibold border-none cursor-pointer"
-                  >
-                    {t('signOut')}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2.5">
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+              className="lg:hidden absolute left-0 right-0 top-full border-t border-gray-200 bg-white shadow-2xl origin-top"
+            >
+              {/* Category Nav Links */}
+              <div className="px-4 py-3 space-y-1">
+                {navLinks.map((link) => (
                   <Link
-                    href="/login"
+                    key={link.href}
+                    href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex-1 py-3 text-center border-2 border-gray-200 rounded-xl text-sm font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm"
+                    className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors no-underline ${
+                      pathname === link.href
+                        ? "text-[#8B1A1A] bg-red-50 font-bold"
+                        : "text-[#444] hover:bg-gray-50 hover:text-[#1a1a1a]"
+                    }`}
                   >
-                    {t('signIn')}
+                    {link.label}
                   </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex-1 py-3 text-center bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white rounded-xl text-sm font-bold no-underline shadow-md"
-                  >
-                    {t('register')}
-                  </Link>
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-2 pt-1">
-                <Link
-                  href="/wishlist"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                >
-                  <Heart size={18} />
-                  <span className="text-[11px] font-medium">{t('wishlist')}</span>
-                </Link>
-                <Link
-                  href="/cart"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                >
-                  <ShoppingCart size={18} />
-                  <span className="text-[11px] font-medium">{t('cart')}</span>
-                </Link>
-                <Link
-                  href="/account/profile"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                >
-                  <User size={18} />
-                  <span className="text-[11px] font-medium">{t('profile')}</span>
-                </Link>
+                ))}
               </div>
-            </div>
-          </div>
-        )}
+
+              {/* Mobile Account / Auth & Bottom Navigation Shortcuts */}
+              <div className="px-4 py-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
+                {user ? (
+                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-sm">
+                        {(user.displayName || user.email || "U")[0].toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold text-[#1a1a1a]">
+                        {user.displayName || user.email?.split("@")[0]}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => { signOut(auth); setMobileOpen(false); }}
+                      className="px-3 py-1.5 bg-[#c0392b] text-white rounded-lg text-xs font-semibold border-none cursor-pointer"
+                    >
+                      {t('signOut')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2.5">
+                    <Link
+                      href="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 py-3 text-center border-2 border-gray-200 rounded-xl text-sm font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm"
+                    >
+                      {t('signIn')}
+                    </Link>
+                    <Link
+                      href="/register"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex-1 py-3 text-center bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white rounded-xl text-sm font-bold no-underline shadow-md"
+                    >
+                      {t('register')}
+                    </Link>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <Link
+                    href="/wishlist"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
+                  >
+                    <Heart size={18} />
+                    <span className="text-[11px] font-medium">{t('wishlist')}</span>
+                  </Link>
+                  <Link
+                    href="/cart"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileOpen(false);
+                      useCartStore.getState().setIsOpen(true);
+                    }}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
+                  >
+                    <ShoppingCart size={18} />
+                    <span className="text-[11px] font-medium">{t('cart')}</span>
+                  </Link>
+                  <Link
+                    href="/account/profile"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
+                  >
+                    <User size={18} />
+                    <span className="text-[11px] font-medium">{t('profile')}</span>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
+
+      <SlideOverCart />
     </>
   );
 }

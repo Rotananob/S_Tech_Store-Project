@@ -24,7 +24,7 @@ export default function WishlistPage() {
       quantity: 1,
       image_url: item.image,
     });
-    alert("Added to cart!");
+    useCartStore.getState().setIsOpen(true);
   };
 
   if (!mounted) {

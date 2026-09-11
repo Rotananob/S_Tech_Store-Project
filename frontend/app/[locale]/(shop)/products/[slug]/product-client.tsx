@@ -26,7 +26,7 @@ export function ProductDetailClient({ product }: { product: any }) {
       quantity: qty,
       image_url: product.image_url,
     });
-    alert(`${product.name} ${t("addToCart")}!`);
+    useCartStore.getState().setIsOpen(true);
   };
 
   const images = product.image_url ? [product.image_url] : ["/placeholder.jpg"];

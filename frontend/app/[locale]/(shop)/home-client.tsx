@@ -318,7 +318,7 @@ export function ProductCard({ product }: { product: any }) {
       quantity: 1,
       image_url: product.image_url
     });
-    alert(`${product.name} added to cart!`);
+    useCartStore.getState().setIsOpen(true);
   };
 
   return (
