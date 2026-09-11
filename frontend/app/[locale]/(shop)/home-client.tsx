@@ -6,6 +6,8 @@ import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
 
+import { motion } from "framer-motion";
+
 export function HeroSection() {
   const t = useTranslations("Hero");
 
@@ -15,48 +17,78 @@ export function HeroSection() {
         background: "var(--bg-white)",
         padding: "48px 0 0",
         borderBottom: "3px solid #e5e5e5",
+        overflow: "hidden",
       }}
     >
       <div className="container">
         <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-10 min-h-[300px]">
-          <div style={{ paddingBottom: "48px" }}>
-            <h1 className="text-[30px] sm:text-[38px] lg:text-[44px] font-black text-[#1a1a1a] leading-[1.15] mb-4 tracking-tight">
+          <motion.div 
+            style={{ paddingBottom: "48px" }}
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            <motion.h1 
+              className="text-[30px] sm:text-[38px] lg:text-[44px] font-black text-[#1a1a1a] leading-[1.15] mb-4 tracking-tight"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
               {t("titleLine1")}
               <br />
               {t("titleLine2")}
-            </h1>
-            <p
+            </motion.h1>
+            <motion.p
               style={{
                 fontSize: "15px",
                 color: "#555",
                 marginBottom: "6px",
                 lineHeight: "1.7",
               }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
             >
               {t("subtitle")}
-            </p>
-            <p
+            </motion.p>
+            <motion.p
               className="font-khmer"
               style={{
                 fontSize: "14px",
                 color: "#777",
                 marginBottom: "28px",
               }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
             >
               {t("khmerSubtitle")}
-            </p>
-            <Link href="/category/all" className="btn-red inline-flex items-center gap-2 shadow-lg hover:shadow-red-900/40" style={{ width: "fit-content", padding: "12px 32px", fontSize: "15px" }}>
-              {t("shopNow")}
-            </Link>
-          </div>
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            >
+              <Link href="/category/all" className="btn-red inline-flex items-center gap-2 shadow-lg hover:shadow-red-900/40" style={{ width: "fit-content", padding: "12px 32px", fontSize: "15px", textDecoration: "none" }}>
+                {t("shopNow")}
+              </Link>
+            </motion.div>
+          </motion.div>
 
-          <div className="flex justify-center items-end h-auto lg:h-[340px] relative mt-4 lg:mt-0">
-            <img
+          <motion.div 
+            className="flex justify-center items-end h-auto lg:h-[340px] relative mt-4 lg:mt-0"
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut" }}
+          >
+            <motion.img
               src="https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=700&q=90"
               alt="Premium Laptop"
               className="w-full max-w-[480px] object-cover object-center rounded-t-lg shadow-xl"
+              animate={{ y: [0, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
             />
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -95,21 +127,43 @@ export function FeatureStrip() {
   ];
 
   return (
-    <div style={{ background: "#1a1a1a" }}>
+    <div style={{ background: "#1a1a1a", overflow: "hidden" }}>
       <div className="container">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-b border-white/5">
+        <motion.div 
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-b border-white/5"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+        >
           {featuresList.map((f, i) => (
-            <div
+            <motion.div
               key={i}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+              }}
               className="feature-item p-4 sm:p-6 md:p-8 flex flex-col items-center justify-center gap-3 text-center border-b lg:border-b-0 border-r-0 lg:border-r border-white/5 last:border-r-0"
             >
-              <div style={{ color: "#1a4fa0" }}>{f.svg}</div>
+              <motion.div 
+                style={{ color: "#1a4fa0" }}
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                {f.svg}
+              </motion.div>
               <span style={{ fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)" }}>
                 {f.label}
               </span>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
@@ -182,36 +236,66 @@ export function CategorySection({ categories = [] }: { categories: any[] }) {
     : defaultCategories;
 
   return (
-    <section style={{ background: "#1a1a1a", padding: "48px 0" }}>
+    <section style={{ background: "#1a1a1a", padding: "48px 0", overflow: "hidden" }}>
       <div className="container">
-        <p className="section-heading">{t("shopByCategory")}</p>
+        <motion.p 
+          className="section-heading"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5 }}
+        >
+          {t("shopByCategory")}
+        </motion.p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <motion.div 
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.08 }
+            }
+          }}
+        >
           {displayCategories.map((cat) => (
-            <Link
+            <motion.div
               key={cat.slug}
-              href={`/category/${cat.slug}`}
-              className="category-card relative overflow-hidden group hover:border-[#8B1A1A] transition-all"
-              style={{ textDecoration: "none" }}
+              variants={{
+                hidden: { opacity: 0, y: 20, scale: 0.95 },
+                visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4 } }
+              }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              {cat.badge && (
-                <span className="absolute top-2 right-2 px-2 py-0.5 bg-[#8B1A1A] text-white text-[10px] font-bold rounded-full shadow-sm">
-                  {cat.badge}
-                </span>
-              )}
-              <div style={{ color: "rgba(255,255,255,0.7)" }}>{getIcon(cat.slug)}</div>
-              <span
-                style={{
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "rgba(255,255,255,0.85)",
-                }}
+              <Link
+                href={`/category/${cat.slug}`}
+                className="category-card relative overflow-hidden group hover:border-[#8B1A1A] transition-colors"
+                style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}
               >
-                {cat.name}
-              </span>
-            </Link>
+                {cat.badge && (
+                  <span className="absolute top-2 right-2 px-2 py-0.5 bg-[#8B1A1A] text-white text-[10px] font-bold rounded-full shadow-sm">
+                    {cat.badge}
+                  </span>
+                )}
+                <div style={{ color: "rgba(255,255,255,0.7)" }}>{getIcon(cat.slug)}</div>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "rgba(255,255,255,0.85)",
+                    marginTop: "12px"
+                  }}
+                >
+                  {cat.name}
+                </span>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
       <div style={{ marginTop: "48px" }}>
@@ -238,7 +322,11 @@ export function ProductCard({ product }: { product: any }) {
   };
 
   return (
-    <div className="product-card-dark">
+    <motion.div 
+      className="product-card-dark relative group"
+      whileHover={{ y: -8, boxShadow: "0 12px 24px rgba(0,0,0,0.4)" }}
+      transition={{ duration: 0.2 }}
+    >
       {product.is_featured && (
         <div style={{ position: "absolute", top: "10px", left: "10px", zIndex: 2 }}>
           <span className="badge-hot">{t("hot")}</span>
@@ -257,21 +345,16 @@ export function ProductCard({ product }: { product: any }) {
           }}
         >
           {product.image_url ? (
-            <img
+            <motion.img
               src={product.image_url}
               alt={product.name}
               style={{
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                transition: "transform 0.4s ease",
               }}
-              onMouseEnter={(e) => {
-                (e.target as HTMLImageElement).style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                (e.target as HTMLImageElement).style.transform = "scale(1)";
-              }}
+              whileHover={{ scale: 1.05 }}
+              transition={{ duration: 0.4 }}
             />
           ) : (
             <div style={{ width: 48, height: 48, opacity: 0.3 }}>
@@ -315,16 +398,17 @@ export function ProductCard({ product }: { product: any }) {
           <div className="price-khr">{formatKHR(product.price)}</div>
         </div>
 
-        <button
+        <motion.button
           className="btn-red"
           style={{ width: "100%", padding: "9px 16px", fontSize: "13px" }}
           onClick={handleAddToCart}
+          whileTap={{ scale: 0.95 }}
         >
           <ShoppingCart size={14} />
           {t("addToCart")}
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -332,15 +416,19 @@ export function BestSellers({ products = [] }: { products: any[] }) {
   const t = useTranslations("Products");
 
   return (
-    <section style={{ background: "#111", padding: "48px 0 60px" }}>
+    <section style={{ background: "#111", padding: "48px 0 60px", overflow: "hidden" }}>
       <div className="container">
-        <div
+        <motion.div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: "28px",
           }}
+          initial={{ opacity: 0, x: -20 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
         >
           <h2
             style={{
@@ -369,13 +457,33 @@ export function BestSellers({ products = [] }: { products: any[] }) {
           >
             {t("viewAll")}
           </Link>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        <motion.div 
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: { staggerChildren: 0.1 }
+            }
+          }}
+        >
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <motion.div
+              key={product.id}
+              variants={{
+                hidden: { opacity: 0, y: 30 },
+                visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+              }}
+            >
+              <ProductCard product={product} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

@@ -33,6 +33,8 @@ interface Props {
   initialProducts: RawProduct[];
 }
 
+import { AnimatePresence, motion } from "framer-motion";
+
 export default function CategoryClient({ slug, initialProducts }: Props) {
   const { lang } = useLangStore();
   const t = translations[lang].categories;
@@ -56,7 +58,6 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
     return slug;
   };
 
-  // All filtering and sorting runs in memory on the pre-fetched data — no extra API calls
   let products = initialProducts.filter((p) => {
     if (slug === "all") return true;
     if (slug === "secondhand") {
@@ -129,7 +130,11 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
         {/* Title & Secondhand Banner */}
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight capitalize text-[#1a1a1a]">
                   {getPageTitle()}
@@ -147,12 +152,18 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                   ? "កុំព្យូទ័រ និងឧបករណ៍បច្ចេកវិទ្យា ១ ទឹកគុណភាពខ្ពស់"
                   : t.searchSubtitle}
               </p>
-            </div>
+            </motion.div>
 
             {/* Sort & Mobile Filter Trigger */}
-            <div className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
-              <button
+            <motion.div 
+              className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <motion.button
                 type="button"
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setMobileFilterOpen(true)}
                 className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold shadow-sm hover:bg-gray-50 transition-colors cursor-pointer"
               >
@@ -163,7 +174,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                     {activeFiltersCount}
                   </span>
                 )}
-              </button>
+              </motion.button>
 
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="whitespace-nowrap hidden sm:inline">{t.sortBy}</span>
@@ -178,11 +189,16 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                   <option value="Newest">{t.newest}</option>
                 </select>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Search Bar */}
-          <div className="mt-6 relative">
+          <motion.div 
+            className="mt-6 relative"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
             <input
               type="search"
               placeholder={`Search in ${getPageTitle()} by name, brand, spec...`}
@@ -191,19 +207,29 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               className="w-full bg-white border-2 border-gray-200 rounded-2xl pl-12 pr-10 py-3.5 text-sm sm:text-base text-[#1a1a1a] outline-none focus:border-[#8B1A1A] focus:shadow-md transition-all placeholder:text-gray-400"
             />
             <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors cursor-pointer border-none"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
+            <AnimatePresence>
+              {searchQuery && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors cursor-pointer border-none"
+                >
+                  <X size={14} />
+                </motion.button>
+              )}
+            </AnimatePresence>
+          </motion.div>
 
           {/* Result count */}
-          <div className="flex items-center justify-between mt-3 text-xs text-gray-500">
+          <motion.div 
+            className="flex items-center justify-between mt-3 text-xs text-gray-500"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
             <span>
               Showing <strong className="text-[#1a1a1a] font-bold">{products.length}</strong> products
               {searchQuery && <span> matching "{searchQuery}"</span>}
@@ -217,14 +243,19 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 Clear all filters
               </button>
             )}
-          </div>
+          </motion.div>
         </div>
 
         {/* Sidebar + Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8 items-start mt-4">
 
           {/* Desktop Sidebar */}
-          <aside className="hidden lg:block bg-white p-6 rounded-2xl border border-gray-200 shadow-sm sticky top-24 space-y-6">
+          <motion.aside 
+            className="hidden lg:block bg-white p-6 rounded-2xl border border-gray-200 shadow-sm sticky top-24 space-y-6"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
             <div className="flex items-center justify-between border-b border-gray-100 pb-4">
               <h2 className="text-base font-bold flex items-center gap-2 text-[#1a1a1a]">
                 <Filter size={18} className="text-[#8B1A1A]" />
@@ -305,12 +336,17 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 ))}
               </div>
             </div>
-          </aside>
+          </motion.aside>
 
           {/* Product Grid */}
           <div className="w-full">
             {products.length === 0 ? (
-              <div className="py-20 px-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm space-y-3">
+              <motion.div 
+                className="py-20 px-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm space-y-3"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+              >
                 <div className="w-14 h-14 rounded-full bg-red-50 text-[#8B1A1A] mx-auto flex items-center justify-center">
                   <Search size={26} />
                 </div>
@@ -325,119 +361,151 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 >
                   Clear all filters
                 </button>
-              </div>
+              </motion.div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              <motion.div 
+                className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.05 }
+                  }
+                }}
+              >
                 {products.map((p) => (
-                  <ProductCard
+                  <motion.div
                     key={p.id}
-                    product={{
-                      id: p.id,
-                      name: p.name,
-                      price: p.price,
-                      sale_price: p.sale_price,
-                      image: p.image_url,
-                      slug: p.slug,
-                      badge: p.is_featured ? "HOT" : p.stock === 0 ? "OUT OF STOCK" : null,
-                      in_stock: p.stock > 0,
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
                     }}
-                  />
+                    layout
+                  >
+                    <ProductCard
+                      product={{
+                        id: p.id,
+                        name: p.name,
+                        price: p.price,
+                        sale_price: p.sale_price,
+                        image: p.image_url,
+                        slug: p.slug,
+                        badge: p.is_featured ? "HOT" : p.stock === 0 ? "OUT OF STOCK" : null,
+                        in_stock: p.stock > 0,
+                      }}
+                    />
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
           </div>
         </div>
       </div>
 
       {/* Mobile Filter Drawer */}
-      {mobileFilterOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setMobileFilterOpen(false)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto p-6 space-y-6">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h3 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
-                <SlidersHorizontal size={18} className="text-[#8B1A1A]" />
-                {t.filters}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setMobileFilterOpen(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 cursor-pointer border-none"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <label className="flex items-center gap-3 cursor-pointer text-sm font-semibold text-gray-700">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded text-[#8B1A1A]"
-                checked={inStockOnly}
-                onChange={() => setInStockOnly(!inStockOnly)}
-              />
-              <span>{t.inStockOnly}</span>
-            </label>
-
-            <div className="border-t border-gray-100 pt-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.brand}</h4>
-              <div className="grid grid-cols-2 gap-2.5">
-                {["ASUS", "Lenovo", "Dell", "MSI", "HP", "Apple"].map((brand) => (
-                  <label key={brand} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 rounded text-[#8B1A1A]"
-                      checked={selectedBrands.includes(brand)}
-                      onChange={() => toggleFilter(selectedBrands, setSelectedBrands, brand)}
-                    />
-                    <span>{brand}</span>
-                  </label>
-                ))}
+      <AnimatePresence>
+        {mobileFilterOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setMobileFilterOpen(false)}
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto p-6 space-y-6"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
+                  <SlidersHorizontal size={18} className="text-[#8B1A1A]" />
+                  {t.filters}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 cursor-pointer border-none"
+                >
+                  <X size={18} />
+                </button>
               </div>
-            </div>
 
-            <div className="border-t border-gray-100 pt-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.priceUsd}</h4>
-              <div className="flex items-center gap-2">
+              <label className="flex items-center gap-3 cursor-pointer text-sm font-semibold text-gray-700">
                 <input
-                  type="number"
-                  placeholder={t.min}
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none"
+                  type="checkbox"
+                  className="w-4 h-4 rounded text-[#8B1A1A]"
+                  checked={inStockOnly}
+                  onChange={() => setInStockOnly(!inStockOnly)}
                 />
-                <span className="text-gray-400">-</span>
-                <input
-                  type="number"
-                  placeholder={t.max}
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none"
-                />
+                <span>{t.inStockOnly}</span>
+              </label>
+
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.brand}</h4>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {["ASUS", "Lenovo", "Dell", "MSI", "HP", "Apple"].map((brand) => (
+                    <label key={brand} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded text-[#8B1A1A]"
+                        checked={selectedBrands.includes(brand)}
+                        onChange={() => toggleFilter(selectedBrands, setSelectedBrands, brand)}
+                      />
+                      <span>{brand}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="pt-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white">
-              <button
-                type="button"
-                onClick={() => { clearAllFilters(); setMobileFilterOpen(false); }}
-                className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileFilterOpen(false)}
-                className="flex-1 py-3 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-sm font-bold shadow-md cursor-pointer border-none"
-              >
-                Apply Filters
-              </button>
-            </div>
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.priceUsd}</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    placeholder={t.min}
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none"
+                  />
+                  <span className="text-gray-400">-</span>
+                  <input
+                    type="number"
+                    placeholder={t.max}
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white pb-4">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => { clearAllFilters(); setMobileFilterOpen(false); }}
+                  className="flex-1 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 cursor-pointer"
+                >
+                  Reset
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="flex-1 py-3 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-sm font-bold shadow-md cursor-pointer border-none"
+                >
+                  Apply Filters
+                </motion.button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
