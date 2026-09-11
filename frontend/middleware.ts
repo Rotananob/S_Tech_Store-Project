@@ -1,12 +1,9 @@
 import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
 
-export default createMiddleware({
-  locales: ['en', 'km'],
-  defaultLocale: 'en',
-  localeDetection: false
-});
+export default createMiddleware(routing);
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(en|km)/:path*']
+  // Intercept all routes except Next.js internals, API, and static files
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
 };
