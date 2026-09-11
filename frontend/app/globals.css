@@ -176,10 +176,10 @@ html, body {
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--t-fast);
+  transition: background var(--t-fast), transform var(--t-fast);
 }
 .btn-red:hover { background: var(--red-hover); }
-.btn-red:active { transform: scale(0.98); }
+.btn-red:active { transform: scale(0.95); }
 
 .btn-outline-blue {
   display: inline-flex;
@@ -200,6 +200,7 @@ html, body {
   background: var(--blue);
   color: white;
 }
+.btn-outline-blue:active { transform: scale(0.95); }
 
 .btn-outline-white {
   display: inline-flex;
@@ -220,6 +221,7 @@ html, body {
   background: rgba(255,255,255,0.1);
   border-color: white;
 }
+.btn-outline-white:active { transform: scale(0.95); }
 
 /* ─── Badges ──────────────────────────────────────────────────────────────── */
 .badge-hot {

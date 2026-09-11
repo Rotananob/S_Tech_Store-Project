@@ -11,6 +11,8 @@ import { useWishlistStore } from "@/store/wishlistStore";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
 
+import { motion } from "framer-motion";
+
 interface ProductCardProps {
   product: Product;
 }
@@ -66,11 +68,13 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div
+    <motion.div
       className="product-card"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{ cursor: "pointer" }}
+      whileHover={{ y: -6, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
+      transition={{ duration: 0.3 }}
+      style={{ cursor: "pointer", display: "flex", flexDirection: "column", height: "100%" }}
     >
       {/* Image Container */}
       <div
@@ -184,8 +188,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           }}
         >
           {/* Wishlist */}
-          <button
+          <motion.button
             onClick={toggleWishlist}
+            whileTap={{ scale: 0.9 }}
             style={{
               width: "40px",
               height: "40px",
@@ -203,9 +208,10 @@ export default function ProductCard({ product }: ProductCardProps) {
             title="Add to Wishlist"
           >
             <Heart size={20} fill={isWishlisted ? "#ef4444" : "none"} strokeWidth={isWishlisted ? 0 : 2} />
-          </button>
+          </motion.button>
           {/* Quick view */}
-          <button
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             style={{
               width: "34px",
               height: "34px",
@@ -220,7 +226,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             }}
           >
             <Eye size={15} />
-          </button>
+          </motion.button>
         </div>
 
         {/* Quick Add overlay at bottom */}
@@ -235,20 +241,21 @@ export default function ProductCard({ product }: ProductCardProps) {
             transition: "transform var(--transition-base)",
           }}
         >
-          <button
-            className="btn-primary"
+          <motion.button
+            className="btn-red"
             style={{ width: "100%", padding: "9px", fontSize: "13px" }}
             onClick={handleAddToCart}
+            whileTap={{ scale: 0.96 }}
           >
             <ShoppingCart size={14} />
             {t.addToCart}
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Info */}
-      <Link href={`/products/${product.slug}`}>
-        <div style={{ padding: "14px" }}>
+      <Link href={`/products/${product.slug}`} style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column" }}>
           {/* Brand */}
           {product.brand && (
             <span
@@ -281,6 +288,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           >
             {product.name}
           </h3>
+          
+          <div style={{ flex: 1 }} /> {/* spacer */}
 
           {/* Rating */}
           {product.rating && (
@@ -336,6 +345,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
       </Link>
-    </div>
+    </motion.div>
   );
 }

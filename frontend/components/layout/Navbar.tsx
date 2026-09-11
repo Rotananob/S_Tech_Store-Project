@@ -148,8 +148,8 @@ export default function Navbar() {
         <div className="container h-[68px] flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline">
-            <Image src="/logo.jpg" alt="S Tech Store" width={40} height={40} className="rounded-lg object-contain" priority />
+          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline group">
+            <Image src="/logo.jpg" alt="S Tech Store" width={40} height={40} className="rounded-lg object-contain transition-transform duration-300 group-hover:scale-105" priority />
             <div className="leading-none">
               <div className="font-dangrek text-[21px] text-[#1a1a1a] tracking-wide">
                 S <span className="text-[#8B1A1A]">Tech</span> <span className="text-[#1a4fa0]">Store</span>
@@ -353,13 +353,18 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-3 py-1.5 text-[14px] font-medium rounded-md whitespace-nowrap transition-colors no-underline ${
+                className={`relative px-3 py-1.5 text-[14px] font-medium rounded-md whitespace-nowrap transition-colors no-underline group overflow-hidden ${
                   pathname === link.href
-                    ? "text-[#8B1A1A] bg-red-50/80 font-bold"
-                    : "text-[#444] hover:text-[#8B1A1A] hover:bg-gray-100/60"
+                    ? "text-[#8B1A1A] font-bold bg-red-50/30"
+                    : "text-[#444] hover:text-[#8B1A1A]"
                 }`}
               >
                 {link.label}
+                <span 
+                  className={`absolute left-0 bottom-0 w-full h-[2px] bg-[#8B1A1A] transition-transform duration-300 origin-left ${
+                    pathname === link.href ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
+                  }`} 
+                />
               </Link>
             ))}
           </div>

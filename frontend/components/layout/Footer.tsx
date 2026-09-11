@@ -38,12 +38,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-10 lg:gap-12">
           {/* Brand */}
           <div>
-            <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
+            <Link href="/" className="group" style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
               <Image
                 src="/logo.jpg"
                 alt="S Tech Store Logo"
                 width={48}
                 height={48}
+                className="transition-transform duration-300 group-hover:scale-105"
                 style={{
                   objectFit: "contain",
                   flexShrink: 0,
@@ -108,11 +109,10 @@ export default function Footer() {
                     <li key={link.href}>
                       <Link
                         href={link.href}
-                        style={{ fontSize: "13px", color: "rgba(255,255,255,0.4)", transition: "color 150ms ease" }}
-                        onMouseEnter={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.85)")}
-                        onMouseLeave={(e) => ((e.target as HTMLAnchorElement).style.color = "rgba(255,255,255,0.4)")}
+                        className="relative inline-block text-[13px] text-white/40 hover:text-white/85 transition-colors duration-200 group no-underline"
                       >
                         {link.label}
+                        <span className="absolute left-0 bottom-0 w-full h-[1px] bg-white/85 transition-transform duration-300 origin-left scale-x-0 group-hover:scale-x-100" />
                       </Link>
                     </li>
                   ))}
