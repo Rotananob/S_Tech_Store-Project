@@ -1,15 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { ShoppingCart } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 import { motion } from "framer-motion";
 
 export function HeroSection() {
   const t = useTranslations("Hero");
+  const [user, setUser] = useState<any>(undefined);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <section
@@ -65,13 +76,19 @@ export function HeroSection() {
               {t("khmerSubtitle")}
             </motion.p>
             <motion.div
+              className="flex flex-wrap items-center gap-3"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.5 }}
             >
-              <Link href="/category/all" className="btn-red inline-flex items-center gap-2 shadow-lg hover:shadow-red-900/40" style={{ width: "fit-content", padding: "12px 32px", fontSize: "15px", textDecoration: "none" }}>
+              <Link href="/category/all" className="btn-red inline-flex items-center gap-2 shadow-lg hover:shadow-red-900/40" style={{ padding: "13px 32px", fontSize: "15px", textDecoration: "none" }}>
                 {t("shopNow")}
               </Link>
+              {user === null && (
+                <Link href="/register" className="inline-flex items-center gap-2 px-8 py-[11px] rounded-xl font-bold bg-white text-[#1a1a1a] border-2 border-gray-200 hover:border-[#8B1A1A] hover:bg-red-50 hover:text-[#8B1A1A] shadow-sm hover:shadow-md transition-all text-[15px] no-underline">
+                  Join VIP Member
+                </Link>
+              )}
             </motion.div>
           </motion.div>
 
@@ -483,6 +500,51 @@ export function BestSellers({ products = [] }: { products: any[] }) {
               <ProductCard product={product} />
             </motion.div>
           ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+export function PromoCTA() {
+  const tNav = useTranslations("Navigation");
+  const [user, setUser] = useState<any>(undefined); // undefined means loading
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsub();
+  }, []);
+
+  if (user !== null) return null; // If loading or logged in, don't show
+
+  return (
+    <section className="bg-gradient-to-r from-[#111] to-[#1a1a1a] py-16 sm:py-24 border-t border-white/5 relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#8B1A1A]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      
+      <div className="container relative z-10 text-center max-w-2xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.5 }}
+        >
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4 tracking-tight">
+            Join S Tech VIP Member Today
+          </h2>
+          <p className="text-white/60 text-base mb-8 leading-relaxed">
+            Create an account to track orders, build custom PCs, save your wishlists, and get exclusive tech deals in Cambodia!
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <Link href="/register" className="bg-[#8B1A1A] hover:bg-[#a62222] text-white px-8 py-3.5 rounded-xl font-bold shadow-lg transition-all no-underline text-[15px]">
+              {tNav('register')} Now
+            </Link>
+            <Link href="/login" className="bg-white/10 hover:bg-white/20 text-white px-8 py-3.5 rounded-xl font-bold shadow-lg border border-white/10 transition-all no-underline text-[15px]">
+              {tNav('signIn')}
+            </Link>
+          </div>
         </motion.div>
       </div>
     </section>

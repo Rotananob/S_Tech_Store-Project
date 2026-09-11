@@ -60,41 +60,15 @@ export default function LoginPage() {
   };
 
   const handleFacebookSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const { FacebookAuthProvider } = await import("firebase/auth");
-      const provider = new FacebookAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      router.push("/");
-    } catch (err: any) {
-      console.error(err);
-      setError("Failed to sign in with Facebook: " + (err.message || "Unknown error"));
-    } finally {
-      setLoading(false);
-    }
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   const handleAppleSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const { OAuthProvider } = await import("firebase/auth");
-      const provider = new OAuthProvider('apple.com');
-      const cred = await signInWithPopup(auth, provider);
-      router.push("/");
-    } catch (err: any) {
-      console.error(err);
-      setError("Failed to sign in with Apple: " + (err.message || "Unknown error"));
-    } finally {
-      setLoading(false);
-    }
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   const handleTikTokSignIn = async () => {
-    // Note: TikTok requires custom OAuth implementation in Firebase.
-    // We provide the placeholder here. When the backend/Firebase is ready, you can uncomment logic.
-    alert("TikTok login configuration is needed in Firebase Auth.");
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   return (

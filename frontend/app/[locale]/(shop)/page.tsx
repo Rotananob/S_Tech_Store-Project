@@ -1,6 +1,6 @@
 import { getCategories, getProducts } from "@/lib/services/product.service";
 import { Category, Product } from "@/types";
-import { HeroSection, FeatureStrip, CategorySection, BestSellers } from "./home-client";
+import { HeroSection, FeatureStrip, CategorySection, BestSellers, PromoCTA } from "./home-client";
 
 import { Metadata } from "next";
 
@@ -51,6 +51,7 @@ export default async function HomePage() {
       <FeatureStrip />
       <CategorySection categories={categories} />
       <BestSellers products={[...products].reverse().slice(0, 8)} />
+      <PromoCTA />
     </div>
   );
 }

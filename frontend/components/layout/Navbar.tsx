@@ -381,7 +381,7 @@ export default function Navbar() {
           <form onSubmit={handleSearch} className="relative w-full">
             <input
               type="search"
-              className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:shadow-sm transition-all"
+              className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-12 h-10 py-0 m-0 text-[14px] leading-10 outline-none focus:border-[#8B1A1A] focus:shadow-sm transition-all"
               placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -448,14 +448,15 @@ export default function Navbar() {
                     <Link
                       href="/login"
                       onClick={() => setMobileOpen(false)}
-                      className="flex-1 py-3 text-center border-2 border-gray-200 rounded-xl text-sm font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm"
+                      className="flex-1 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-xl text-[13px] font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm transition-all"
                     >
+                      <User size={16} />
                       {t('signIn')}
                     </Link>
                     <Link
                       href="/register"
                       onClick={() => setMobileOpen(false)}
-                      className="flex-1 py-3 text-center bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white rounded-xl text-sm font-bold no-underline shadow-md"
+                      className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-xl text-[13px] font-bold no-underline shadow-md transition-all"
                     >
                       {t('register')}
                     </Link>

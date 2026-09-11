@@ -60,37 +60,15 @@ export default function RegisterPage() {
   };
 
   const handleFacebookSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const { FacebookAuthProvider } = await import("firebase/auth");
-      const provider = new FacebookAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in with Facebook.");
-    } finally {
-      setLoading(false);
-    }
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   const handleAppleSignIn = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const { OAuthProvider } = await import("firebase/auth");
-      const provider = new OAuthProvider('apple.com');
-      const cred = await signInWithPopup(auth, provider);
-      router.push("/");
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in with Apple.");
-    } finally {
-      setLoading(false);
-    }
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   const handleTikTokSignIn = async () => {
-    alert("TikTok sign up configuration is needed in Firebase Auth.");
+    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
   return (

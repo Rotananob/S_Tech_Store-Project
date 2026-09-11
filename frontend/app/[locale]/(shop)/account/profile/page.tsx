@@ -15,6 +15,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { translations } from "@/lib/translations";
 import api from "@/lib/api";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ProfileData {
   display_name: string;
@@ -39,7 +40,7 @@ interface StatsData {
 
 export default function UserProfilePage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "settings" | "security" | "notifications" | "orders">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "settings" | "security" | "notifications" | "orders" | "wishlist" | "builds" | "repairs">("overview");
   const [mounted, setMounted] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -194,6 +195,15 @@ export default function UserProfilePage() {
                 <p className="text-white/40 text-[11px] mt-1">
                   {t.memberSince}: {profile.created_at ? formatTime(profile.created_at) : "2025"} • 🇰🇭
                 </p>
+                <div className="mt-3">
+                  <div className="flex items-center justify-between text-[10px] text-white/60 mb-1 font-medium">
+                    <span>{stats.points} pts</span>
+                    <span>1000 pts to Gold</span>
+                  </div>
+                  <div className="w-full sm:w-48 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-amber-400 to-amber-300 rounded-full" style={{ width: `${Math.min((stats.points / 1000) * 100, 100)}%` }} />
+                  </div>
+                </div>
               </div>
             </div>
             {user ? (
@@ -219,17 +229,20 @@ export default function UserProfilePage() {
               <SidebarTab id="security" icon={Shield} label={t.security} />
               <SidebarTab id="notifications" icon={Bell} label={t.notifPrefs} />
               <SidebarTab id="orders" icon={Package} label={t.statsOrders} />
+              <SidebarTab id="builds" icon={Wrench} label="My PC Builds" />
+              <SidebarTab id="repairs" icon={Shield} label="Tech Repairs" />
+              <SidebarTab id="wishlist" icon={Heart} label={t.statsWishlist} />
             </div>
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-2.5">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block px-1">Quick Links</span>
-              <Link href="/orders" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium no-underline">
+              <button onClick={() => { setActiveTab("orders"); loadOrders(); }} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium no-underline cursor-pointer border-none bg-transparent text-left">
                 <span className="flex items-center gap-2.5"><Package size={17} className="text-[#8B1A1A]" />{t.statsOrders}</span>
                 <span className="text-xs font-bold text-gray-400">{stats.orders}</span>
-              </Link>
-              <Link href="/wishlist" className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium no-underline">
+              </button>
+              <button onClick={() => setActiveTab("wishlist")} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 font-medium no-underline cursor-pointer border-none bg-transparent text-left">
                 <span className="flex items-center gap-2.5"><Heart size={17} className="text-[#8B1A1A]" />{t.statsWishlist}</span>
                 <span className="text-xs font-bold text-gray-400">{stats.wishlist}</span>
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -413,25 +426,27 @@ export default function UserProfilePage() {
                 ) : (
                   <div className="space-y-4">
                     {orders.map((order: any) => (
-                      <div key={order.id} className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors">
+                      <div key={order.id} className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition-colors cursor-pointer group">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-3">
-                            <Package size={20} className="text-[#8B1A1A]" />
+                            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                              <Package size={20} className="text-[#8B1A1A]" />
+                            </div>
                             <div>
-                              <span className="text-sm font-bold text-[#1a1a1a]">Order #{order.id}</span>
+                              <span className="text-sm font-bold text-[#1a1a1a] group-hover:text-[#8B1A1A] transition-colors">Order #{order.id}</span>
                               <p className="text-[11px] text-gray-400">{formatTime(order.created_at)}</p>
                             </div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            order.status === "completed" ? "bg-green-100 text-green-700" :
-                            order.status === "processing" ? "bg-blue-100 text-blue-700" :
-                            order.status === "cancelled" ? "bg-red-100 text-red-700" :
-                            "bg-amber-100 text-amber-700"
-                          }`}>{order.status}</span>
+                          <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${
+                            order.status === "completed" ? "bg-green-100 text-green-700 border border-green-200" :
+                            order.status === "processing" ? "bg-blue-100 text-blue-700 border border-blue-200" :
+                            order.status === "cancelled" ? "bg-red-100 text-red-700 border border-red-200" :
+                            "bg-amber-100 text-amber-700 border border-amber-200"
+                          }`}>{order.status.toUpperCase()}</span>
                         </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-500">{order.items?.length || 0} items</span>
-                          <span className="font-bold text-[#1a1a1a]">${Number(order.total_amount).toFixed(2)}</span>
+                        <div className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                          <span className="text-gray-500 font-medium">{order.items?.length || 0} items</span>
+                          <span className="font-black text-[#1a1a1a] text-base">${Number(order.total_amount).toFixed(2)}</span>
                         </div>
                       </div>
                     ))}
@@ -439,6 +454,61 @@ export default function UserProfilePage() {
                 )}
               </div>
             )}
+
+            {/* Wishlist */}
+            {activeTab === "wishlist" && (
+              <div className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+                <div className="border-b border-gray-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
+                    <Heart size={20} className="text-red-500" />
+                    {t.statsWishlist}
+                  </h2>
+                </div>
+                <div className="py-2">
+                  <p className="text-sm text-gray-500 mb-4">View your wishlist by clicking the button below to go to your dedicated Wishlist page, or browse your saved items here.</p>
+                  <Link href="/wishlist" className="inline-flex items-center justify-center gap-2 bg-[#8B1A1A] hover:bg-[#a62222] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all no-underline">
+                    <Heart size={16} /> Open Full Wishlist
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Builds */}
+            {activeTab === "builds" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+                <div className="border-b border-gray-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
+                    <Wrench size={20} className="text-blue-600" />
+                    My Custom PC Builds
+                  </h2>
+                </div>
+                <div className="py-10 text-center text-gray-400 text-sm">
+                  <p className="mb-4">You don't have any saved PC builds yet.</p>
+                  <Link href="/build-pc" className="inline-flex items-center justify-center gap-2 bg-[#1a4fa0] hover:bg-[#153e7d] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all no-underline">
+                    <Wrench size={16} /> Start a New Build
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Repairs */}
+            {activeTab === "repairs" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200 shadow-sm space-y-6">
+                <div className="border-b border-gray-100 pb-4">
+                  <h2 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
+                    <Shield size={20} className="text-amber-500" />
+                    Tech Support & Repairs
+                  </h2>
+                </div>
+                <div className="py-10 text-center text-gray-400 text-sm">
+                  <p className="mb-4">No active repair tickets. Need help with your devices?</p>
+                  <Link href="/contact" className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all no-underline">
+                    <Phone size={16} /> Contact Support
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+
           </div>
         </div>
       </div>
