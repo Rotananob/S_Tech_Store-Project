@@ -45,7 +45,6 @@ export default function RegisterPage() {
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
-      // Create real welcome notification in database
       await api.post("/user/notifications", {
         title: "Welcome to S Tech Store! 🎉",
         message: `Welcome ${cred.user.displayName || cred.user.email}! Your S Tech account is ready.`,
@@ -58,6 +57,40 @@ export default function RegisterPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFacebookSignIn = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const { FacebookAuthProvider } = await import("firebase/auth");
+      const provider = new FacebookAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Facebook.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      const { OAuthProvider } = await import("firebase/auth");
+      const provider = new OAuthProvider('apple.com');
+      const cred = await signInWithPopup(auth, provider);
+      router.push("/");
+    } catch (err: any) {
+      setError(err.message || "Failed to sign in with Apple.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTikTokSignIn = async () => {
+    alert("TikTok sign up configuration is needed in Firebase Auth.");
   };
 
   return (
@@ -272,32 +305,117 @@ export default function RegisterPage() {
           <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.1)" }} />
         </div>
 
-        <button
-          type="button"
-          style={{
-            width: "100%",
-            background: "white",
-            color: "#1a1a1a",
-            border: "none",
-            borderRadius: "8px",
-            padding: "12px",
-            fontSize: "14px",
-            fontWeight: "600",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "10px",
-            cursor: "pointer",
-            transition: "background 0.2s",
-          }}
-          onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#f5f5f5")}
-          onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "white")}
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-        >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{ width: "20px", height: "20px" }} />
-          Sign up with Google
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <button
+            type="button"
+            style={{
+              width: "100%",
+              background: "white",
+              color: "#1a1a1a",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "14px",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#f5f5f5")}
+            onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "white")}
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style={{ width: "20px", height: "20px" }} />
+            Sign up with Google
+          </button>
+
+          <button
+            type="button"
+            style={{
+              width: "100%",
+              background: "#000000",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "14px",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#333333")}
+            onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#000000")}
+            onClick={handleAppleSignIn}
+            disabled={loading}
+          >
+            <img src="https://www.svgrepo.com/show/511330/apple-173.svg" alt="Apple" style={{ width: "20px", height: "20px", filter: "invert(1)" }} />
+            Sign up with Apple
+          </button>
+
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                background: "#1877F2",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "12px",
+                fontSize: "14px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#166fe5")}
+              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#1877F2")}
+              onClick={handleFacebookSignIn}
+              disabled={loading}
+            >
+              <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" style={{ width: "20px", height: "20px" }} />
+              Facebook
+            </button>
+
+            <button
+              type="button"
+              style={{
+                flex: 1,
+                background: "#25F4EE",
+                color: "black",
+                border: "none",
+                borderRadius: "8px",
+                padding: "12px",
+                fontSize: "14px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                cursor: "pointer",
+                transition: "background 0.2s",
+              }}
+              onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#20e2dc")}
+              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#25F4EE")}
+              onClick={handleTikTokSignIn}
+              disabled={loading}
+            >
+              <svg fill="#000000" width="20px" height="20px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.97-1.561 4.956 4.956 0 0 1-1.234-3.128h-3.619v14.156a3.252 3.252 0 1 1-3.256-3.25 3.25 3.25 0 0 1 2.394 1.05v-3.805a7.02 7.02 0 0 0-2.394-.42 7.054 7.054 0 1 0 7.059 7.049V7.32a8.675 8.675 0 0 0 4.996 1.543V5.042a4.82 4.82 0 0 1-.024-2.905z"/></svg>
+              TikTok
+            </button>
+          </div>
+        </div>
 
         <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(255,255,255,0.5)", marginTop: "32px" }}>
           Already have an account?{" "}
