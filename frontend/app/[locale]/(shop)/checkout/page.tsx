@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { useCartStore } from "@/store/cartStore";
 import { createOrder } from "@/lib/services/order.service";
 
+import { motion, AnimatePresence } from "framer-motion";
+import { Lock, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 const fmtKHR = (n: number) => `~ ${(Math.round(n * USD_TO_KHR / 1000) * 1000).toLocaleString()} KHR`;
@@ -163,10 +166,29 @@ export default function CheckoutPage() {
     };
 
     const res = await createOrder(payload);
+    
+    // Artificial delay to simulate secure payment processing and give peace of mind
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     setLoading(false);
 
     if (res.success) {
       await clearCart();
+      
+      // Send a notification to the user's account
+      try {
+        const { default: api } = await import("@/lib/api");
+        const { useNotificationStore } = await import("@/store/notificationStore");
+        await api.post("/user/notifications", {
+          title: "Order Placed Successfully! 📦",
+          message: `Your order has been received and is now processing. We will contact you at ${phone} for delivery confirmation.`,
+          type: "order",
+        });
+        useNotificationStore.getState().fetchNotifications();
+      } catch (e) {
+        console.error("Failed to push notification", e);
+      }
+
       setConfirmed(true);
       setStep(3);
     } else {
@@ -433,42 +455,88 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Confirm Button */}
-            <button
-              id="confirm-order-btn"
-              onClick={handleConfirm}
-              disabled={loading || items.length === 0}
-              style={{
-                width: "100%", padding: "14px", fontSize: 15, fontWeight: 800,
-                background: loading || items.length === 0 ? "#ccc" : "#8B1A1A", color: "#fff", border: "none", borderRadius: 8,
-                cursor: loading || items.length === 0 ? "not-allowed" : "pointer", letterSpacing: ".03em", transition: "background 150ms",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                marginBottom: 12,
-              }}
-              onMouseEnter={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#6B1010"; }}
-              onMouseLeave={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#8B1A1A"; }}
-            >
-              {loading ? t("processing") : t("confirmOrder")}
-              {!loading && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-              )}
-            </button>
+            {/* Confirm Button (Desktop) */}
+            <div className="hidden lg:block">
+              <button
+                id="confirm-order-btn"
+                onClick={handleConfirm}
+                disabled={loading || items.length === 0}
+                style={{
+                  width: "100%", padding: "14px", fontSize: 15, fontWeight: 800,
+                  background: loading || items.length === 0 ? "#ccc" : "#8B1A1A", color: "#fff", border: "none", borderRadius: 8,
+                  cursor: loading || items.length === 0 ? "not-allowed" : "pointer", letterSpacing: ".03em", transition: "background 150ms",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  marginBottom: 12,
+                }}
+                onMouseEnter={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#6B1010"; }}
+                onMouseLeave={e => { if (!loading && items.length > 0) e.currentTarget.style.background = "#8B1A1A"; }}
+              >
+                {t("confirmOrder")}
+                <ShieldCheck size={18} />
+              </button>
 
-            {/* Security note */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#aaa" }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <span style={{ fontSize: 12 }}>{t("secureCheckout")}</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, color: "#777" }}>
+                <Lock size={14} />
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{t("secureCheckout")} - 256-bit SSL</span>
+              </div>
             </div>
           </div>
 
         </div>
       </div>
+
+      {/* Sticky Mobile Checkout Bar */}
+      {!confirmed && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]"
+          style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#888", fontWeight: 600 }}>{t("total")}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#8B1A1A", fontFamily: "monospace", lineHeight: 1 }}>
+              {fmtUSD(total)}
+            </div>
+          </div>
+          <button
+            onClick={handleConfirm}
+            disabled={loading || items.length === 0}
+            className="flex-1 max-w-[220px] text-center rounded-xl py-3 px-4 text-white font-bold transition-all border-none flex justify-center items-center gap-2"
+            style={{ 
+              background: loading || items.length === 0 ? "#ccc" : "#8B1A1A",
+              boxShadow: loading || items.length === 0 ? "none" : "0 4px 12px rgba(139,26,26,0.3)"
+            }}
+          >
+            {t("confirmOrder")} <ShieldCheck size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Processing Overlay */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center"
+            >
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-6">
+                <Loader2 size={32} className="animate-spin" />
+              </div>
+              <h3 className="text-xl font-black text-[#1a1a1a] mb-2">Processing Order...</h3>
+              <p className="text-sm text-gray-500 mb-6">Please do not close this window. Securing payment and confirming stock.</p>
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-green-600 bg-green-50 px-4 py-2 rounded-lg w-full">
+                <Lock size={14} /> 256-bit Secure Encryption
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

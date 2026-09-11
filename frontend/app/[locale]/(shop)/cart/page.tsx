@@ -209,7 +209,8 @@ export default function CartPage() {
               </div>
             </div>
 
-            <button
+            <Link
+              href="/checkout"
               style={{
                 width: "100%",
                 background: "#a92020",
@@ -226,13 +227,14 @@ export default function CartPage() {
                 cursor: "pointer",
                 marginBottom: "16px",
                 transition: "background 0.2s",
+                textDecoration: "none",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "#8b1a1a")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "#a92020")}
             >
               {t('proceedToCheckout')}
               <ArrowRight size={16} />
-            </button>
+            </Link>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "12px", color: "#888" }}>
               <Lock size={12} />
