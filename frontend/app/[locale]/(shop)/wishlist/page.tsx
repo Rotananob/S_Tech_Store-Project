@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { Trash2, ShoppingCart } from "lucide-react";
+import Image from "next/image";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useCartStore } from "@/store/cartStore";
 
@@ -68,7 +69,7 @@ export default function WishlistPage() {
               <div key={item.id} style={{ background: "white", border: "1px solid #eaeaea", borderRadius: "8px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <Link href={item.slug ? `/products/${item.slug}` : `/products/${item.id}`} style={{ position: "relative", aspectRatio: "1/1", display: "block", background: "#f9f9f9" }}>
                   {item.image ? (
-                    <img src={item.image} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: "20px" }} />
+                    <Image src={item.image} alt={item.name} fill className="object-contain p-5" />
                   ) : (
                     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px" }}>💻</div>
                   )}

@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Link } from "@/i18n/routing";
 import { usePathname } from "@/i18n/routing";
 
@@ -26,32 +27,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )},
   ];
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#f9f9f9" }}>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
+
       {/* Sidebar */}
-      <aside style={{ width: 260, backgroundColor: "#0f0f0f", color: "#fff", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-        <div style={{ padding: "24px 20px" }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>S Tech Store</h2>
-          <p style={{ fontSize: 13, color: "#888", margin: "4px 0 0 0" }}>Admin Dashboard</p>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f0f0f] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="p-6 flex items-center justify-between lg:block">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight m-0">S Tech Store</h2>
+            <p className="text-xs text-gray-400 mt-1">Admin Dashboard</p>
+          </div>
+          <button className="lg:hidden text-white" onClick={() => setSidebarOpen(false)}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
 
-        <nav style={{ flex: 1, padding: "20px 0" }}>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <nav className="flex-1 py-4 overflow-y-auto">
+          <ul className="list-none p-0 m-0">
             {NAV_LINKS.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <li key={link.href}>
-                  <Link href={link.href} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 24px",
-                    color: isActive ? "#fff" : "#a0a0a0",
-                    backgroundColor: isActive ? "#991b1b" : "transparent",
-                    textDecoration: "none",
-                    fontSize: 14,
-                    transition: "all 0.2s",
-                  }}>
+                  <Link href={link.href} onClick={() => setSidebarOpen(false)} className={`flex items-center gap-3 px-6 py-3 text-sm transition-all no-underline ${isActive ? "text-white bg-[#8B1A1A]" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
                     {link.icon}
                     {link.label}
                   </Link>
@@ -61,74 +67,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </ul>
         </nav>
 
-        <div style={{ padding: "20px" }}>
-          <button style={{
-            width: "100%",
-            padding: "10px",
-            backgroundColor: "#991b1b",
-            color: "#fff",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}>
+        <div className="p-5 mt-auto">
+          <Link href="/admin/products/new" className="w-full py-2.5 px-4 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded font-medium text-sm flex items-center justify-center gap-2 transition-colors no-underline">
             <span>+</span> Add New Product
-          </button>
+          </Link>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header style={{ 
-          height: 64, 
-          backgroundColor: "#fff",
-          borderBottom: "2px solid #991b1b",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 24px"
-        }}>
+        <header className="h-16 bg-white border-b-2 border-[#8B1A1A] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           
-          {/* Top Title */}
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111", margin: 0 }}>S Tech Store Admin</h2>
+          <div className="flex items-center gap-4">
+            <button className="lg:hidden text-gray-700" onClick={() => setSidebarOpen(true)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h2 className="hidden sm:block text-lg font-bold text-gray-900 m-0">S Tech Store Admin</h2>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <div className="flex items-center gap-4 lg:gap-6">
             {/* Search */}
-            <div style={{ position: "relative", width: 300 }}>
-              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#888" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <div className="relative hidden md:block w-64 lg:w-80">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
               <input 
                 type="text" 
                 placeholder="Global Search..." 
-                style={{
-                  width: "100%",
-                  padding: "8px 12px 8px 36px",
-                  backgroundColor: "#f5f5f5",
-                  border: "none",
-                  borderRadius: 4,
-                  fontSize: 14,
-                  outline: "none"
-                }}
+                className="w-full py-2 pl-9 pr-4 bg-gray-100 border-none rounded-md text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 transition-all"
               />
             </div>
             
             {/* Icons */}
-            <div style={{ display: "flex", alignItems: "center", gap: 20, color: "#666" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <div className="flex items-center gap-4 text-gray-500">
+              <button className="hover:text-gray-900 transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              </button>
+              <button className="hover:text-gray-900 transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+              </button>
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main style={{ flex: 1, padding: "32px", overflowY: "auto" }}>
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto w-full">
           {children}
         </main>
       </div>

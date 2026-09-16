@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo } from "react";
+import { Plus, Filter, Clock, Tag, TrendingUp, Trash2, ChevronDown } from "lucide-react";
 
 type Promotion = {
   id: string;
@@ -72,200 +73,296 @@ export default function PromotionManagementPage() {
   };
 
   return (
-    <div style={{ padding: "0 8px", fontFamily: "sans-serif" }}>
-      {toast && <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, padding: "12px 20px", backgroundColor: toast.type === "success" ? "#16a34a" : "#dc2626", color: "#fff", borderRadius: 8, fontWeight: 500, fontSize: 14, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{toast.msg}</div>}
+    <div className="font-sans">
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-lg shadow-lg font-medium text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'} transition-opacity`}>
+          {toast.msg}
+        </div>
+      )}
 
       {/* Create Modal */}
       {showCreate && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ backgroundColor: "#fff", padding: 32, borderRadius: 12, maxWidth: 500, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 24 }}>Create New Promotion</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-xl max-w-lg w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold mb-6 text-gray-900">Create New Promotion</h3>
+            
+            <div className="flex flex-col gap-5">
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Campaign Name *</label>
-                <input value={newPromo.name || ""} onChange={e => setNewPromo({ ...newPromo, name: e.target.value })} placeholder="e.g. Summer Sale" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Campaign Name *</label>
+                <input 
+                  value={newPromo.name || ""} 
+                  onChange={e => setNewPromo({ ...newPromo, name: e.target.value })} 
+                  placeholder="e.g. Summer Sale" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                />
               </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Type</label>
-                  <select value={newPromo.type} onChange={e => setNewPromo({ ...newPromo, type: e.target.value })} style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }}>
-                    <option>Percentage</option>
-                    <option>Fixed Amount</option>
-                  </select>
+              
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Type</label>
+                  <div className="relative">
+                    <select 
+                      value={newPromo.type} 
+                      onChange={e => setNewPromo({ ...newPromo, type: e.target.value })} 
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                    >
+                      <option>Percentage</option>
+                      <option>Fixed Amount</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                  </div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Value *</label>
-                  <input value={newPromo.value || ""} onChange={e => setNewPromo({ ...newPromo, value: e.target.value })} placeholder="e.g. 15% or -$200" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Promo Code (optional)</label>
-                  <input value={newPromo.code || ""} onChange={e => setNewPromo({ ...newPromo, code: e.target.value })} placeholder="e.g. SUMMER24" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Validity Period</label>
-                  <input value={newPromo.validity || ""} onChange={e => setNewPromo({ ...newPromo, validity: e.target.value })} placeholder="e.g. Jun 1 - Jun 30" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Status</label>
-                  <select value={newPromo.status} onChange={e => setNewPromo({ ...newPromo, status: e.target.value })} style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }}>
-                    <option>Active</option>
-                    <option>Scheduled</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Max Uses (optional)</label>
-                  <input type="number" value={newPromo.usageMax || ""} onChange={e => setNewPromo({ ...newPromo, usageMax: parseInt(e.target.value) || null })} placeholder="Unlimited" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Value *</label>
+                  <input 
+                    value={newPromo.value || ""} 
+                    onChange={e => setNewPromo({ ...newPromo, value: e.target.value })} 
+                    placeholder="e.g. 15% or -$200" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
                 </div>
               </div>
+              
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Promo Code (optional)</label>
+                  <input 
+                    value={newPromo.code || ""} 
+                    onChange={e => setNewPromo({ ...newPromo, code: e.target.value })} 
+                    placeholder="e.g. SUMMER24" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Validity Period</label>
+                  <input 
+                    value={newPromo.validity || ""} 
+                    onChange={e => setNewPromo({ ...newPromo, validity: e.target.value })} 
+                    placeholder="e.g. Jun 1 - Jun 30" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Status</label>
+                  <div className="relative">
+                    <select 
+                      value={newPromo.status} 
+                      onChange={e => setNewPromo({ ...newPromo, status: e.target.value })} 
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                    >
+                      <option>Active</option>
+                      <option>Scheduled</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Max Uses (optional)</label>
+                  <input 
+                    type="number" 
+                    value={newPromo.usageMax || ""} 
+                    onChange={e => setNewPromo({ ...newPromo, usageMax: parseInt(e.target.value) || null })} 
+                    placeholder="Unlimited" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
+                </div>
+              </div>
+              
               <div>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 500, color: "#333", cursor: "pointer" }}>
-                  <input type="checkbox" checked={newPromo.autoApplied} onChange={e => setNewPromo({ ...newPromo, autoApplied: e.target.checked })} style={{ width: 16, height: 16 }} />
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={newPromo.autoApplied} 
+                    onChange={e => setNewPromo({ ...newPromo, autoApplied: e.target.checked })} 
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                  />
                   Auto-apply without code
                 </label>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 32 }}>
-              <button onClick={() => setShowCreate(false)} style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 6, background: "#fff", color: "#444", fontWeight: 500, cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleCreateSave} style={{ flex: 1, padding: "10px", border: "none", borderRadius: 6, background: "#991b1b", color: "#fff", fontWeight: 500, cursor: "pointer" }}>Create Promotion</button>
+            
+            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
+              <button 
+                onClick={() => setShowCreate(false)} 
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreateSave} 
+                className="flex-1 py-2.5 border-none rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+              >
+                Create Promotion
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Header section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: "#111", margin: "0 0 8px 0" }}>Promotion Management</h1>
-          <p style={{ color: "#666", margin: 0, fontSize: 14 }}>Create and manage sales campaigns, discount coupons, and limited-time offers.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Promotion Management</h1>
+          <p className="text-gray-500 text-sm">Create and manage sales campaigns, discount coupons, and limited-time offers.</p>
         </div>
-        <button onClick={() => setShowCreate(true)} style={{ padding: "10px 16px", backgroundColor: "#991b1b", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        <button 
+          onClick={() => setShowCreate(true)} 
+          className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors"
+        >
+          <Plus size={16} />
           Create New Promotion
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginBottom: 32 }}>
-        <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div style={{ width: 40, height: 40, backgroundColor: "#eff6ff", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#3b82f6" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg></div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#444", backgroundColor: "#f3f4f6", padding: "4px 10px", borderRadius: 4 }}>Current</span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+              <Tag size={20} />
+            </div>
+            <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded">Current</span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 8 }}>Active Campaigns</div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: "#111" }}>{promos.filter(p => p.status === "Active").length}</div>
+          <div className="text-sm font-semibold text-gray-500 mb-1">Active Campaigns</div>
+          <div className="text-3xl font-bold text-gray-900">{promos.filter(p => p.status === "Active").length}</div>
         </div>
-        <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div style={{ width: 40, height: 40, backgroundColor: "#fef2f2", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg></div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#3b82f6", display: "flex", alignItems: "center", gap: 4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>+12%</span>
+        
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center text-red-600">
+              <TrendingUp size={20} />
+            </div>
+            <span className="text-xs font-bold text-blue-600 flex items-center gap-1">+12%</span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 8 }}>Total Discounts Given</div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: "#111", letterSpacing: "-1px" }}>$1,250</div>
+          <div className="text-sm font-semibold text-gray-500 mb-1">Total Discounts Given</div>
+          <div className="text-3xl font-bold text-gray-900 tracking-tight">$1,250</div>
         </div>
-        <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-            <div style={{ width: 40, height: 40, backgroundColor: "#f9f9f9", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#444" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#dc2626", backgroundColor: "#fee2e2", padding: "4px 10px", borderRadius: 4 }}>Urgent</span>
+        
+        <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:col-span-2 lg:col-span-1">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-gray-600">
+              <Clock size={20} />
+            </div>
+            <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded">Urgent</span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 8 }}>Expiring Soon</div>
-          <div style={{ fontSize: 32, fontWeight: 700, color: "#111" }}>2</div>
+          <div className="text-sm font-semibold text-gray-500 mb-1">Expiring Soon</div>
+          <div className="text-3xl font-bold text-gray-900">2</div>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div style={{ backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea" }}>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-10">
         
         {/* Filters Row */}
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #eaeaea", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#444", fontSize: 14, fontWeight: 600 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-2 text-gray-600 font-semibold text-sm">
+            <Filter size={18} />
             Filters:
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ position: "relative" }}>
-              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ padding: "8px 32px 8px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, appearance: "none", outline: "none", backgroundColor: "#fff", cursor: "pointer", color: "#333" }}>
+          <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <select 
+                value={typeFilter} 
+                onChange={e => setTypeFilter(e.target.value)} 
+                className="w-full py-2 pl-3 pr-8 border border-gray-200 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 text-gray-700"
+              >
                 <option>All Types</option>
                 <option>Percentage</option>
                 <option>Fixed Amount</option>
               </select>
-              <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#888", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
             </div>
-            <div style={{ position: "relative" }}>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: "8px 32px 8px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, appearance: "none", outline: "none", backgroundColor: "#fff", cursor: "pointer", color: "#333" }}>
+            <div className="relative flex-1 sm:flex-none">
+              <select 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)} 
+                className="w-full py-2 pl-3 pr-8 border border-gray-200 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 text-gray-700"
+              >
                 <option>All Status</option>
                 <option>Active</option>
                 <option>Scheduled</option>
               </select>
-              <svg style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#888", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={14} />
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr style={{ borderBottom: "1px solid #eaeaea" }}>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px", width: "25%" }}>CAMPAIGN NAME</th>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px" }}>TYPE & VALUE</th>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px" }}>VALIDITY PERIOD</th>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px" }}>USAGE</th>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px" }}>STATUS</th>
-                <th style={{ padding: "16px 24px", fontSize: 11, fontWeight: 700, color: "#888", letterSpacing: "1px", textAlign: "right" }}>ACTIONS</th>
+              <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4">CAMPAIGN NAME</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">TYPE & VALUE</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">VALIDITY PERIOD</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">USAGE</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">STATUS</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">ACTIONS</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "#888" }}>No promotions found.</td></tr>
-              ) : filtered.map((promo, i) => (
-                <tr key={promo.id} style={{ borderBottom: i === filtered.length - 1 ? "none" : "1px solid #eaeaea" }}>
-                  <td style={{ padding: "20px 24px" }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#222", marginBottom: 4 }}>{promo.name}</div>
-                    <div style={{ fontSize: 13, color: promo.autoApplied ? "#888" : "#666" }}>
-                      {promo.autoApplied ? "Auto-applied" : <>Code: <span style={{ fontFamily: "monospace" }}>{promo.code}</span></>}
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-gray-500">No promotions found.</td>
+                </tr>
+              ) : filtered.map((promo) => (
+                <tr key={promo.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="p-4">
+                    <div className="text-sm font-bold text-gray-900 mb-1">{promo.name}</div>
+                    <div className={`text-xs ${promo.autoApplied ? 'text-gray-500' : 'text-gray-600'}`}>
+                      {promo.autoApplied ? "Auto-applied" : <>Code: <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">{promo.code}</span></>}
                     </div>
                   </td>
-                  <td style={{ padding: "20px 24px" }}>
-                    <div style={{ display: "inline-flex", alignItems: "center", backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
-                      <span style={{ fontSize: 12, color: "#444", padding: "4px 8px" }}>{promo.type}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#1d4ed8", padding: "4px 8px", backgroundColor: "#eff6ff" }}>{promo.value}</span>
+                  <td className="p-4">
+                    <div className="inline-flex items-center rounded overflow-hidden">
+                      <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1">{promo.type}</span>
+                      <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1">{promo.value}</span>
                     </div>
                   </td>
-                  <td style={{ padding: "20px 24px", fontSize: 13, color: "#555" }}>
+                  <td className="p-4 text-sm text-gray-600">
                     {promo.validity}
                   </td>
-                  <td style={{ padding: "20px 24px" }}>
+                  <td className="p-4 w-48">
                     {promo.usageMax ? (
                       <>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: "#222", marginBottom: 6 }}>{promo.usageCount} <span style={{ fontWeight: 400, color: "#888" }}>/ {promo.usageMax}</span></div>
-                        <div style={{ width: "100%", maxWidth: 120, height: 4, backgroundColor: "#f0f0f0", borderRadius: 2, overflow: "hidden" }}>
-                          <div style={{ width: `${(promo.usageCount / promo.usageMax) * 100}%`, height: "100%", backgroundColor: (promo.usageCount / promo.usageMax) > 0.8 ? "#dc2626" : "#1d4ed8" }}></div>
+                        <div className="text-sm font-bold text-gray-900 mb-1.5 flex justify-between">
+                          {promo.usageCount} <span className="font-normal text-gray-400">/ {promo.usageMax}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${promo.usageCount / promo.usageMax > 0.8 ? 'bg-red-500' : 'bg-blue-600'}`}
+                            style={{ width: `${(promo.usageCount / promo.usageMax) * 100}%` }}
+                          ></div>
                         </div>
                       </>
                     ) : (
-                      <div style={{ fontSize: 13, color: "#888" }}>{promo.usageCount === 0 ? "Not started" : `${promo.usageCount} uses`}</div>
+                      <div className="text-sm text-gray-500">
+                        {promo.usageCount === 0 ? "Not started" : `${promo.usageCount} uses`}
+                      </div>
                     )}
                   </td>
-                  <td style={{ padding: "20px 24px" }}>
+                  <td className="p-4">
                     {promo.status === "Active" ? (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", backgroundColor: "#eff6ff", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#1d4ed8" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "#1d4ed8" }}></span> Active
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span> Active
                       </span>
                     ) : (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", backgroundColor: "#f3f4f6", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "#666" }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        Scheduled
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold">
+                        <Clock size={12} /> Scheduled
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: "20px 24px", textAlign: "right" }}>
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-                      <button onClick={() => handleDelete(promo.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626" }} title="Delete">
-                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => handleDelete(promo.id)} 
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
+import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 
 type Category = {
   id: number;
@@ -20,7 +21,7 @@ type Product = {
   category_id: number;
 };
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 5;
 
 export default function AdminProductsPage() {
   const router = useRouter();
@@ -118,32 +119,42 @@ export default function AdminProductsPage() {
   };
 
   const stockBadge = (status: string) => {
-    if (status === "In Stock") return { bg: "#e0e7ff", color: "#3730a3" };
-    if (status === "Low Stock") return { bg: "#fee2e2", color: "#991b1b" };
-    return { bg: "#f3f4f6", color: "#4b5563" };
+    if (status === "In Stock") return "bg-indigo-100 text-indigo-700";
+    if (status === "Low Stock") return "bg-red-100 text-red-700";
+    return "bg-gray-100 text-gray-700";
   };
 
   return (
-    <div>
+    <div className="font-sans">
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, padding: "12px 20px", backgroundColor: toast.type === "success" ? "#16a34a" : "#dc2626", color: "#fff", borderRadius: 8, fontWeight: 500, fontSize: 14, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", animation: "fadeIn 0.2s" }}>
+        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-lg shadow-lg font-medium text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'} transition-opacity`}>
           {toast.msg}
         </div>
       )}
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ backgroundColor: "#fff", padding: 32, borderRadius: 12, maxWidth: 400, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <div style={{ width: 48, height: 48, backgroundColor: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+              <AlertCircle size={32} />
             </div>
-            <h3 style={{ textAlign: "center", fontSize: 18, fontWeight: 700, color: "#111", marginBottom: 8 }}>Delete Product?</h3>
-            <p style={{ textAlign: "center", color: "#666", fontSize: 14, marginBottom: 24 }}>Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.</p>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => setDeleteTarget(null)} style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 6, background: "#fff", color: "#444", fontWeight: 500, cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleDelete} style={{ flex: 1, padding: "10px", border: "none", borderRadius: 6, background: "#dc2626", color: "#fff", fontWeight: 500, cursor: "pointer" }}>Delete</button>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Product?</h3>
+            <p className="text-gray-500 text-sm mb-6">Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setDeleteTarget(null)} 
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete} 
+                className="flex-1 py-2.5 border-none rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -151,121 +162,188 @@ export default function AdminProductsPage() {
 
       {/* Edit Modal */}
       {editTarget && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 9000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ backgroundColor: "#fff", padding: 32, borderRadius: 12, maxWidth: 520, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Edit Product</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-xl max-w-lg w-full shadow-2xl">
+            <h3 className="text-xl font-bold mb-6">Edit Product</h3>
+            <div className="flex flex-col gap-4">
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Product Name</label>
-                <input value={editForm.name || ""} onChange={e => setEditForm({ ...editForm, name: e.target.value })} style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Name</label>
+                <input 
+                  value={editForm.name || ""} 
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })} 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                />
               </div>
-              <div style={{ display: "flex", gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Price (USD)</label>
-                  <input type="number" value={editForm.price || 0} onChange={e => setEditForm({ ...editForm, price: parseFloat(e.target.value) })} style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Price (USD)</label>
+                  <input 
+                    type="number" 
+                    value={editForm.price || 0} 
+                    onChange={e => setEditForm({ ...editForm, price: parseFloat(e.target.value) })} 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6, color: "#555" }}>Stock Count</label>
-                  <input type="number" value={editForm.stock || 0} onChange={e => setEditForm({ ...editForm, stock: parseInt(e.target.value) })} style={{ width: "100%", padding: "8px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stock Count</label>
+                  <input 
+                    type="number" 
+                    value={editForm.stock || 0} 
+                    onChange={e => setEditForm({ ...editForm, stock: parseInt(e.target.value) })} 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  />
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-              <button onClick={() => { setEditTarget(null); setEditForm({}); }} style={{ flex: 1, padding: "10px", border: "1px solid #ddd", borderRadius: 6, background: "#fff", color: "#444", fontWeight: 500, cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleEditSave} style={{ flex: 1, padding: "10px", border: "none", borderRadius: 6, background: "#991b1b", color: "#fff", fontWeight: 500, cursor: "pointer" }}>Save Changes</button>
+            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
+              <button 
+                onClick={() => { setEditTarget(null); setEditForm({}); }} 
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleEditSave} 
+                className="flex-1 py-2.5 border-none rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: "#111", margin: "0 0 8px 0" }}>Product Management</h1>
-          <p style={{ color: "#666", margin: 0 }}>Manage inventory, pricing, and specifications.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
+          <p className="text-gray-500 text-sm">Manage inventory, pricing, and specifications.</p>
         </div>
-        <button onClick={() => router.push("/admin/products/new")} style={{ padding: "10px 16px", backgroundColor: "#991b1b", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
-          <span>+</span> Add New Product
+        <button 
+          onClick={() => router.push("/admin/products/new")} 
+          className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors"
+        >
+          <Plus size={16} />
+          Add New Product
         </button>
       </div>
 
       {/* Main Card */}
-      <div style={{ backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea", overflow: "hidden" }}>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-10">
+        
         {/* Filters */}
-        <div style={{ padding: "16px 24px", borderBottom: "1px solid #eaeaea", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#888", width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} placeholder="Search products..." style={{ width: "100%", padding: "9px 12px 9px 32px", border: "1px solid #eaeaea", borderRadius: 4, fontSize: 14, outline: "none", backgroundColor: "#f9f9f9" }} />
+        <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 items-end">
+          <div className="w-full lg:flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input 
+              value={searchQuery} 
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }} 
+              placeholder="Search products..." 
+              className="w-full py-2.5 pl-10 pr-4 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50/50" 
+            />
           </div>
-          <div style={{ position: "relative" }}>
-            <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#888", width: 14, height: 14 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-            <select value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setCurrentPage(1); }} style={{ padding: "10px 32px", backgroundColor: "#f9f9f9", border: "1px solid #eaeaea", borderRadius: 4, fontSize: 14, color: "#333", appearance: "none", outline: "none", cursor: "pointer" }}>
+          
+          <div className="w-full sm:w-1/2 lg:w-48 relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <select 
+              value={categoryFilter} 
+              onChange={e => { setCategoryFilter(e.target.value); setCurrentPage(1); }} 
+              className="w-full py-2.5 pl-10 pr-4 border border-gray-200 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50/50"
+            >
               <option>All Categories</option>
               {Array.from(new Set(products.map(p => p.category?.name || "Uncategorized"))).map(cat => (
                 <option key={cat}>{cat}</option>
               ))}
             </select>
-            <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#888", width: 14, height: 14, pointerEvents: "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
-          <div style={{ position: "relative" }}>
-            <select value={stockFilter} onChange={e => { setStockFilter(e.target.value); setCurrentPage(1); }} style={{ padding: "10px 32px 10px 16px", backgroundColor: "#f9f9f9", border: "1px solid #eaeaea", borderRadius: 4, fontSize: 14, color: "#333", appearance: "none", outline: "none", cursor: "pointer" }}>
+          
+          <div className="w-full sm:w-1/2 lg:w-48 relative">
+            <select 
+              value={stockFilter} 
+              onChange={e => { setStockFilter(e.target.value); setCurrentPage(1); }} 
+              className="w-full py-2.5 px-4 border border-gray-200 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50/50"
+            >
               <option>Stock Status (All)</option>
               <option>In Stock</option>
               <option>Low Stock</option>
               <option>Out of Stock</option>
             </select>
-            <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#888", width: 14, height: 14, pointerEvents: "none" }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
-          <button onClick={handleClearFilters} style={{ padding: "9px 16px", backgroundColor: "#fff", border: "1px solid #eaeaea", borderRadius: 4, fontSize: 14, color: "#666", cursor: "pointer" }}>Clear Filters</button>
+
+          <button 
+            onClick={handleClearFilters} 
+            className="w-full lg:w-auto px-6 py-2.5 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
+            Clear
+          </button>
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr style={{ borderBottom: "1px solid #eaeaea" }}>
-                <th style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#666", width: "35%" }}>Product Name</th>
-                <th style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#666" }}>Category</th>
-                <th style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#666" }}>Price</th>
-                <th style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#666" }}>Stock</th>
-                <th style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#666", textAlign: "right" }}>Actions</th>
+              <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/3">Product</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Stock</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#888", fontSize: 14 }}>Loading...</td></tr>
+                <tr>
+                  <td colSpan={5} className="p-12 text-center text-gray-500 animate-pulse">Loading products...</td>
+                </tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#888", fontSize: 14 }}>No products match your filters.</td></tr>
+                <tr>
+                  <td colSpan={5} className="p-12 text-center text-gray-500">No products match your filters.</td>
+                </tr>
               ) : paginated.map((prod) => {
                 const status = getStockStatus(prod.stock);
-                const badge = stockBadge(status);
                 return (
-                  <tr key={prod.id} style={{ borderBottom: "1px solid #eaeaea" }}>
-                    <td style={{ padding: "16px 24px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                        <div style={{ width: 40, height: 40, backgroundColor: "#f5f5f5", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                            {prod.image_url ? <img src={prod.image_url} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <span style={{fontSize: 20}}>💻</span>}
+                  <tr key={prod.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {prod.image_url ? (
+                              <img src={prod.image_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xl">💻</span>
+                            )}
                         </div>
                         <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#111", marginBottom: 4 }}>{prod.name}</div>
-                          <div style={{ fontSize: 13, color: "#888" }}>{prod.slug}</div>
+                          <div className="text-sm font-bold text-gray-900 mb-0.5">{prod.name}</div>
+                          <div className="text-xs text-gray-500">{prod.slug}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "16px 24px", fontSize: 14, color: "#333" }}>{prod.category?.name || "Uncategorized"}</td>
-                    <td style={{ padding: "16px 24px", fontSize: 14, fontWeight: 600, color: "#111" }}>${Number(prod.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
-                    <td style={{ padding: "16px 24px" }}>
-                      <span style={{ display: "inline-block", padding: "4px 8px", borderRadius: 4, fontSize: 12, fontWeight: 500, backgroundColor: badge.bg, color: badge.color }}>
+                    <td className="p-4 text-sm font-medium text-gray-700">
+                      {prod.category?.name || "Uncategorized"}
+                    </td>
+                    <td className="p-4 text-sm font-bold text-gray-900">
+                      ${Number(prod.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 rounded text-xs font-bold ${stockBadge(status)}`}>
                         {status} ({prod.stock})
                       </span>
                     </td>
-                    <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-                        <button onClick={() => handleEditOpen(prod)} style={{ background: "none", border: "none", cursor: "pointer", color: "#1d4ed8" }} title="Edit">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleEditOpen(prod)} 
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                          title="Edit"
+                        >
+                          <Edit2 size={16} />
                         </button>
-                        <button onClick={() => setDeleteTarget(prod)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626" }} title="Delete">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <button 
+                          onClick={() => setDeleteTarget(prod)} 
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -277,19 +355,33 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Pagination */}
-        <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>
-            Showing <strong>{filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</strong> to <strong>{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</strong> of <strong>{filtered.length}</strong> results
+        <div className="p-4 flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 gap-4">
+          <div className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-900">{filtered.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-semibold text-gray-900">{Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)}</span> of <span className="font-semibold text-gray-900">{filtered.length}</span> results
           </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #eaeaea", borderRadius: 4, background: "#fff", color: currentPage === 1 ? "#ccc" : "#666", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <div className="flex gap-1.5">
+            <button 
+              disabled={currentPage === 1} 
+              onClick={() => setCurrentPage(p => p - 1)} 
+              className={`p-1.5 border rounded-md transition-colors ${currentPage === 1 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'}`}
+            >
+              <ChevronLeft size={18} />
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button key={page} onClick={() => setCurrentPage(page)} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", border: page === currentPage ? "1px solid #2563eb" : "1px solid #eaeaea", borderRadius: 4, background: page === currentPage ? "#eff6ff" : "#fff", color: page === currentPage ? "#2563eb" : "#666", fontSize: 13, fontWeight: page === currentPage ? 600 : 400, cursor: "pointer" }}>{page}</button>
+              <button 
+                key={page} 
+                onClick={() => setCurrentPage(page)} 
+                className={`w-8 h-8 flex items-center justify-center border rounded-md text-sm font-medium transition-colors ${page === currentPage ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              >
+                {page}
+              </button>
             ))}
-            <button disabled={currentPage === totalPages || totalPages === 0} onClick={() => setCurrentPage(p => p + 1)} style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #eaeaea", borderRadius: 4, background: "#fff", color: currentPage === totalPages || totalPages === 0 ? "#ccc" : "#666", cursor: currentPage === totalPages || totalPages === 0 ? "not-allowed" : "pointer" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            <button 
+              disabled={currentPage === totalPages || totalPages === 0} 
+              onClick={() => setCurrentPage(p => p + 1)} 
+              className={`p-1.5 border rounded-md transition-colors ${currentPage === totalPages || totalPages === 0 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-700 hover:bg-gray-50 bg-white'}`}
+            >
+              <ChevronRight size={18} />
             </button>
           </div>
         </div>

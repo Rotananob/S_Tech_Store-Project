@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Trash2, Lock, Truck, ArrowRight, Check } from "lucide-react";
+import Image from "next/image";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
@@ -121,8 +122,13 @@ export default function CartPage() {
                     key={item.id}
                     className="flex flex-col sm:flex-row border border-[#eaeaea] bg-white p-4 rounded-md gap-4 sm:gap-0"
                   >
-                    <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px" }}>
-                      <img src={image || ""} alt={name} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    <div style={{ width: "100px", height: "100px", background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", padding: "8px", flexShrink: 0, marginRight: "20px", position: "relative" }}>
+                      <Image 
+                        src={image || "/placeholder.png"} 
+                        alt={name || "Product"} 
+                        fill
+                        className="object-contain p-2"
+                      />
                     </div>
 
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>

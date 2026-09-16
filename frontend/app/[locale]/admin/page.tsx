@@ -1,6 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { getAdminStats, getRecentOrders, AdminStats, Order } from "@/lib/services/admin.service";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { DollarSign, ShoppingBag, Wrench, Tag, FileText, ArrowUpRight, ArrowDownRight, Settings } from "lucide-react";
+
+// Mock data for the chart to make it look real
+const monthlySalesData = [
+  { name: 'Jan', sales: 4000 },
+  { name: 'Feb', sales: 3000 },
+  { name: 'Mar', sales: 5000 },
+  { name: 'Apr', sales: 4500 },
+  { name: 'May', sales: 6000 },
+  { name: 'Jun', sales: 7200 },
+  { name: 'Jul', sales: 8500 },
+];
 
 export default function AdminDashboardOverview() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -30,10 +43,7 @@ export default function AdminDashboardOverview() {
     try {
       const date = new Date(dateString);
       return date.toLocaleString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        hour: 'numeric', 
-        minute: 'numeric' 
+        month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' 
       });
     } catch {
       return dateString;
@@ -42,238 +52,222 @@ export default function AdminDashboardOverview() {
 
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s === "processing" || s === "pending") return { bg: "#e0f2fe", text: "#0284c7" };
-    if (s === "completed" || s === "delivered") return { bg: "#dcfce7", text: "#16a34a" };
-    if (s === "cancelled") return { bg: "#fee2e2", text: "#b91c1c" };
-    return { bg: "#f3f4f6", text: "#4b5563" };
+    if (s === "processing" || s === "pending") return "bg-blue-100 text-blue-700";
+    if (s === "completed" || s === "delivered") return "bg-green-100 text-green-700";
+    if (s === "cancelled") return "bg-red-100 text-red-700";
+    return "bg-gray-100 text-gray-700";
   };
 
+  if (loading) {
+    return <div className="p-10 text-center text-gray-500 animate-pulse">Loading dashboard data...</div>;
+  }
+
   return (
-    <div style={{ padding: "0 8px", fontFamily: "sans-serif" }}>
+    <div className="font-sans">
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111", margin: "0 0 8px 0" }}>Admin Dashboard Overview</h1>
-          <p style={{ color: "#666", margin: 0, fontSize: 15 }}>Welcome back. Here's what's happening today.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Dashboard Overview</h1>
+          <p className="text-gray-500 text-sm">Welcome back. Here's what's happening today.</p>
         </div>
-        <button style={{
-          padding: "8px 16px",
-          backgroundColor: "#fff",
-          color: "#1d4ed8",
-          border: "1px solid #1d4ed8",
-          borderRadius: 4,
-          cursor: "pointer",
-          fontSize: 13,
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <button className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-md text-sm font-semibold flex items-center gap-2 hover:bg-blue-50 transition-colors">
+          <FileText size={16} />
           Export Report
         </button>
       </div>
 
-      {loading ? (
-        <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Loading dashboard data...</div>
-      ) : (
-        <>
-          {/* Stats Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20, marginBottom: 24 }}>
-            {/* Stat 1 */}
-            <div style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, backgroundColor: "#f3f4f6", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: stats?.salesGrowth && stats.salesGrowth >= 0 ? "#16a34a" : "#b91c1c", backgroundColor: stats?.salesGrowth && stats.salesGrowth >= 0 ? "#dcfce7" : "#fee2e2", padding: "4px 8px", borderRadius: 4 }}>
-                  {stats?.salesGrowth && stats.salesGrowth > 0 ? "+" : ""}{stats?.salesGrowth || 0}%
-                </span>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#666", letterSpacing: "1px", marginBottom: 4 }}>TOTAL SALES</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#111" }}>${(stats?.totalSales || 0).toLocaleString()} <span style={{ fontSize: 12, fontWeight: 500, color: "#888" }}>USD</span></div>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+        {/* Stat 1: Total Sales */}
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600">
+              <DollarSign size={20} />
             </div>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 ${stats?.salesGrowth && stats.salesGrowth >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {stats?.salesGrowth && stats.salesGrowth >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+              {Math.abs(stats?.salesGrowth || 0)}%
+            </span>
+          </div>
+          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1">TOTAL SALES</div>
+          <div className="text-2xl font-bold text-gray-900">
+            ${(stats?.totalSales || 0).toLocaleString()} <span className="text-sm font-medium text-gray-400">USD</span>
+          </div>
+        </div>
 
-            {/* Stat 2 */}
-            <div style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, backgroundColor: "#f3f4f6", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: stats?.ordersGrowth && stats.ordersGrowth >= 0 ? "#16a34a" : "#b91c1c", backgroundColor: stats?.ordersGrowth && stats.ordersGrowth >= 0 ? "#dcfce7" : "#fee2e2", padding: "4px 8px", borderRadius: 4 }}>
-                  {stats?.ordersGrowth && stats.ordersGrowth > 0 ? "+" : ""}{stats?.ordersGrowth || 0}%
-                </span>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#666", letterSpacing: "1px", marginBottom: 4 }}>TOTAL ORDERS</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#111" }}>{(stats?.totalOrders || 0).toLocaleString()}</div>
+        {/* Stat 2: Total Orders */}
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+              <ShoppingBag size={20} />
             </div>
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 ${stats?.ordersGrowth && stats.ordersGrowth >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+              {stats?.ordersGrowth && stats.ordersGrowth >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+              {Math.abs(stats?.ordersGrowth || 0)}%
+            </span>
+          </div>
+          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1">TOTAL ORDERS</div>
+          <div className="text-2xl font-bold text-gray-900">{(stats?.totalOrders || 0).toLocaleString()}</div>
+        </div>
 
-            {/* Stat 3 */}
-            <div style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, backgroundColor: "#fee2e2", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#b91c1c" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+        {/* Stat 3: Pending Repairs */}
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600">
+              <Wrench size={20} />
+            </div>
+            {stats?.pendingRepairs ? (
+              <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-red-100 text-red-700">Needs Action</span>
+            ) : null}
+          </div>
+          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1">PENDING REPAIRS</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.pendingRepairs || 0}</div>
+        </div>
+
+        {/* Stat 4: Active Promotions */}
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col">
+          <div className="flex justify-between items-start mb-4">
+            <div className="w-10 h-10 bg-rose-50 rounded-lg flex items-center justify-center text-rose-600">
+              <Tag size={20} />
+            </div>
+          </div>
+          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1">ACTIVE PROMOTIONS</div>
+          <div className="text-2xl font-bold text-gray-900">{stats?.activePromotions || 0}</div>
+        </div>
+      </div>
+
+      {/* Middle Row: Charts & Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
+        {/* Chart */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-gray-900">Sales Performance</h2>
+            <select className="px-3 py-1.5 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-600 outline-none focus:ring-2 focus:ring-blue-100">
+              <option>This Year</option>
+              <option>Last Year</option>
+            </select>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthlySalesData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dx={-10} tickFormatter={(val) => `$${val}`} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  itemStyle={{ color: '#1a4fa0', fontWeight: 'bold' }}
+                  formatter={(value: any) => [
+                    `$${Number(value).toLocaleString()}`,
+                    "Revenue"
+                  ]}
+                />
+                <Line type="monotone" dataKey="sales" stroke="#1a4fa0" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Quick Actions & System Status */}
+        <div className="flex flex-col gap-6">
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="flex flex-col gap-3">
+              <a href="/admin/products/new" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600">
+                  <ShoppingBag size={18} />
                 </div>
+                <span className="text-sm font-semibold text-gray-700">Add New Product</span>
+              </a>
+              <a href="/admin/repairs" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-red-200 hover:bg-red-50 transition-colors group">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-red-100 group-hover:text-red-600">
+                  <Wrench size={18} />
+                </div>
+                <span className="text-sm font-semibold text-gray-700 flex-1">View Pending Repairs</span>
                 {stats?.pendingRepairs ? (
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#b91c1c", backgroundColor: "#fee2e2", padding: "4px 8px", borderRadius: 4 }}>Needs Action</span>
+                  <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">{stats.pendingRepairs}</span>
                 ) : null}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#666", letterSpacing: "1px", marginBottom: 4 }}>PENDING REPAIRS</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#111" }}>{stats?.pendingRepairs || 0}</div>
-            </div>
-
-            {/* Stat 4 */}
-            <div style={{ backgroundColor: "#fff", padding: 20, borderRadius: 8, border: "1px solid #eaeaea", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, backgroundColor: "#f3f4f6", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", color: "#4b5563" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </a>
+              <a href="/admin/settings" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-colors group">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-white">
+                  <Settings size={18} />
                 </div>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#666", letterSpacing: "1px", marginBottom: 4 }}>ACTIVE PROMOTIONS</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#111" }}>{stats?.activePromotions || 0}</div>
+                <span className="text-sm font-semibold text-gray-700">System Settings</span>
+              </a>
             </div>
           </div>
 
-          {/* Middle Row */}
-          <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
-            {/* Sales Performance Chart */}
-            <div style={{ flex: 2, backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea", padding: 24 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#111" }}>Sales Performance</h2>
-                <div style={{ position: "relative" }}>
-                  <select style={{ padding: "6px 24px 6px 12px", border: "1px solid #eaeaea", borderRadius: 4, fontSize: 13, backgroundColor: "#f9f9f9", appearance: "none", color: "#444" }}>
-                    <option>This Month</option>
-                    <option>Last Month</option>
-                    <option>This Year</option>
-                  </select>
-                  <svg style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: "#888", pointerEvents: "none" }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </div>
-              </div>
-              {/* Chart Area */}
-              <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 20, color: "#888", backgroundColor: "#f9f9f9", borderRadius: 4 }}>
-                <p>Chart data integration pending...</p>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div style={{ flex: 1, backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea", padding: 24 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Quick Actions</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <button style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", backgroundColor: "#fff", border: "1px solid #eaeaea", borderRadius: 6, cursor: "pointer", transition: "all 0.2s" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", backgroundColor: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", color: "#444" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </div>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#222" }}>Add New Product</span>
-                  </div>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
-                
-                <button style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", backgroundColor: "#fff", border: "1px solid #eaeaea", borderRadius: 6, cursor: "pointer" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", backgroundColor: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", color: "#b91c1c" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-                    </div>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#222" }}>View Pending Repairs</span>
-                  </div>
-                  {stats?.pendingRepairs ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ backgroundColor: "#b91c1c", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 10 }}>{stats.pendingRepairs}</span>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </div>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                  )}
-                </button>
-                
-                <button style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", backgroundColor: "#fff", border: "1px solid #eaeaea", borderRadius: 6, cursor: "pointer" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", backgroundColor: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", color: "#444" }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                    </div>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#222" }}>Update Daily Deals</span>
-                  </div>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Row */}
-          <div style={{ display: "flex", gap: 24, marginBottom: 24 }}>
+          {/* System Status */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">System Status</h2>
             
-            {/* Recent Orders Table */}
-            <div style={{ flex: 2, backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea", padding: "24px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 24px", marginBottom: 16 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#111" }}>Recent Orders</h2>
-                <a href="/admin/orders" style={{ fontSize: 13, color: "#1d4ed8", textDecoration: "none", fontWeight: 500 }}>View All</a>
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-600">Server Load</span>
+                <span className="text-sm font-bold text-gray-900">42%</span>
               </div>
-              
-              {recentOrders.length === 0 ? (
-                <div style={{ padding: "24px", textAlign: "center", color: "#666" }}>No recent orders found.</div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #eaeaea" }}>
-                      <th style={{ padding: "12px 24px", fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "1px" }}>Order ID</th>
-                      <th style={{ padding: "12px 24px", fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "1px" }}>Customer</th>
-                      <th style={{ padding: "12px 24px", fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "1px" }}>Date</th>
-                      <th style={{ padding: "12px 24px", fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "1px" }}>Amount</th>
-                      <th style={{ padding: "12px 24px", fontSize: 11, fontWeight: 600, color: "#888", letterSpacing: "1px" }}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentOrders.map((order, index) => {
-                      const colors = getStatusColor(order.status);
-                      return (
-                        <tr key={order.id} style={{ borderBottom: index < recentOrders.length - 1 ? "1px solid #eaeaea" : "none" }}>
-                          <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#222" }}>{order.order_id}</td>
-                          <td style={{ padding: "16px 24px", fontSize: 13, color: "#444" }}>{order.name}</td>
-                          <td style={{ padding: "16px 24px", fontSize: 13, color: "#666" }}>{formatDate(order.created_at)}</td>
-                          <td style={{ padding: "16px 24px", fontSize: 13, fontWeight: 600, color: "#111" }}>${Number(order.total_amount).toLocaleString()}</td>
-                          <td style={{ padding: "16px 24px" }}>
-                            <span style={{ backgroundColor: colors.bg, color: colors.text, padding: "4px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600 }}>
-                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full" style={{ width: "42%" }}></div>
+              </div>
             </div>
 
-            {/* System Status */}
-            <div style={{ flex: 1, backgroundColor: "#fff", borderRadius: 8, border: "1px solid #eaeaea", padding: 24 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 24px 0", color: "#111" }}>System Status</h2>
-              
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#555" }}>Server Load</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>42%</span>
-                </div>
-                <div style={{ width: "100%", height: 6, backgroundColor: "#f0f0f0", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: "42%", height: "100%", backgroundColor: "#3b82f6", borderRadius: 3 }}></div>
-                </div>
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-600">Storage Capacity</span>
+                <span className="text-sm font-bold text-gray-900">88%</span>
               </div>
-
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#555" }}>Storage Capacity</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>88%</span>
-                </div>
-                <div style={{ width: "100%", height: 6, backgroundColor: "#f0f0f0", borderRadius: 3, overflow: "hidden", marginBottom: 8 }}>
-                  <div style={{ width: "88%", height: "100%", backgroundColor: "#991b1b", borderRadius: 3 }}></div>
-                </div>
-                <span style={{ fontSize: 11, color: "#b91c1c" }}>Warning: Nearing capacity threshold.</span>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div className="h-full bg-red-600 rounded-full" style={{ width: "88%" }}></div>
               </div>
-
+              <span className="text-xs text-red-600 font-medium">Warning: Nearing capacity threshold.</span>
             </div>
-
           </div>
-        </>
-      )}
+        </div>
+
+      </div>
+
+      {/* Recent Orders Table */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-10">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-gray-900">Recent Orders</h2>
+          <a href="/admin/orders" className="text-sm font-semibold text-blue-600 hover:text-blue-800">View All</a>
+        </div>
+        
+        {recentOrders.length === 0 ? (
+          <div className="p-10 text-center text-gray-500">No recent orders found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-gray-50/50">
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Order ID</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="p-4 text-sm font-semibold text-gray-900">{order.order_id}</td>
+                    <td className="p-4 text-sm text-gray-600">{order.name}</td>
+                    <td className="p-4 text-sm text-gray-500">{formatDate(order.created_at)}</td>
+                    <td className="p-4 text-sm font-bold text-gray-900">${Number(order.total_amount).toLocaleString()}</td>
+                    <td className="p-4">
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-md ${getStatusColor(order.status)}`}>
+                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

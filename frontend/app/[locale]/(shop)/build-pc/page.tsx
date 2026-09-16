@@ -4,6 +4,7 @@ import {
   SLOTS, COMPONENTS_BY_SLOT, checkCompatibility,
   type ComponentSlot, type PCComponent,
 } from "@/lib/pc-builder-data";
+import NextImage from "next/image";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
 
@@ -132,8 +133,8 @@ function SelectModal({
               onMouseEnter={e => (e.currentTarget.style.background = "#f8f8f8")}
               onMouseLeave={e => (e.currentTarget.style.background = "none")}
             >
-              <div style={{ width: 52, height: 52, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
-                <img src={c.image} alt={c.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ width: 52, height: 52, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0, position: "relative" }}>
+                <NextImage src={c.image || "/placeholder.png"} alt={c.name || "Component"} fill className="object-cover" />
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
@@ -251,8 +252,8 @@ export default function BuildPCPage() {
                 }}>
                   {comp ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0 }}>
-                        <img src={comp.image} alt={comp.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <div style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0, position: "relative" }}>
+                        <NextImage src={comp.image || "/placeholder.png"} alt={comp.name || "Component"} fill className="object-cover" />
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 11, fontWeight: 700, color: "#1a4fa0", letterSpacing: ".07em", textTransform: "uppercase" }}>{slot.label}</p>

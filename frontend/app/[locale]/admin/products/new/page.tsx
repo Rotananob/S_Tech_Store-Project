@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
+import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X } from "lucide-react";
 
 export default function AddNewProductPage() {
   const router = useRouter();
@@ -70,109 +71,170 @@ export default function AddNewProductPage() {
   };
 
   return (
-    <div style={{ padding: "0 8px", fontFamily: "sans-serif", maxWidth: 1200 }}>
-      {toast && <div style={{ position: "fixed", top: 24, right: 24, zIndex: 9999, padding: "12px 20px", backgroundColor: toast.type === "success" ? "#16a34a" : "#dc2626", color: "#fff", borderRadius: 8, fontWeight: 500, fontSize: 14, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{toast.msg}</div>}
+    <div className="font-sans max-w-6xl mx-auto pb-12">
+      {toast && (
+        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-lg shadow-lg font-medium text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'} transition-opacity`}>
+          {toast.msg}
+        </div>
+      )}
 
       {/* Header section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: "#111", margin: "0 0 8px 0" }}>Add New Product</h1>
-          <p style={{ color: "#666", margin: 0, fontSize: 14 }}>Fill in the details below to add a new item to the inventory.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Add New Product</h1>
+          <p className="text-gray-500 text-sm">Fill in the details below to add a new item to the inventory.</p>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <Link href="/admin/products" style={{ padding: "10px 24px", backgroundColor: "#fff", color: "#1d4ed8", border: "1px solid #1d4ed8", borderRadius: 4, cursor: "pointer", fontSize: 14, fontWeight: 500, textDecoration: "none", display: "inline-block" }}>
+        <div className="flex gap-3 w-full md:w-auto">
+          <Link 
+            href="/admin/products" 
+            className="flex-1 md:flex-none text-center px-6 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
+          >
             Cancel
           </Link>
-          <button onClick={handleSave} style={{ padding: "10px 24px", backgroundColor: "#991b1b", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
+          <button 
+            onClick={handleSave} 
+            className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white border border-transparent rounded-lg text-sm font-medium transition-colors"
+          >
+            <Package size={16} />
             Save Product
           </button>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
         {/* Left Column */}
-        <div style={{ flex: 2, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="w-full lg:w-2/3 flex flex-col gap-6">
           {/* Basic Information */}
-          <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Basic Information</h2>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Product Name <span style={{ color: "#dc2626" }}>*</span></label>
-              <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. ASUS ROG Strix G16" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+          <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-100 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Basic Information</h2>
+            
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Product Name <span className="text-red-500">*</span>
+              </label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                placeholder="e.g. ASUS ROG Strix G16" 
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+              />
             </div>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Category <span style={{ color: "#dc2626" }}>*</span></label>
-                <div style={{ position: "relative" }}>
-                  <select value={categoryId} onChange={e => setCategoryId(e.target.value)} style={{ width: "100%", padding: "10px 32px 10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, appearance: "none", outline: "none", backgroundColor: "#fff", cursor: "pointer" }}>
-                    <option value="1">Laptops</option>
-                    <option value="2">Smartphones</option>
-                    <option value="3">Accessories</option>
-                  </select>
-                </div>
-              </div>
+            
+            <div className="mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <select 
+                value={categoryId} 
+                onChange={e => setCategoryId(e.target.value)} 
+                className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+              >
+                <option value="1">Laptops</option>
+                <option value="2">Smartphones</option>
+                <option value="3">Accessories</option>
+              </select>
             </div>
           </div>
 
           {/* Pricing & Inventory */}
-          <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Pricing & Inventory</h2>
-            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Price (USD) <span style={{ color: "#dc2626" }}>*</span></label>
-                <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#666", fontSize: 14 }}>$</span>
-                  <input type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" style={{ width: "100%", padding: "10px 12px 10px 28px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+          <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-100 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Pricing & Inventory</h2>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Price (USD) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <DollarSign size={16} className="text-gray-400" />
+                  </div>
+                  <input 
+                    type="number" 
+                    value={price} 
+                    onChange={e => setPrice(e.target.value)} 
+                    placeholder="0.00" 
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                  />
                 </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Stock Quantity <span style={{ color: "#dc2626" }}>*</span></label>
-                <input type="number" value={stock} onChange={e => setStock(e.target.value)} placeholder="0" style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} />
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Stock Quantity <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="number" 
+                  value={stock} 
+                  onChange={e => setStock(e.target.value)} 
+                  placeholder="0" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                />
               </div>
             </div>
           </div>
 
           {/* Description */}
-          <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Description</h2>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Product Description</label>
-              <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Enter a detailed description of the product..." style={{ width: "100%", height: 120, padding: "12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none", resize: "vertical", fontFamily: "inherit" }}></textarea>
+          <div className="bg-white p-6 sm:p-8 rounded-xl border border-gray-100 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Description</h2>
+            
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Description</label>
+              <textarea 
+                value={description} 
+                onChange={e => setDescription(e.target.value)} 
+                placeholder="Enter a detailed description of the product..." 
+                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+              ></textarea>
             </div>
           </div>
         </div>
 
         {/* Right Column */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div className="w-full lg:w-1/3 flex flex-col gap-6">
           {/* Media */}
-          <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#111" }}>Media</h2>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button type="button" onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "file" }])} style={{ padding: "6px 12px", fontSize: "12px", backgroundColor: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer" }}>+ Add File</button>
-                <button type="button" onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "url", url: "" }])} style={{ padding: "6px 12px", fontSize: "12px", backgroundColor: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, cursor: "pointer" }}>+ Add URL</button>
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-bold text-gray-900">Media</h2>
+              <div className="flex gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "file" }])} 
+                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded transition-colors flex items-center gap-1"
+                >
+                  <ImageIcon size={12} /> Add File
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "url", url: "" }])} 
+                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded transition-colors flex items-center gap-1"
+                >
+                  <LinkIcon size={12} /> Add URL
+                </button>
               </div>
             </div>
 
             {mediaList.length === 0 && (
-              <div style={{ padding: "32px", textAlign: "center", backgroundColor: "#f8fafc", borderRadius: 8, border: "1px dashed #cbd5e1", color: "#64748b", fontSize: "14px" }}>
+              <div className="py-10 px-4 text-center bg-gray-50 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
                 No media added. Click the buttons above to add images.
               </div>
             )}
 
             {mediaList.map((media, index) => (
-              <div key={media.id} style={{ marginBottom: 16, padding: "16px", border: "1px solid #e2e8f0", borderRadius: 8, position: "relative" }}>
+              <div key={media.id} className="mb-4 p-4 border border-gray-200 rounded-lg relative bg-white">
                 <button 
                   type="button"
                   onClick={() => setMediaList(mediaList.filter(m => m.id !== media.id))}
-                  style={{ position: "absolute", top: 12, right: 12, width: 24, height: 24, backgroundColor: "#fee2e2", color: "#ef4444", border: "none", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: 12 }}
+                  className="absolute top-2 right-2 w-6 h-6 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center transition-colors"
                   title="Remove Image"
                 >
-                  X
+                  <X size={14} />
                 </button>
                 
                 {media.type === "file" ? (
                   <div>
-                    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Upload File {index + 1}</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload File {index + 1}</label>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -185,17 +247,17 @@ export default function AddNewProductPage() {
                           setMediaList(newMediaList);
                         }
                       }} 
-                      style={{ width: "calc(100% - 30px)", padding: "8px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14 }} 
+                      className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                     />
                     {media.preview && (
-                      <div style={{ marginTop: "16px", padding: "10px", backgroundColor: "#f9f9f9", border: "1px dashed #ccc", borderRadius: "6px", textAlign: "center" }}>
-                        <img src={media.preview} alt="Preview" style={{ maxWidth: "100%", maxHeight: "150px", objectFit: "contain", borderRadius: 4 }} />
+                      <div className="mt-3 p-2 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex justify-center">
+                        <img src={media.preview} alt="Preview" className="max-w-full max-h-32 object-contain rounded" />
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: "#444", marginBottom: 8 }}>Image URL {index + 1}</label>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Image URL {index + 1}</label>
                     <input 
                       type="text" 
                       value={media.url || ""} 
@@ -205,11 +267,16 @@ export default function AddNewProductPage() {
                         setMediaList(newMediaList);
                       }} 
                       placeholder="https://..." 
-                      style={{ width: "calc(100% - 30px)", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 4, fontSize: 14, outline: "none" }} 
+                      className="w-full pr-8 px-3 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
                     />
                     {media.url && (
-                      <div style={{ marginTop: "16px", padding: "10px", backgroundColor: "#f9f9f9", border: "1px dashed #ccc", borderRadius: "6px", textAlign: "center" }}>
-                        <img src={media.url} alt="Preview" style={{ maxWidth: "100%", maxHeight: "150px", objectFit: "contain", borderRadius: 4 }} onError={(e) => (e.currentTarget.style.display = 'none')} />
+                      <div className="mt-3 p-2 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex justify-center">
+                        <img 
+                          src={media.url} 
+                          alt="Preview" 
+                          className="max-w-full max-h-32 object-contain rounded" 
+                          onError={(e) => (e.currentTarget.style.display = 'none')} 
+                        />
                       </div>
                     )}
                   </div>
@@ -219,16 +286,29 @@ export default function AddNewProductPage() {
           </div>
 
           {/* Visibility */}
-          <div style={{ backgroundColor: "#fff", padding: 24, borderRadius: 8, border: "1px solid #eaeaea" }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px 0", color: "#111" }}>Visibility</h2>
-            <div style={{ backgroundColor: "#f9f9f9", padding: 16, borderRadius: 6, border: "1px solid #eaeaea", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#111", marginBottom: 4 }}>Featured Product</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Show this product on the homepage</div>
+          <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+            <h2 className="text-lg font-bold text-gray-900 mb-5">Visibility</h2>
+            
+            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex gap-3 items-center">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${featured ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500'}`}>
+                  <Star size={16} className={featured ? 'fill-amber-500 text-amber-500' : ''} />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900 mb-0.5">Featured Product</div>
+                  <div className="text-xs text-gray-500">Show on homepage</div>
+                </div>
               </div>
-              <div onClick={() => setFeatured(!featured)} style={{ width: 44, height: 24, backgroundColor: featured ? "#991b1b" : "#64748b", borderRadius: 12, position: "relative", cursor: "pointer", transition: "background 0.2s" }}>
-                <div style={{ width: 20, height: 20, backgroundColor: "#fff", borderRadius: "50%", position: "absolute", top: 2, left: featured ? 22 : 2, transition: "left 0.2s" }}></div>
-              </div>
+              
+              <button 
+                type="button"
+                onClick={() => setFeatured(!featured)} 
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer ${featured ? 'bg-[#991b1b]' : 'bg-gray-300'}`}
+              >
+                <div 
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${featured ? 'left-6' : 'left-1'}`}
+                />
+              </button>
             </div>
           </div>
         </div>
