@@ -15,6 +15,11 @@ export default function BottomNav() {
     return false;
   };
 
+  // Hide BottomNav on Product Detail pages to allow for the product action bar
+  if (pathname.includes('/products/')) {
+    return null;
+  }
+
   const tabs = [
     { label: 'Home', path: '/', icon: Home },
     { label: 'Category', path: '/category/all', icon: Layers },
@@ -24,20 +29,11 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {/* Glass background */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(255,255,255,0.88)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          borderTop: '1px solid rgba(0,0,0,0.06)',
-        }}
-      />
-
-      <div className="relative flex items-end justify-around" style={{ height: '60px', maxWidth: '500px', margin: '0 auto' }}>
+    <nav 
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-t border-black/5 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]" 
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      <div className="relative flex items-end justify-around h-[68px] max-w-[500px] mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = isActive(tab.path);
@@ -48,38 +44,66 @@ export default function BottomNav() {
               <Link
                 key={tab.path}
                 href={tab.path as any}
-                className="flex flex-col items-center no-underline touch-manipulation"
-                style={{ position: 'relative', bottom: '12px' }}
+                className="relative flex flex-col items-center justify-end h-full w-[20%] pb-[6px] no-underline touch-manipulation group"
               >
-                <motion.div
-                  whileTap={{ scale: 0.88 }}
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #8B1A1A 0%, #c0392b 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 16px rgba(139,26,26,0.35)',
-                    border: '3px solid white',
-                  }}
-                >
-                  <Icon size={22} color="white" strokeWidth={2.5} />
-                </motion.div>
+                <div className="absolute -top-[20px] left-1/2 -translate-x-1/2 z-10">
+                  <motion.div
+                    whileTap={{ scale: 0.88 }}
+                    className="w-[52px] h-[52px] rounded-full flex items-center justify-center bg-gradient-to-br from-[#8B1A1A] to-[#c0392b]"
+                    style={{ 
+                      boxShadow: '0 8px 20px rgba(139,26,26,0.35), inset 0 2px 4px rgba(255,255,255,0.2)',
+                      border: '4px solid white' 
+                    }}
+                  >
+                    <Icon size={24} color="white" strokeWidth={2.5} />
+                  </motion.div>
+                </div>
                 <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: 500,
-                    marginTop: '2px',
-                    color: active ? '#8B1A1A' : '#9ca3af',
-                  }}
+                  className={`text-[10px] font-medium transition-colors ${
+                    active ? 'text-[#8B1A1A]' : 'text-gray-500 group-hover:text-gray-700'
+                  }`}
                 >
                   {tab.label}
                 </span>
               </Link>
             );
           }
+
+          const content = (
+            <>
+              <motion.div
+                className={`relative flex items-center justify-center w-14 h-8 rounded-full mb-1 transition-colors ${
+                  active ? 'bg-[#8B1A1A]/10' : 'bg-transparent group-hover:bg-gray-100/50'
+                }`}
+                animate={{ scale: active ? 1.05 : 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+              >
+                <Icon
+                  size={22}
+                  strokeWidth={active ? 2.5 : 2}
+                  className={active ? 'text-[#8B1A1A]' : 'text-gray-500'}
+                />
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <motion.span
+                    key={tab.badge}
+                    initial={{ scale: 0.5, y: -10 }}
+                    animate={{ scale: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                    className="absolute -top-1 -right-1 bg-[#8B1A1A] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm leading-none"
+                  >
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </motion.span>
+                )}
+              </motion.div>
+              <span
+                className={`text-[10px] transition-colors ${
+                  active ? 'font-semibold text-[#8B1A1A]' : 'font-medium text-gray-500 group-hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+              </span>
+            </>
+          );
 
           // Cart tab - open slide-over instead of navigating
           if (tab.path === '/cart') {
@@ -88,56 +112,9 @@ export default function BottomNav() {
                 key={tab.path}
                 type="button"
                 onClick={() => useCartStore.getState().setIsOpen(true)}
-                className="flex flex-col items-center justify-center border-none bg-transparent cursor-pointer touch-manipulation"
-                style={{ minWidth: '60px', height: '60px', padding: '6px 0' }}
+                className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
               >
-                <motion.div
-                  animate={{ scale: active ? 1.1 : 1 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                  style={{ position: 'relative' }}
-                >
-                  <Icon
-                    size={22}
-                    strokeWidth={active ? 2.5 : 1.8}
-                    color={active ? '#8B1A1A' : '#9ca3af'}
-                  />
-                  {tab.badge !== undefined && tab.badge > 0 && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      style={{
-                        position: 'absolute',
-                        top: '-6px',
-                        right: '-8px',
-                        background: '#8B1A1A',
-                        color: 'white',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        minWidth: '16px',
-                        height: '16px',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '0 4px',
-                        border: '2px solid white',
-                        lineHeight: 1,
-                      }}
-                    >
-                      {tab.badge > 99 ? '99+' : tab.badge}
-                    </motion.span>
-                  )}
-                </motion.div>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: active ? 600 : 500,
-                    marginTop: '3px',
-                    color: active ? '#8B1A1A' : '#9ca3af',
-                  }}
-                >
-                  {tab.label}
-                </span>
+                {content}
               </button>
             );
           }
@@ -147,29 +124,9 @@ export default function BottomNav() {
             <Link
               key={tab.path}
               href={tab.path as any}
-              className="flex flex-col items-center justify-center no-underline touch-manipulation"
-              style={{ minWidth: '60px', height: '60px', padding: '6px 0' }}
+              className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] no-underline touch-manipulation group"
             >
-              <motion.div
-                animate={{ scale: active ? 1.1 : 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-              >
-                <Icon
-                  size={22}
-                  strokeWidth={active ? 2.5 : 1.8}
-                  color={active ? '#8B1A1A' : '#9ca3af'}
-                />
-              </motion.div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: active ? 600 : 500,
-                  marginTop: '3px',
-                  color: active ? '#8B1A1A' : '#9ca3af',
-                }}
-              >
-                {tab.label}
-              </span>
+              {content}
             </Link>
           );
         })}

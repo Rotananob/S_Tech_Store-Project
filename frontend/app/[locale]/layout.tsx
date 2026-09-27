@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, Suwannaphum } from "next/font/google";
+import { Inter, Battambang } from "next/font/google";
 import "@/app/globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
+import SplashScreen from "@/components/ui/SplashScreen";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const suwannaphum = Suwannaphum({ 
+const khmerFont = Battambang({ 
   weight: ["100", "300", "400", "700", "900"],
   subsets: ["khmer"], 
-  variable: "--font-suwannaphum" 
+  variable: "--font-khmer" 
 });
 
 export const metadata: Metadata = {
@@ -82,8 +83,9 @@ export default async function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} ${suwannaphum.variable}`}>
+      <body className={`${inter.variable} ${khmerFont.variable}`}>
         <NextIntlClientProvider messages={messages}>
+          <SplashScreen />
           {children}
           <FloatingBackButton />
         </NextIntlClientProvider>

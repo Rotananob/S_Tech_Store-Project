@@ -380,7 +380,7 @@ export default function Navbar() {
         <form onSubmit={handleSearch} className="relative w-full">
           <input
             type="search"
-            className="w-full bg-gray-100 border-none rounded-full pl-10 pr-10 h-10 py-0 m-0 text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
+            className="w-full bg-gray-100 border-none rounded-full pl-10 pr-10 h-[42px] leading-normal text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}

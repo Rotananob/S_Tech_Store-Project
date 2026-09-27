@@ -62,7 +62,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Inter', 'Noto Sans Khmer', -apple-system, sans-serif;
+  font-family: var(--font-inter), var(--font-khmer), 'Battambang', -apple-system, sans-serif;
   background: var(--bg-white); /* Light theme default for mobile */
   color: var(--text-dark);
   line-height: 1.6;
@@ -79,7 +79,7 @@ img { max-width: 100%; display: block; }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Inter', 'Noto Sans Khmer', sans-serif;
+  font-family: var(--font-inter), var(--font-khmer), 'Battambang', sans-serif;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -87,9 +87,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Khmer Fonts ──────────────────────────────────────────────────────────── */
 .font-khmer {
-  font-family: var(--font-suwannaphum), 'Noto Sans Khmer', 'Siemreap', sans-serif;
+  font-family: var(--font-khmer), 'Battambang', sans-serif;
   font-weight: 400;
-  line-height: 2;
+  line-height: 1.8;
   letter-spacing: 0.01em;
 }
 .font-dangrek {
