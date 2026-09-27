@@ -1,5 +1,6 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import BottomNav from "@/components/layout/BottomNav";
 
 export default function ShopLayout({
   children,
@@ -7,10 +8,13 @@ export default function ShopLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="pb-20 lg:pb-0" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Navbar />
       <main style={{ flex: 1 }}>{children}</main>
-      <Footer />
+      <div className="hidden lg:block">
+        <Footer />
+      </div>
+      <BottomNav />
     </div>
   );
 }

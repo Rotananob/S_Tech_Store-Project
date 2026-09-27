@@ -19,11 +19,11 @@ export const metadata: Metadata = {
     template: "%s | S Tech Store",
   },
   description:
-    "Discover top-tier laptops, custom desktop builds, and professional IT services. ស្វែងរកម៉ាស៊ីន​កំព្យូទ័រ និងឧបករណ៍ IT គ្រប់ប្រភេទ។",
+    "Discover top-tier laptops, custom desktop builds, and professional IT services. ស្វែងរកម៉ាស៊ីនកំព្យូទ័រ និងឧបករណ៍ IT គ្រប់ប្រភេទ។",
   keywords: ["computer shop", "laptops", "Cambodia", "Phnom Penh", "S Tech Store", "ហាងដែក"],
   openGraph: {
     title: "S Tech Store — Your Hub for Genuine Tech in Cambodia",
-    description: "Discover top-tier laptops, custom desktop builds, and professional IT services. ស្វែងរកម៉ាស៊ីន​កំព្យូទ័រ និងឧបករណ៍ IT គ្រប់ប្រភេទ។",
+    description: "Discover top-tier laptops, custom desktop builds, and professional IT services. ស្វែងរកម៉ាស៊ីនកំព្យូទ័រ និងឧបករណ៍ IT គ្រប់ប្រភេទ។",
     url: "https://s-tech-store-project.vercel.app",
     siteName: "S Tech Store",
     images: [
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'S Tech Store',
   },
   icons: {
@@ -73,6 +73,8 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <head>
+        <meta name="theme-color" content="#8B1A1A" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

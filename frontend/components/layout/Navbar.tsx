@@ -9,7 +9,7 @@ import { auth } from "../../lib/firebase";
 import {
   Search, ShoppingCart, User, Phone,
   Menu, X, ChevronDown, Heart, Bell,
-  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut,
+  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
@@ -23,7 +23,6 @@ import SlideOverCart from "@/components/cart/SlideOverCart";
 
 export default function Navbar() {
   const [search, setSearch] = useState("");
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -96,7 +95,6 @@ export default function Navbar() {
     if (q) {
       router.push(`/search?q=${encodeURIComponent(q)}`);
       setSearch("");
-      setMobileOpen(false);
     }
   };
 
@@ -132,36 +130,43 @@ export default function Navbar() {
 
   return (
     <>
-      {/* ── 1. Top Announcement Bar (Laptops / Desktops) ─────────────────── */}
-      <div className="bg-[#111] text-white/70 text-[11px] py-1.5 hidden sm:block">
+      {/* ── 1. Top Announcement Bar (Desktop Only) ─────────────────── */}
+      <div className="bg-[#111] text-white/70 text-[11px] py-1.5 hidden lg:block">
         <div className="container flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Phone size={11} />
             <span>+855 12 345 678 | support@stechstore.com.kh</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden md:inline">{t('freeDelivery')}</span>
+            <span>{t('freeDelivery')}</span>
           </div>
         </div>
       </div>
 
       {/* ── 2. Main Header Row (Logo + Search Bar + Icons) ───────────────── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
-        <div className="container h-[68px] flex items-center justify-between gap-4">
+        <div className="container h-[56px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-4">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 no-underline group">
-            <Image src="/logo.jpg" alt="S Tech Store" width={40} height={40} className="rounded-lg object-contain transition-transform duration-300 group-hover:scale-105" priority />
+          <Link href="/" className="flex items-center gap-2 lg:gap-2.5 flex-shrink-0 no-underline group">
+            <Image 
+              src="/logo.jpg" 
+              alt="S Tech Store" 
+              width={40} 
+              height={40} 
+              className="rounded-lg object-contain transition-transform duration-300 group-hover:scale-105 w-[32px] h-[32px] lg:w-[40px] lg:h-[40px]" 
+              priority 
+            />
             <div className="leading-none">
-              <div className="font-dangrek text-[21px] text-[#1a1a1a] tracking-wide">
+              <div className="font-dangrek text-[18px] lg:text-[21px] text-[#1a1a1a] tracking-wide">
                 S <span className="text-[#8B1A1A]">Tech</span> <span className="text-[#1a4fa0]">Store</span>
               </div>
-              <div className="font-khmer text-[11px] text-[#888] hidden sm:block">ហាងបច្ចេកវិទ្យា</div>
+              <div className="font-khmer text-[10px] lg:text-[11px] text-[#888] hidden sm:block">ហាងបច្ចេកវិទ្យា</div>
             </div>
           </Link>
 
-          {/* Desktop & Laptop Search Bar (Visible on md and larger) */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-4">
+          {/* Desktop Search Bar (Visible on lg and larger) */}
+          <div className="hidden lg:flex flex-1 max-w-xl mx-4">
             <form onSubmit={handleSearch} className="relative w-full">
               <input
                 type="search"
@@ -180,31 +185,14 @@ export default function Navbar() {
             </form>
           </div>
 
-          {/* Right Action Icons (Wishlist, Cart, Profile, Hamburger on mobile) */}
-          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Right Action Icons */}
+          <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
             <Link
               href="/wishlist"
               title={t('wishlist')}
-              className="hidden sm:flex w-9 h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              className="hidden lg:flex w-9 h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <Heart size={20} />
-            </Link>
-
-            <Link
-              href="/cart"
-              onClick={(e) => {
-                e.preventDefault();
-                useCartStore.getState().setIsOpen(true);
-              }}
-              title={t('cart')}
-              className="relative w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
-            >
-              <ShoppingCart size={20} />
-              {mounted && cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none">
-                  {cartCount}
-                </span>
-              )}
             </Link>
 
             {/* Notification Bell Dropdown */}
@@ -213,11 +201,11 @@ export default function Navbar() {
                 type="button"
                 onClick={() => setNotifOpen(!notifOpen)}
                 title={t('alerts')}
-                className="relative w-9 h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors cursor-pointer border-none bg-transparent"
+                className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors cursor-pointer border-none bg-transparent"
               >
                 <Bell size={20} />
                 {mounted && unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                  <span className="absolute top-2 right-2 lg:top-1.5 lg:right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
                 )}
               </button>
 
@@ -300,15 +288,34 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* ── Prominent Language Switcher Pill ── */}
-            <LanguageSwitcher />
+            <Link
+              href="/cart"
+              onClick={(e) => {
+                e.preventDefault();
+                useCartStore.getState().setIsOpen(true);
+              }}
+              title={t('cart')}
+              className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+            >
+              <ShoppingCart size={20} />
+              {mounted && cartCount > 0 && (
+                <span className="absolute top-2 right-2 lg:-top-1 lg:-right-1 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
 
-            {/* ── Prominent Sign In / Register Buttons or User Profile ── */}
+            {/* ── Prominent Language Switcher Pill (Desktop Only) ── */}
+            <div className="hidden lg:block">
+              <LanguageSwitcher />
+            </div>
+
+            {/* ── Prominent Sign In / Register Buttons or User Profile (Desktop Only) ── */}
             {user ? (
-              <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-gray-200">
+              <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200">
                 <Link
                   href="/account/profile"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-xs sm:text-sm transition-all border border-gray-200 hover:border-red-200 no-underline shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-sm transition-all border border-gray-200 hover:border-red-200 no-underline shadow-sm"
                 >
                   <div className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center text-[10px] font-black">
                     {(user.displayName || user.email || "U")[0].toUpperCase()}
@@ -325,34 +332,25 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-gray-200">
+              <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-gray-200">
                 <Link
                   href="/login"
-                  className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline"
+                  className="px-3.5 py-1.5 rounded-xl text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline"
                 >
                   {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1"
+                  className="px-3.5 py-1.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1"
                 >
                   <span>{t('register')}</span>
                 </Link>
               </div>
             )}
-
-            {/* Hamburger Button (Visible only on screens below lg) */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-[#1a1a1a] hover:bg-gray-100 transition-colors ml-1 cursor-pointer border-none bg-transparent"
-              aria-label="Toggle Menu"
-            >
-              {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
           </div>
         </div>
 
-        {/* ── 3. Dedicated Category Navigation Bar (Laptops & Desktops lg+) ── */}
+        {/* ── 3. Dedicated Category Navigation Bar (Desktop lg+) ── */}
         <nav className="hidden lg:block bg-gray-50/80 border-t border-gray-100">
           <div className="container flex items-center justify-center gap-6 xl:gap-8 py-2.5 overflow-x-auto no-scrollbar">
             {navLinks.map((link) => (
@@ -375,129 +373,28 @@ export default function Navbar() {
             ))}
           </div>
         </nav>
-
-        {/* ── 4. Persistent Mobile Search Bar (Visible on phones < md) ── */}
-        <div className="md:hidden border-t border-gray-100 bg-gray-50 px-4 py-2.5">
-          <form onSubmit={handleSearch} className="relative w-full">
-            <input
-              type="search"
-              className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-12 h-10 py-0 m-0 text-[14px] leading-10 outline-none focus:border-[#8B1A1A] focus:shadow-sm transition-all"
-              placeholder={t('searchPlaceholder')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <button
-              type="submit"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
-            >
-              <Search size={13} />
-            </button>
-          </form>
-        </div>
-
-        {/* ── 5. Mobile Drawer Menu (Visible when hamburger opened) ── */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              className="lg:hidden absolute left-0 right-0 top-full border-t border-gray-200 bg-white shadow-2xl origin-top"
-            >
-              {/* Category Nav Links */}
-              <div className="px-4 py-3 space-y-1">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center px-4 py-3 text-[15px] font-medium rounded-xl transition-colors no-underline ${
-                      pathname === link.href
-                        ? "text-[#8B1A1A] bg-red-50 font-bold"
-                        : "text-[#444] hover:bg-gray-50 hover:text-[#1a1a1a]"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </div>
-
-              {/* Mobile Account / Auth & Bottom Navigation Shortcuts */}
-              <div className="px-4 py-4 border-t border-gray-100 bg-gray-50/50 space-y-3">
-                {user ? (
-                  <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-sm">
-                        {(user.displayName || user.email || "U")[0].toUpperCase()}
-                      </div>
-                      <span className="text-sm font-semibold text-[#1a1a1a]">
-                        {user.displayName || user.email?.split("@")[0]}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => { signOut(auth); setMobileOpen(false); }}
-                      className="px-3 py-1.5 bg-[#c0392b] text-white rounded-lg text-xs font-semibold border-none cursor-pointer"
-                    >
-                      {t('signOut')}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2.5">
-                    <Link
-                      href="/login"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex-1 py-2.5 flex items-center justify-center gap-2 border border-gray-200 rounded-xl text-[13px] font-bold text-[#1a1a1a] bg-white hover:bg-gray-50 no-underline shadow-sm transition-all"
-                    >
-                      <User size={16} />
-                      {t('signIn')}
-                    </Link>
-                    <Link
-                      href="/register"
-                      onClick={() => setMobileOpen(false)}
-                      className="flex-1 py-2.5 flex items-center justify-center gap-2 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-xl text-[13px] font-bold no-underline shadow-md transition-all"
-                    >
-                      {t('register')}
-                    </Link>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  <Link
-                    href="/wishlist"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                  >
-                    <Heart size={18} />
-                    <span className="text-[11px] font-medium">{t('wishlist')}</span>
-                  </Link>
-                  <Link
-                    href="/cart"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setMobileOpen(false);
-                      useCartStore.getState().setIsOpen(true);
-                    }}
-                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                  >
-                    <ShoppingCart size={18} />
-                    <span className="text-[11px] font-medium">{t('cart')}</span>
-                  </Link>
-                  <Link
-                    href="/account/profile"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex flex-col items-center justify-center gap-1 py-2.5 bg-white rounded-xl border border-gray-200 text-[#555] hover:text-[#8B1A1A] no-underline"
-                  >
-                    <User size={18} />
-                    <span className="text-[11px] font-medium">{t('profile')}</span>
-                  </Link>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </header>
+
+      {/* ── 4. Persistent Mobile Search Bar (Below Header on < lg) ── */}
+      <div className="lg:hidden sticky top-[56px] z-30 bg-white px-4 py-2 border-b border-gray-100 shadow-sm">
+        <form onSubmit={handleSearch} className="relative w-full">
+          <input
+            type="search"
+            className="w-full bg-gray-100 border-none rounded-full pl-10 pr-10 h-10 py-0 m-0 text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
+            placeholder={t('searchPlaceholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <button
+            type="button"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer border-none bg-transparent p-0"
+            aria-label="Camera search"
+          >
+            <Camera size={18} />
+          </button>
+        </form>
+      </div>
 
       <SlideOverCart />
     </>
