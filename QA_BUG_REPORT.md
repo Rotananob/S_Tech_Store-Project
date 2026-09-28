@@ -13,9 +13,9 @@
 - [x] ត្រួតពិនិត្យ និងរៀបចំ Environment Variables សម្រាប់ Cloudinary, Neon, Render ឲ្យត្រូវគ្នា ១០០%។
 - [x] ដោះស្រាយបញ្ហា Admin និង Home page មិន Link គ្នា (ទិន្នន័យមិន Sync)។
 
-### [ ] Phase 2: Admin API - Product Creation
-- [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Add Product បាន។
-- [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Upload Image ឬ Add Link Image បាន។
+### [x] Phase 2: Admin API - Product Creation
+- [x] ដោះស្រាយបញ្ហា Admin មិនអាច Add Product បាន។
+- [x] ដោះស្រាយបញ្ហា Admin មិនអាច Upload Image ឬ Add Link Image បាន។
 
 ### [ ] Phase 3: Admin API - Product Management
 - [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Edit Product។
