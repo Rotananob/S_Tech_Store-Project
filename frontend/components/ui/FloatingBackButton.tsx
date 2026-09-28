@@ -25,12 +25,12 @@ export default function FloatingBackButton() {
   return (
     <button
       onClick={() => router.back()}
-      className="fixed top-24 left-4 md:top-28 md:left-8 z-40 flex items-center justify-center gap-2 px-3 py-2 md:px-4 md:py-2.5 bg-white/90 backdrop-blur-md text-[#1a1a1a] border border-gray-200/50 rounded-xl shadow-lg shadow-black/5 hover:shadow-xl hover:-translate-x-1 hover:text-[#8B1A1A] transition-all duration-300 cursor-pointer"
+      className="fixed top-[70px] left-3 z-40 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-xl text-gray-800 border border-gray-200/80 rounded-[14px] shadow-sm hover:shadow-md hover:bg-gray-50 active:scale-95 transition-all duration-300 cursor-pointer"
       aria-label={label}
       title={label}
     >
-      <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
-      <span className="text-xs md:text-sm font-bold tracking-wide">{text}</span>
+      <ArrowLeft className="w-5 h-5 text-[#8B1A1A]" strokeWidth={2.5} />
+      <span className="text-[13px] font-bold text-gray-800">{text}</span>
     </button>
   );
 }

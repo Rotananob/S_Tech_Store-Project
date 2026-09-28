@@ -6,6 +6,9 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import SplashScreen from "@/components/ui/SplashScreen";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
+import CookieConsent from "@/components/ui/CookieConsent";
+import AppUpdatePrompt from "@/components/ui/AppUpdatePrompt";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const khmerFont = Battambang({ 
@@ -90,6 +93,9 @@ export default async function RootLayout({
             <SplashScreen />
             {children}
             <FloatingBackButton />
+            <ScrollToTopButton />
+            <CookieConsent />
+            <AppUpdatePrompt />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

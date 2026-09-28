@@ -1,7 +1,7 @@
 'use client';
 
 import { Link, usePathname } from '@/i18n/routing';
-import { Home, Layers, Search, ShoppingCart, User } from 'lucide-react';
+import { Home, Layers, ScanSearch, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { motion } from 'framer-motion';
 
@@ -23,7 +23,7 @@ export default function BottomNav() {
   const tabs = [
     { label: 'Home', path: '/', icon: Home },
     { label: 'Category', path: '/category/all', icon: Layers },
-    { label: 'Search', path: '/search', icon: Search, isCenter: true },
+    { label: 'Scan', path: '/search', icon: ScanSearch, isCenter: true },
     { label: 'Cart', path: '/cart', icon: ShoppingCart, badge: cartCount },
     { label: 'Account', path: '/account/profile', icon: User },
   ];
