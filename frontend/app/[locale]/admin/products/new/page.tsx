@@ -54,11 +54,7 @@ export default function AddNewProductPage() {
         }
       });
 
-      await api.post("/products", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        }
-      });
+      await api.post("/products", formData);
 
       showToast("Product saved successfully! Redirecting...");
       setTimeout(() => {
