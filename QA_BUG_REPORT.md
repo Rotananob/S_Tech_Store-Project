@@ -9,9 +9,9 @@
 ## 🛠️ PHASE 1-8: BACKEND, API & DATABASE (CRITICAL)
 *រាល់ API ត្រូវប្រាកដថាដើរជាមួយ Cloudinary (Images), Neon DB និង Render Hosting ត្រឹមត្រូវ ជៀសវាងការច្រឡំ Local ជាមួយ Production។*
 
-### [ ] Phase 1: Database & Storage Configuration
-- [ ] ត្រួតពិនិត្យ និងរៀបចំ Environment Variables សម្រាប់ Cloudinary, Neon, Render ឲ្យត្រូវគ្នា ១០០%។
-- [ ] ដោះស្រាយបញ្ហា Admin និង Home page មិន Link គ្នា (ទិន្នន័យមិន Sync)។
+### [x] Phase 1: Database & Storage Configuration
+- [x] ត្រួតពិនិត្យ និងរៀបចំ Environment Variables សម្រាប់ Cloudinary, Neon, Render ឲ្យត្រូវគ្នា ១០០%។
+- [x] ដោះស្រាយបញ្ហា Admin និង Home page មិន Link គ្នា (ទិន្នន័យមិន Sync)។
 
 ### [ ] Phase 2: Admin API - Product Creation
 - [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Add Product បាន។
