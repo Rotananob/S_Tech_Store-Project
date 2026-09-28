@@ -17,9 +17,9 @@
 - [x] ដោះស្រាយបញ្ហា Admin មិនអាច Add Product បាន។
 - [x] ដោះស្រាយបញ្ហា Admin មិនអាច Upload Image ឬ Add Link Image បាន។
 
-### [ ] Phase 3: Admin API - Product Management
-- [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Edit Product។
-- [ ] ដោះស្រាយបញ្ហា Admin មិនអាច Delete Product។
+### [x] Phase 3: Admin API - Product Management
+- [x] ដោះស្រាយបញ្ហា Admin មិនអាច Edit Product។
+- [x] ដោះស្រាយបញ្ហា Admin មិនអាច Delete Product។
 
 ### [ ] Phase 4: Admin Dashboard Enhancements
 - [ ] បង្កើតមុខងារគ្រប់គ្រង Discount / Promo Codes។
