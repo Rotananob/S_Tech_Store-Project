@@ -10,13 +10,27 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 
+const HERO_TEXTS = [
+  "Next-Gen Laptops & Gear",
+  "Build Your Dream PC",
+  "Top-Tier Components",
+  "Premium Tech Hub"
+];
+
 export function HeroSection() {
   const t = useTranslations("Hero");
   const [user, setUser] = useState<any>(undefined);
+  const [textIndex, setTextIndex] = useState(0);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
+    const timer = setInterval(() => {
+      setTextIndex(prev => (prev + 1) % HERO_TEXTS.length);
+    }, 3000);
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
   }, []);
 
   return (
@@ -26,16 +40,27 @@ export function HeroSection() {
           
           {/* Text Content */}
           <div className="flex flex-col items-start text-left w-[55%] z-20">
-            <div className="flex items-center gap-2 mb-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm">
-              <img src="/logo.jpg" alt="Logo" className="w-5 h-5 rounded-full object-cover" />
-              <span className="text-[9px] font-black text-[#8B1A1A] uppercase tracking-wider">S Tech Store</span>
+            <div className="flex items-center gap-2 mb-3 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-sm border border-gray-100/50">
+              <img src="/logo.jpg" alt="Logo" className="w-8 h-8 rounded-full object-cover shadow-sm border border-white" />
+              <span className="text-xs font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
             </div>
             
-            <h1 className="text-gray-900 text-lg md:text-2xl font-black leading-[1.1] mb-1.5 drop-shadow-sm">
-              Next-Gen Laptops & Gear
-            </h1>
+            <div className="h-[28px] overflow-hidden mb-1.5 flex items-center relative w-full">
+              <AnimatePresence mode="wait">
+                <motion.h1
+                  key={textIndex}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -20, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-gray-900 text-lg md:text-2xl font-black leading-[1.1] drop-shadow-sm absolute w-full"
+                >
+                  {HERO_TEXTS[textIndex]}
+                </motion.h1>
+              </AnimatePresence>
+            </div>
             
-            <p className="text-gray-600 text-[10px] md:text-sm mb-4 leading-snug max-w-[200px] font-medium">
+            <p className="text-gray-600 text-[10px] md:text-sm mb-4 leading-snug max-w-[200px] font-medium mt-1">
               Top-tier performance, 100% Genuine with Warranty.
             </p>
             

@@ -52,6 +52,15 @@
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
+.dark {
+  --bg-white: #121212;
+  --bg-light: #1e1e1e;
+  --text-dark: #f8f8f8;
+  --text-med: #aaaaaa;
+  --text-muted: #888888;
+  --border: #333333;
+}
+
 /* ─── Fonts ───────────────────────────────────────────────────────────────── */
 @font-face {
   font-family: 'Dongrek';

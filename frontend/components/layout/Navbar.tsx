@@ -387,11 +387,11 @@ export default function Navbar() {
           />
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <button
-            type="button"
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer border-none bg-transparent p-0"
-            aria-label="Camera search"
+            type="submit"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
+            aria-label="Search"
           >
-            <Camera size={18} />
+            <Search size={14} />
           </button>
         </form>
       </div>

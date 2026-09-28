@@ -5,6 +5,7 @@ import FloatingBackButton from "@/components/ui/FloatingBackButton";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import SplashScreen from "@/components/ui/SplashScreen";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const khmerFont = Battambang({ 
@@ -84,11 +85,13 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} ${khmerFont.variable}`}>
-        <NextIntlClientProvider messages={messages}>
-          <SplashScreen />
-          {children}
-          <FloatingBackButton />
-        </NextIntlClientProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <NextIntlClientProvider messages={messages}>
+            <SplashScreen />
+            {children}
+            <FloatingBackButton />
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

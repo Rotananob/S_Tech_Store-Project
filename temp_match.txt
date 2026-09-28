@@ -1,0 +1,33 @@
+
+  import {
+    User, Shield, Bell, Package, Heart, Wrench, Award,
+    CheckCircle2, Key, Smartphone, History, MapPin, Mail, Phone,
+>   Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type
+  } from "lucide-react";
+  import { useLangStore } from "@/store/langStore";
+  import { useNotificationStore } from "@/store/notificationStore";
+  import { useWishlistStore } from "@/store/wishlistStore";
+  import { translations } from "@/lib/translations";
+  import api from "@/lib/api";
+  import { motion, AnimatePresence } from "framer-motion";
+  import { useTheme } from "next-themes";
+  
+  interface ProfileData {
+            </div>
+            <div className="flex items-center justify-between py-3 border-b border-gray-50">
+              <div className="flex items-center gap-3">
+>               <Globe size={18} className="text-gray-500" />
+                <span className="text-[13px] font-medium text-gray-700">Language</span>
+              </div>
+              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{lang === 'EN' ? 
+'English' : 'Khmer'}</span>
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <Settings size={18} className="text-gray-500" />
+                <span className="text-[13px] font-medium text-gray-700">Version</span>
+              </div>
+              <span className="text-[11px] font-medium text-gray-400">v1.0.0</span>
+
+
+

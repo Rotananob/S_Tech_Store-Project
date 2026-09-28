@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
-import { useRouter } from "@/i18n/routing";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   User, Shield, Bell, Package, Heart, Wrench, Award,
   CheckCircle2, Key, Smartphone, History, MapPin, Mail, Phone,
-  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe
+  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type
 } from "lucide-react";
 import { useLangStore } from "@/store/langStore";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -16,6 +16,7 @@ import { useWishlistStore } from "@/store/wishlistStore";
 import { translations } from "@/lib/translations";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 
 interface ProfileData {
   display_name: string;
@@ -39,11 +40,13 @@ interface StatsData {
 }
 
 export default function UserProfilePage() {
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [mounted, setMounted] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   const [activeModal, setActiveModal] = useState<"none" | "profile" | "security" | "orders">("none");
 
@@ -363,8 +366,45 @@ export default function UserProfilePage() {
               <Globe size={18} className="text-gray-500" />
               <span className="text-[13px] font-medium text-gray-700">Language</span>
             </div>
-            <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">{lang === 'EN' ? 'English' : 'Khmer'}</span>
+            <button 
+              onClick={() => {
+                const next = lang === 'EN' ? 'km' : 'en';
+                useLangStore.getState().setLang(next === 'en' ? 'EN' : 'KM');
+                router.replace(pathname, { locale: next });
+              }}
+              className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded hover:bg-gray-200 border-none cursor-pointer"
+            >
+              {lang === 'EN' ? 'English' : 'Khmer'}
+            </button>
           </div>
+          
+          <div className="flex items-center justify-between py-3 border-b border-gray-50">
+            <div className="flex items-center gap-3">
+              <Sun size={18} className="text-gray-500" />
+              <span className="text-[13px] font-medium text-gray-700">Theme</span>
+            </div>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button 
+                onClick={() => setTheme('light')}
+                className={`p-1.5 rounded-md border-none cursor-pointer ${theme === 'light' ? 'bg-white shadow-sm text-[#8B1A1A]' : 'text-gray-500 bg-transparent'}`}
+              >
+                <Sun size={14} />
+              </button>
+              <button 
+                onClick={() => setTheme('dark')}
+                className={`p-1.5 rounded-md border-none cursor-pointer ${theme === 'dark' ? 'bg-white shadow-sm text-black' : 'text-gray-500 bg-transparent'}`}
+              >
+                <Moon size={14} />
+              </button>
+              <button 
+                onClick={() => setTheme('system')}
+                className={`p-1.5 rounded-md border-none cursor-pointer ${theme === 'system' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 bg-transparent'}`}
+              >
+                <Monitor size={14} />
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
               <Settings size={18} className="text-gray-500" />
