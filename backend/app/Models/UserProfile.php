@@ -10,7 +10,7 @@ class UserProfile extends Model
         'firebase_uid', 'display_name', 'email', 'photo_url',
         'phone', 'address', 'city',
         'two_fa_enabled', 'notif_orders', 'notif_promos', 'notif_builds',
-        'points',
+        'points', 'is_admin', 'avatar_url',
     ];
 
     protected $casts = [
@@ -18,6 +18,7 @@ class UserProfile extends Model
         'notif_orders' => 'boolean',
         'notif_promos' => 'boolean',
         'notif_builds' => 'boolean',
+        'is_admin' => 'boolean',
         'points' => 'integer',
     ];
 

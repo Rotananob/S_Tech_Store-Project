@@ -42,9 +42,13 @@ export const getAdminStats = async (): Promise<AdminStats> => {
 
 export const getRecentOrders = async (limit?: number): Promise<Order[]> => {
   try {
-    const params = limit ? { limit, sort: "desc" } : { sort: "desc" };
-    const response = await api.get("/orders", { params });
-    return response.data;
+    const response = await api.get("/admin/orders");
+    const orders = response.data;
+    // Sort by created_at desc and optionally limit
+    const sorted = orders.sort((a: Order, b: Order) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return limit ? sorted.slice(0, limit) : sorted;
   } catch (error) {
     console.error("Failed to fetch recent orders:", error);
     return [];
@@ -53,7 +57,7 @@ export const getRecentOrders = async (limit?: number): Promise<Order[]> => {
 
 export const updateOrderStatus = async (orderId: number, status: string): Promise<boolean> => {
   try {
-    await api.patch(`/orders/${orderId}`, { status });
+    await api.patch(`/admin/orders/${orderId}`, { status });
     return true;
   } catch (error) {
     console.error("Failed to update order status:", error);

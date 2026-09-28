@@ -28,14 +28,16 @@ export interface Product {
   price: number;
   sale_price?: number | null;
   stock?: number;
-  category?: string;
+  category?: Category | string;
   brand?: string;
   sku?: string;
   badge?: string | null;
   rating?: number;
   reviews?: number;
+  reviews_count?: number;
   image?: string;
-  images?: ProductImage[];
+  image_url?: string;
+  images?: ProductImage[] | string[];
   specs?: ProductSpec[];
   is_featured?: boolean;
   in_stock?: boolean;
