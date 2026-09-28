@@ -20,6 +20,19 @@ class UserController extends Controller
         return $request->header('X-Firebase-UID');
     }
 
+    public function index()
+    {
+        return response()->json(UserProfile::orderBy('created_at', 'desc')->get());
+    }
+
+    public function updateAdminStatus(Request $request, $id)
+    {
+        $validated = $request->validate(['is_admin' => 'required|boolean']);
+        $user = UserProfile::findOrFail($id);
+        $user->update(['is_admin' => $validated['is_admin']]);
+        return response()->json(['message' => 'Admin status updated', 'user' => $user]);
+    }
+
     // ─── Profile ────────────────────────────────────────────────────────────────
 
     /**

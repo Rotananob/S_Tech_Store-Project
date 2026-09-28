@@ -78,4 +78,14 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 
     Route::get('/admin/orders', [OrderController::class, 'index']);
     Route::patch('/admin/orders/{id}', [OrderController::class, 'updateStatus']);
+
+    // Promocodes
+    Route::get('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'index']);
+    Route::post('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'store']);
+    Route::put('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'update']);
+    Route::delete('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
+
+    // Users
+    Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index']);
+    Route::patch('/admin/users/{id}/admin-status', [\App\Http\Controllers\UserController::class, 'updateAdminStatus']);
 });
