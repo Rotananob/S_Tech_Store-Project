@@ -121,11 +121,22 @@ export function FeatureStrip() {
   ];
 
   return (
-    <div className="bg-[#fcfcfc] border-b border-gray-100">
-      <div className="overflow-x-auto no-scrollbar scroll-smooth">
-        <div className="flex flex-nowrap md:justify-center items-center px-4 py-2.5 gap-5 min-w-max">
+    <div className="bg-[#fcfcfc] border-b border-gray-100 overflow-hidden relative w-full">
+      <div className="flex w-max animate-marquee hover:[animation-play-state:paused]">
+        <div className="flex flex-nowrap items-center py-2.5 gap-8 px-4 pr-8">
           {featuresList.map((f, i) => (
-            <div key={i} className="flex items-center gap-1.5">
+            <div key={i} className="flex items-center gap-1.5 shrink-0">
+              <div className="text-[#8B1A1A]">{f.svg}</div>
+              <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap tracking-tight">
+                {f.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        {/* Duplicate for infinite effect */}
+        <div className="flex flex-nowrap items-center py-2.5 gap-8 px-4 pr-8">
+          {featuresList.map((f, i) => (
+            <div key={`dup-${i}`} className="flex items-center gap-1.5 shrink-0">
               <div className="text-[#8B1A1A]">{f.svg}</div>
               <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap tracking-tight">
                 {f.label}
@@ -217,26 +228,29 @@ export function CategorySection({ categories = [] }: { categories: any[] }) {
     <section className="bg-white pt-5 pb-3">
       <div className="px-4 flex justify-between items-center mb-4">
         <h2 className="text-[16px] font-bold text-gray-900">{t("shopByCategory")}</h2>
-        <Link href="/category/all" className="text-[12px] text-[#1a4fa0] font-semibold">
-          View All &gt;
+        <Link href="/category/all" className="text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors">
+          View All
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </Link>
       </div>
 
-      <div className="overflow-x-auto no-scrollbar pb-2 snap-x snap-mandatory">
-        <div className="flex px-4 gap-4 md:justify-center min-w-max">
+      <div className="px-4 pb-2">
+        <div className="grid grid-cols-4 md:grid-cols-6 gap-x-3 gap-y-5 justify-items-center">
           {displayCategories.map((cat) => (
             <Link
               key={cat.slug}
               href={`/category/${cat.slug}`}
-              className="flex flex-col items-center gap-2 no-underline group relative w-[56px] snap-start"
+              className="flex flex-col items-center gap-2 no-underline group relative w-full"
             >
               {cat.badge && (
-                <span className="absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-bold rounded-full z-10 shadow-sm border border-white">
+                <span className="absolute -top-1.5 -right-0 px-1.5 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-bold rounded-full z-10 shadow-sm border border-white">
                   {cat.badge}
                 </span>
               )}
-              <div className={`w-[48px] h-[48px] rounded-full bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-shadow`}>
-                {getIcon(cat.slug)}
+              <div className={`w-[56px] h-[56px] rounded-[18px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-shadow group-hover:-translate-y-1 duration-200`}>
+                <div className="scale-125">
+                  {getIcon(cat.slug)}
+                </div>
               </div>
               <span className="text-[10px] font-medium text-gray-700 text-center leading-tight">
                 {cat.name}
@@ -309,34 +323,43 @@ export function ProductCard({ product }: { product: any }) {
           )}
         </Link>
 
-        <div className="p-3 pt-2 flex flex-col flex-grow relative bg-white">
+        <div className="p-3 pt-3 flex flex-col flex-grow relative bg-white border-t border-gray-50">
           <Link href={`/products/${product.slug}`} className="no-underline">
-            <h3 className="text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2 min-h-[36px] mb-1">
+            <h3 className="text-[14px] font-bold text-gray-900 leading-snug line-clamp-2 min-h-[40px] mb-1 group-hover:text-[#8B1A1A] transition-colors">
               {product.name}
             </h3>
           </Link>
 
-          <p className="text-[10px] text-gray-400 mb-3 truncate">
+          <p className="text-[11px] text-gray-500 mb-2.5 truncate font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
             {product.category?.name || "Uncategorized"}
           </p>
 
-          <div className="mt-auto flex items-end justify-between">
-            <div>
-              <div className="text-[15px] font-bold text-[#8B1A1A] leading-none mb-1.5">{formatUSD(product.price)}</div>
-              <div className="text-[11px] text-gray-400 font-medium leading-none">{formatKHR(product.price)}</div>
+          <div className="mt-auto flex items-end justify-between mb-3">
+            <div className="flex flex-col gap-0.5">
+              <div className="text-[16px] font-black text-[#e02e24] leading-none drop-shadow-sm">{formatUSD(product.price)}</div>
+              <div className="text-[12px] text-gray-400 font-bold leading-none">{formatKHR(product.price)}</div>
             </div>
             
             <motion.button
               animate={isShaking ? { x: [0, -5, 5, -5, 5, 0], scale: [1, 1.1, 1] } : {}}
               transition={{ duration: 0.4 }}
               whileTap={{ scale: 0.8 }}
-              className="w-8 h-8 rounded-full bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white hover:opacity-90 flex items-center justify-center transition-all shadow-sm z-10"
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white hover:shadow-lg flex items-center justify-center transition-all shadow-md z-10"
               onClick={handleAddToCart}
               aria-label={t("addToCart")}
             >
-              <ShoppingCart size={14} className="ml-[-1px]" />
+              <ShoppingCart size={18} className="ml-[-1px]" strokeWidth={2.5} />
             </motion.button>
           </div>
+          
+          {/* Preview Details Button */}
+          <Link 
+            href={`/products/${product.slug}`}
+            className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-[#1a4fa0] text-[11px] font-bold rounded-xl text-center transition-colors border border-gray-100"
+          >
+            Preview Details
+          </Link>
         </div>
       </motion.div>
 
@@ -372,9 +395,9 @@ export function BestSellers({ products = [] }: { products: any[] }) {
     <section className="bg-[#f5f5f5] py-5">
       <div className="px-4 flex justify-between items-center mb-4">
         <h2 className="text-[18px] font-extrabold text-gray-900 tracking-tight">{t("bestSellers")}</h2>
-        <Link href="/products" className="text-[13px] text-[#1a4fa0] font-bold flex items-center gap-1">
+        <Link href="/products" className="text-[11px] bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors">
           {t("viewAll")} 
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </Link>
       </div>
 
