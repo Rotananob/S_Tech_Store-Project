@@ -21,6 +21,8 @@ Route::get('/categories', function () {
 
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
+Route::get('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewController::class, 'index']);
+Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewController::class, 'store']);
 
 // Firebase-authenticated Routes (uses X-Firebase-UID header)
 // The UserController handles its own auth via getUid() method

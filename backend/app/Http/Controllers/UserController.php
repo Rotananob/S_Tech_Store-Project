@@ -83,6 +83,7 @@ class UserController extends Controller
             'phone' => 'nullable|string|max:30',
             'address' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:100',
+            'photo_url' => 'nullable|string',
             'two_fa_enabled' => 'nullable|boolean',
             'notif_orders' => 'nullable|boolean',
             'notif_promos' => 'nullable|boolean',
