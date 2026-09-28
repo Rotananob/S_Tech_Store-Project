@@ -68,6 +68,11 @@ Route::delete('/user/cart', [UserController::class, 'clearCart']);
 Route::get('/user/orders', [UserController::class, 'getUserOrders']);
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
 
+// PC Builds
+Route::get('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'index']);
+Route::post('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'store']);
+Route::delete('/user/pc-builds/{id}', [\App\Http\Controllers\PcBuildController::class, 'destroy']);
+
 // Admin Routes (protected by AdminMiddleware)
 Route::middleware(AdminMiddleware::class)->group(function () {
     Route::get('/admin/stats', [\App\Http\Controllers\AdminController::class, 'stats']);

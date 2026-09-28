@@ -111,7 +111,17 @@ class OrderController extends Controller
         ]);
 
         $order = Order::findOrFail($id);
+        $oldStatus = $order->status;
         $order->update(['status' => $validated['status']]);
+
+        if ($order->user_id && $oldStatus !== $validated['status']) {
+            \App\Models\UserNotification::create([
+                'firebase_uid' => $order->user_id,
+                'title' => 'Order Update',
+                'message' => "Your order {$order->order_id} is now {$validated['status']}.",
+                'type' => 'order'
+            ]);
+        }
 
         return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
     }
