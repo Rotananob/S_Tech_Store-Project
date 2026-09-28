@@ -26,8 +26,8 @@ Route::get('/products/{id}', [ProductController::class, 'show']);
 // The UserController handles its own auth via getUid() method
 
 // Profile
-Route::get('/profile', [UserController::class, 'getProfile']);
-Route::put('/profile', [UserController::class, 'updateProfile']);
+Route::get('/user/profile', [UserController::class, 'getProfile']);
+Route::put('/user/profile', [UserController::class, 'updateProfile']);
 
 // Notifications
 Route::get('/notifications', [UserController::class, 'getNotifications']);
