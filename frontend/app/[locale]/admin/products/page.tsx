@@ -34,8 +34,7 @@ export default function AdminProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
-  const [editTarget, setEditTarget] = useState<Product | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Product>>({});
+
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -99,24 +98,6 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleEditOpen = (p: Product) => {
-    setEditTarget(p);
-    setEditForm({ name: p.name, price: p.price, stock: p.stock });
-  };
-
-  const handleEditSave = async () => {
-    if (!editTarget) return;
-    try {
-      const res = await api.put(`/products/${editTarget.id}`, editForm);
-      setProducts(prev => prev.map(p => p.id === editTarget.id ? res.data.data : p));
-      showToast("Product updated successfully!");
-    } catch (e) {
-      showToast("Failed to update product.", "error");
-    } finally {
-      setEditTarget(null);
-      setEditForm({});
-    }
-  };
 
   const stockBadge = (status: string) => {
     if (status === "In Stock") return "bg-indigo-100 text-indigo-700";
@@ -160,58 +141,6 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      {/* Edit Modal */}
-      {editTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-xl max-w-lg w-full shadow-2xl">
-            <h3 className="text-xl font-bold mb-6">Edit Product</h3>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Product Name</label>
-                <input 
-                  value={editForm.name || ""} 
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
-                />
-              </div>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Price (USD)</label>
-                  <input 
-                    type="number" 
-                    value={editForm.price || 0} 
-                    onChange={e => setEditForm({ ...editForm, price: parseFloat(e.target.value) })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Stock Count</label>
-                  <input 
-                    type="number" 
-                    value={editForm.stock || 0} 
-                    onChange={e => setEditForm({ ...editForm, stock: parseInt(e.target.value) })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
-              <button 
-                onClick={() => { setEditTarget(null); setEditForm({}); }} 
-                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleEditSave} 
-                className="flex-1 py-2.5 border-none rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -332,7 +261,7 @@ export default function AdminProductsPage() {
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button 
-                          onClick={() => handleEditOpen(prod)} 
+                          onClick={() => router.push(`/admin/products/${prod.id}/edit`)} 
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
                           title="Edit"
                         >
