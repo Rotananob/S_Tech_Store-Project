@@ -36,6 +36,9 @@ class OrderController extends Controller
 
             $totalAmount = 0;
             $orderItemsData = [];
+            
+            // Calculate delivery fee
+            $deliveryFee = ($validated['delivery_type'] === 'province') ? 3.00 : 2.00;
 
             // Business Logic: Calculate total and check stock
             foreach ($validated['items'] as $item) {
@@ -45,20 +48,23 @@ class OrderController extends Controller
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
 
-                $subtotal = $product->price * $item['quantity'];
+                $actualPrice = ($product->sale_price > 0) ? $product->sale_price : $product->price;
+                $subtotal = $actualPrice * $item['quantity'];
                 $totalAmount += $subtotal;
 
                 // Prepare order item
                 $orderItemsData[] = [
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
-                    'unit_price' => $product->price,
+                    'unit_price' => $actualPrice,
                     'subtotal' => $subtotal,
                 ];
 
                 // Deduct stock
                 $product->decrement('stock', $item['quantity']);
             }
+            
+            $totalAmount += $deliveryFee;
 
             // Create Order
             $order = Order::create([
@@ -81,6 +87,11 @@ class OrderController extends Controller
             }
 
             DB::commit();
+
+            // Clear the user's cart if authenticated
+            if ($uid = $request->header('X-Firebase-UID')) {
+                \App\Models\UserCartItem::where('firebase_uid', $uid)->delete();
+            }
 
             return response()->json([
                 'message' => 'Order placed successfully',

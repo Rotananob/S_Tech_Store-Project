@@ -45,7 +45,7 @@ export default function OrderManagementPage() {
       const matchStatus = statusFilter === "All Statuses" || o.status.toLowerCase() === statusFilter.toLowerCase();
       const matchSearch = !searchQuery || 
         o.order_id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        o.name.toLowerCase().includes(searchQuery.toLowerCase());
+        o.customer_name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchStatus && matchSearch;
     });
   }, [orders, statusFilter, searchQuery]);
@@ -71,7 +71,7 @@ export default function OrderManagementPage() {
 
   const handleExportCSV = () => {
     const rows = [["Order ID", "Customer", "Phone", "Date", "Payment", "USD", "Status"]];
-    orders.forEach(o => rows.push([o.order_id, o.name, o.phone || "N/A", new Date(o.created_at).toLocaleString(), o.payment_method || "N/A", `$${o.total_amount}`, o.status]));
+    orders.forEach(o => rows.push([o.order_id, o.customer_name, o.customer_phone || "N/A", new Date(o.created_at).toLocaleString(), o.payment_method || "N/A", `$${o.total_amount}`, o.status]));
     const csv = rows.map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -109,12 +109,12 @@ export default function OrderManagementPage() {
             <h3 className="text-xl font-bold mb-6">Order Details — {viewOrder.order_id}</h3>
             <div className="grid grid-cols-2 gap-6">
               {[
-                ["Customer", viewOrder.name], 
-                ["Phone", viewOrder.phone || "N/A"], 
+                ["Customer", viewOrder.customer_name], 
+                ["Phone", viewOrder.customer_phone || "N/A"], 
                 ["Date", new Date(viewOrder.created_at).toLocaleString()], 
                 ["Payment", viewOrder.payment_method || "N/A"], 
                 ["Total (USD)", `$${Number(viewOrder.total_amount).toFixed(2)}`], 
-                ["Address", viewOrder.address || "N/A"]
+                ["Address", viewOrder.shipping_address || "N/A"]
               ].map(([k, v]) => (
                 <div key={k}>
                   <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">{k}</div>
@@ -143,7 +143,7 @@ export default function OrderManagementPage() {
         <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
           <div className="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl">
             <h3 className="text-xl font-bold mb-2">Update Status</h3>
-            <p className="text-gray-500 text-sm mb-6">Order: <strong>{editOrder.order_id}</strong> — {editOrder.name}</p>
+            <p className="text-gray-500 text-sm mb-6">Order: <strong>{editOrder.order_id}</strong> — {editOrder.customer_name}</p>
             
             <label className="text-sm font-semibold text-gray-700 mb-2 block">New Status</label>
             <div className="relative mb-6">
@@ -280,8 +280,8 @@ export default function OrderManagementPage() {
                         <td className="p-4"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer" /></td>
                         <td className="p-4 text-sm font-bold text-gray-900">{order.order_id}</td>
                         <td className="p-4">
-                          <div className="text-sm font-semibold text-gray-900 mb-0.5">{order.name}</div>
-                          <div className="text-xs text-gray-500">{order.phone || "N/A"}</div>
+                          <div className="text-sm font-semibold text-gray-900 mb-0.5">{order.customer_name}</div>
+                          <div className="text-xs text-gray-500">{order.customer_phone || "N/A"}</div>
                         </td>
                         <td className="p-4">
                           <div className="text-sm text-gray-700 mb-0.5">{date}</div>

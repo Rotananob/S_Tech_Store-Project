@@ -16,3 +16,5 @@ frontend/.next/
 frontend/out/
 backend/vendor/
 backend/storage/*.key
+cloudflared.exe
+

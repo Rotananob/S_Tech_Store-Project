@@ -12,14 +12,14 @@ export interface AdminStats {
 export interface Order {
   id: number;
   order_id: string;
-  name: string;
-  phone?: string;
+  customer_name: string;
+  customer_phone?: string;
   created_at: string;
   total_amount: number;
   status: string;
   payment_method?: string;
   delivery_type?: string;
-  address?: string;
+  shipping_address?: string;
 }
 
 export const getAdminStats = async (): Promise<AdminStats> => {
