@@ -119,19 +119,19 @@ export default function SlideOverCart() {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="p-6 border-t border-gray-100 bg-gray-50">
+              <div className="p-6 border-t border-gray-100 bg-gray-50 pb-[calc(env(safe-area-inset-bottom)+24px)] md:pb-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="font-semibold text-gray-500">{t.total}:</span>
-                  <span className="text-xl font-black text-[#1a1a1a] font-mono">{formatPrice(getTotalPrice())}</span>
+                  <span className="text-[22px] font-black text-[#1a1a1a] font-mono tracking-tight">{formatPrice(getTotalPrice())}</span>
                 </div>
                 <div className="flex flex-col gap-3">
                   <Link href="/cart" onClick={() => setIsOpen(false)} className="w-full">
-                    <button className="w-full py-3.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-[#1a1a1a] shadow-sm hover:bg-gray-50 transition-colors cursor-pointer">
+                    <button className="w-full py-4 bg-white border border-gray-200 rounded-xl text-[15px] font-bold text-[#1a1a1a] shadow-sm hover:bg-gray-50 transition-colors cursor-pointer active:scale-[0.98]">
                       {t.viewCart}
                     </button>
                   </Link>
                   <Link href="/checkout" onClick={() => setIsOpen(false)} className="w-full">
-                    <button className="w-full py-3.5 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none flex justify-center items-center gap-2">
+                    <button className="w-full py-4 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-[15px] font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none flex justify-center items-center gap-2 active:scale-[0.98]">
                       {t.checkout}
                     </button>
                   </Link>

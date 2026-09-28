@@ -416,11 +416,11 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               onClick={() => setMobileFilterOpen(false)}
             />
             <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-y-auto p-6 space-y-6"
+              className="fixed inset-y-0 right-0 w-[85vw] max-w-sm bg-white shadow-2xl overflow-y-auto p-6 space-y-6 flex flex-col"
             >
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <h3 className="text-lg font-bold text-[#1a1a1a] flex items-center gap-2">
@@ -484,7 +484,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white pb-4">
+              <div className="mt-auto pt-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white pb-4">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   type="button"
