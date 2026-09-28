@@ -170,7 +170,7 @@ export default function Navbar() {
             <form onSubmit={handleSearch} className="relative w-full">
               <input
                 type="search"
-                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-10 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-12 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
                 placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -190,7 +190,7 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               title={t('wishlist')}
-              className="hidden lg:flex w-9 h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              className="flex w-[44px] h-[44px] lg:w-9 lg:h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
             >
               <Heart size={20} />
             </Link>
@@ -380,7 +380,7 @@ export default function Navbar() {
         <form onSubmit={handleSearch} className="relative w-full">
           <input
             type="search"
-            className="w-full bg-gray-100 border-none rounded-full pl-10 pr-10 h-[42px] leading-normal text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
+            className="w-full bg-gray-100 border-none rounded-full pl-12 pr-10 h-[42px] leading-normal text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
