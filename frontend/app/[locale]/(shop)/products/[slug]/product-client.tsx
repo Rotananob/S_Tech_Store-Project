@@ -16,6 +16,41 @@ export function ProductDetailClient({ product }: { product: any }) {
   const [showShare, setShowShare] = useState(false);
   const [showChatOptions, setShowChatOptions] = useState(false);
   const [showChatBot, setShowChatBot] = useState(false);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [suggested, setSuggested] = useState<any[]>([]);
+
+  useEffect(() => {
+    import("@/lib/services/product.service").then(async ({ getProductReviews, getProducts }) => {
+      try {
+        const revs = await getProductReviews(product.id);
+        if (Array.isArray(revs)) {
+          setReviews(revs);
+        } else if (revs && Array.isArray(revs.data)) {
+          setReviews(revs.data);
+        }
+        
+        // Fetch suggested
+        const prodsRes = await getProducts();
+        let allProds: any[] = [];
+        if (Array.isArray(prodsRes)) {
+           allProds = prodsRes;
+        } else if (prodsRes && Array.isArray(prodsRes.data)) {
+           allProds = prodsRes.data;
+        }
+        
+        // filter same category, remove current
+        const related = allProds.filter(p => p.id !== product.id && p.category_id === product.category_id).slice(0, 4);
+        // if not enough, fill with random
+        if (related.length < 4) {
+           const others = allProds.filter(p => p.id !== product.id && p.category_id !== product.category_id).slice(0, 4 - related.length);
+           related.push(...others);
+        }
+        setSuggested(related);
+      } catch (e) {
+        console.error("Failed to load extra product data", e);
+      }
+    });
+  }, [product.id, product.category_id]);
   const router = useRouter();
 
   useEffect(() => {
@@ -215,29 +250,53 @@ export function ProductDetailClient({ product }: { product: any }) {
             {/* Reviews Section */}
             <div className="bg-white p-4 mb-2 lg:rounded-2xl lg:shadow-sm">
               <div className="flex justify-between items-center mb-3">
-                <h2 className="text-[14px] font-bold">Item Reviews ({product.reviews || 0})</h2>
+                <h2 className="text-[14px] font-bold">Item Reviews ({reviews.length > 0 ? reviews.length : (product.reviews || 0)})</h2>
                 <span className="text-gray-400 text-[12px] flex items-center">See all <ChevronRight size={14}/></span>
               </div>
-              {product.reviews > 0 ? (
-                <>
-                  <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-                    <span className="bg-[#fff0f0] text-[#e02e24] px-3 py-1.5 rounded-full text-[11px]">Recommended</span>
-                    <span className="bg-[#f5f5f5] text-gray-700 px-3 py-1.5 rounded-full text-[11px]">High Quality</span>
-                  </div>
-                  
-                  {/* Mock Review if reviews exist */}
+              
+              <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
+                <span className="bg-[#fff0f0] text-[#e02e24] px-3 py-1.5 rounded-full text-[11px]">Recommended</span>
+                <span className="bg-[#f5f5f5] text-gray-700 px-3 py-1.5 rounded-full text-[11px]">High Quality</span>
+              </div>
+
+              {reviews.length > 0 ? (
+                <div className="space-y-4">
+                  {reviews.map(rev => (
+                    <div key={rev.id} className="border-b border-gray-50 pb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[11px] font-bold text-gray-600">
+                            {(rev.user_name || "C")[0].toUpperCase()}
+                          </div>
+                          <span className="text-[13px] font-bold text-gray-800">{rev.user_name || "Customer"}</span>
+                        </div>
+                        <div className="flex text-yellow-400 text-[10px]">
+                           {Array.from({length: rev.rating || 5}).map((_, i) => (
+                             <span key={i}>?</span>
+                           ))}
+                        </div>
+                      </div>
+                      <p className="text-[13px] text-gray-600 whitespace-pre-line leading-relaxed">
+                        {rev.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                product.reviews > 0 ? (
                   <div className="border-b border-gray-50 pb-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600">CU</div>
-                      <span className="text-[13px] font-medium">Customer</span>
+                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[11px] font-bold text-blue-600">S</div>
+                      <span className="text-[13px] font-bold text-gray-800">S Tech User</span>
                     </div>
+                    <div className="flex text-yellow-400 text-[10px] mb-1">?????</div>
                     <p className="text-[13px] text-gray-600 line-clamp-2">
                       Excellent product! Arrived in perfect condition.
                     </p>
                   </div>
-                </>
-              ) : (
-                <div className="text-[13px] text-gray-500 py-2">No reviews yet.</div>
+                ) : (
+                  <div className="text-[13px] text-gray-500 py-2 text-center">No reviews yet.</div>
+                )
               )}
             </div>
 
@@ -297,6 +356,31 @@ export function ProductDetailClient({ product }: { product: any }) {
             
           </div>
         </div>
+
+            {/* Suggested Products */}
+            {suggested.length > 0 && (
+              <div className="bg-white p-4 lg:rounded-2xl lg:shadow-sm">
+                <h2 className="text-[14px] font-bold mb-4">You might also like</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {suggested.map(item => (
+                    <Link key={item.id} href={`/products/${item.slug}`} className="flex flex-col group block">
+                      <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-2 p-2 relative">
+                        <img src={item.images?.[0] || item.image_url} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform" />
+                        {item.sale_price && (
+                          <div className="absolute top-2 left-2 bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">Sale</div>
+                        )}
+                      </div>
+                      <h3 className="text-[12px] font-medium text-gray-800 line-clamp-2 leading-tight mb-1">{item.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#8B1A1A] font-bold text-[14px]">${item.sale_price || item.price}</span>
+                        {item.sale_price && <span className="text-gray-400 text-[11px] line-through">${item.price}</span>}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
       </div>
 
       {/* Sticky Bottom Action Bar (Mobile & Desktop) */}

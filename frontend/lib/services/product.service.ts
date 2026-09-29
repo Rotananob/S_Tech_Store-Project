@@ -31,3 +31,11 @@ export async function getProduct(id: string | number): Promise<Product | ApiResp
   if (!res.ok) throw new Error("Failed to fetch product");
   return res.json();
 }
+
+
+export async function getProductReviews(id: string | number) {
+  const res = await fetch(`${BASE}/products/${id}/reviews`, { cache: "no-store" });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.reviews || data;
+}
