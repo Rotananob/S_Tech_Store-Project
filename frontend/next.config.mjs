@@ -24,7 +24,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
-  allowedDevOrigins: ['copyrights-farmer-solely-kid.trycloudflare.com'],
+  allowedDevOrigins: ['puny-news-juggle.loca.lt', 'lazy-hotels-teach.loca.lt', '172.20.10.2'],
   async rewrites() {
     return [
       {
