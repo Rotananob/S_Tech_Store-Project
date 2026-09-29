@@ -26,10 +26,11 @@ const nextConfig = {
   },
   allowedDevOrigins: ['172.20.10.2', 'precious-treo-innovative-warrant.trycloudflare.com'],
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://127.0.0.1:8000/api/:path*'
+        destination: `${backendUrl.replace(/\/$/, '')}/api/:path*`
       }
     ];
   },
