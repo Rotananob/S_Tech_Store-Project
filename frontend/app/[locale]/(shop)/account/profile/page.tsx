@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import {
   User, Shield, Bell, Package, Heart, Wrench, Award,
   CheckCircle2, Key, Smartphone, History, MapPin, Mail, Phone,
-  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type, Camera, BadgeCheck
+  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type, Camera, BadgeCheck, Store, Info
 } from "lucide-react";
 import { useLangStore } from "@/store/langStore";
 import { useNotificationStore } from "@/store/notificationStore";
