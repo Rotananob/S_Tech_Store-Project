@@ -76,7 +76,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#8B1A1A" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -87,7 +87,7 @@ export default async function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className={`${inter.variable} ${khmerFont.variable}`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${khmerFont.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider messages={messages}>
             <SplashScreen />

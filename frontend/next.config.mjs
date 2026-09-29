@@ -24,7 +24,7 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
-  allowedDevOrigins: ['puny-news-juggle.loca.lt', 'lazy-hotels-teach.loca.lt', '172.20.10.2'],
+  allowedDevOrigins: ['172.20.10.2', 'precious-treo-innovative-warrant.trycloudflare.com'],
   async rewrites() {
     return [
       {
