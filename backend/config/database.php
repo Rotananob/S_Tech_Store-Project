@@ -87,7 +87,20 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL') ?: env('DATABASE_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
+            'host' => (function() {
+                $h = env('DB_HOST', '127.0.0.1');
+                if (env('DB_ENDPOINT')) {
+                    return $h . ";options='endpoint=" . env('DB_ENDPOINT') . "'";
+                }
+                if (is_string($h) && str_contains($h, 'neon.tech') && !str_contains($h, 'options=')) {
+                    $parts = explode('.', $h);
+                    $endpoint = $parts[0] ?? '';
+                    if ($endpoint) {
+                        return $h . ";options='endpoint={$endpoint}'";
+                    }
+                }
+                return $h;
+            })(),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
             'username' => env('DB_USERNAME', 'root'),
