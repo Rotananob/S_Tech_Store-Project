@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import {
   User, Shield, Bell, Package, Heart, Wrench, Award,
   CheckCircle2, Key, Smartphone, History, MapPin, Mail, Phone,
-  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type
+  Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X, Settings, Globe, Moon, Sun, Monitor, Type, Camera, BadgeCheck
 } from "lucide-react";
 import { useLangStore } from "@/store/langStore";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -45,6 +45,7 @@ export default function UserProfilePage() {
   const [mounted, setMounted] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -88,6 +89,19 @@ export default function UserProfilePage() {
       fetchNotifications();
     } catch (e) { console.error(e); }
     setLoadingProfile(false);
+  };
+
+  
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAvatarPreview(ev.target?.result as string);
+        // Normally we'd upload this to Firebase/Cloudinary here
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -198,31 +212,55 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-24 md:max-w-md md:mx-auto md:border-x md:border-gray-200 md:shadow-2xl relative">
-      {/* Profile Card */}
-      <div className="bg-gradient-to-b from-[#8B1A1A] to-[#c0392b] pt-12 pb-16 px-6 text-white relative rounded-b-[2rem] shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-white text-[#8B1A1A] font-extrabold text-2xl flex items-center justify-center shadow-lg border-2 border-white/20 flex-shrink-0">
-            {(profile.display_name || user?.displayName || "U")[0].toUpperCase()}
+      {/* Profile Card - VIP Design */}
+      <div className="bg-gradient-to-br from-[#1a1a1a] via-[#2a2a2a] to-[#1a1a1a] pt-12 pb-20 px-6 text-white relative rounded-b-[2rem] shadow-xl overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-500/20 to-orange-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-br from-red-500/20 to-pink-500/10 rounded-full blur-xl -ml-8 -mb-8"></div>
+        
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="relative group">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-yellow-400 to-orange-300 p-0.5 shadow-lg">
+              <div className="w-full h-full rounded-full bg-[#1a1a1a] flex items-center justify-center overflow-hidden border-2 border-[#1a1a1a]">
+                {avatarPreview || user?.photoURL ? (
+                  <img src={avatarPreview || user?.photoURL || ''} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-yellow-400 font-extrabold text-3xl">{(profile.display_name || user?.displayName || "U")[0].toUpperCase()}</span>
+                )}
+              </div>
+            </div>
+            {/* Upload Button */}
+            <label className="absolute bottom-0 right-0 w-7 h-7 bg-white rounded-full flex items-center justify-center text-gray-800 shadow-md cursor-pointer border border-gray-100 hover:bg-gray-50 transition-colors">
+              <Camera size={14} />
+              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+            </label>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight">{profile.display_name || user?.displayName || "S Tech Customer"}</h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/20 text-white flex items-center gap-1 border border-white/30">
-                <Sparkles size={10} />{t.roleCustomer}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-[19px] font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500">
+                {profile.display_name || user?.displayName || "S Tech Customer"}
+              </h1>
+              <BadgeCheck size={18} className="text-blue-400 fill-blue-400/20" />
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-yellow-500 to-orange-500 text-white flex items-center gap-1 shadow-sm">
+                <Award size={10} /> VIP MEMBER
+              </span>
+              <span className="text-white/60 text-[10px] flex items-center gap-1">
+                <Clock size={10} /> {t.memberSince}: {profile.created_at ? formatTime(profile.created_at) : "2025"}
               </span>
             </div>
-            <p className="text-white/80 text-[11px] mt-1 flex items-center gap-1.5">
-              <Mail size={12} className="text-white/60" /> {user?.email || profile.email}
-            </p>
-            <p className="text-white/60 text-[10px] mt-0.5">
-              {t.memberSince}: {profile.created_at ? formatTime(profile.created_at) : "2025"}
+            
+            <p className="text-white/70 text-[11px] flex items-center gap-1.5 font-medium">
+              <Mail size={12} className="text-white/50" /> {user?.email || profile.email}
             </p>
           </div>
         </div>
       </div>
 
       {/* Stats Row */}
-      <div className="px-4 -mt-8 relative z-10">
+      <div className="px-4 -mt-10 relative z-20">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex justify-between divide-x divide-gray-100">
           <div className="flex-1 flex flex-col items-center cursor-pointer" onClick={() => { loadOrders(); setActiveModal("orders"); }}>
             <span className="text-lg font-black text-[#1a1a1a]">{stats.orders}</span>
