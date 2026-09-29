@@ -1,21 +1,37 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X } from "lucide-react";
+import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe } from "lucide-react";
+
+type Category = {
+  id: number;
+  name: string;
+  slug?: string;
+};
 
 export default function AddNewProductPage() {
   const router = useRouter();
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   
+  // Categories from backend
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+
   // Form State
   const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("1"); // Default to Laptops
+  const [categoryId, setCategoryId] = useState("1");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [featured, setFeatured] = useState(false);
+  const [brand, setBrand] = useState("");
+  const [condition, setCondition] = useState("Brand New");
+
+  // Primary Image Address Link (e.g. copied from Google, Cloudinary, web)
+  const [primaryImageUrl, setPrimaryImageUrl] = useState("");
+  const [imagePreviewError, setImagePreviewError] = useState(false);
 
   type MediaItem = {
     id: string;
@@ -25,6 +41,37 @@ export default function AddNewProductPage() {
     preview?: string;
   };
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        setLoadingCats(true);
+        const res = await api.get('/categories');
+        const data: Category[] = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        if (data.length > 0) {
+          setCategories(data);
+          setCategoryId(data[0].id.toString());
+        }
+      } catch (err) {
+        // Fallback default categories
+        setCategories([
+          { id: 1, name: "Laptops" },
+          { id: 2, name: "Smartphones" },
+          { id: 3, name: "Accessories" },
+          { id: 4, name: "CPU Processor" },
+          { id: 5, name: "Motherboard" },
+          { id: 6, name: "Memory (RAM)" },
+          { id: 7, name: "Graphics Card" },
+          { id: 8, name: "Storage (SSD/HDD)" },
+          { id: 9, name: "Power Supply (PSU)" },
+          { id: 10, name: "PC Case" },
+        ]);
+      } finally {
+        setLoadingCats(false);
+      }
+    };
+    fetchCats();
+  }, []);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -39,18 +86,27 @@ export default function AddNewProductPage() {
     
     try {
       const formData = new FormData();
-      formData.append("name", name);
+      formData.append("name", name.trim());
       formData.append("category_id", categoryId);
       formData.append("price", price);
       formData.append("stock", stock);
       formData.append("description", description);
       formData.append("is_featured", featured ? "1" : "0");
+      if (brand.trim()) formData.append("brand", brand.trim());
+      if (condition.trim()) formData.append("condition", condition.trim());
       
+      // 1. Send primary image address link if provided
+      if (primaryImageUrl.trim()) {
+        formData.append("image_url", primaryImageUrl.trim());
+        formData.append("image_urls[]", primaryImageUrl.trim());
+      }
+
+      // 2. Send additional media files or URLs
       mediaList.forEach(item => {
         if (item.type === "file" && item.file) {
           formData.append("images[]", item.file);
-        } else if (item.type === "url" && item.url) {
-          formData.append("image_urls[]", item.url);
+        } else if (item.type === "url" && item.url && item.url.trim()) {
+          formData.append("image_urls[]", item.url.trim());
         }
       });
 
@@ -60,9 +116,10 @@ export default function AddNewProductPage() {
       setTimeout(() => {
         router.push("/admin/products");
       }, 1500);
-    } catch (e) {
-      showToast("Failed to save product", "error");
-      console.error(e);
+    } catch (e: any) {
+      const errorMsg = e.response?.data?.message || "Failed to save product";
+      showToast(errorMsg, "error");
+      console.error("Save product error:", e);
     }
   };
 
@@ -83,13 +140,13 @@ export default function AddNewProductPage() {
         <div className="flex gap-3 w-full md:w-auto">
           <Link 
             href="/admin/products" 
-            className="flex-1 md:flex-none text-center px-6 py-2.5 bg-white text-blue-700 border border-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
+            className="flex-1 md:flex-none text-center px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
           >
             Cancel
           </Link>
           <button 
             onClick={handleSave} 
-            className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white border border-transparent rounded-lg text-sm font-medium transition-colors"
+            className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white border border-transparent rounded-lg text-sm font-medium transition-colors shadow-sm"
           >
             <Package size={16} />
             Save Product
@@ -117,18 +174,48 @@ export default function AddNewProductPage() {
               />
             </div>
             
-            <div className="mb-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Category <span className="text-red-500">*</span>
-              </label>
-              <select 
-                value={categoryId} 
-                onChange={e => setCategoryId(e.target.value)} 
-                className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select 
+                  value={categoryId} 
+                  onChange={e => setCategoryId(e.target.value)} 
+                  disabled={loadingCats}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                >
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Brand / Manufacturer</label>
+                <input 
+                  type="text" 
+                  value={brand} 
+                  onChange={e => setBrand(e.target.value)} 
+                  placeholder="e.g. ASUS, Apple, MSI" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Condition</label>
+              <select
+                value={condition}
+                onChange={e => setCondition(e.target.value)}
+                className="w-full sm:w-1/2 px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
               >
-                <option value="1">Laptops</option>
-                <option value="2">Smartphones</option>
-                <option value="3">Accessories</option>
+                <option value="Brand New">Brand New (100% Genuine)</option>
+                <option value="Like New (99%)">Like New (99%)</option>
+                <option value="Second-Hand / Used">Second-Hand / Used</option>
+                <option value="Refurbished">Refurbished</option>
               </select>
             </div>
           </div>
@@ -151,6 +238,8 @@ export default function AddNewProductPage() {
                     value={price} 
                     onChange={e => setPrice(e.target.value)} 
                     placeholder="0.00" 
+                    step="0.01"
+                    min="0"
                     className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
                   />
                 </div>
@@ -165,6 +254,7 @@ export default function AddNewProductPage() {
                   value={stock} 
                   onChange={e => setStock(e.target.value)} 
                   placeholder="0" 
+                  min="0"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
                 />
               </div>
@@ -180,8 +270,8 @@ export default function AddNewProductPage() {
               <textarea 
                 value={description} 
                 onChange={e => setDescription(e.target.value)} 
-                placeholder="Enter a detailed description of the product..." 
-                className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+                placeholder="Enter a detailed description of the product specifications, warranty info, etc..." 
+                className="w-full h-36 px-4 py-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
               ></textarea>
             </div>
           </div>
@@ -189,48 +279,95 @@ export default function AddNewProductPage() {
 
         {/* Right Column */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          {/* Media */}
+          {/* Media / Image Address Link & Uploads */}
           <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-bold text-gray-900">Media</h2>
-              <div className="flex gap-2">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Product Media</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Paste an image link address directly, or upload files to Cloudinary.
+            </p>
+
+            {/* Direct Image Link Address Section */}
+            <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl mb-5">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-blue-900 mb-1.5">
+                <Globe size={14} className="text-blue-600" />
+                Image Link Address (URL)
+              </label>
+              <p className="text-[11px] text-blue-700/80 mb-2">
+                Paste any copied image address (Cloudinary, Google, CDN, or Web):
+              </p>
+              <input 
+                type="url"
+                value={primaryImageUrl}
+                onChange={e => {
+                  setPrimaryImageUrl(e.target.value);
+                  setImagePreviewError(false);
+                }}
+                placeholder="https://images.unsplash.com/... or https://res.cloudinary.com/..."
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-white"
+              />
+
+              {primaryImageUrl.trim() && (
+                <div className="mt-3 p-2 bg-white rounded-lg border border-blue-100 flex flex-col items-center">
+                  <div className="text-[10px] font-bold text-gray-500 mb-1 flex items-center gap-1">
+                    <Check size={12} className="text-green-600" /> Live Preview
+                  </div>
+                  {!imagePreviewError ? (
+                    <img 
+                      src={primaryImageUrl.trim()} 
+                      alt="Primary Preview" 
+                      className="max-h-36 max-w-full object-contain rounded"
+                      onError={() => setImagePreviewError(true)}
+                    />
+                  ) : (
+                    <div className="text-[11px] text-red-500 py-3 text-center">
+                      ⚠️ Could not load image from this URL. Please verify the link.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Additional Media Gallery */}
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">Additional Gallery</h3>
+              <div className="flex gap-1.5">
                 <button 
                   type="button" 
                   onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "file" }])} 
                   className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded transition-colors flex items-center gap-1"
                 >
-                  <ImageIcon size={12} /> Add File
+                  <ImageIcon size={12} /> + File
                 </button>
                 <button 
                   type="button" 
                   onClick={() => setMediaList([...mediaList, { id: Math.random().toString(), type: "url", url: "" }])} 
                   className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded transition-colors flex items-center gap-1"
                 >
-                  <LinkIcon size={12} /> Add URL
+                  <LinkIcon size={12} /> + URL
                 </button>
               </div>
             </div>
 
-            {mediaList.length === 0 && (
-              <div className="py-10 px-4 text-center bg-gray-50 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500">
-                No media added. Click the buttons above to add images.
+            {mediaList.length === 0 && !primaryImageUrl && (
+              <div className="py-8 px-4 text-center bg-gray-50 border border-dashed border-gray-300 rounded-lg text-xs text-gray-500">
+                Paste an image link address above or click + File / + URL to attach gallery photos.
               </div>
             )}
 
             {mediaList.map((media, index) => (
-              <div key={media.id} className="mb-4 p-4 border border-gray-200 rounded-lg relative bg-white">
+              <div key={media.id} className="mb-3 p-3 border border-gray-200 rounded-lg relative bg-white shadow-xs">
                 <button 
                   type="button"
                   onClick={() => setMediaList(mediaList.filter(m => m.id !== media.id))}
-                  className="absolute top-2 right-2 w-6 h-6 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center transition-colors"
+                  className="absolute top-2 right-2 w-5 h-5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center transition-colors"
                   title="Remove Image"
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
                 
                 {media.type === "file" ? (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Upload File {index + 1}</label>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Upload File #{index + 1}</label>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -243,19 +380,19 @@ export default function AddNewProductPage() {
                           setMediaList(newMediaList);
                         }
                       }} 
-                      className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                      className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
                     />
                     {media.preview && (
-                      <div className="mt-3 p-2 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex justify-center">
-                        <img src={media.preview} alt="Preview" className="max-w-full max-h-32 object-contain rounded" />
+                      <div className="mt-2 p-1.5 bg-gray-50 border border-dashed border-gray-200 rounded flex justify-center">
+                        <img src={media.preview} alt="Preview" className="max-h-24 object-contain rounded" />
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Image URL {index + 1}</label>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Image URL #{index + 1}</label>
                     <input 
-                      type="text" 
+                      type="url" 
                       value={media.url || ""} 
                       onChange={e => {
                         const newMediaList = [...mediaList];
@@ -263,14 +400,14 @@ export default function AddNewProductPage() {
                         setMediaList(newMediaList);
                       }} 
                       placeholder="https://..." 
-                      className="w-full pr-8 px-3 py-1.5 border border-gray-300 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
+                      className="w-full pr-7 px-2.5 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500" 
                     />
                     {media.url && (
-                      <div className="mt-3 p-2 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex justify-center">
+                      <div className="mt-2 p-1.5 bg-gray-50 border border-dashed border-gray-200 rounded flex justify-center">
                         <img 
                           src={media.url} 
                           alt="Preview" 
-                          className="max-w-full max-h-32 object-contain rounded" 
+                          className="max-h-24 object-contain rounded" 
                           onError={(e) => (e.currentTarget.style.display = 'none')} 
                         />
                       </div>

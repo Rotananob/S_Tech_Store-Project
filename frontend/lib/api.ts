@@ -15,6 +15,11 @@ const api = axios.create({
 // Request interceptor — attach Firebase UID + user info for user isolation
 api.interceptors.request.use(
   async (config) => {
+    // If sending FormData, delete Content-Type to allow browser to generate boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     if (typeof window !== "undefined") {
       try {
         const auth = getAuth();

@@ -28,9 +28,12 @@ class Product extends Model
     public function getImagesAttribute($value)
     {
         if (!$value) {
-            return [];
+            return !empty($this->attributes['image_url']) ? [$this->attributes['image_url']] : [];
         }
         $decoded = is_string($value) ? json_decode($value, true) : $value;
-        return is_array($decoded) ? $decoded : [];
+        if (is_array($decoded) && !empty($decoded)) {
+            return array_values(array_filter($decoded));
+        }
+        return !empty($this->attributes['image_url']) ? [$this->attributes['image_url']] : [];
     }
 }
