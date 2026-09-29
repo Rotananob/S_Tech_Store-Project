@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Link, useRouter } from "@/i18n/routing";
-import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2 } from "lucide-react";
+import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
@@ -32,7 +32,7 @@ export function ProductDetailClient({ product }: { product: any }) {
   const specs = [
     { key: "Category", value: product.category?.name || "Laptops" },
     { key: "Brand", value: product.brand || "S Tech" },
-    { key: "Condition", value: "New" },
+    { key: "Condition", value: product.condition || ((product.name || "").toLowerCase().includes("used") || (product.description || "").toLowerCase().includes("used") ? "Used (99%)" : "New") },
   ];
 
   return (
@@ -68,14 +68,27 @@ export function ProductDetailClient({ product }: { product: any }) {
               </button>
             </div>
 
-            <div className="w-full aspect-square relative flex items-center justify-center bg-gray-50">
-              <img
-                src={images[activeImage]}
-                alt={product.name}
-                className="w-full h-full object-contain mix-blend-multiply p-4"
-              />
+            <div 
+              className="w-full aspect-square relative flex bg-gray-50 overflow-x-auto snap-x snap-mandatory no-scrollbar" 
+              style={{ scrollBehavior: 'smooth' }}
+              onScroll={(e) => {
+                 const scrollLeft = e.currentTarget.scrollLeft;
+                 const width = e.currentTarget.clientWidth;
+                 const index = Math.round(scrollLeft / width);
+                 if (index !== activeImage) setActiveImage(index);
+              }}
+            >
+              {images.map((img: string, i: number) => (
+                <div key={i} className="w-full h-full flex-shrink-0 snap-center relative flex items-center justify-center p-4">
+                  <img
+                    src={img}
+                    alt={product.name + " " + (i+1)}
+                    className="w-full h-full object-contain mix-blend-multiply"
+                  />
+                </div>
+              ))}
               {/* Pagination Badge */}
-              <div className="absolute bottom-4 right-4 bg-black/40 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-sm">
+              <div className="absolute bottom-4 right-4 bg-black/40 text-white text-[11px] px-2.5 py-1 rounded-full backdrop-blur-sm z-10 pointer-events-none">
                 {activeImage + 1}/{images.length}
               </div>
             </div>
@@ -167,23 +180,39 @@ export function ProductDetailClient({ product }: { product: any }) {
 
             {/* Store Section */}
             <div className="bg-white p-4 mb-2 lg:rounded-2xl lg:shadow-sm">
-              <div className="flex justify-between items-center mb-3">
+              <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full border border-gray-100 overflow-hidden flex items-center justify-center bg-gray-50">
-                    <Store className="text-gray-400" size={20} />
+                  <div className="w-12 h-12 rounded-full border border-gray-100 overflow-hidden flex items-center justify-center bg-gray-50 shadow-sm">
+                    <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src="https://placehold.co/100x100?text=S+Tech" }} />
                   </div>
                   <div>
-                    <h3 className="text-[14px] font-bold">S Tech Store</h3>
-                    <div className="flex text-yellow-400 text-[10px] mt-0.5">
-                      ★★★★★ <span className="text-gray-400 ml-1">Official Store</span>
+                    <h3 className="text-[15px] font-bold text-gray-900 leading-tight">S Tech Store</h3>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
+                      <span className="text-yellow-400">★★★★★</span>
+                      <span>(99% Positive)</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-1">
+                      <MapPin size={10} className="text-gray-400" /> Phnom Penh, Cambodia
                     </div>
                   </div>
                 </div>
+                <button className="border border-[#8B1A1A] text-[#8B1A1A] px-3 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#8B1A1A] hover:text-white transition-colors">
+                  View Store
+                </button>
               </div>
-              <div className="bg-[#f9f9f9] rounded-lg p-2.5 flex items-center gap-2 text-[11px] text-gray-600">
-                <CheckCircle2 size={14} className="text-[#16a34a]"/>
-                <span className="font-bold">Guarantees</span>
-                <span className="text-gray-400 ml-auto">Genuine Products</span>
+              <div className="grid grid-cols-3 gap-2 mt-4 border-t border-gray-50 pt-3 text-center">
+                <div>
+                  <div className="text-[13px] font-bold text-gray-900">99+</div>
+                  <div className="text-[10px] text-gray-500">Products</div>
+                </div>
+                <div className="border-l border-r border-gray-50">
+                  <div className="text-[13px] font-bold text-gray-900">100%</div>
+                  <div className="text-[10px] text-gray-500">Response</div>
+                </div>
+                <div>
+                  <div className="text-[13px] font-bold text-gray-900">Fast</div>
+                  <div className="text-[10px] text-gray-500">Delivery</div>
+                </div>
               </div>
             </div>
 
@@ -198,7 +227,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                   </div>
                 ))}
               </div>
-              <div className="text-[13px] text-gray-600 leading-relaxed">
+              <div className="text-[14px] text-gray-700 leading-loose whitespace-pre-line">
                 {(product as any).description || "Genuine product provided by S Tech Store Cambodia. Contact us for more details."}
               </div>
             </div>

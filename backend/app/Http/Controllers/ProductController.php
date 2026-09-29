@@ -33,7 +33,9 @@ class ProductController extends Controller
             'images.*' => 'nullable|image|max:5120',
             'image_urls' => 'nullable|array',
             'image_urls.*' => 'nullable|string',
-            'is_featured' => 'boolean'
+            'is_featured' => 'boolean',
+            'condition' => 'nullable|string|max:100',
+            'condition' => 'nullable|string|max:100'
         ]);
 
         if (isset($validated['is_featured']) && is_string($validated['is_featured'])) {
