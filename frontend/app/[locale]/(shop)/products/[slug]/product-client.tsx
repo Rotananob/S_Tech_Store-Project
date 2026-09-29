@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ChatBot from "@/components/ui/ChatBot";
 import { Link, useRouter } from "@/i18n/routing";
 import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin, X, Copy, Send, Image as ImageIcon } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
@@ -13,6 +14,8 @@ export function ProductDetailClient({ product }: { product: any }) {
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showChatOptions, setShowChatOptions] = useState(false);
+  const [showChatBot, setShowChatBot] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -308,7 +311,7 @@ export function ProductDetailClient({ product }: { product: any }) {
             <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
             <span className="text-[9px]">Save</span>
           </button>
-          <button className="flex flex-col items-center justify-center text-gray-500 w-full gap-0.5">
+          <button onClick={() => setShowChatOptions(true)} className="flex flex-col items-center justify-center text-gray-500 w-full gap-0.5 hover:text-[#8B1A1A] transition-colors">
             <MessageCircle size={20} />
             <span className="text-[9px]">Chat</span>
           </button>
@@ -348,6 +351,63 @@ export function ProductDetailClient({ product }: { product: any }) {
         </div>
       </div>
       
+
+
+      {/* Chat Options Modal */}
+      <AnimatePresence>
+        {showChatOptions && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 relative"
+            >
+              <button onClick={() => setShowChatOptions(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+              <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Contact Us</h3>
+              
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    setShowChatOptions(false);
+                    window.open('https://t.me/stechstore', '_blank');
+                  }} 
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-xl font-bold transition-colors"
+                >
+                  <Send size={20} /> Chat on Telegram
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowChatOptions(false);
+                    setShowChatBot(true);
+                  }} 
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl font-bold transition-colors border border-gray-200"
+                >
+                  <MessageCircle size={20} /> Chat on Website
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Website ChatBot Fullscreen Modal */}
+      <AnimatePresence>
+        {showChatBot && (
+          <motion.div 
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed inset-0 z-[110]"
+          >
+            <ChatBot onClose={() => setShowChatBot(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Share Modal */}
       <AnimatePresence>
