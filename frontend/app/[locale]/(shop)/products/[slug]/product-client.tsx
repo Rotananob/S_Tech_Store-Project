@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useRouter } from "@/i18n/routing";
-import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin } from "lucide-react";
+import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin, X, Copy, Send, Image as ImageIcon } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
@@ -11,7 +11,67 @@ import { motion, AnimatePresence } from "framer-motion";
 export function ProductDetailClient({ product }: { product: any }) {
   const [activeImage, setActiveImage] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    import("@/lib/services/user.service").then(({ getWishlist }) => {
+      getWishlist().then(res => {
+         if (res.data && res.data.some(p => p.id === product.id)) {
+            setIsSaved(true);
+         }
+      }).catch(e => console.log("User not logged in or error fetching wishlist"));
+    });
+  }, [product.id]);
+
+  const toggleWishlist = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const { addToWishlist, removeFromWishlist } = await import("@/lib/services/user.service");
+      if (isSaved) {
+        await removeFromWishlist(product.id);
+        setIsSaved(false);
+      } else {
+        await addToWishlist(product.id);
+        setIsSaved(true);
+      }
+    } catch (e) {
+      alert("Please login first to save items");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBuyNow = () => {
+    addItemToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      quantity: 1,
+      image_url: product.image_url,
+    });
+    router.push("/checkout");
+  };
+
+  const handleShare = (platform: string) => {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent(product.name);
+    if (platform === 'copy') {
+      navigator.clipboard.writeText(window.location.href);
+      alert("Link copied to clipboard!");
+    } else if (platform === 'fb') {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    } else if (platform === 'telegram') {
+      window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+    } else if (platform === 'image') {
+      window.open(images[activeImage] || images[0] || product.image_url, '_blank');
+    } else if (platform === 'fake') {
+      window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+    }
+    setShowShare(false);
+  };
   
   const addItemToCart = useCartStore((state) => state.addItem);
   const t = useTranslations("Products");
@@ -63,7 +123,7 @@ export function ProductDetailClient({ product }: { product: any }) {
               </button>
             </div>
             <div className="absolute top-4 right-4 z-10 flex gap-3 lg:hidden">
-              <button className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-sm">
+              <button onClick={() => setShowShare(true)} className="w-9 h-9 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-sm">
                 <Share size={18} />
               </button>
             </div>
@@ -244,7 +304,7 @@ export function ProductDetailClient({ product }: { product: any }) {
             <Store size={20} />
             <span className="text-[9px]">Store</span>
           </button>
-          <button onClick={() => setIsSaved(!isSaved)} className={`flex flex-col items-center justify-center w-full gap-0.5 ${isSaved ? 'text-[#e02e24]' : 'text-gray-500'}`}>
+          <button onClick={toggleWishlist} disabled={isSaving} className={`flex flex-col items-center justify-center w-full gap-0.5 ${isSaved ? 'text-[#e02e24]' : 'text-gray-500'}`}>
             <Heart size={20} fill={isSaved ? "currentColor" : "none"} />
             <span className="text-[9px]">Save</span>
           </button>
@@ -260,7 +320,7 @@ export function ProductDetailClient({ product }: { product: any }) {
             <span className="text-[12px]">Est. {formatUSD(product.price)}</span>
             <span className="text-[14px] font-bold">Add to Cart</span>
           </button>
-          <button className="flex-1 bg-[#e02e24] text-white flex flex-col items-center justify-center leading-tight hover:bg-[#c82218] transition-colors">
+          <button onClick={handleBuyNow} className="flex-1 bg-[#e02e24] text-white flex flex-col items-center justify-center leading-tight hover:bg-[#c82218] transition-colors">
             <span className="text-[12px]">Est. {formatUSD(product.price)}</span>
             <span className="text-[14px] font-bold">Buy Now</span>
           </button>
@@ -281,13 +341,62 @@ export function ProductDetailClient({ product }: { product: any }) {
             <button onClick={handleAddToCart} className="bg-[#f89c9c] text-white px-8 py-3 rounded-full font-bold hover:bg-[#f48484] transition-colors shadow-sm">
               Add to Cart
             </button>
-            <button className="bg-[#e02e24] text-white px-8 py-3 rounded-full font-bold hover:bg-[#c82218] transition-colors shadow-sm">
+            <button onClick={handleBuyNow} className="bg-[#e02e24] text-white px-8 py-3 rounded-full font-bold hover:bg-[#c82218] transition-colors shadow-sm">
               Buy Now
             </button>
           </div>
         </div>
       </div>
       
+
+      {/* Share Modal */}
+      <AnimatePresence>
+        {showShare && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 relative"
+            >
+              <button onClick={() => setShowShare(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+              <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Share Product</h3>
+              
+              <div className="grid grid-cols-4 gap-2">
+                <button onClick={() => handleShare('copy')} className="flex flex-col items-center gap-2 group">
+                  <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-gray-200 transition-colors">
+                    <Copy size={24} />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-600">Copy Link</span>
+                </button>
+                <button onClick={() => handleShare('fb')} className="flex flex-col items-center gap-2 group">
+                  <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
+                    
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-600">Facebook</span>
+                </button>
+                <button onClick={() => handleShare('telegram')} className="flex flex-col items-center gap-2 group">
+                  <div className="w-14 h-14 rounded-full bg-sky-50 flex items-center justify-center text-sky-500 group-hover:bg-sky-100 transition-colors">
+                    <Send size={24} />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-600">Telegram</span>
+                </button>
+                <button onClick={() => handleShare('image')} className="flex flex-col items-center gap-2 group">
+                  <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                    <ImageIcon size={24} />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-600">Save Image</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
