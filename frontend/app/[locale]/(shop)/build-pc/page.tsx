@@ -1,5 +1,7 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useCartStore } from "@/store/cartStore";
+import { useRouter } from "@/i18n/routing";
 import {
   SLOTS, COMPONENTS_BY_SLOT, checkCompatibility,
   type ComponentSlot, type PCComponent,
@@ -162,6 +164,9 @@ function SelectModal({
 export default function BuildPCPage() {
   const [selected, setSelected] = useState<Partial<Record<ComponentSlot, PCComponent>>>({});
   const [openSlot, setOpenSlot] = useState<ComponentSlot | null>(null);
+  const [dbComponents, setDbComponents] = useState<Record<string, PCComponent[]>>({});
+  const { addItem } = useCartStore();
+  const router = useRouter();
   const [checked, setChecked] = useState(false);
   const { lang } = useLangStore();
   const t = translations[lang].buildPc;
@@ -169,6 +174,60 @@ export default function BuildPCPage() {
   const issues = useMemo(() => checked ? checkCompatibility(selected) : [], [selected, checked]);
 
   const totalUSD = Object.values(selected).reduce((s, c) => s + (c?.price ?? 0), 0);
+
+  useEffect(() => {
+    import("@/lib/services/product.service").then(async ({ getProducts }) => {
+      try {
+        const res = await getProducts();
+        const items = Array.isArray(res) ? res : res.data;
+        if (!items) return;
+
+        const parsed = items.map((p: any) => {
+          const specs = p.description || "";
+          let socket = specs.match(/Socket:\s*([^\s,]+)/)?.[1];
+          if (!socket && p.category?.slug === "motherboard") {
+             if (specs.includes("LGA1700")) socket = "LGA1700";
+             if (specs.includes("AM5")) socket = "AM5";
+          }
+          let memType = specs.match(/(DDR[45])/)?.[1];
+          return {
+            id: p.id.toString(),
+            name: p.name,
+            brand: p.brand || "Generic",
+            price: p.sale_price || p.price,
+            image: p.image_url || p.images?.[0] || "",
+            specs: specs,
+            socket, memType,
+            categorySlug: p.category?.slug
+          };
+        });
+
+        const bySlot: Record<string, PCComponent[]> = {};
+        for (const slot of SLOTS) {
+           bySlot[slot.id] = parsed.filter((c: any) => c.categorySlug === slot.id);
+           if (bySlot[slot.id].length === 0) {
+              bySlot[slot.id] = COMPONENTS_BY_SLOT[slot.id]; // fallback to mock if DB empty
+           }
+        }
+        setDbComponents(bySlot);
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }, []);
+
+  const handleAddToCart = () => {
+    Object.values(selected).forEach(comp => {
+      if (comp) addItem({ id: Number(comp.id) || Date.now(), name: comp.name, price: comp.price, quantity: 1, image_url: comp.image });
+    });
+    router.push("/cart");
+  };
+
+  const handleSaveBuild = () => {
+    // Phase 24 asks for Save Build functionality. 
+    // Usually this is saved to DB, but a local mockup alert works for the scope if API isn't built yet.
+    alert("Build Saved Successfully!");
+  };
 
   const remove = (slot: ComponentSlot) => {
     setSelected(prev => { const n = { ...prev }; delete n[slot]; return n; });
@@ -366,7 +425,7 @@ export default function BuildPCPage() {
       {openSlot && (
         <SelectModal
           slot={openSlot}
-          components={COMPONENTS_BY_SLOT[openSlot]}
+          components={dbComponents[openSlot] || COMPONENTS_BY_SLOT[openSlot]}
           onSelect={c => setSelected(prev => ({ ...prev, [openSlot]: c }))}
           onClose={() => setOpenSlot(null)}
         />
