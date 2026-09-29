@@ -129,6 +129,8 @@ export default function CheckoutPage() {
   const [step, setStep] = useState(2);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState("");
+  const [showViewOrderPopup, setShowViewOrderPopup] = useState(true);
 
   useEffect(() => {
     fetchCart();
@@ -189,6 +191,7 @@ export default function CheckoutPage() {
         console.error("Failed to push notification", e);
       }
 
+      setOrderId(res.data?.order?.order_id || "");
       setConfirmed(true);
       setStep(3);
     } else {
@@ -199,50 +202,69 @@ export default function CheckoutPage() {
   // ─── Done Screen ────────────────────────────────────────────────────────────
   if (confirmed) {
     return (
-      <div style={{ background: "#f9f9f9", minHeight: "100vh" }}>
-        <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "24px 0" }}>
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="bg-white border-b border-gray-100 py-6">
           <div className="container">
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a" }}>{t("title")}</h1>
-            <div style={{ marginTop: 10 }}><StepBar step={3} /></div>
+            <h1 className="text-2xl font-black text-gray-900">{t("title")}</h1>
+            <div className="mt-3"><StepBar step={3} /></div>
           </div>
         </div>
-        <div className="container" style={{ padding: "60px 24px", textAlign: "center" }}>
-          <div style={{
-            background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12,
-            padding: "56px 40px", maxWidth: 480, margin: "0 auto",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-          }}>
-            <div style={{
-              width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4",
-              border: "2px solid #86efac", display: "flex", alignItems: "center",
-              justifyContent: "center", margin: "0 auto 20px",
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-              </svg>
+        
+        {/* Full screen popup / modal style for Done screen */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center relative overflow-hidden"
+          >
+            {/* Success Animation Background */}
+            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-green-50 to-white -z-10" />
+            
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-sm ring-4 ring-white">
+              <CheckCircle2 size={40} strokeWidth={2.5} />
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>{t("orderConfirmed")}</h2>
-            <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>{t("orderPlacedSuccess")}</p>
-            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 28 }}>{t("contactConfirm")} <strong style={{ color: "#1a1a1a" }}>{phone}</strong> {t("toConfirmDelivery")}</p>
-            <div style={{ background: "#f9f9f9", borderRadius: 8, padding: "16px 20px", marginBottom: 28, textAlign: "left" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: "#777" }}>{t("orderTotal")}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#8B1A1A" }}>{fmtUSD(total)}</span>
+            
+            <h2 className="text-2xl font-black text-gray-900 mb-2">{t("orderConfirmed")}</h2>
+            <p className="text-base text-gray-600 mb-1">{t("orderPlacedSuccess")}</p>
+            <p className="text-sm text-gray-500 mb-6">
+              {t("contactConfirm")} <strong className="text-gray-900 font-bold">{phone}</strong> {t("toConfirmDelivery")}
+            </p>
+            
+            <div className="bg-gray-50 w-full rounded-2xl p-5 mb-8 text-left border border-gray-100">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-medium text-gray-500">Order ID</span>
+                <span className="text-sm font-black text-[#8B1A1A] font-mono">{orderId || "ORD-XXXX"}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#777" }}>{t("payment")}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-medium text-gray-500">{t("orderTotal")}</span>
+                <span className="text-base font-black text-gray-900">{fmtUSD(total)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-500">{t("payment")}</span>
+                <span className="text-sm font-bold text-gray-900 flex items-center gap-2">
                   {PAYMENT_METHODS.find(p => p.id === payment)?.label}
                 </span>
               </div>
             </div>
-            <Link href="/" style={{
-              display: "block", padding: "12px", background: "#8B1A1A",
-              color: "#fff", borderRadius: 6, fontWeight: 700, fontSize: 14,
-              textDecoration: "none", textAlign: "center",
-            }}>{t("backToHome")}</Link>
-          </div>
+            
+            <div className="w-full space-y-3">
+              {/* Order History Link */}
+              <Link 
+                href="/account/profile"
+                className="w-full flex items-center justify-center py-4 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all"
+              >
+                View Order History
+              </Link>
+              
+              {/* Home Link */}
+              <Link 
+                href="/"
+                className="w-full flex items-center justify-center py-4 bg-white border-2 border-gray-100 hover:border-gray-200 text-gray-700 hover:text-gray-900 rounded-xl text-sm font-bold shadow-sm transition-all"
+              >
+                {t("backToHome")}
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </div>
     );

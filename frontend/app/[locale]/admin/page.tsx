@@ -252,7 +252,7 @@ export default function AdminDashboardOverview() {
                 {recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-4 text-sm font-semibold text-gray-900">{order.order_id}</td>
-                    <td className="p-4 text-sm text-gray-600">{order.name}</td>
+                    <td className="p-4 text-sm text-gray-600">{order.customer_name}</td>
                     <td className="p-4 text-sm text-gray-500">{formatDate(order.created_at)}</td>
                     <td className="p-4 text-sm font-bold text-gray-900">${Number(order.total_amount).toLocaleString()}</td>
                     <td className="p-4">

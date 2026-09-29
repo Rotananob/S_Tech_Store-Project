@@ -15,8 +15,8 @@ export default function BottomNav() {
     return false;
   };
 
-  // Hide BottomNav on Product Detail pages to allow for the product action bar
-  if (pathname.includes('/products/')) {
+  // Hide BottomNav on Product Detail and Checkout pages to allow for specific action bars
+  if (pathname.includes('/products/') || pathname.includes('/checkout')) {
     return null;
   }
 
