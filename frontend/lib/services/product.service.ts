@@ -1,6 +1,8 @@
 import { Category, Product, ApiResponse } from "@/types";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "https://stech-backend-xz6j.onrender.com/api";
+const BASE = typeof window !== "undefined"
+  ? (process.env.NEXT_PUBLIC_API_URL ?? "/api")
+  : (process.env.INTERNAL_API_URL ?? "http://127.0.0.1:8000/api");
 
 // Revalidate disabled to ensure Admin changes reflect immediately on Home
 const REVALIDATE = 0;
