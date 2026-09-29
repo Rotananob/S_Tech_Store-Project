@@ -35,5 +35,5 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Expose port 80 (Render forwards traffic here)
 EXPOSE 80
 
-# Run migrations and then start Apache
-CMD php artisan config:cache && php artisan route:cache && php artisan migrate --force && apache2-foreground
+# Run storage link, clear/cache config & routes, run migrations, and then start Apache
+CMD php artisan storage:link || true && php artisan config:clear && php artisan config:cache && php artisan route:cache && php artisan migrate --force || true && apache2-foreground

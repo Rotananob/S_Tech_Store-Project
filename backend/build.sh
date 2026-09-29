@@ -6,10 +6,12 @@ set -e
 echo "Installing composer dependencies..."
 composer install --no-dev --optimize-autoloader
 
-echo "Caching config and routes..."
-php artisan config:cache
+echo "Creating storage symlink..."
+php artisan storage:link || true
+
+echo "Caching routes and views..."
 php artisan route:cache
 php artisan view:cache
 
 echo "Running database migrations..."
-php artisan migrate --force
+php artisan migrate --force || true
