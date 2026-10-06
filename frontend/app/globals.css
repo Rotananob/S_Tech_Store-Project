@@ -145,8 +145,35 @@ html, body {
   max-width: 100vw;
 }
 
+@media (min-width: 1024px) {
+  body {
+    padding-bottom: 0px;
+  }
+}
+
+/* ─── Global Container Centering & Padding ────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+@media (min-width: 640px) {
+  .container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
 /* ─── Container iPhone-safe padding ────────────────────────────────────────── */
-/* Override container to add horizontal safe-area on iPhone landscape */
 @supports (padding: env(safe-area-inset-left)) {
   .container {
     padding-left: max(16px, env(safe-area-inset-left));

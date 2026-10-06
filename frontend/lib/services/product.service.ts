@@ -28,14 +28,18 @@ function getBaseUrl(): string {
 
 export async function getCategories(): Promise<Category[] | ApiResponse<Category[]>> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(`${getBaseUrl()}/categories`, {
       cache: "no-store",
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return [];
     return await res.json();
   } catch (error) {
-    console.error("getCategories error:", error);
+    console.error("getCategories error (fallback):", error);
     return [];
   }
 }
@@ -43,24 +47,32 @@ export async function getCategories(): Promise<Category[] | ApiResponse<Category
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
   try {
     const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(`${getBaseUrl()}/products${query}`, {
       cache: "no-store",
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return [];
     return await res.json();
   } catch (error) {
-    console.error("getProducts error:", error);
+    console.error("getProducts error (fallback):", error);
     return [];
   }
 }
 
 export async function getProduct(id: string | number): Promise<Product | ApiResponse<Product> | null> {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
     const res = await fetch(`${getBaseUrl()}/products/${id}`, {
       cache: "no-store",
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
     if (!res.ok) return null;
     return await res.json();
   } catch (error) {

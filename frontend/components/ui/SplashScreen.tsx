@@ -17,7 +17,7 @@ export default function SplashScreen() {
       const timer = setTimeout(() => {
         setShow(false);
         sessionStorage.setItem("hasSeenSplash", "true");
-      }, 3500); // 3.5 seconds loading
+      }, 500); // 0.5s fast snappy entrance
       return () => clearTimeout(timer);
     }
   }, []);

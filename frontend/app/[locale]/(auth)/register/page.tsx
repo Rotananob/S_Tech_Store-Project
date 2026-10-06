@@ -15,12 +15,29 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authOverlay, setAuthOverlay] = useState<{
+    show: boolean;
+    title: string;
+    subtitle: string;
+    isSuccess?: boolean;
+  }>({
+    show: false,
+    title: "",
+    subtitle: "",
+    isSuccess: false,
+  });
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    setAuthOverlay({
+      show: true,
+      title: "កំពុងដំណើរការបង្កើតគណនី... / Creating Account...",
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងរៀបចំគណនី (Please wait, setting up your profile)...",
+      isSuccess: false,
+    });
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -31,9 +48,20 @@ export default function RegisterPage() {
         type: "welcome",
       });
       useNotificationStore.getState().fetchNotifications();
+
+      setAuthOverlay({
+        show: true,
+        title: "បង្កើតគណនីបានជោគជ័យ! 🎉",
+        subtitle: "សូមស្វាគមន៍មកកាន់ S Tech Store កំពុងបញ្ជូនទៅកាន់ទំព័រដើម... (Redirecting...)",
+        isSuccess: true,
+      });
+
+      // 2 seconds delay as requested by user
+      await new Promise((r) => setTimeout(r, 2000));
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to create an account.");
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
     }
@@ -42,18 +70,37 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     setError("");
     setLoading(true);
+    setAuthOverlay({
+      show: true,
+      title: "កំពុងភ្ជាប់គណនី Google... / Signing in with Google...",
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការ (Please wait, processing Google OAuth)...",
+      isSuccess: false,
+    });
+
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
+      
+      setAuthOverlay({
+        show: true,
+        title: "ភ្ជាប់គណនី Google បានជោគជ័យ! 🎉",
+        subtitle: `សូមស្វាគមន៍ ${cred.user.displayName || cred.user.email}! កំពុងបញ្ជូនទៅទំព័រដើម...`,
+        isSuccess: true,
+      });
+
       await api.post("/user/notifications", {
         title: "Welcome to S Tech Store! 🎉",
         message: `Welcome ${cred.user.displayName || cred.user.email}! Your S Tech account is ready.`,
         type: "welcome",
       });
       useNotificationStore.getState().fetchNotifications();
+
+      // 2-3s delay as requested by user
+      await new Promise((r) => setTimeout(r, 2200));
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
     }
@@ -402,6 +449,41 @@ export default function RegisterPage() {
           </Link>
         </p>
       </div>
+
+      {/* Processing Popup Overlay (Prevents accidental click back / navigate away) */}
+      {authOverlay.show && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#181818", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "24px", padding: "32px 24px", maxWidth: "380px", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.7)" }}>
+            <div style={{ position: "relative", marginBottom: "20px" }}>
+              <img
+                src="/logo.jpg"
+                alt="S Tech Store"
+                style={{ width: "64px", height: "64px", borderRadius: "16px", objectFit: "contain", border: "2px solid rgba(255,255,255,0.2)", boxShadow: "0 8px 24px rgba(139,26,26,0.3)" }}
+              />
+            </div>
+
+            {authOverlay.isSuccess ? (
+              <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "rgba(16, 185, 129, 0.2)", color: "#10b981", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px", border: "1px solid rgba(16, 185, 129, 0.4)" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+              </div>
+            ) : (
+              <div style={{ width: "36px", height: "36px", border: "3px solid rgba(255,255,255,0.1)", borderTop: "3px solid #8B1A1A", borderRadius: "50%", animation: "spin 0.8s linear infinite", marginBottom: "16px" }} />
+            )}
+
+            <h3 style={{ color: "white", fontSize: "17px", fontWeight: "700", marginBottom: "6px", lineHeight: "1.3" }}>
+              {authOverlay.title}
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginBottom: "16px", lineHeight: "1.5" }}>
+              {authOverlay.subtitle}
+            </p>
+
+            <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "9999px", fontSize: "11px", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: "6px" }}>
+              <span>⚠️</span>
+              <span>សូមកុំចាកចេញ ឬចុចត្រឡប់ក្រោយ</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

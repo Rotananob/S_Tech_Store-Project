@@ -55,93 +55,94 @@ export function HeroSection() {
   const current = HERO_SLIDES[slideIndex];
 
   return (
-    <section className="bg-white px-4 py-3 w-full overflow-hidden">
-      <div className="relative w-full h-[180px] sm:h-[200px] md:h-[220px] rounded-2xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200">
-        
-        {/* Fixed S Tech Store Logo & Brand Badge (Remains Firmly in Place) */}
-        <div className="absolute top-3.5 left-4 sm:top-4 sm:left-5 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm border border-gray-100">
-          <img src="/logo.jpg" alt="S Tech Store" className="w-6 h-6 rounded-full object-cover shadow-sm border border-white" />
-          <span className="text-[11px] font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
-        </div>
+    <section className="bg-white px-4 sm:px-6 lg:px-8 py-3 sm:py-5 w-full overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <div className="relative w-full h-[190px] sm:h-[240px] md:h-[270px] lg:h-[300px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200">
+          
+          {/* Fixed S Tech Store Logo & Brand Badge (Remains Firmly in Place) */}
+          <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100">
+            <img src="/logo.jpg" alt="S Tech Store" className="w-6 h-6 rounded-full object-cover shadow-sm border border-white" />
+            <span className="text-[11px] sm:text-xs font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
+          </div>
 
-        {/* Dynamic Animated Content Container */}
-        <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-5 pt-10 sm:pt-8 z-10">
-          {/* Animated Text */}
-          <div className="flex flex-col items-start text-left w-[58%] sm:w-[50%] z-20">
-            <div className="h-[28px] sm:h-[32px] overflow-hidden mb-1 flex items-center relative w-full">
+          {/* Dynamic Animated Content Container */}
+          <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 pt-10 sm:pt-8 z-10">
+            {/* Animated Text */}
+            <div className="flex flex-col items-start text-left w-[58%] sm:w-[50%] z-20">
+              <div className="h-[28px] sm:h-[36px] overflow-hidden mb-1 flex items-center relative w-full">
+                <AnimatePresence mode="wait">
+                  <motion.h1
+                    key={slideIndex}
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -15, opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                    className="text-gray-900 text-base sm:text-2xl md:text-3xl font-black leading-[1.1] drop-shadow-sm absolute w-full"
+                  >
+                    {current.title}
+                  </motion.h1>
+                </AnimatePresence>
+              </div>
+              
               <AnimatePresence mode="wait">
-                <motion.h1
-                  key={slideIndex}
-                  initial={{ y: 15, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -15, opacity: 0 }}
-                  transition={{ duration: 0.35 }}
-                  className="text-gray-900 text-base sm:text-xl md:text-2xl font-black leading-[1.1] drop-shadow-sm absolute w-full"
+                <motion.p
+                  key={`desc-${slideIndex}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-gray-600 text-[10px] sm:text-sm md:text-base mb-3 sm:mb-5 leading-snug line-clamp-2 font-medium max-w-lg"
                 >
-                  {current.title}
-                </motion.h1>
+                  {current.desc}
+                </motion.p>
+              </AnimatePresence>
+              
+              <div className="flex items-center gap-2.5">
+                <Link
+                  href="/category/all"
+                  className="bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-[11px] sm:text-sm font-bold px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-md transition-all no-underline flex items-center gap-2 hover:scale-105"
+                >
+                  <span>Shop Now</span>
+                  <span className="text-xs sm:text-sm">&rarr;</span>
+                </Link>
+                <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hidden sm:inline-block border border-gray-200">
+                  {current.badge}
+                </span>
+              </div>
+            </div>
+
+            {/* Auto Sliding 4 Images with Smooth Transition */}
+            <div className="absolute right-[-8%] sm:right-[0%] top-1/2 -translate-y-1/2 w-[55%] sm:w-[45%] lg:w-[42%] h-[130%] sm:h-[135%] z-10 flex items-center justify-center pointer-events-none">
+              <div className="absolute w-44 h-44 bg-red-400/15 blur-3xl rounded-full" />
+              
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={slideIndex}
+                  src={current.image}
+                  alt={current.alt}
+                  initial={{ opacity: 0, scale: 0.92, x: 30 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 1.05, x: -30 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                  className="w-full h-full object-cover rounded-full shadow-[0_0_35px_rgba(0,0,0,0.15)] border-4 border-white/60"
+                />
               </AnimatePresence>
             </div>
-            
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={`desc-${slideIndex}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="text-gray-600 text-[10px] sm:text-xs md:text-sm mb-3 sm:mb-4 leading-snug line-clamp-2 font-medium"
-              >
-                {current.desc}
-              </motion.p>
-            </AnimatePresence>
-            
-            <div className="flex items-center gap-2">
-              <Link
-                href="/category/all"
-                className="bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-[10px] sm:text-xs font-bold px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-md transition-colors no-underline flex items-center gap-1.5"
-              >
-                <span>Shop Now</span>
-                <span className="text-xs">&rarr;</span>
-              </Link>
-              <span className="text-[9px] font-semibold text-gray-500 bg-white/70 px-2 py-1 rounded-full hidden sm:inline-block border border-gray-200">
-                {current.badge}
-              </span>
-            </div>
           </div>
 
-          {/* Auto Sliding 4 Images with Smooth Transition */}
-          <div className="absolute right-[-10%] sm:right-[-5%] top-1/2 -translate-y-1/2 w-[55%] sm:w-[48%] h-[130%] sm:h-[135%] z-10 flex items-center justify-center pointer-events-none">
-            {/* Glow effect */}
-            <div className="absolute w-36 h-36 bg-red-400/15 blur-3xl rounded-full" />
-            
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={slideIndex}
-                src={current.image}
-                alt={current.alt}
-                initial={{ opacity: 0, scale: 0.92, x: 30 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                exit={{ opacity: 0, scale: 1.05, x: -30 }}
-                transition={{ duration: 0.45, ease: "easeOut" }}
-                className="w-full h-full object-cover rounded-full shadow-[0_0_35px_rgba(0,0,0,0.15)] border-4 border-white/60"
+          {/* Slide Indicators (Dots) */}
+          <div className="absolute bottom-3 left-4 sm:left-8 z-20 flex items-center gap-1.5">
+            {HERO_SLIDES.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setSlideIndex(idx)}
+                className={`h-1.5 rounded-full transition-all duration-300 border-none p-0 cursor-pointer ${
+                  idx === slideIndex ? "w-6 sm:w-8 bg-[#8B1A1A]" : "w-1.5 bg-gray-300 hover:bg-gray-400"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
               />
-            </AnimatePresence>
+            ))}
           </div>
-        </div>
-
-        {/* Slide Indicators (Dots) */}
-        <div className="absolute bottom-2.5 left-4 sm:left-5 z-20 flex items-center gap-1.5">
-          {HERO_SLIDES.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSlideIndex(idx)}
-              className={`h-1.5 rounded-full transition-all duration-300 border-none p-0 cursor-pointer ${
-                idx === slideIndex ? "w-6 bg-[#8B1A1A]" : "w-1.5 bg-gray-300 hover:bg-gray-400"
-              }`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
         </div>
       </div>
     </section>
@@ -153,24 +154,24 @@ export function FeatureStrip() {
 
   const featuresList = [
     { svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
         <polyline points="22 4 12 14.01 9 11.01"/>
       </svg>
     ), label: t("genuine") },
     { svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
       </svg>
     ), label: t("warranty") },
     { svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
       </svg>
     ), label: t("localPayments") },
     { svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/>
         <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
       </svg>
@@ -179,27 +180,29 @@ export function FeatureStrip() {
 
   return (
     <div className="bg-[#fcfcfc] border-b border-gray-100 overflow-hidden relative w-full">
-      <div className="flex w-max animate-marquee hover:[animation-play-state:paused]">
-        <div className="flex flex-nowrap items-center py-2.5 gap-8 px-4 pr-8">
-          {featuresList.map((f, i) => (
-            <div key={i} className="flex items-center gap-1.5 shrink-0">
-              <div className="text-[#8B1A1A]">{f.svg}</div>
-              <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap tracking-tight">
-                {f.label}
-              </span>
-            </div>
-          ))}
-        </div>
-        {/* Duplicate for infinite effect */}
-        <div className="flex flex-nowrap items-center py-2.5 gap-8 px-4 pr-8">
-          {featuresList.map((f, i) => (
-            <div key={`dup-${i}`} className="flex items-center gap-1.5 shrink-0">
-              <div className="text-[#8B1A1A]">{f.svg}</div>
-              <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap tracking-tight">
-                {f.label}
-              </span>
-            </div>
-          ))}
+      <div className="max-w-7xl mx-auto">
+        <div className="flex w-max lg:w-full animate-marquee lg:animate-none hover:[animation-play-state:paused] lg:justify-between">
+          <div className="flex flex-nowrap lg:flex-wrap items-center py-3 gap-8 sm:gap-12 lg:gap-6 px-4 pr-8 lg:pr-4 w-full lg:justify-between">
+            {featuresList.map((f, i) => (
+              <div key={i} className="flex items-center gap-2 shrink-0">
+                <div className="text-[#8B1A1A] p-1.5 bg-red-50 rounded-lg">{f.svg}</div>
+                <span className="text-[11px] sm:text-xs font-semibold text-gray-700 whitespace-nowrap tracking-tight">
+                  {f.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* Duplicate for mobile marquee infinite effect */}
+          <div className="flex flex-nowrap items-center py-3 gap-8 px-4 pr-8 lg:hidden">
+            {featuresList.map((f, i) => (
+              <div key={`dup-${i}`} className="flex items-center gap-2 shrink-0">
+                <div className="text-[#8B1A1A] p-1.5 bg-red-50 rounded-lg">{f.svg}</div>
+                <span className="text-[11px] font-semibold text-gray-700 whitespace-nowrap tracking-tight">
+                  {f.label}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -234,14 +237,14 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
     if (s.includes("laptop")) return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="12" rx="2" />
         <path d="M2 18h20" />
         <path d="M10 18v2h4v-2" />
       </svg>
     );
     if (s.includes("desktop")) return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="4" y="2" width="16" height="20" rx="2.5" />
         <circle cx="12" cy="7" r="1.5" fill="currentColor" />
         <line x1="8" y1="13" x2="16" y2="13" />
@@ -249,14 +252,14 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
       </svg>
     );
     if (s.includes("part") || s.includes("component") || s.includes("accessor")) return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="5" width="14" height="14" rx="2" />
         <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.2" />
         <path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" />
       </svg>
     );
     if (s.includes("gaming")) return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 12h4m-2-2v4" />
         <circle cx="15" cy="11" r="1" fill="currentColor" />
         <circle cx="17" cy="13" r="1" fill="currentColor" />
@@ -264,7 +267,7 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
       </svg>
     );
     if (s.includes("second") || s.includes("used") || s.includes("hand")) return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
         <path d="M21 3v5h-5" />
         <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
@@ -272,19 +275,19 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
       </svg>
     );
     return (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
       </svg>
     );
   };
 
   const defaultCategories = [
-    { name: t("laptops"), slug: "laptops", color: "from-blue-500 to-indigo-600" },
-    { name: t("desktops"), slug: "desktops", color: "from-[#8B1A1A] to-red-700" },
-    { name: t("parts"), slug: "parts", color: "from-purple-500 to-violet-700" },
-    { name: t("gaming"), slug: "gaming", color: "from-emerald-500 to-teal-700" },
-    { name: t("secondHand"), slug: "secondhand", color: "from-amber-500 to-orange-600", badge: "HOT" },
-    { name: t("services"), slug: "services", color: "from-cyan-500 to-blue-700" },
+    { name: t("laptops"), slug: "laptops", color: "from-blue-500 to-indigo-600", desc: "Laptops & MacBooks" },
+    { name: t("desktops"), slug: "desktops", color: "from-[#8B1A1A] to-red-700", desc: "Custom PCs & Desktops" },
+    { name: t("parts"), slug: "parts", color: "from-purple-500 to-violet-700", desc: "CPUs, GPUs & Storage" },
+    { name: t("gaming"), slug: "gaming", color: "from-emerald-500 to-teal-700", desc: "Gaming Gear & Gear" },
+    { name: t("secondHand"), slug: "secondhand", color: "from-amber-500 to-orange-600", badge: "HOT", desc: "Inspected Pre-Owned" },
+    { name: t("services"), slug: "services", color: "from-cyan-500 to-blue-700", desc: "Repair & Support" },
   ];
 
   // Exclude "smartphones" per user explicit instruction
@@ -293,21 +296,19 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
     return !s.includes("smart") && !s.includes("phone");
   });
 
-  const hasSecondHand = filteredCategories.some((c: any) =>
-    c.slug?.toLowerCase() === "secondhand" || c.name?.toLowerCase().includes("second")
-  );
+  // Always produce EXACTLY 6 categories by merging DB categories with defaultCategories
+  let merged: any[] = [...filteredCategories];
+  if (!merged.some((c) => c.slug?.toLowerCase() === "secondhand")) {
+    merged.push({ name: t("secondHand"), slug: "secondhand", badge: "HOT", desc: "Inspected Pre-Owned" });
+  }
+  for (const def of defaultCategories) {
+    if (merged.length >= 6) break;
+    if (!merged.some((c) => c.slug?.toLowerCase() === def.slug.toLowerCase())) {
+      merged.push(def);
+    }
+  }
+  let displayCategories = merged.slice(0, 6);
 
-  let displayCategories = filteredCategories.length > 0
-    ? (hasSecondHand ? filteredCategories : [
-        ...filteredCategories,
-        { name: t("secondHand"), slug: "secondhand", badge: "HOT" }
-      ])
-    : defaultCategories;
-
-  // Limit to exactly 6 items so it renders as exactly 2 balanced rows on mobile (3 per row)
-  displayCategories = displayCategories.slice(0, 6);
-
-  // Map colors
   const colors = [
     "from-blue-500 to-indigo-600",
     "from-[#8B1A1A] to-red-700",
@@ -322,36 +323,50 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   }));
 
   return (
-    <section className="bg-white pt-4 pb-2">
-      <div className="px-4 flex justify-between items-center mb-3">
-        <h2 className="text-[16px] font-bold text-gray-900">{t("shopByCategory")}</h2>
-        <Link href="/category/all" className="text-[11px] bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors no-underline">
-          View All
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </Link>
-      </div>
+    <section className="bg-white py-6 sm:py-10 border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] animate-pulse" />
+              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] uppercase tracking-wider">Explore Genuine Gear</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+              {t("shopByCategory")}
+            </h2>
+          </div>
+          <Link
+            href="/category/all"
+            className="text-xs sm:text-sm bg-gray-100 hover:bg-[#8B1A1A] text-gray-800 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm"
+          >
+            <span>View All</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
+        </div>
 
-      <div className="px-4 pb-2">
-        {/* Exactly 2 rows on mobile screen (grid-cols-3) and 1 row on desktop (md:grid-cols-6) */}
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-x-2.5 gap-y-4 justify-items-center">
+        {/* Exactly 6 Categories in 1 balanced row on Desktop (lg:grid-cols-6) & 2 rows on Phone (grid-cols-3) */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
           {displayCategories.map((cat) => (
             <Link
               key={cat.slug}
               href={`/category/${cat.slug}`}
-              className="flex flex-col items-center gap-1.5 no-underline group relative w-full"
+              className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 hover:bg-white border border-gray-100 hover:border-red-200 hover:shadow-xl transition-all duration-300 group no-underline relative text-center"
             >
               {cat.badge && (
-                <span className="absolute -top-1 -right-0 px-1.5 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-bold rounded-full z-10 shadow-sm border border-white">
+                <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white uppercase tracking-wider">
                   {cat.badge}
                 </span>
               )}
-              <div className={`w-[52px] h-[52px] sm:w-[56px] sm:h-[56px] rounded-[16px] sm:rounded-[18px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1 duration-200`}>
-                <div className="transition-transform group-hover:scale-110 duration-200">
+              <div className={`w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] rounded-[18px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 mb-2.5`}>
+                <div className="transition-transform group-hover:rotate-6 duration-300">
                   {getIcon(cat.slug)}
                 </div>
               </div>
-              <span className="text-[11px] font-semibold text-gray-800 text-center leading-tight">
+              <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 group-hover:text-[#8B1A1A] transition-colors leading-tight">
                 {cat.name}
+              </span>
+              <span className="text-[10px] text-gray-400 mt-1 hidden lg:block line-clamp-1 font-medium">
+                {cat.desc || "Explore More"}
               </span>
             </Link>
           ))}
@@ -370,11 +385,9 @@ export function ProductCard({ product }: { product: any }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     
-    // Trigger shake animation on button
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 300);
 
-    // Trigger fly animation
     setFlyAnim({ id: Date.now(), x: e.clientX, y: e.clientY });
     setTimeout(() => setFlyAnim(null), 600);
 
@@ -386,7 +399,6 @@ export function ProductCard({ product }: { product: any }) {
       image_url: product.image_url
     });
     
-    // Delay cart opening slightly to let user see the fly animation
     setTimeout(() => {
       useCartStore.getState().setIsOpen(true);
     }, 600);
@@ -395,68 +407,84 @@ export function ProductCard({ product }: { product: any }) {
   return (
     <>
       <motion.div 
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 relative border border-gray-100/80 flex flex-col h-full group cursor-pointer"
+        whileHover={{ y: -4 }}
+        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-gray-100 hover:border-red-200 flex flex-col h-full group"
       >
-        {product.is_featured && (
-          <div className="absolute top-2 left-2 z-10">
-            <span className="bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+        {/* Hot / Featured Badge */}
+        {product.is_featured ? (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md uppercase tracking-wider">
               {t("hot")}
+            </span>
+          </div>
+        ) : (
+          <div className="absolute top-3 left-3 z-10">
+            <span className="bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+              Genuine
             </span>
           </div>
         )}
 
-        <Link href={`/products/${product.slug}`} className="block relative w-full aspect-[4/3] bg-gray-50/50 p-4">
+        {/* Product Image Frame */}
+        <Link href={`/products/${product.slug}`} className="block relative w-full h-[180px] sm:h-[200px] lg:h-[220px] bg-gradient-to-b from-gray-50/80 to-gray-100/40 p-4 sm:p-5 overflow-hidden flex items-center justify-center no-underline">
           {product.image_url ? (
             <img
               src={product.image_url}
               alt={product.name}
-              className="w-full h-full object-contain mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
+              className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-108 transition-transform duration-300 drop-shadow-sm"
+              loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center opacity-10 bg-gray-50 rounded-lg">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+            <div className="w-full h-full flex items-center justify-center text-gray-300">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
             </div>
           )}
         </Link>
 
-        <div className="p-3 pt-3 flex flex-col flex-grow relative bg-white border-t border-gray-50">
+        {/* Card Body */}
+        <div className="p-4 sm:p-5 flex flex-col flex-grow bg-white border-t border-gray-50">
+          <div className="flex items-center justify-between text-[11px] text-gray-400 font-semibold mb-1.5 uppercase tracking-wider">
+            <span className="truncate max-w-[130px]">{product.category?.name || "Genuine Tech"}</span>
+            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">In Stock</span>
+          </div>
+
           <Link href={`/products/${product.slug}`} className="no-underline">
-            <h3 className="text-[14px] font-bold text-gray-900 leading-snug line-clamp-2 min-h-[40px] mb-1 group-hover:text-[#8B1A1A] transition-colors">
+            <h3 className="text-[14px] sm:text-[15px] font-bold text-gray-900 leading-snug line-clamp-2 min-h-[42px] mb-2 group-hover:text-[#8B1A1A] transition-colors">
               {product.name}
             </h3>
           </Link>
 
-          <p className="text-[11px] text-gray-500 mb-2.5 truncate font-medium flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
-            {product.category?.name || "Uncategorized"}
-          </p>
-
-          <div className="mt-auto flex items-end justify-between mb-3">
-            <div className="flex flex-col gap-0.5">
-              <div className="text-[16px] font-black text-[#e02e24] leading-none drop-shadow-sm">{formatUSD(product.price)}</div>
-              <div className="text-[12px] text-gray-400 font-bold leading-none">{formatKHR(product.price)}</div>
+          {/* Pricing Row */}
+          <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mb-3">
+            <div>
+              <div className="text-[17px] sm:text-[19px] font-black text-[#8B1A1A] leading-none drop-shadow-sm">
+                {formatUSD(product.price)}
+              </div>
+              <div className="text-[11px] text-gray-400 font-semibold mt-1">
+                {formatKHR(product.price)}
+              </div>
             </div>
-            
+
+            {/* Quick Add Button */}
             <motion.button
-              animate={isShaking ? { x: [0, -5, 5, -5, 5, 0], scale: [1, 1.1, 1] } : {}}
-              transition={{ duration: 0.4 }}
-              whileTap={{ scale: 0.8 }}
-              className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white hover:shadow-lg flex items-center justify-center transition-all shadow-md z-10"
+              animate={isShaking ? { x: [0, -4, 4, -4, 4, 0] } : {}}
+              whileTap={{ scale: 0.9 }}
+              whileHover={{ scale: 1.05 }}
               onClick={handleAddToCart}
+              className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-xs font-bold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer border-none"
               aria-label={t("addToCart")}
             >
-              <ShoppingCart size={18} className="ml-[-1px]" strokeWidth={2.5} />
+              <ShoppingCart size={15} strokeWidth={2.2} />
+              <span className="hidden sm:inline">Add</span>
             </motion.button>
           </div>
-          
+
           {/* Preview Details Button */}
           <Link 
             href={`/products/${product.slug}`}
-            className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-[#1a4fa0] text-[11px] font-bold rounded-xl text-center transition-colors border border-gray-100"
+            className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-[#1a4fa0] text-[11px] font-bold rounded-xl text-center transition-colors border border-gray-200/60 no-underline"
           >
-            Preview Details
+            Preview Details &rarr;
           </Link>
         </div>
       </motion.div>
@@ -511,17 +539,29 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
   }, [initialProducts]);
 
   return (
-    <section className="bg-[#f5f5f5] py-5">
-      <div className="px-4 flex justify-between items-center mb-4">
-        <h2 className="text-[18px] font-extrabold text-gray-900 tracking-tight">{t("bestSellers")}</h2>
-        <Link href="/category/all" className="text-[11px] bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors no-underline">
-          {t("viewAll")} 
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-        </Link>
-      </div>
+    <section className="bg-[#f8f9fa] py-8 sm:py-12 border-b border-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A]" />
+              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] uppercase tracking-wider">Top Recommended</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+              {t("bestSellers")}
+            </h2>
+          </div>
+          <Link
+            href="/category/all"
+            className="text-xs sm:text-sm bg-white hover:bg-[#8B1A1A] text-gray-800 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm border border-gray-200"
+          >
+            <span>{t("viewAll")}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+          </Link>
+        </div>
 
-      <div className="px-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+        {/* Clean 4 columns on desktop, 3 on tablet, 2 on mobile */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -543,26 +583,43 @@ export function PromoCTA() {
   if (user !== null) return null;
 
   return (
-    <section className="bg-white px-4 py-8">
-      <div className="max-w-md mx-auto bg-gradient-to-br from-[#8B1A1A] via-[#a32222] to-[#c0392b] rounded-[24px] p-6 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden border border-[#8B1A1A]/20">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-black/10 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 text-white mb-4 backdrop-blur-md shadow-sm relative z-10 border border-white/20">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        </div>
-        <h2 className="text-white text-[18px] font-bold mb-2 relative z-10">Join S Tech VIP</h2>
-        <p className="text-white/80 text-[13px] leading-relaxed mb-6 relative z-10 max-w-[240px]">
-          Exclusive deals, order tracking, and more in Cambodia!
-        </p>
-        
-        <div className="flex w-full gap-3 relative z-10">
-          <Link href="/register" className="flex-1 bg-white text-[#8B1A1A] text-[14px] font-bold py-3 px-6 rounded-full shadow-md hover:scale-105 transition-transform text-center flex items-center justify-center">
-            {tNav('register')}
-          </Link>
-          <Link href="/login" className="flex-1 bg-white/20 text-white border border-white/30 text-[14px] font-bold py-3 px-6 rounded-full text-center backdrop-blur-md hover:bg-white/30 transition-colors flex items-center justify-center">
-            {tNav('signIn')}
-          </Link>
+    <section className="bg-white py-10 sm:py-14">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-gradient-to-r from-[#8B1A1A] via-[#a32222] to-[#1a4fa0] rounded-3xl p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden text-white border border-[#8B1A1A]/30">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-black/20 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex flex-col sm:flex-row items-center sm:items-start md:items-center gap-5 text-center sm:text-left z-10 max-w-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20 shadow-md">
+              <Sparkles size={32} className="text-amber-300" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+                👑 Member Privilege
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight m-0">
+                Join S Tech VIP Club
+              </h2>
+              <p className="text-white/85 text-sm sm:text-base mt-2 leading-relaxed">
+                Enjoy exclusive member pricing, priority official warranty, order tracking, and genuine tech support across Cambodia.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto z-10 shrink-0">
+            <Link
+              href="/register"
+              className="w-full sm:w-auto bg-white hover:bg-gray-100 text-[#8B1A1A] text-sm sm:text-base font-bold py-3.5 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-center no-underline hover:scale-105"
+            >
+              {tNav('register')} Free
+            </Link>
+            <Link
+              href="/login"
+              className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border border-white/30 text-sm sm:text-base font-bold py-3.5 px-6 rounded-xl backdrop-blur-md transition-all text-center no-underline"
+            >
+              {tNav('signIn')}
+            </Link>
+          </div>
         </div>
       </div>
     </section>
