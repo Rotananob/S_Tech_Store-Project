@@ -4,8 +4,9 @@ import { HeroSection, FeatureStrip, CategorySection, BestSellers, PromoCTA } fro
 
 import { Metadata } from "next";
 
-// Revalidate this page at most once every 60 seconds
-export const revalidate = 60;
+// Force dynamic rendering on production so new/updated products show immediately
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Props = {
   params: Promise<{ locale: string }>;

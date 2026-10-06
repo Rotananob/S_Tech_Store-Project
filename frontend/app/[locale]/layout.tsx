@@ -61,6 +61,8 @@ export const metadata: Metadata = {
     title: 'S Tech Store',
   },
   icons: {
+    icon: '/logo.jpg',
+    shortcut: '/logo.jpg',
     apple: '/icons/icon-192.png',
   },
 };
@@ -80,6 +82,9 @@ export default async function RootLayout({
       <head>
         <meta name="theme-color" content="#8B1A1A" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <link rel="icon" href="/logo.jpg" />
+        <link rel="shortcut icon" href="/logo.jpg" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

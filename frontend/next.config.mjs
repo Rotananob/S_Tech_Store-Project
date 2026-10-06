@@ -24,13 +24,22 @@ const nextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
-  allowedDevOrigins: ['172.20.10.2', 'precious-treo-innovative-warrant.trycloudflare.com'],
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8000';
+    let backendUrl =
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.API_URL ||
+      'http://127.0.0.1:8000';
+
+    // Strip trailing /api or slash to prevent double /api
+    backendUrl = backendUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+
     return [
       {
         source: '/api/:path*',
-        destination: `${backendUrl.replace(/\/$/, '')}/api/:path*`
+        destination: `${backendUrl}/api/:path*`
       }
     ];
   },

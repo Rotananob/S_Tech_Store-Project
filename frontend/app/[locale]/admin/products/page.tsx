@@ -46,7 +46,8 @@ export default function AdminProductsPage() {
     try {
       setLoading(true);
       const res = await api.get('/products');
-      setProducts(res.data);
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+      setProducts(list);
     } catch (e) {
       showToast("Failed to fetch products", "error");
     } finally {

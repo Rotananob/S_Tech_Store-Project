@@ -179,8 +179,8 @@ export default function BuildPCPage() {
     import("@/lib/services/product.service").then(async ({ getProducts }) => {
       try {
         const res = await getProducts();
-        const items = Array.isArray(res) ? res : res.data;
-        if (!items) return;
+        const items = Array.isArray(res) ? res : (res as any)?.data || [];
+        if (!items || items.length === 0) return;
 
         const parsed = items.map((p: any) => {
           const specs = p.description || "";

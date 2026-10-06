@@ -41,13 +41,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f0f0f] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-6 flex items-center justify-between lg:block">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight m-0">S Tech Store</h2>
-            <p className="text-xs text-gray-400 mt-1">Admin Dashboard</p>
-          </div>
-          <button className="lg:hidden text-white" onClick={() => setSidebarOpen(false)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+          <Link href="/admin" className="flex items-center gap-3 no-underline text-white group">
+            <img 
+              src="/logo.jpg" 
+              alt="S Tech Store Logo" 
+              className="w-10 h-10 rounded-xl object-contain shadow-md bg-white p-0.5 border border-white/20" 
+            />
+            <div>
+              <h2 className="text-lg font-bold tracking-tight m-0 leading-tight">S Tech Store</h2>
+              <p className="text-[11px] text-gray-400 m-0 mt-0.5">Admin Dashboard</p>
+            </div>
+          </Link>
+          <button className="lg:hidden text-white hover:text-gray-300 p-1 rounded-md" onClick={() => setSidebarOpen(false)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
 
@@ -79,11 +86,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Top Header */}
         <header className="h-16 bg-white border-b-2 border-[#8B1A1A] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
           
-          <div className="flex items-center gap-4">
-            <button className="lg:hidden text-gray-700" onClick={() => setSidebarOpen(true)}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          <div className="flex items-center gap-3">
+            <button className="lg:hidden text-gray-700 p-1.5 rounded-lg hover:bg-gray-100" onClick={() => setSidebarOpen(true)}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </button>
-            <h2 className="hidden sm:block text-lg font-bold text-gray-900 m-0">S Tech Store Admin</h2>
+            <Link href="/admin" className="flex items-center gap-2.5 no-underline">
+              <img 
+                src="/logo.jpg" 
+                alt="S Tech Store" 
+                className="w-8 h-8 rounded-lg object-contain shadow-sm border border-gray-200" 
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+                  S <span className="text-[#8B1A1A]">Tech</span> Store
+                </span>
+                <span className="text-[10px] font-bold bg-[#8B1A1A] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Admin
+                </span>
+              </div>
+            </Link>
           </div>
 
           <div className="flex items-center gap-4 lg:gap-6">

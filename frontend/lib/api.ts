@@ -1,7 +1,26 @@
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+function getApiBaseUrl(): string {
+  let envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl) {
+    // If running in production browser, avoid localhost/127.0.0.1 leaks
+    if (typeof window !== "undefined" && !window.location.hostname.includes("localhost") && (envUrl.includes("127.0.0.1") || envUrl.includes("localhost:8000"))) {
+      return "/api";
+    }
+    if (envUrl.startsWith("http") && !envUrl.endsWith("/api")) {
+      envUrl = `${envUrl.replace(/\/$/, "")}/api`;
+    }
+    return envUrl;
+  }
+  if (typeof window !== "undefined") {
+    return "/api";
+  }
+  const backend = process.env.BACKEND_URL || process.env.INTERNAL_API_URL || "http://127.0.0.1:8000/api";
+  return backend.endsWith("/api") ? backend : `${backend.replace(/\/$/, "")}/api`;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
