@@ -2,14 +2,14 @@ import { Category, Product, ApiResponse } from "@/types";
 import { mockCategories, mockProducts } from "@/lib/mock-data";
 
 // Pre-normalize fallback catalog so both .image and .image_url are guaranteed
-const fallbackProducts: Product[] = mockProducts.map((p) => ({
+const fallbackProducts: Product[] = (mockProducts as any[]).map((p) => ({
   ...p,
   id: Number(p.id),
-  image_url: (p as any).image_url || p.image,
-  image: p.image || (p as any).image_url,
+  image_url: p.image_url || p.image,
+  image: p.image || p.image_url,
   in_stock: true,
   category: typeof p.category === "string" ? { id: 1, name: p.category, slug: p.category.toLowerCase() } : p.category,
-}));
+})) as Product[];
 
 const fallbackCategories: Category[] = mockCategories.map((c) => ({
   id: Number(c.id),

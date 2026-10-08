@@ -38,7 +38,7 @@ export interface Product {
   image?: string;
   image_url?: string;
   images?: ProductImage[] | string[];
-  specs?: ProductSpec[];
+  specs?: ProductSpec[] | any;
   is_featured?: boolean;
   in_stock?: boolean;
   status?: "active" | "inactive" | "out_of_stock";
