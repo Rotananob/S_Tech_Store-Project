@@ -1,6 +1,7 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
+import PWAUpdatePrompt from "@/components/ui/PWAUpdatePrompt";
 
 export default function ShopLayout({
   children,
@@ -15,6 +16,7 @@ export default function ShopLayout({
         <Footer />
       </div>
       <BottomNav />
+      <PWAUpdatePrompt />
     </div>
   );
 }

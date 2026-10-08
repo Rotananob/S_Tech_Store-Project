@@ -1,0 +1,12 @@
+{
+  "version": "2.4.2",
+  "build": "20261009.01",
+  "releaseName": "S Tech Store - Performance & Visual Lens Update",
+  "buildTime": "2026-10-09T03:55:00Z",
+  "changelog": [
+    "Added Taobao-style visual camera product scanner",
+    "Optimized Edge ISR caching for instant ~50ms page loads",
+    "Enhanced VIP Profile settings & hardware warranty hub",
+    "PWA real-time update alerts with instant reload"
+  ]
+}

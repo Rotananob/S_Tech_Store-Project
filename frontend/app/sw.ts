@@ -21,3 +21,10 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Listen for client skip waiting message
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
