@@ -4,9 +4,8 @@ import { HeroSection, FeatureStrip, CategorySection, BestSellers, PromoCTA } fro
 
 import { Metadata } from "next";
 
-// Force dynamic rendering on production so new/updated products show immediately
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// ISR revalidation every 15s for instant page loading and fresh data updates
+export const revalidate = 15;
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -51,7 +50,7 @@ export default async function HomePage() {
       <HeroSection />
       <FeatureStrip />
       <CategorySection categories={categories} />
-      <BestSellers products={[...products].reverse().slice(0, 8)} />
+      <BestSellers products={products.slice(0, 8)} />
       <PromoCTA />
     </div>
   );

@@ -26,6 +26,15 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { addItem: addWishlist, removeItem: removeWishlist, isInWishlist } = useWishlistStore();
   const isWishlisted = isInWishlist(Number(product.id));
 
+  const productImg =
+    product.image_url ||
+    product.image ||
+    (Array.isArray(product.images) && product.images[0]
+      ? typeof product.images[0] === "string"
+        ? product.images[0]
+        : (product.images[0] as any).image_url
+      : "");
+
   const toggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isWishlisted) {
@@ -35,7 +44,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         id: Number(product.id),
         name: product.name,
         price: product.sale_price ?? product.price,
-        image: product.image,
+        image: productImg,
         slug: product.slug,
       });
     }
@@ -47,7 +56,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       name: product.name,
       price: product.sale_price ?? product.price,
       quantity: 1,
-      image_url: product.image
+      image_url: productImg,
     });
     // Open slide-over cart instead of alert
     useCartStore.getState().setIsOpen(true);
@@ -87,11 +96,12 @@ export default function ProductCard({ product }: ProductCardProps) {
         }}
       >
         {/* Product Image */}
-        {product.image ? (
+        {productImg ? (
           <Image
-            src={product.image}
+            src={productImg}
             alt={product.name}
             fill
+            unoptimized
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover"
             style={{

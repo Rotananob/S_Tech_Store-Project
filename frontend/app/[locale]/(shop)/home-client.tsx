@@ -427,9 +427,9 @@ export function ProductCard({ product }: { product: any }) {
 
         {/* Product Image Frame */}
         <Link href={`/products/${product.slug}`} className="block relative w-full h-[180px] sm:h-[200px] lg:h-[220px] bg-gradient-to-b from-gray-50/80 to-gray-100/40 p-4 sm:p-5 overflow-hidden flex items-center justify-center no-underline">
-          {product.image_url ? (
+          {(product.image_url || product.image) ? (
             <img
-              src={product.image_url}
+              src={product.image_url || product.image}
               alt={product.name}
               className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-108 transition-transform duration-300 drop-shadow-sm"
               loading="lazy"
@@ -525,7 +525,7 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
         .then((res) => {
           const list = Array.isArray(res) ? res : (res?.data || []);
           if (list && list.length > 0) {
-            setProducts([...list].reverse().slice(0, 8));
+            setProducts(list.slice(0, 8));
           }
         })
         .catch((err) => console.error("Client fetch products error:", err));

@@ -1,13 +1,15 @@
 'use client';
 
 import { Link, usePathname } from '@/i18n/routing';
-import { Home, Layers, ScanSearch, ShoppingCart, User } from 'lucide-react';
+import { Home, Layers, Camera, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { useVisualSearchStore } from '@/store/visualSearchStore';
 import { motion } from 'framer-motion';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const cartCount = useCartStore((s) => s.getTotalItems());
+  const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -23,7 +25,7 @@ export default function BottomNav() {
   const tabs = [
     { label: 'Home', path: '/', icon: Home },
     { label: 'Category', path: '/category/all', icon: Layers },
-    { label: 'Scan', path: '/search', icon: ScanSearch, isCenter: true },
+    { label: 'Camera', path: '/scan', icon: Camera, isCenter: true },
     { label: 'Cart', path: '/cart', icon: ShoppingCart, badge: cartCount },
     { label: 'Account', path: '/account/profile', icon: User },
   ];
@@ -38,13 +40,15 @@ export default function BottomNav() {
           const Icon = tab.icon;
           const active = isActive(tab.path);
 
-          // Center Search button - elevated FAB style
+          // Center Camera Search button - elevated Taobao FAB style
           if (tab.isCenter) {
             return (
-              <Link
+              <button
                 key={tab.path}
-                href={tab.path as any}
-                className="relative flex flex-col items-center justify-end h-full w-[20%] pb-[6px] no-underline touch-manipulation group"
+                type="button"
+                onClick={openVisualSearch}
+                className="relative flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                aria-label="Scan products with Camera (Taobao Style)"
               >
                 <div className="absolute -top-[20px] left-1/2 -translate-x-1/2 z-10">
                   <motion.div
@@ -59,13 +63,11 @@ export default function BottomNav() {
                   </motion.div>
                 </div>
                 <span
-                  className={`text-[10px] font-medium transition-colors ${
-                    active ? 'text-[#8B1A1A]' : 'text-gray-500 group-hover:text-gray-700'
-                  }`}
+                  className="text-[10px] font-bold transition-colors text-[#8B1A1A]"
                 >
                   {tab.label}
                 </span>
-              </Link>
+              </button>
             );
           }
 

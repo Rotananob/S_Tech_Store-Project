@@ -17,11 +17,13 @@ import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
-import { translations } from "@/lib/translations";
 import { AnimatePresence, motion } from "framer-motion";
 import SlideOverCart from "@/components/cart/SlideOverCart";
+import { useVisualSearchStore } from "@/store/visualSearchStore";
+import VisualSearchModal from "@/components/search/VisualSearchModal";
 
 export default function Navbar() {
+  const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
   const [search, setSearch] = useState("");
   const [langOpen, setLangOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -167,21 +169,33 @@ export default function Navbar() {
 
           {/* Desktop Search Bar (Visible on lg and larger) */}
           <div className="hidden lg:flex flex-1 max-w-xl mx-4">
-            <form onSubmit={handleSearch} className="relative w-full">
+            <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
-                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-12 pr-12 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-11 pr-20 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
                 placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <button
-                type="submit"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
-              >
-                <Search size={13} />
-              </button>
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={openVisualSearch}
+                  title="Taobao Visual Camera Search / ស្កេនរូបភាព"
+                  className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-[#8B1A1A] flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 shadow-sm"
+                  aria-label="Scan image with Camera"
+                >
+                  <Camera size={13} strokeWidth={2.2} />
+                </button>
+                <button
+                  type="submit"
+                  className="w-7 h-7 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
+                  aria-label="Search"
+                >
+                  <Search size={13} />
+                </button>
+              </div>
             </form>
           </div>
 
@@ -376,27 +390,43 @@ export default function Navbar() {
       </header>
 
       {/* ── 4. Persistent Mobile Search Bar (Below Header on < lg) ── */}
-      <div className="lg:hidden sticky top-[56px] z-30 bg-white px-4 py-2 border-b border-gray-100 shadow-sm">
-        <form onSubmit={handleSearch} className="relative w-full">
+      <div className="lg:hidden sticky top-[56px] z-30 bg-white px-3 sm:px-4 py-2 border-b border-gray-100 shadow-sm">
+        <form onSubmit={handleSearch} className="relative w-full flex items-center">
           <input
             type="search"
-            className="w-full bg-gray-100 border-none rounded-full pl-12 pr-10 h-[42px] leading-normal text-[14px] outline-none focus:ring-1 focus:ring-[#8B1A1A] transition-all"
+            className="w-full bg-gray-100 border border-gray-200/80 rounded-full pl-11 pr-20 h-[42px] leading-normal text-[14px] outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] focus:bg-white transition-all shadow-inner"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <button
-            type="submit"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
-            aria-label="Search"
-          >
-            <Search size={14} />
-          </button>
+          
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {/* Taobao-style Camera Scanner Button */}
+            <button
+              type="button"
+              onClick={openVisualSearch}
+              title="Scan by Camera (Taobao Style) / ស្កេនកាមេរ៉ា"
+              className="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-[#8B1A1A] flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 shadow-sm"
+              aria-label="Scan image with Camera like Taobao"
+            >
+              <Camera size={16} strokeWidth={2.2} />
+            </button>
+
+            {/* Search Submit Button */}
+            <button
+              type="submit"
+              className="w-8 h-8 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none shadow-sm"
+              aria-label="Search"
+            >
+              <Search size={14} />
+            </button>
+          </div>
         </form>
       </div>
 
       <SlideOverCart />
+      <VisualSearchModal />
     </>
   );
 }
