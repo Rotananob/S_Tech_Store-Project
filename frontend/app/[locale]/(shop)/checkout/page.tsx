@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { useCartStore } from "@/store/cartStore";
-import { createOrder } from "@/lib/services/order.service";
+import { 
+  createOrder, 
+  createPaymentSession, 
+  processCardPayment, 
+  checkPaymentStatus, 
+  confirmManualPayment 
+} from "@/lib/services/order.service";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, ExternalLink, X, Smartphone, ArrowRight } from "lucide-react";
+import { 
+  Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, 
+  ExternalLink, X, Smartphone, ArrowRight, CreditCard, 
+  Clock, Check, RefreshCw, AlertCircle, Sparkles
+} from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import api from "@/lib/api";
@@ -15,24 +25,13 @@ const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtKHR = (n: number) => `~ ${(Math.round(Number(n || 0) * USD_TO_KHR / 1000) * 1000).toLocaleString()} KHR`;
 
-// ─── Payment options ───────────────────────────────────────────────────────────
+// ─── Payment Methods ────────────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
   {
-    id: "aba",
-    label: "ABA PAY (KHQR)",
-    sub: "Scan with ABA Mobile or any banking app",
-    badge: "Instant",
-    icon: (
-      <div className="w-8 h-8 rounded-lg bg-[#004B87] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter">
-        ABA
-      </div>
-    ),
-  },
-  {
     id: "bakong",
-    label: "Bakong KHQR",
-    sub: "Supports 36+ Cambodian banks",
-    badge: "Universal",
+    label: "Bakong KHQR • All Banks",
+    sub: "Scan with ABA, Wing, ACLEDA, or any 36+ Cambodian banks",
+    badge: "Universal QR",
     icon: (
       <div className="w-8 h-8 rounded-lg bg-[#E1251B] flex items-center justify-center text-white font-black text-[10px] shadow-sm tracking-tighter">
         KHQR
@@ -40,9 +39,31 @@ const PAYMENT_METHODS = [
     ),
   },
   {
+    id: "aba",
+    label: "ABA PAY • Direct Deeplink",
+    sub: "Scan QR or launch ABA Mobile directly on your phone",
+    badge: "Direct Deeplink",
+    icon: (
+      <div className="w-8 h-8 rounded-lg bg-[#004B87] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter">
+        ABA
+      </div>
+    ),
+  },
+  {
+    id: "visa",
+    label: "Visa & Mastercard • Credit/Debit",
+    sub: "Pay securely with international or local bank card",
+    badge: "Card Gateway",
+    icon: (
+      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-700 to-indigo-900 flex items-center justify-center text-white shadow-sm">
+        <CreditCard size={17} />
+      </div>
+    ),
+  },
+  {
     id: "cod",
-    label: "Cash on Delivery",
-    sub: "Pay in cash upon arrival",
+    label: "Cash on Delivery • ទូទាត់ពេលទំនិញដល់",
+    sub: "Pay in cash upon doorstep delivery by courier",
     badge: "Doorstep",
     icon: (
       <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-black text-xs shadow-sm">
@@ -103,29 +124,63 @@ export default function CheckoutPage() {
   const t = useTranslations("Checkout");
   const router = useRouter();
   const { items, fetchCart, clearCart } = useCartStore();
+
   const [delivery, setDelivery] = useState<"pnompenh" | "province">("pnompenh");
-  const [payment, setPayment] = useState("aba");
+  const [payment, setPayment] = useState("bakong");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [step, setStep] = useState(2);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("Processing Order...");
   const [orderId, setOrderId] = useState("");
+  const [transactionId, setTransactionId] = useState("");
+
+  // Card payment form state
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardError, setCardError] = useState("");
+
+  // KHQR Payment Session State
   const [showKHQRModal, setShowKHQRModal] = useState(false);
+  const [khqrSession, setKhqrSession] = useState<{
+    order_id: string;
+    khqr_string: string;
+    qr_image_url: string;
+    deeplinks: {
+      bakong?: string;
+      aba?: string;
+      wing?: string;
+      acleda?: string;
+    };
+    amount_usd: number;
+    amount_khr: number;
+  } | null>(null);
+  const [pollStatus, setPollStatus] = useState<"checking" | "paid" | "idle">("idle");
+  const [timeLeft, setTimeLeft] = useState(900); // 15 mins
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto pre-fill from user authentication & cloud profile
   useEffect(() => {
     fetchCart();
     const unsub = onAuthStateChanged(auth, (user) => {
-      if (!user) {
+      const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
+      if (!user && !sessionStr) {
         router.push("/login?redirect=/checkout");
       } else {
-        setName((prev) => prev || user.displayName || "");
+        const u = user || (sessionStr ? JSON.parse(sessionStr) : null);
+        setName((prev) => prev || u?.displayName || u?.display_name || "");
+        if (u?.email) {
+          setCardHolder((prev) => prev || (u.displayName || u.display_name || "").toUpperCase());
+        }
         api.get("/user/profile").then((res) => {
-          if (res.data?.success && res.data.profile) {
+          if (res.data?.profile) {
             const p = res.data.profile;
-            if (p.full_name) setName(p.full_name);
+            if (p.display_name) setName(p.display_name);
             if (p.phone) setPhone(p.phone);
             if (p.address) setAddress(p.address);
           }
@@ -135,20 +190,55 @@ export default function CheckoutPage() {
     return () => unsub();
   }, [fetchCart, router]);
 
+  // Clean up polling & timers
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
   const deliveryFee = delivery === "pnompenh" ? 2 : 3;
   const subtotal = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
   const total = subtotal + deliveryFee;
 
-  // Real KHQR Data payload string for Cambodia standard QR
-  const khqrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=KHQR:STECH:MERCHANT:${total.toFixed(2)}USD:INV${Date.now()}`;
+  // Format card number with spaces every 4 digits
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+    const formatted = raw.replace(/(\d{4})/g, "$1 ").trim();
+    setCardNumber(formatted);
+    setCardError("");
+  };
 
-  const handlePlaceOrderClick = () => {
-    if (!auth.currentUser) {
+  // Format expiry MM/YY
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+    if (raw.length >= 3) {
+      raw = raw.slice(0, 2) + "/" + raw.slice(2);
+    }
+    setCardExpiry(raw);
+    setCardError("");
+  };
+
+  // Detect card brand
+  const getCardBrand = (num: string) => {
+    const clean = num.replace(/\s/g, "");
+    if (/^4/.test(clean)) return "Visa";
+    if (/^(5[1-5]|2[2-7])/.test(clean)) return "Mastercard";
+    if (/^3[47]/.test(clean)) return "Amex";
+    if (/^35/.test(clean)) return "JCB";
+    return "Card";
+  };
+
+  // ─── Initiate Order Placement ────────────────────────────────────────────────
+  const handlePlaceOrderClick = async () => {
+    const hasAuth = auth.currentUser || (typeof window !== "undefined" && localStorage.getItem("stech_user_session"));
+    if (!hasAuth) {
       router.push("/login?redirect=/checkout");
       return;
     }
     if (!name.trim() || !phone.trim() || !address.trim()) {
-      alert("Please fill in your recipient Name, Phone number, and Delivery Address.");
+      alert("សូមបំពេញ ឈ្មោះ, លេខទូរស័ព្ទ និង អាសយដ្ឋានដឹកជញ្ជូន ឱ្យបានពេញលេញ (Please fill recipient details)");
       return;
     }
     if (items.length === 0) {
@@ -156,17 +246,40 @@ export default function CheckoutPage() {
       return;
     }
 
-    // If digital KHQR / ABA payment is selected, show KHQR modal for scan confirmation
-    if (payment === "aba" || payment === "bakong") {
-      setShowKHQRModal(true);
-    } else {
-      executeOrderCreation();
+    // ── Handle Visa/Mastercard Flow ──
+    if (payment === "visa") {
+      const cleanNum = cardNumber.replace(/\s/g, "");
+      if (cleanNum.length < 15) {
+        setCardError("សូមបញ្ចូលលេខកាត ១៦ ខ្ទង់ឱ្យបានត្រឹមត្រូវ (Invalid card number)");
+        return;
+      }
+      if (!cardExpiry.includes("/") || cardExpiry.length < 5) {
+        setCardError("សូមបញ្ចូលថ្ងៃផុតកំណត់ MM/YY (Invalid expiry date)");
+        return;
+      }
+      if (cardCvv.length < 3) {
+        setCardError("សូមបញ្ចូលលេខកូដសម្ងាត់ CVV ៣ ឬ ៤ ខ្ទង់ (Invalid CVV)");
+        return;
+      }
+
+      await executeCardOrder();
+      return;
     }
+
+    // ── Handle KHQR / ABA Flow ──
+    if (payment === "aba" || payment === "bakong") {
+      await executeKHQROrder();
+      return;
+    }
+
+    // ── Handle COD ──
+    await executeStandardOrder();
   };
 
-  const executeOrderCreation = async () => {
+  // ─── Execute Standard COD Order ──────────────────────────────────────────────
+  const executeStandardOrder = async () => {
     setLoading(true);
-    setShowKHQRModal(false);
+    setLoadingMsg("កំពុងបញ្ជូនការបញ្ជាទិញ... (Recording Order)");
 
     const payload = {
       delivery_type: delivery,
@@ -185,32 +298,193 @@ export default function CheckoutPage() {
     };
 
     const res = await createOrder(payload);
-
-    await new Promise((resolve) => setTimeout(resolve, 1500));
     setLoading(false);
 
     if (res.success) {
-      await clearCart();
-
-      // Dispatch local notification
-      try {
-        const { useNotificationStore } = await import("@/store/notificationStore");
-        await api.post("/user/notifications", {
-          title: "Order Placed Successfully! 📦",
-          message: `Your order #${res.data?.order?.order_id || ""} for $${total.toFixed(2)} has been recorded. Our team will contact ${phone} shortly.`,
-          type: "order",
-        });
-        useNotificationStore.getState().fetchNotifications();
-      } catch (e) {
-        console.error("Failed to push notification", e);
-      }
-
-      setOrderId(res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`);
-      setConfirmed(true);
-      setStep(3);
+      const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+      setOrderId(newOrderId);
+      await finishSuccessfulOrder(newOrderId, "COD_DOORSTEP");
     } else {
       alert(res.error || t("alertFailed"));
     }
+  };
+
+  // ─── Execute Visa/Mastercard Order ───────────────────────────────────────────
+  const executeCardOrder = async () => {
+    setLoading(true);
+    setLoadingMsg("កំពុងទូទាត់ជាមួយ Visa/Mastercard Gateway (Processing Card)...");
+
+    const payload = {
+      delivery_type: delivery,
+      payment_method: "visa",
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      items: items.map((item) => ({
+        product_id: item.product?.id || (item as any).product_id || item.id,
+        quantity: item.quantity,
+        price: Number(item.product?.sale_price ?? item.product?.price ?? item.price ?? 0),
+      })),
+      subtotal: Number(subtotal),
+      delivery_fee: Number(deliveryFee),
+      total_amount: Number(total),
+    };
+
+    const res = await createOrder(payload);
+    if (!res.success) {
+      setLoading(false);
+      alert(res.error || "បរាជ័យក្នុងការបង្កើតការបញ្ជាទិញ");
+      return;
+    }
+
+    const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+    setOrderId(newOrderId);
+
+    // Call real card processing API
+    const [expMonth, expYear] = cardExpiry.split("/");
+    const cardRes = await processCardPayment(newOrderId, {
+      number: cardNumber.replace(/\s/g, ""),
+      exp_month: expMonth,
+      exp_year: expYear,
+      cvv: cardCvv,
+      name: cardHolder.trim() || name.trim(),
+    });
+
+    setLoading(false);
+
+    if (cardRes.success) {
+      const txn = cardRes.data?.transaction_id || `TXN_${Date.now()}`;
+      setTransactionId(txn);
+      await finishSuccessfulOrder(newOrderId, txn);
+    } else {
+      setCardError(cardRes.error || "ការទូទាត់ត្រូវបានបដិសេធ សូមពិនិត្យកាតឡើងវិញ");
+    }
+  };
+
+  // ─── Execute Dynamic KHQR / ABA Order ────────────────────────────────────────
+  const executeKHQROrder = async () => {
+    setLoading(true);
+    setLoadingMsg("កំពុងបង្កើត Dynamic KHQR និង Deeplink... (Generating KHQR Session)");
+
+    const payload = {
+      delivery_type: delivery,
+      payment_method: payment,
+      name: name.trim(),
+      phone: phone.trim(),
+      address: address.trim(),
+      items: items.map((item) => ({
+        product_id: item.product?.id || (item as any).product_id || item.id,
+        quantity: item.quantity,
+        price: Number(item.product?.sale_price ?? item.product?.price ?? item.price ?? 0),
+      })),
+      subtotal: Number(subtotal),
+      delivery_fee: Number(deliveryFee),
+      total_amount: Number(total),
+    };
+
+    const res = await createOrder(payload);
+    if (!res.success) {
+      setLoading(false);
+      alert(res.error || "បរាជ័យក្នុងការបង្កើត Order");
+      return;
+    }
+
+    const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+    setOrderId(newOrderId);
+
+    // Call payment session API to generate dynamic EMVCo KHQR & Deeplinks
+    const sessionRes = await createPaymentSession(newOrderId, payment, "USD");
+    setLoading(false);
+
+    if (sessionRes.success && sessionRes.data) {
+      setKhqrSession(sessionRes.data);
+      setShowKHQRModal(true);
+      setTimeLeft(900); // 15 mins
+      startPaymentPolling(newOrderId);
+    } else {
+      alert(sessionRes.error || "បរាជ័យក្នុងការបង្កើត KHQR Code");
+    }
+  };
+
+  // ─── Start Real-time Bank Settlement Polling ──────────────────────────────────
+  const startPaymentPolling = (targetOrderId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    setPollStatus("checking");
+
+    // 15-minute countdown
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Poll every 3 seconds
+    pollingRef.current = setInterval(async () => {
+      const statusRes = await checkPaymentStatus(targetOrderId);
+      if (statusRes.success && statusRes.data?.paid) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        if (timerRef.current) clearInterval(timerRef.current);
+
+        setPollStatus("paid");
+        setTransactionId(statusRes.data.transaction_id || `TXN_${Date.now()}`);
+
+        setTimeout(async () => {
+          setShowKHQRModal(false);
+          await finishSuccessfulOrder(targetOrderId, statusRes.data.transaction_id || "BKG_VERIFIED");
+        }, 1200);
+      }
+    }, 3000);
+  };
+
+  // ─── Customer Manual Confirmation Handler ────────────────────────────────────
+  const handleManualConfirmPayment = async () => {
+    if (!orderId) return;
+    setLoading(true);
+    setLoadingMsg("កំពុងផ្ទៀងផ្ទាត់ប្រតិបត្តិការ... (Verifying Transaction)");
+
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const res = await confirmManualPayment(orderId, payment);
+    setLoading(false);
+    setShowKHQRModal(false);
+
+    if (res.success) {
+      const txn = res.data?.transaction_id || `TXN_CONFIRMED`;
+      setTransactionId(txn);
+      await finishSuccessfulOrder(orderId, txn);
+    } else {
+      alert("បរាជ័យក្នុងការផ្ទៀងផ្ទាត់ សូមទាក់ទងមកកាន់ហាង");
+    }
+  };
+
+  // ─── Finish Order & Show Done Screen ─────────────────────────────────────────
+  const finishSuccessfulOrder = async (finalOrderId: string, txn: string) => {
+    await clearCart();
+
+    try {
+      await api.post("/user/notifications", {
+        title: "Order Placed Successfully! 📦",
+        message: `Order #${finalOrderId} ចំនួន $${total.toFixed(2)} ត្រូវបានទទួលជោគជ័យ។ ក្រុមការងារនឹងទាក់ទងមក ${phone}។`,
+        type: "order",
+      });
+    } catch (e) {}
+
+    setConfirmed(true);
+    setStep(3);
+  };
+
+  const formatTimer = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
   // ─── Done Screen ────────────────────────────────────────────────────────────
@@ -245,6 +519,12 @@ export default function CheckoutPage() {
                 <span className="text-gray-500 dark:text-gray-400">Order ID</span>
                 <span className="font-black text-[#8B1A1A] dark:text-red-400 font-mono text-sm">{orderId}</span>
               </div>
+              {transactionId && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 dark:text-gray-400">Transaction Ref</span>
+                  <span className="font-mono text-xs text-gray-700 dark:text-gray-300">{transactionId}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 dark:text-gray-400">{t("orderTotal")}</span>
                 <span className="font-black text-base text-gray-900 dark:text-white font-mono">{fmtUSD(total)}</span>
@@ -369,7 +649,7 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            {/* Payment Method */}
+            {/* Payment Method Selector */}
             <section className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2.5">
@@ -379,11 +659,11 @@ export default function CheckoutPage() {
                   <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{t("paymentMethod")}</h2>
                 </div>
                 <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
-                  Official KHQR
+                  Real Bank Gateways
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 {PAYMENT_METHODS.map((pm) => (
                   <button
                     key={pm.id}
@@ -391,7 +671,7 @@ export default function CheckoutPage() {
                     onClick={() => setPayment(pm.id)}
                     className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
                       payment === pm.id
-                        ? "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20 dark:border-red-500"
+                        ? "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20 dark:border-red-500 shadow-sm"
                         : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
                     }`}
                   >
@@ -409,13 +689,121 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* Digital Payment Info */}
-              {payment !== "cod" && (
+              {/* ── Visa / Mastercard Interactive Card Form ───────────────────────── */}
+              {payment === "visa" && (
+                <div className="mt-5 p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      Credit / Debit Card Details
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                      <Lock size={12} className="text-emerald-500" />
+                      <span>256-bit SSL Protected</span>
+                    </div>
+                  </div>
+
+                  {/* Interactive Card Visualizer */}
+                  <div className="mb-5 p-5 rounded-2xl bg-gradient-to-tr from-[#1a1c29] via-[#11131c] to-[#252839] text-white shadow-xl relative overflow-hidden border border-white/10 max-w-sm mx-auto">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-10 h-8 rounded-md bg-gradient-to-br from-amber-300 to-amber-500 shadow-inner flex items-center justify-center opacity-90">
+                        <div className="w-6 h-5 border border-black/30 rounded-xs" />
+                      </div>
+                      <span className="text-base font-black tracking-wider text-amber-400 font-mono">
+                        {getCardBrand(cardNumber)}
+                      </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-mono tracking-widest mb-4 font-bold">
+                      {cardNumber || "•••• •••• •••• ••••"}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-300">
+                      <div>
+                        <div className="text-[9px] uppercase tracking-wider text-gray-400">Cardholder</div>
+                        <div className="font-bold tracking-wide truncate max-w-[160px]">
+                          {cardHolder || (name ? name.toUpperCase() : "YOUR NAME")}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[9px] uppercase tracking-wider text-gray-400">Expires</div>
+                        <div className="font-bold font-mono">{cardExpiry || "MM/YY"}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {cardError && (
+                    <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+                      <AlertCircle size={15} className="shrink-0" />
+                      <span>{cardError}</span>
+                    </div>
+                  )}
+
+                  {/* Card Form Inputs */}
+                  <div className="space-y-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Card Number (លេខកាត)
+                      </label>
+                      <input
+                        type="text"
+                        value={cardNumber}
+                        onChange={handleCardNumberChange}
+                        placeholder="4000 1234 5678 9010"
+                        maxLength={19}
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#12151e] border border-gray-200 dark:border-white/10 text-sm font-mono focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                        Cardholder Name (ឈ្មោះម្ចាស់កាត)
+                      </label>
+                      <input
+                        type="text"
+                        value={cardHolder}
+                        onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                        placeholder="e.g. SOKHA CHAN"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#12151e] border border-gray-200 dark:border-white/10 text-sm uppercase focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                          Expiry Date (MM/YY)
+                        </label>
+                        <input
+                          type="text"
+                          value={cardExpiry}
+                          onChange={handleExpiryChange}
+                          placeholder="12/28"
+                          maxLength={5}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#12151e] border border-gray-200 dark:border-white/10 text-sm font-mono focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                          CVV / CVC Code
+                        </label>
+                        <input
+                          type="password"
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                          placeholder="•••"
+                          maxLength={4}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-[#12151e] border border-gray-200 dark:border-white/10 text-sm font-mono focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Digital Payment Note */}
+              {(payment === "aba" || payment === "bakong") && (
                 <div className="mt-4 p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 flex items-center gap-3">
                   <QrCode size={20} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                  <div className="text-xs text-blue-900 dark:text-blue-300">
-                    <span className="font-bold">Real KHQR Standard: </span>
-                    Instant QR scan screen with exact amount ({fmtUSD(total)}) will display upon clicking confirm.
+                  <div className="text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
+                    <span className="font-bold">Dynamic KHQR & Deeplink: </span>
+                    Scan with any banking app or click direct mobile launcher. Total: <b>{fmtUSD(total)}</b> ({fmtKHR(total)}).
                   </div>
                 </div>
               )}
@@ -452,71 +840,37 @@ export default function CheckoutPage() {
                 <span>{t("deliveryFee")}</span>
                 <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(deliveryFee)}</span>
               </div>
-            </div>
-
-            <div className="border-t-2 border-gray-100 dark:border-white/10 mt-3 pt-3 mb-5">
-              <div className="flex justify-between items-baseline">
-                <span className="text-sm font-extrabold text-gray-900 dark:text-white">{t("total")}</span>
-                <div className="text-right">
-                  <div className="text-xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
-                    {fmtUSD(total)}
-                  </div>
-                  <div className="text-[11px] text-gray-400 font-semibold">{fmtKHR(total)}</div>
-                </div>
+              <div className="flex justify-between text-base font-extrabold text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-white/10">
+                <span>{t("orderTotal")}</span>
+                <span className="text-[#8B1A1A] dark:text-red-400 font-mono">{fmtUSD(total)}</span>
               </div>
+              <div className="text-right text-[11px] text-gray-400">{fmtKHR(total)}</div>
             </div>
 
-            {/* Desktop Confirm Button */}
-            <div className="hidden lg:block">
-              <button
-                type="button"
-                onClick={handlePlaceOrderClick}
-                disabled={loading || items.length === 0}
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                <span>{payment === "cod" ? "Place Order" : "Pay with KHQR / ABA"}</span>
-                <ShieldCheck size={18} />
-              </button>
-
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-400 text-[11px]">
-                <Lock size={12} />
-                <span>256-bit SSL Secure Checkout</span>
-              </div>
-            </div>
+            {/* Checkout CTA */}
+            <button
+              type="button"
+              onClick={handlePlaceOrderClick}
+              disabled={loading || items.length === 0}
+              className="mt-5 w-full py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <ShieldCheck size={18} />
+              <span>
+                {payment === "cod" 
+                  ? "Place Order • បញ្ជាទិញ" 
+                  : payment === "visa" 
+                  ? `Pay ${fmtUSD(total)} with Card` 
+                  : `Pay ${fmtUSD(total)} with KHQR`}
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Sticky Mobile Checkout Bar - Highly Elevated & Safe from Device Bottom Bars */}
-      {!confirmed && (
-        <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-[#12151e]/95 backdrop-blur-lg border-t border-gray-200 dark:border-white/10 px-4 py-3 flex items-center justify-between gap-3 shadow-[0_-8px_24px_rgba(0,0,0,0.1)]"
-          style={{ paddingBottom: "max(14px, env(safe-area-inset-bottom))" }}
-        >
-          <div>
-            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t("total")}</div>
-            <div className="text-lg font-black text-[#8B1A1A] dark:text-red-400 font-mono leading-none">
-              {fmtUSD(total)}
-            </div>
-            <div className="text-[10px] text-gray-400">{fmtKHR(total)}</div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handlePlaceOrderClick}
-            disabled={loading || items.length === 0}
-            className="flex-1 max-w-[240px] min-h-[46px] rounded-xl py-3 px-4 bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white font-extrabold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-          >
-            <span>{payment === "cod" ? "Place Order" : "Pay with KHQR"}</span>
-            <ShieldCheck size={18} />
-          </button>
-        </div>
-      )}
-
-      {/* Real KHQR / ABA Pay Modal */}
+      {/* ── Dynamic KHQR & Banking Deeplink Modal ─────────────────────────────── */}
       <AnimatePresence>
-        {showKHQRModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+        {showKHQRModal && khqrSession && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-4">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -524,62 +878,111 @@ export default function CheckoutPage() {
               className="bg-white dark:bg-[#151922] w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-gray-100 dark:border-white/10 text-center"
             >
               <button
-                onClick={() => setShowKHQRModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                onClick={() => {
+                  setShowKHQRModal(false);
+                  if (pollingRef.current) clearInterval(pollingRef.current);
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
               >
                 <X size={20} />
               </button>
 
               {/* KHQR Header Banner */}
-              <div className="bg-[#E1251B] text-white py-2 px-4 rounded-xl font-black text-sm uppercase tracking-wider inline-flex items-center gap-2 mb-4 shadow-sm">
-                <QrCode size={18} />
-                <span>BAKONG KHQR</span>
+              <div className="bg-[#E1251B] text-white py-1.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 mb-3 shadow-sm">
+                <QrCode size={16} />
+                <span>NBC BAKONG KHQR</span>
               </div>
 
               <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
                 S TECH STORE CAMBODIA
               </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Scan with ABA Mobile, Bakong, or any Cambodian banking app
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                Scan with ABA Mobile, Bakong, Wing, ACLEDA, or any Cambodian banking app
               </p>
 
               {/* QR Code Container */}
-              <div className="p-4 bg-white rounded-2xl border-2 border-red-500 inline-block shadow-md mb-4 relative">
+              <div className="p-3 bg-white rounded-2xl border-2 border-red-500 inline-block shadow-md mb-3 relative">
                 <img
-                  src={khqrUrl}
+                  src={khqrSession.qr_image_url}
                   alt="KHQR Payment"
-                  className="w-48 h-48 object-contain mx-auto"
+                  className="w-44 h-44 object-contain mx-auto"
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-10 h-10 rounded-full bg-white p-1 shadow-md flex items-center justify-center border">
+                  <div className="w-9 h-9 rounded-full bg-white p-1 shadow-md flex items-center justify-center border">
                     <img src="/logo.jpg" alt="" className="w-full h-full object-contain rounded-full" />
                   </div>
                 </div>
               </div>
 
               {/* Amount Display */}
-              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-3.5 mb-5 border border-gray-100 dark:border-white/5">
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Total Amount Payable</div>
+              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-white/5">
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Total Payable Amount</div>
                 <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
-                  {fmtUSD(total)}
+                  {fmtUSD(khqrSession.amount_usd)}
                 </div>
-                <div className="text-xs text-gray-400 font-medium">{fmtKHR(total)}</div>
+                <div className="text-[11px] text-gray-400 font-medium">{fmtKHR(khqrSession.amount_usd)}</div>
+                <div className="flex items-center justify-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                  <Clock size={11} />
+                  <span>Expires in: {formatTimer(timeLeft)}</span>
+                </div>
+              </div>
+
+              {/* ── 1-Click Mobile Banking Deeplinks ── */}
+              <div className="space-y-2 mb-4">
+                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider text-left pl-1">
+                  Or Pay Directly on Mobile:
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* ABA Mobile Deeplink */}
+                  <a
+                    href={khqrSession.deeplinks.aba || `aba://pay?tran_id=${khqrSession.order_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2.5 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-sm"
+                  >
+                    <Smartphone size={13} />
+                    <span>ABA Mobile</span>
+                  </a>
+
+                  {/* Bakong App Deeplink */}
+                  <a
+                    href={khqrSession.deeplinks.bakong || `bakong://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2.5 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-sm"
+                  >
+                    <Smartphone size={13} />
+                    <span>Bakong App</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Polling Radar Indicator */}
+              <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-4">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                  Waiting for your bank settlement...
+                </span>
               </div>
 
               {/* Confirmation Actions */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={executeOrderCreation}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={handleManualConfirmPayment}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <CheckCircle2 size={18} />
+                  <CheckCircle2 size={16} />
                   <span>I Have Completed Payment</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowKHQRModal(false)}
-                  className="w-full py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  onClick={() => {
+                    setShowKHQRModal(false);
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+                  }}
+                  className="w-full py-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
                 >
                   Change Payment Method
                 </button>
@@ -589,7 +992,7 @@ export default function CheckoutPage() {
         )}
       </AnimatePresence>
 
-      {/* Processing Spinner Overlay */}
+      {/* ── Processing Overlay ── */}
       <AnimatePresence>
         {loading && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -602,12 +1005,12 @@ export default function CheckoutPage() {
               <div className="w-16 h-16 bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 rounded-full flex items-center justify-center mb-5">
                 <Loader2 size={32} className="animate-spin" />
               </div>
-              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Recording Your Order...</h3>
+              <h3 className="text-base font-black text-gray-900 dark:text-white mb-2">{loadingMsg}</h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
                 Securing invoice and synchronizing with Telegram delivery queue.
               </p>
               <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg w-full">
-                <Lock size={12} /> 256-bit Secure Order
+                <Lock size={12} /> 256-bit Secure Gateway
               </div>
             </motion.div>
           </div>

@@ -53,6 +53,13 @@ Route::post('/chat/request-agent', function (Request $request) {
 // Customer Direct Magic Login & Password Reset (Public)
 Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 
+// Real Payment Gateways (Bakong KHQR, ABA PayWay, Deeplinks, Visa/Mastercard)
+Route::post('/payment/session', [\App\Http\Controllers\PaymentController::class, 'createSession']);
+Route::post('/payment/card', [\App\Http\Controllers\PaymentController::class, 'processCard']);
+Route::get('/payment/check/{orderId}', [\App\Http\Controllers\PaymentController::class, 'checkStatus']);
+Route::post('/payment/confirm-manual/{orderId}', [\App\Http\Controllers\PaymentController::class, 'confirmManual']);
+Route::post('/payment/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook']);
+
 // Admin & Staff Authentication (Login Form Only — Strictly No Public Registration)
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 
