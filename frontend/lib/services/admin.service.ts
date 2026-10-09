@@ -67,12 +67,13 @@ export const updateOrderStatus = async (orderId: number, status: string): Promis
 
 export interface TelegramStatus {
   connected: boolean;
+  is_configured?: boolean;
   chat_id?: string | null;
   chat_title?: string | null;
   chat_type?: string | null;
   connected_at?: string | null;
   connected_by?: string | null;
-  bot_username: string;
+  bot_username?: string | null;
   notify_orders: boolean;
   notify_low_stock: boolean;
   notify_repairs: boolean;
@@ -87,6 +88,7 @@ export interface TelegramPairLink {
   group_url: string;
   direct_url: string;
   expires_in: number;
+  needs_config?: boolean;
   message?: string;
 }
 
@@ -97,7 +99,8 @@ export const getTelegramStatus = async (): Promise<TelegramStatus> => {
   } catch (e) {
     return {
       connected: false,
-      bot_username: "STechStoreBot",
+      is_configured: false,
+      bot_username: null,
       notify_orders: true,
       notify_low_stock: true,
       notify_repairs: true,
@@ -126,8 +129,8 @@ export const setupTelegramTopics = async (): Promise<{ success: boolean; data?: 
   return res.data;
 };
 
-export const updateTelegramSettings = async (settings: Partial<TelegramStatus>): Promise<boolean> => {
+export const updateTelegramSettings = async (settings: Partial<TelegramStatus> & { bot_token?: string }): Promise<{ success: boolean; settings?: any; error?: string }> => {
   const res = await api.post("/admin/telegram/settings", settings);
-  return res.data.success;
+  return res.data;
 };
 

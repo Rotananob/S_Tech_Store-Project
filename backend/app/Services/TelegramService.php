@@ -23,8 +23,8 @@ class TelegramService
             'chat_type' => null,
             'connected_at' => null,
             'connected_by' => null,
-            'bot_username' => env('TELEGRAM_BOT_USERNAME', 'STechStoreBot'),
-            'bot_token' => env('TELEGRAM_BOT_TOKEN', '7891234567:AAExamplePlaceholderTokenForSTechBot'),
+            'bot_username' => env('TELEGRAM_BOT_USERNAME', null),
+            'bot_token' => env('TELEGRAM_BOT_TOKEN', null),
             'notify_orders' => true,
             'notify_low_stock' => true,
             'notify_repairs' => true,
@@ -48,6 +48,53 @@ class TelegramService
     }
 
     /**
+     * Check if a valid, non-placeholder bot token is configured
+     */
+    public static function isConfigured(): bool
+    {
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? null;
+        $username = $settings['bot_username'] ?? null;
+
+        return !empty($token) && !empty($username) && !str_contains($token, 'Placeholder');
+    }
+
+    /**
+     * Verify token directly with Telegram API getMe
+     */
+    public static function verifyBotToken(string $token): array
+    {
+        $cleanToken = trim($token);
+        if (empty($cleanToken)) {
+            return ['valid' => false, 'error' => 'Bot Token មិនអាចទទេបានទេ (Token is empty)'];
+        }
+
+        try {
+            $resp = Http::timeout(10)->get("https://api.telegram.org/bot{$cleanToken}/getMe");
+            $json = $resp->json();
+
+            if (($json['ok'] ?? false) === true && !empty($json['result']['username'])) {
+                return [
+                    'valid' => true,
+                    'bot_id' => $json['result']['id'] ?? null,
+                    'bot_name' => $json['result']['first_name'] ?? '',
+                    'bot_username' => $json['result']['username'],
+                ];
+            }
+
+            return [
+                'valid' => false,
+                'error' => $json['description'] ?? 'Token មិនត្រឹមត្រូវ (Invalid Telegram Bot Token)',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'valid' => false,
+                'error' => 'បរាជ័យក្នុងការភ្ជាប់ទៅ Telegram Server: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Save settings to storage
      */
     public static function saveSettings(array $settings): bool
@@ -66,6 +113,13 @@ class TelegramService
     public static function generatePairLink(string $userEmail = 'admin'): array
     {
         $settings = self::getSettings();
+
+        if (!self::isConfigured()) {
+            return [
+                'configured' => false,
+                'message' => 'សូមបញ្ចូល និងរក្សាទុក Telegram Bot Token ផ្ទាល់ខ្លួនរបស់ហាងជាមុនសិន (Please configure your Bot Token first).',
+            ];
+        }
         
         // Generate a 6-character clean pairing code like "ST89241"
         $pairCode = 'ST' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
@@ -94,6 +148,7 @@ class TelegramService
         $directUrl = "https://t.me/{$botUsername}?start={$pairCode}";
 
         return [
+            'configured' => true,
             'pair_code' => $pairCode,
             'bot_username' => $botUsername,
             'group_url' => $groupUrl,
@@ -160,7 +215,7 @@ class TelegramService
     {
         $settings = self::getSettings();
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-        $botUsername = $settings['bot_username'] ?? 'STechStoreBot';
+        $botUsername = $settings['bot_username'] ?? '';
 
         if (!$token || str_contains($token, 'Placeholder')) {
             // Mock mode for local testing

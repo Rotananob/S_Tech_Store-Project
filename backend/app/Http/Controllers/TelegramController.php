@@ -17,12 +17,13 @@ class TelegramController extends Controller
         
         return response()->json([
             'connected' => (bool)($settings['connected'] ?? false),
+            'is_configured' => TelegramService::isConfigured(),
             'chat_id' => $settings['chat_id'] ?? null,
             'chat_title' => $settings['chat_title'] ?? null,
             'chat_type' => $settings['chat_type'] ?? null,
             'connected_at' => $settings['connected_at'] ?? null,
             'connected_by' => $settings['connected_by'] ?? null,
-            'bot_username' => $settings['bot_username'] ?? 'STechStoreBot',
+            'bot_username' => $settings['bot_username'] ?? null,
             'notify_orders' => (bool)($settings['notify_orders'] ?? true),
             'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
             'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
@@ -36,6 +37,14 @@ class TelegramController extends Controller
      */
     public function generateLink(Request $request)
     {
+        if (!TelegramService::isConfigured()) {
+            return response()->json([
+                'success' => false,
+                'needs_config' => true,
+                'error' => 'សូមបញ្ចូល Telegram Bot Token ផ្ទាល់ខ្លួនរបស់ហាងជាមុនសិន ដើម្បីកុំឲ្យច្រឡំ Bot របស់អ្នកដទៃ (Please configure your own Bot Token first).',
+            ], 400);
+        }
+
         $user = $request->input('user') ?? $request->header('X-User-Email') ?? 'Admin/Staff';
         $data = TelegramService::generatePairLink($user);
 
@@ -139,6 +148,26 @@ class TelegramController extends Controller
     {
         $settings = TelegramService::getSettings();
 
+        if ($request->has('bot_token')) {
+            $token = trim((string)$request->input('bot_token'));
+            if (!empty($token)) {
+                $verification = TelegramService::verifyBotToken($token);
+                if (!$verification['valid']) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => $verification['error'] ?? 'Bot Token មិនត្រឹមត្រូវ សូមពិនិត្យមើល Token ដែលចម្លងពី @BotFather',
+                    ], 400);
+                }
+
+                $settings['bot_token'] = $token;
+                $settings['bot_username'] = $verification['bot_username'];
+            }
+        }
+
+        if ($request->has('bot_username') && !empty($request->input('bot_username'))) {
+            $settings['bot_username'] = ltrim(trim($request->input('bot_username')), '@');
+        }
+
         if ($request->has('notify_orders')) {
             $settings['notify_orders'] = (bool)$request->input('notify_orders');
         }
@@ -156,8 +185,18 @@ class TelegramController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Telegram preferences updated.',
-            'settings' => $settings,
+            'message' => 'Telegram Bot settings updated successfully.',
+            'settings' => [
+                'connected' => (bool)($settings['connected'] ?? false),
+                'is_configured' => TelegramService::isConfigured(),
+                'bot_username' => $settings['bot_username'] ?? null,
+                'chat_id' => $settings['chat_id'] ?? null,
+                'chat_title' => $settings['chat_title'] ?? null,
+                'notify_orders' => (bool)($settings['notify_orders'] ?? true),
+                'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
+                'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
+                'notify_shifts' => (bool)($settings['notify_shifts'] ?? true),
+            ],
         ]);
     }
 

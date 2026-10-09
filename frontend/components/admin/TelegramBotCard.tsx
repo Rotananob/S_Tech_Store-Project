@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   Send, CheckCircle2, AlertCircle, RefreshCw, Unlink, ExternalLink, 
-  Copy, ShieldCheck, Bell, Smartphone, QrCode, Sparkles, Layers, MessageSquare, Wrench, AlertTriangle, Check
+  Copy, ShieldCheck, Bell, Smartphone, Sparkles, Layers, Key, Bot, 
+  Settings, Eye, EyeOff, HelpCircle, Check, ArrowRight
 } from "lucide-react";
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
@@ -22,9 +23,15 @@ export default function TelegramBotCard() {
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  // Custom Bot Token Configuration
+  const [botTokenInput, setBotTokenInput] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
+  const [showTokenConfig, setShowTokenConfig] = useState(false);
+  const [showTokenPlain, setShowTokenPlain] = useState(false);
+
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 3800);
   };
 
   const fetchStatus = async () => {
@@ -55,14 +62,45 @@ export default function TelegramBotCard() {
     return () => clearInterval(interval);
   }, [pairData, status?.connected]);
 
+  const handleSaveToken = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!botTokenInput.trim()) {
+      showToast("សូមបញ្ចូល Telegram Bot Token ពី @BotFather ជាមុនសិន", "error");
+      return;
+    }
+    setSavingToken(true);
+    try {
+      const res = await updateTelegramSettings({ bot_token: botTokenInput.trim() });
+      if (res.success) {
+        showToast(`ផ្ទៀងផ្ទាត់ជោគជ័យ! Bot: @${res.settings?.bot_username || ''} 🎉`);
+        setBotTokenInput("");
+        setShowTokenConfig(false);
+        await fetchStatus();
+      } else {
+        showToast(res.error || "បរាជ័យក្នុងការផ្ទៀងផ្ទាត់ Token", "error");
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || "Token មិនត្រឹមត្រូវ សូមពិនិត្យចម្លងពី @BotFather ម្តងទៀត";
+      showToast(msg, "error");
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
   const handleGenerateLink = async () => {
+    if (!status?.is_configured) {
+      setShowTokenConfig(true);
+      showToast("សូមកំណត់ Bot Token របស់ហាងជាមុនសិន ដើម្បីកុំឲ្យច្រឡំ Bot អ្នកដទៃ", "error");
+      return;
+    }
     setGenerating(true);
     try {
       const res = await generateTelegramLink();
       setPairData(res);
       showToast("លេខកូដភ្ជាប់ត្រូវបានបង្កើត! សូមចុចបើក Telegram។");
-    } catch (e) {
-      showToast("មិនអាចបង្កើត Link ភ្ជាប់បានទេ សូមព្យាយាមម្តងទៀត", "error");
+    } catch (e: any) {
+      const msg = e.response?.data?.error || "មិនអាចបង្កើត Link ភ្ជាប់បានទេ សូមពិនិត្យ Bot Token";
+      showToast(msg, "error");
     } finally {
       setGenerating(false);
     }
@@ -146,6 +184,8 @@ export default function TelegramBotCard() {
     );
   }
 
+  const isConfigured = Boolean(status?.is_configured && status?.bot_username);
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       {toast && (
@@ -176,23 +216,159 @@ export default function TelegramBotCard() {
           </div>
 
           {/* Current Status Pill */}
-          <div className="shrink-0">
+          <div className="shrink-0 flex items-center gap-2">
             {status?.connected ? (
               <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 backdrop-blur-md border border-emerald-400/40 text-emerald-200 text-xs sm:text-sm font-black shadow-inner">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Active 🟢 已连接</span>
+                <span>Active 🟢 Group Connected</span>
+              </div>
+            ) : isConfigured ? (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500/20 backdrop-blur-md border border-sky-400/40 text-sky-100 text-xs sm:text-sm font-bold">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                <span>Bot Ready 🔵 Awaiting Group</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 text-white/90 text-xs sm:text-sm font-bold">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/20 backdrop-blur-md border border-amber-400/40 text-amber-200 text-xs sm:text-sm font-bold">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                <span>Not Connected ⚪</span>
+                <span>Needs Bot Setup 🟡</span>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="p-6 sm:p-8">
+      <div className="p-6 sm:p-8 flex flex-col gap-6">
+
+        {/* ── BOT VERIFIED STATUS & TOKEN MANAGEMENT STRIP ── */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isConfigured ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              <Bot size={22} />
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                Store Bot Handle (គណនី Bot ផ្លូវការរបស់ហាង)
+              </div>
+              {isConfigured ? (
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-base font-black text-gray-900 font-mono">
+                    @{status?.bot_username}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    <Check size={11} /> ផ្ទៀងផ្ទាត់រួច (Verified)
+                  </span>
+                  <a
+                    href={`https://t.me/${status?.bot_username}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-[#0088cc] hover:underline inline-flex items-center gap-0.5 font-bold"
+                  >
+                    <span>ពិនិត្យមើល</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              ) : (
+                <div className="text-sm font-bold text-amber-800 mt-0.5">
+                  មិនទាន់បានកំណត់ Bot Token នៅឡើយ (សូមបង្កើត Bot ផ្ទាល់ខ្លួនជាមុន)
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowTokenConfig(!showTokenConfig)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border border-gray-300 bg-white hover:bg-gray-100 text-gray-700 transition-colors cursor-pointer shrink-0 shadow-xs"
+          >
+            <Key size={14} className="text-[#0088cc]" />
+            <span>{showTokenConfig ? "លាក់ការកំណត់ Token" : isConfigured ? "ប្តូរ Bot Token (Change)" : "បញ្ចូល Bot Token"}</span>
+          </button>
+        </div>
+
+        {/* ── BOT TOKEN CONFIGURATION DRAWER / FORM ── */}
+        {(showTokenConfig || !isConfigured) && (
+          <div className="p-5 sm:p-6 rounded-2xl bg-sky-50/50 border-2 border-dashed border-sky-200 flex flex-col gap-4 animate-in fade-in-50 duration-200">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#0088cc] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-gray-900 m-0">
+                    កំណត់ Telegram Bot Token ផ្ទាល់ខ្លួនរបស់ហាង (Your Dedicated Store Bot)
+                  </h4>
+                  <p className="text-xs text-gray-600 m-0 mt-1 leading-relaxed">
+                    ដើម្បីការពារកុំឲ្យច្រឡំ ឬភ្ជាប់ទៅ Bot របស់អ្នកដទៃ Telegram តម្រូវឲ្យហាងនីមួយៗបង្កើត Bot ផ្លូវការរបស់ខ្លួនតាមរយៈ <b>@BotFather</b> ក្នុងរយៈពេលត្រឹមតែ ១ នាទី។
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick 3-step BotFather guide */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-white p-4 rounded-xl border border-sky-100 text-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center font-bold text-[11px] shrink-0">1</span>
+                <div>
+                  <p className="font-bold text-gray-900 m-0">បើក @BotFather</p>
+                  <p className="text-gray-500 m-0 mt-0.5">
+                    ស្វែងរក <code>@BotFather</code> ក្នុង Telegram ឬ <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-[#0088cc] font-bold underline inline-flex items-center gap-0.5">ចុចត្រង់នេះ <ExternalLink size={10} /></a>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center font-bold text-[11px] shrink-0">2</span>
+                <div>
+                  <p className="font-bold text-gray-900 m-0">វាយបញ្ជា /newbot</p>
+                  <p className="text-gray-500 m-0 mt-0.5">
+                    ដាក់ឈ្មោះ Bot (ឧ. <b>S Tech Store Bot</b>) និង username បញ្ចប់ដោយ bot (ឧ. <b>stech_store_bot</b>)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center font-bold text-[11px] shrink-0">3</span>
+                <div>
+                  <p className="font-bold text-gray-900 m-0">Copy HTTP API Token</p>
+                  <p className="text-gray-500 m-0 mt-0.5">
+                    ចម្លងយកលេខ Token (ឧ. <code>728192:AAH93...</code>) រួចបិទភ្ជាប់ (Paste) ក្នុងប្រអប់ខាងក្រោម
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Token Input Form */}
+            <form onSubmit={handleSaveToken} className="flex flex-col sm:flex-row items-stretch gap-2.5">
+              <div className="relative flex-1">
+                <input
+                  type={showTokenPlain ? "text" : "password"}
+                  placeholder="Paste Telegram Bot Token (e.g. 7489201923:AAHk981x...)"
+                  value={botTokenInput}
+                  onChange={(e) => setBotTokenInput(e.target.value)}
+                  className="w-full px-4 py-3 pr-10 text-xs sm:text-sm font-mono bg-white border border-gray-300 rounded-xl focus:outline-none focus:border-[#0088cc] focus:ring-2 focus:ring-sky-100 shadow-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTokenPlain(!showTokenPlain)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent border-none cursor-pointer"
+                  title={showTokenPlain ? "លាក់ Token" : "បង្ហាញ Token"}
+                >
+                  {showTokenPlain ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingToken}
+                className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none shrink-0 disabled:opacity-50"
+              >
+                <ShieldCheck size={16} className={savingToken ? "animate-spin" : ""} />
+                <span>{savingToken ? "កំពុងផ្ទៀងផ្ទាត់ Token..." : "ផ្ទៀងផ្ទាត់ & រក្សាទុក (Save & Verify)"}</span>
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* ── CASE 1: CONNECTED ── */}
         {status?.connected ? (
           <div className="flex flex-col gap-6">
@@ -395,13 +571,21 @@ export default function TelegramBotCard() {
             <div className="bg-gradient-to-br from-gray-50 to-sky-50/40 p-6 sm:p-8 rounded-2xl border border-sky-100 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="max-w-xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100/80 text-[#0088cc] text-xs font-bold mb-3">
-                  <Smartphone size={13} /> របៀបភ្ជាប់ងាយស្រួលបំផុត (ដូច ABA Merchant)
+                  <Smartphone size={13} /> របៀបភ្ជាប់ងាយស្រួលបំផុត (ABA Merchant Style)
                 </div>
                 <h3 className="text-lg sm:text-xl font-black text-gray-900">
                   ភ្ជាប់ Telegram Bot ទៅកាន់ Group របស់ហាង
                 </h3>
                 <p className="text-gray-600 text-xs sm:text-sm mt-2 leading-relaxed">
-                  គ្រាន់តែចុចប៊ូតុងខាងក្រោម វានឹងបើកកម្មវិធី Telegram នៅលើទូរស័ព្ទ ឬកុំព្យូទ័ររបស់អ្នកដោយស្វ័យប្រវត្តិ។ បន្ទាប់មកជ្រើសរើស Group ណាមួយដែលចង់បន្ថែម Bot នោះវានឹង Auto-command ភ្ជាប់គ្នាភ្លាមៗ!
+                  {isConfigured ? (
+                    <>
+                      ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Telegram និងជ្រើសរើស Group ហាង។ ប្រព័ន្ធនឹងភ្ជាប់ Bot ផ្លូវការ <b className="font-mono text-[#0088cc]">@{status?.bot_username}</b> ដោយស្វ័យប្រវត្តិតាមរយៈ One-Click Deep Link!
+                    </>
+                  ) : (
+                    <>
+                      ដើម្បីធានាសុវត្ថិភាព និងកុំឲ្យភ្ជាប់ច្រឡំ Bot របស់អ្នកដទៃ សូមបំពេញ <b>Bot Token</b> ដែលបង្កើតពី <b>@BotFather</b> ខាងលើជាមុនសិន។
+                    </>
+                  )}
                 </p>
 
                 <div className="flex flex-wrap items-center gap-3 mt-5">
@@ -409,10 +593,10 @@ export default function TelegramBotCard() {
                     type="button"
                     onClick={handleGenerateLink}
                     disabled={generating}
-                    className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer border-none hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-bold shadow-lg hover:shadow-xl transition-all cursor-pointer border-none hover:scale-105 active:scale-95 disabled:opacity-50"
                   >
                     <Send size={18} className={generating ? "animate-spin" : ""} />
-                    <span>{generating ? "កំពុងបង្កើត Link..." : "Connect Telegram Bot (ភ្ជាប់ឥឡូវនេះ)"}</span>
+                    <span>{generating ? "កំពុងបង្កើត Link..." : isConfigured ? `Connect @${status?.bot_username} to Group` : "បញ្ចូល Token ដើម្បីភ្ជាប់"}</span>
                   </button>
                 </div>
               </div>
@@ -423,7 +607,9 @@ export default function TelegramBotCard() {
                   <Send size={32} />
                 </div>
                 <span className="text-xs font-bold text-gray-800">1-Click Group Connect</span>
-                <span className="text-[10px] text-gray-400 mt-0.5">Supports Mobile & Desktop</span>
+                <span className="text-[10px] text-gray-400 mt-0.5 font-mono">
+                  {isConfigured ? `@${status?.bot_username}` : "Requires Token"}
+                </span>
               </div>
             </div>
 
@@ -445,7 +631,7 @@ export default function TelegramBotCard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 items-center">
                   <div>
                     <h4 className="text-sm font-black text-gray-900 mb-3">
-                      ជំហានទី ១: បើក Telegram ហើយជ្រើសរើស Group
+                      ជំហានទី ១: បើក Telegram ហើយជ្រើសរើស Group របស់ហាង
                     </h4>
                     
                     <div className="flex flex-col gap-3">
@@ -456,7 +642,7 @@ export default function TelegramBotCard() {
                         className="w-full py-3.5 px-5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all no-underline hover:scale-102"
                       >
                         <Smartphone size={18} />
-                        <span>បើកក្នុង Telegram (Open & Add to Group)</span>
+                        <span>បើកក្នុង Telegram (@{pairData.bot_username})</span>
                         <ExternalLink size={15} />
                       </a>
 
@@ -483,7 +669,7 @@ export default function TelegramBotCard() {
                       System Auto-detecting...
                     </div>
                     <div className="text-xs text-gray-500 mt-1 max-w-xs">
-                      ផ្ទាំងនេះកំពុងត្រួតពិនិត្យការភ្ជាប់ស្វ័យប្រវត្ត។ នៅពេល Bot ចូលដល់ក្នុងគ្រុប វានឹងលោតប្តូរទៅជា "Active" ដោយមិនបាច់ Refresh ទំព័រឡើយ។
+                      ផ្ទាំងនេះកំពុងត្រួតពិនិត្យការភ្ជាប់ស្វ័យប្រវត្ត។ នៅពេល Bot ចូលដល់ក្នុងគ្រុប វានឹងលោតប្តូរទៅជា &quot;Active&quot; ដោយមិនបាច់ Refresh ទំព័រឡើយ។
                     </div>
                   </div>
                 </div>
