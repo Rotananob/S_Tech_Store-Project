@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe } from "lucide-react";
+import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, ArrowLeft } from "lucide-react";
 
 type Category = {
   id: number;
@@ -163,25 +163,34 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       )}
 
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Edit Product</h1>
-          <p className="text-gray-500 text-sm">Update product specifications, media links, and inventory.</p>
-        </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <Link 
-            href="/admin/products" 
-            className="flex-1 md:flex-none text-center px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </Link>
-          <button 
-            onClick={handleSave} 
-            className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white border border-transparent rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            <Package size={16} />
-            Save Product
-          </button>
+      <div className="mb-6">
+        <Link 
+          href="/admin/products" 
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 mb-3 transition-colors no-underline group"
+        >
+          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          <span>ត្រឡប់ទៅបញ្ជីទំនិញ (Back to Products)</span>
+        </Link>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Edit Product</h1>
+            <p className="text-gray-500 text-xs sm:text-sm">កែប្រែព័ត៌មានទំនិញ តម្លៃ ស្តុក និងរូបភាព (Update product details, pricing, and stock).</p>
+          </div>
+          <div className="flex gap-2.5 w-full md:w-auto">
+            <Link 
+              href="/admin/products" 
+              className="flex-1 md:flex-none text-center px-5 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold hover:bg-gray-50 transition-colors no-underline shadow-xs"
+            >
+              Cancel
+            </Link>
+            <button 
+              onClick={handleSave} 
+              className="flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-[0.98] text-white border border-transparent rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#8B1A1A]/20 cursor-pointer"
+            >
+              <Package size={16} />
+              Save Product
+            </button>
+          </div>
         </div>
       </div>
 

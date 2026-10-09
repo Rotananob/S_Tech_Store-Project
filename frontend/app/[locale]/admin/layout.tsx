@@ -1,47 +1,177 @@
 "use client";
-import { useState } from "react";
-import { Link } from "@/i18n/routing";
-import { usePathname } from "@/i18n/routing";
+
+import { useState, useEffect } from "react";
+import { Link, useRouter, usePathname } from "@/i18n/routing";
+import { 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  Wrench, 
+  Tag, 
+  Settings, 
+  Users, 
+  Store, 
+  Clock, 
+  LogOut, 
+  Menu, 
+  X, 
+  ShieldCheck, 
+  UserCheck, 
+  Building2,
+  CalendarCheck
+} from "lucide-react";
+
+type AdminUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "staff" | "manager";
+  branch?: string;
+  shift?: string;
+  phone?: string;
+  permissions?: string[];
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-
-  const NAV_LINKS = [
-    { href: "/admin", label: "Dashboard Overview", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-    )},
-    { href: "/admin/products", label: "Product Management", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-    )},
-    { href: "/admin/orders", label: "Order Management", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-    )},
-    { href: "/admin/repairs", label: "Repair & Services", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-    )},
-    { href: "/admin/promotions", label: "Promotions & Deals", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-    )},
-    { href: "/admin/settings", label: "System Settings", icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-    )},
-  ];
+  const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // If on admin login page, bypass the layout chrome
+  const isLoginPage = pathname === "/admin/login" || pathname.endsWith("/admin/login");
+
+  useEffect(() => {
+    if (isLoginPage) {
+      setCheckingAuth(false);
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("stech_admin_token");
+      const userStr = localStorage.getItem("stech_admin_user");
+
+      if (!token) {
+        // Not authenticated — redirect to admin login
+        router.push("/admin/login");
+        return;
+      }
+
+      if (userStr) {
+        try {
+          setUser(JSON.parse(userStr));
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+      setCheckingAuth(false);
+    }
+  }, [pathname, isLoginPage, router]);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("stech_admin_token");
+      localStorage.removeItem("stech_admin_user");
+      document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    }
+    router.push("/admin/login");
+  };
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center text-white">
+        <div className="w-10 h-10 border-3 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-sm text-gray-400 font-medium">កំពុងផ្ទៀងផ្ទាត់សិទ្ធិគ្រប់គ្រង (Verifying Admin Access)...</p>
+      </div>
+    );
+  }
+
+  const isAdmin = user?.role === "admin";
+
+  const NAV_LINKS = [
+    { 
+      href: "/admin", 
+      label: "ផ្ទាំងគ្រប់គ្រងទូទៅ (Overview)", 
+      icon: <LayoutDashboard size={18} />, 
+      adminOnly: false 
+    },
+    { 
+      href: "/admin/products", 
+      label: "គ្រប់គ្រងទំនិញ (Products)", 
+      icon: <Package size={18} />, 
+      adminOnly: false 
+    },
+    { 
+      href: "/admin/orders", 
+      label: "គ្រប់គ្រងការបញ្ជាទិញ (Orders)", 
+      icon: <ShoppingCart size={18} />, 
+      adminOnly: false 
+    },
+    { 
+      href: "/admin/repairs", 
+      label: "សេវាជួសជុល (Repairs)", 
+      icon: <Wrench size={18} />, 
+      adminOnly: false 
+    },
+    // Admin Only Management Features
+    { 
+      href: "/admin/staff", 
+      label: "គ្រប់គ្រងបុគ្គលិក (Staff Accounts)", 
+      icon: <Users size={18} />, 
+      adminOnly: true,
+      badge: "Admin" 
+    },
+    { 
+      href: "/admin/branches", 
+      label: "គ្រប់គ្រងសាខាហាង (Branches)", 
+      icon: <Building2 size={18} />, 
+      adminOnly: true,
+      badge: "Admin" 
+    },
+    { 
+      href: "/admin/shifts", 
+      label: "គ្រប់គ្រងវេនធ្វើការ (Shifts)", 
+      icon: <CalendarCheck size={18} />, 
+      adminOnly: true,
+      badge: "Admin" 
+    },
+    { 
+      href: "/admin/promotions", 
+      label: "ប្រូម៉ូសិន (Promotions)", 
+      icon: <Tag size={18} />, 
+      adminOnly: true,
+      badge: "Admin" 
+    },
+    { 
+      href: "/admin/settings", 
+      label: "ការកំណត់ប្រព័ន្ធ (Settings)", 
+      icon: <Settings size={18} />, 
+      adminOnly: true,
+      badge: "Admin" 
+    },
+  ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 text-gray-900 font-sans">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs" 
           onClick={() => setSidebarOpen(false)} 
         />
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f0f0f] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0f0f12] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} border-r border-white/10 shadow-xl`}>
+        
+        {/* Brand Logo Header */}
+        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
           <Link href="/admin" className="flex items-center gap-3 no-underline text-white group">
             <img 
               src="/logo.jpg" 
@@ -49,82 +179,170 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="w-10 h-10 rounded-xl object-contain shadow-md bg-white p-0.5 border border-white/20" 
             />
             <div>
-              <h2 className="text-lg font-bold tracking-tight m-0 leading-tight">S Tech Store</h2>
-              <p className="text-[11px] text-gray-400 m-0 mt-0.5">Admin Dashboard</p>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight m-0 leading-tight">S Tech Store</h2>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isAdmin ? 'bg-[#8B1A1A] text-white' : 'bg-blue-600 text-white'}`}>
+                  {user?.role || "STAFF"}
+                </span>
+                <span className="text-[11px] text-gray-400">Management</span>
+              </div>
             </div>
           </Link>
-          <button className="lg:hidden text-white hover:text-gray-300 p-1 rounded-md" onClick={() => setSidebarOpen(false)}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <button 
+            className="lg:hidden text-white/70 hover:text-white p-1 rounded-md" 
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 py-4 overflow-y-auto">
-          <ul className="list-none p-0 m-0">
-            {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href;
+        {/* Current User Pill in Sidebar */}
+        <div className="p-3 mx-3 my-3 bg-white/5 border border-white/10 rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm ${isAdmin ? 'bg-gradient-to-br from-red-600 to-red-800 text-white' : 'bg-gradient-to-br from-blue-600 to-indigo-800 text-white'}`}>
+              {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-white truncate">{user?.name || "Logged In User"}</div>
+              <div className="text-[10px] text-gray-400 truncate">{user?.email}</div>
+            </div>
+          </div>
+          
+          <div className="mt-2.5 pt-2 border-t border-white/10 flex flex-col gap-1 text-[10px] text-gray-400">
+            <div className="flex items-center gap-1.5 truncate">
+              <Store size={11} className="text-red-400 flex-shrink-0" />
+              <span className="truncate">{user?.branch || "Phnom Penh Main Branch"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 truncate">
+              <Clock size={11} className="text-blue-400 flex-shrink-0" />
+              <span className="truncate">{user?.shift || "Standard Shift"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Menu */}
+        <nav className="flex-1 py-2 px-3 overflow-y-auto space-y-1">
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href;
+            const isRestrictedForStaff = link.adminOnly && !isAdmin;
+
+            if (isRestrictedForStaff) {
               return (
-                <li key={link.href}>
-                  <Link href={link.href} onClick={() => setSidebarOpen(false)} className={`flex items-center gap-3 px-6 py-3 text-sm transition-all no-underline ${isActive ? "text-white bg-[#8B1A1A]" : "text-gray-400 hover:text-white hover:bg-white/5"}`}>
+                <div 
+                  key={link.href}
+                  className="flex items-center justify-between px-3 py-2.5 text-xs text-gray-600 rounded-lg cursor-not-allowed select-none"
+                  title="មុខងារនេះសម្រាប់តែ Administrator ប៉ុណ្ណោះ (Admin Privilege Only)"
+                >
+                  <div className="flex items-center gap-3 opacity-40">
                     {link.icon}
-                    {link.label}
-                  </Link>
-                </li>
+                    <span>{link.label}</span>
+                  </div>
+                  <span className="text-[9px] font-semibold bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">
+                    Admin Only
+                  </span>
+                </div>
               );
-            })}
-          </ul>
+            }
+
+            return (
+              <Link 
+                key={link.href} 
+                href={link.href} 
+                onClick={() => setSidebarOpen(false)} 
+                className={`flex items-center justify-between px-3 py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all no-underline ${
+                  isActive 
+                    ? "text-white bg-[#8B1A1A] shadow-md shadow-[#8B1A1A]/30" 
+                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {link.icon}
+                  <span>{link.label}</span>
+                </div>
+                {link.badge && (
+                  <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded">
+                    {link.badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
-        <div className="p-5 mt-auto">
-          <Link href="/admin/products/new" className="w-full py-2.5 px-4 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded font-medium text-sm flex items-center justify-center gap-2 transition-colors no-underline">
-            <span>+</span> Add New Product
+        {/* Bottom Actions */}
+        <div className="p-4 border-t border-white/10 space-y-2 mt-auto">
+          <Link 
+            href="/admin/products/new" 
+            className="w-full py-2.5 px-3 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors no-underline shadow-md"
+          >
+            <Package size={16} />
+            <span>+ Add New Product</span>
           </Link>
+
+          <button
+            onClick={handleLogout}
+            className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-red-400 rounded-xl font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border border-white/10"
+          >
+            <LogOut size={14} />
+            <span>ចាកចេញពីប្រព័ន្ធ (Logout)</span>
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        
         {/* Top Header */}
-        <header className="h-16 bg-white border-b-2 border-[#8B1A1A] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shadow-xs">
           
           <div className="flex items-center gap-3">
-            <button className="lg:hidden text-gray-700 p-1.5 rounded-lg hover:bg-gray-100" onClick={() => setSidebarOpen(true)}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            <button 
+              className="lg:hidden text-gray-700 p-2 rounded-lg hover:bg-gray-100 cursor-pointer" 
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu size={22} />
             </button>
+            
             <Link href="/admin" className="flex items-center gap-2.5 no-underline">
               <img 
                 src="/logo.jpg" 
                 alt="S Tech Store" 
-                className="w-8 h-8 rounded-lg object-contain shadow-sm border border-gray-200" 
+                className="w-8 h-8 rounded-lg object-contain border border-gray-200" 
               />
               <div className="flex items-center gap-2">
-                <span className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+                <span className="text-base font-bold text-gray-900 tracking-tight">
                   S <span className="text-[#8B1A1A]">Tech</span> Store
                 </span>
-                <span className="text-[10px] font-bold bg-[#8B1A1A] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Admin
+                <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full uppercase tracking-wider ${isAdmin ? 'bg-[#8B1A1A]' : 'bg-blue-600'}`}>
+                  {user?.role || "Staff"}
                 </span>
               </div>
             </Link>
           </div>
 
-          <div className="flex items-center gap-4 lg:gap-6">
-            {/* Search */}
-            <div className="relative hidden md:block w-64 lg:w-80">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <input 
-                type="text" 
-                placeholder="Global Search..." 
-                className="w-full py-2 pl-9 pr-4 bg-gray-100 border-none rounded-md text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 transition-all"
-              />
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Branch and Shift Badge on Top Header for quick viewing */}
+            <div className="hidden md:flex items-center gap-2 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-700">
+              <Store size={13} className="text-[#8B1A1A]" />
+              <span className="font-semibold">{user?.branch?.split(' ')[0] || "Phnom Penh"}</span>
+              <span className="text-gray-300">|</span>
+              <Clock size={13} className="text-blue-600" />
+              <span>{user?.shift?.split(' ')[0] || "Day"}</span>
             </div>
-            
-            {/* Icons */}
-            <div className="flex items-center gap-4 text-gray-500">
-              <button className="hover:text-gray-900 transition-colors">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-              </button>
-              <button className="hover:text-gray-900 transition-colors">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path></svg>
+
+            {/* User Profile Pill & Logout */}
+            <div className="flex items-center gap-2">
+              <div className="text-right hidden sm:block">
+                <div className="text-xs font-bold text-gray-900">{user?.name || "Admin"}</div>
+                <div className="text-[10px] text-gray-500">{user?.role === "admin" ? "Super Administrator" : "Store Staff Member"}</div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                title="ចាកចេញ (Logout)"
+              >
+                <LogOut size={18} />
               </button>
             </div>
           </div>

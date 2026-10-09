@@ -31,7 +31,7 @@ const api = axios.create({
   timeout: 60000,
 });
 
-// Request interceptor — attach Firebase UID + user info for user isolation
+// Request interceptor — attach Admin/Staff Token & Firebase UID + user info
 api.interceptors.request.use(
   async (config) => {
     // If sending FormData, delete Content-Type to allow browser to generate boundary
@@ -40,6 +40,26 @@ api.interceptors.request.use(
     }
 
     if (typeof window !== "undefined") {
+      // 1. Attach Admin/Staff Token if logged into Admin portal
+      try {
+        const adminToken = localStorage.getItem("stech_admin_token");
+        if (adminToken) {
+          config.headers["Authorization"] = `Bearer ${adminToken}`;
+          config.headers["X-Admin-Token"] = adminToken;
+          
+          const storedUser = localStorage.getItem("stech_admin_user");
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            if (parsed?.role) {
+              config.headers["X-Admin-Role"] = parsed.role;
+            }
+          }
+        }
+      } catch (e) {
+        // localStorage error fallback
+      }
+
+      // 2. Attach Firebase Auth info
       try {
         const auth = getAuth();
         const user = auth.currentUser;
@@ -58,12 +78,12 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401 globally
+// Response interceptor — handle 401 / 403 globally
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Optionally redirect to login
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // If unauthorized on admin route, we let the admin layout / view handle it
     }
     return Promise.reject(error);
   }

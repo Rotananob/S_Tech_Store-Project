@@ -15,7 +15,7 @@ export default function FloatingBackButton() {
     setMounted(true);
   }, []);
 
-  if (pathname === "/") {
+  if (pathname === "/" || pathname.startsWith("/admin")) {
     return null;
   }
 

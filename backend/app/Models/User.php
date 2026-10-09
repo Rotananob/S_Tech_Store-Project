@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,6 +21,14 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'branch',
+        'shift',
+        'status',
+        'phone',
+        'permissions',
+        'api_token',
+        'last_login_at',
     ];
 
     /**
@@ -32,6 +39,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'api_token',
     ];
 
     /**
@@ -43,7 +51,19 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isStaff(): bool
+    {
+        return in_array($this->role, ['staff', 'admin', 'manager']);
     }
 }
