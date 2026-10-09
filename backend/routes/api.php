@@ -50,6 +50,9 @@ Route::post('/chat/request-agent', function (Request $request) {
     ]);
 });
 
+// Customer Direct Magic Login & Password Reset (Public)
+Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
+
 // Admin & Staff Authentication (Login Form Only — Strictly No Public Registration)
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 
@@ -178,6 +181,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::patch('/admin/users/{id}/admin-status', [\App\Http\Controllers\UserController::class, 'updateAdminStatus']);
     Route::put('/admin/users/{id}/toggle-status', [\App\Http\Controllers\UserController::class, 'toggleStatus']);
     Route::post('/admin/users/{id}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword']);
+    Route::post('/admin/users/{id}/magic-link', [\App\Http\Controllers\UserController::class, 'generateMagicLink']);
+    Route::post('/admin/users/{id}/send-magic-link-telegram', [\App\Http\Controllers\UserController::class, 'sendMagicLinkViaTelegram']);
     Route::delete('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
 
     // Telegram Bot Integration (ABA Merchant Style)

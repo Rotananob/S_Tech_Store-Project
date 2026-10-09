@@ -64,12 +64,32 @@ export default function Navbar() {
     setMounted(true);
     try {
       const unsub = onAuthStateChanged(auth, (u) => {
-        setUser(u);
         if (u) {
+          setUser(u);
           fetchNotifications();
           useCartStore.getState().fetchCart();
           useWishlistStore.getState().fetchWishlist();
         } else {
+          // Check for direct magic login session
+          const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
+          if (sessionStr) {
+            try {
+              const sUser = JSON.parse(sessionStr);
+              if (sUser?.firebase_uid) {
+                setUser({
+                  uid: sUser.firebase_uid,
+                  displayName: sUser.display_name,
+                  email: sUser.email,
+                  photoURL: sUser.photo_url,
+                } as any);
+                fetchNotifications();
+                useCartStore.getState().fetchCart();
+                useWishlistStore.getState().fetchWishlist();
+                return;
+              }
+            } catch (e) {}
+          }
+          setUser(null);
           useCartStore.getState().clearCart();
           useWishlistStore.getState().clearWishlist();
         }
@@ -341,7 +361,11 @@ export default function Navbar() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => signOut(auth)}
+                  onClick={() => {
+                    localStorage.removeItem("stech_user_session");
+                    signOut(auth);
+                    setUser(null);
+                  }}
                   className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/10 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all border border-gray-200 dark:border-white/10 cursor-pointer flex items-center gap-1 shrink-0"
                   title={t('signOut')}
                 >

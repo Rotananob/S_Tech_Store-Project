@@ -178,8 +178,8 @@ export default function UserProfilePage() {
   useEffect(() => {
     setMounted(true);
     const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
       if (u) {
+        setUser(u);
         setProfile((prev) => ({
           ...prev,
           display_name: u.displayName || prev.display_name || "S Tech VIP Member",
@@ -188,6 +188,30 @@ export default function UserProfilePage() {
         loadProfile(u);
         loadOrders();
       } else {
+        const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
+        if (sessionStr) {
+          try {
+            const sUser = JSON.parse(sessionStr);
+            if (sUser?.firebase_uid) {
+              const pseudoUser = {
+                uid: sUser.firebase_uid,
+                displayName: sUser.display_name,
+                email: sUser.email,
+                photoURL: sUser.photo_url,
+              } as any;
+              setUser(pseudoUser);
+              setProfile((prev) => ({
+                ...prev,
+                display_name: sUser.display_name || prev.display_name || "S Tech VIP Member",
+                email: sUser.email || prev.email,
+                phone: sUser.phone || prev.phone,
+              }));
+              loadProfile(pseudoUser);
+              loadOrders();
+              return;
+            }
+          } catch (e) {}
+        }
         router.push("/login");
       }
     });
@@ -1633,11 +1657,16 @@ export default function UserProfilePage() {
         <div className="pt-2">
           <button
             type="button"
-            onClick={() => signOut(auth)}
+            onClick={() => {
+              localStorage.removeItem("stech_user_session");
+              signOut(auth);
+              setUser(null);
+              router.push("/login");
+            }}
             className="w-full py-4 rounded-2xl border border-red-200 dark:border-red-950/60 text-red-600 dark:text-red-400 font-bold text-sm bg-red-50/60 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 flex items-center justify-center gap-2 cursor-pointer transition-colors"
           >
             <LogOut size={18} />
-            <span>Sign Out of S Tech Account (ចាកចេញពីគណនី)</span>
+            <span>Sign Out • ចាកចេញពីគណនី</span>
           </button>
         </div>
       </div>

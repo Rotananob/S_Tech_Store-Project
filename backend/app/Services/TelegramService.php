@@ -764,5 +764,45 @@ class TelegramService
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
         return ($res['ok'] ?? false) === true;
     }
+
+    /**
+     * Send magic login and password reset link notification to Telegram group/topic or direct chat
+     */
+    public static function sendCustomerMagicLinkAlert($user, string $magicLink, $directChatId = null): array
+    {
+        $settings = self::getSettings();
+        $targetChat = $directChatId ?: ($settings['chat_id'] ?? null);
+
+        if (empty($targetChat)) {
+            return ['ok' => false, 'error' => 'Telegram bot is not connected to any chat'];
+        }
+
+        $userName = htmlspecialchars($user->display_name ?: ('អតិថិជន #' . $user->id));
+        $email = htmlspecialchars($user->email ?: 'N/A');
+        $phone = htmlspecialchars($user->phone ?: 'N/A');
+        $telegramHandle = !empty($user->telegram) ? htmlspecialchars($user->telegram) : 'N/A';
+
+        $chatTopicId = $settings['topics']['chat'] ?? null;
+
+        $text = "🔑 <b>សំណើសុំចូលគណនីបន្ទាន់ / Reset Password Magic Link</b>\n\n"
+            . "👤 <b>អតិថិជន:</b> <b>{$userName}</b>\n"
+            . "📧 <b>អ៊ីមែល:</b> <code>{$email}</code>\n"
+            . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
+            . "💬 <b>Telegram:</b> {$telegramHandle}\n"
+            . "⏰ <b>សុពលភាព:</b> ២៤ ម៉ោង (Valid for 24 Hours)\n\n"
+            . "🔗 <b>Magic Login Link:</b>\n"
+            . "{$magicLink}\n\n"
+            . "<i>អតិថិជនគ្រាន់តែចុចលើតំណភ្ជាប់ខាងលើ នោះនឹងអាចចូលគណនីបានភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ចាស់ឡើយ។</i>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🚀 ចូលគណនីផ្ទាល់ (Magic Login Now)', 'url' => $magicLink],
+                ]
+            ]
+        ];
+
+        return self::sendMessageWithKeyboard($targetChat, $text, $keyboard, 'HTML', $directChatId ? null : $chatTopicId);
+    }
 }
 

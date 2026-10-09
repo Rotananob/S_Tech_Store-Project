@@ -146,7 +146,35 @@ export default function ForgotPasswordPage() {
           </button>
         </form>
 
-        <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(255,255,255,0.5)", marginTop: "32px" }}>
+        <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid rgba(255,255,255,0.08)", textAlign: "center" }}>
+          <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", marginBottom: "12px", lineHeight: "1.5" }}>
+            មិនទទួលបានអ៊ីមែល ឬត្រូវការជំនួយបន្ទាន់? ស្នើសុំ Magic Login Link ពី Admin:
+          </p>
+          <a
+            href="https://t.me/s_tech_storeBot"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              width: "100%",
+              padding: "10px 16px",
+              borderRadius: "8px",
+              background: "#229ED9",
+              color: "white",
+              fontSize: "13px",
+              fontWeight: "600",
+              textDecoration: "none",
+            }}
+          >
+            <span>💬</span>
+            <span>ទាក់ទង Admin តាម Telegram</span>
+          </a>
+        </div>
+
+        <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(255,255,255,0.5)", marginTop: "24px" }}>
           Remember your password?{" "}
           <Link href="/login" style={{ color: "#4a8ff0", fontWeight: "600", textDecoration: "none" }}>
             Back to login

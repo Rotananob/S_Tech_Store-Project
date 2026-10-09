@@ -5,7 +5,8 @@ import api from "@/lib/api";
 import { 
   Users, Search, Filter, ShieldCheck, UserCheck, UserX, 
   Key, RefreshCw, MapPin, Phone, Mail, Send, Calendar, 
-  ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X 
+  ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X,
+  Copy, ExternalLink, MessageCircle, Check, Link2
 } from "lucide-react";
 
 export interface AdminCustomerUser {
@@ -44,6 +45,13 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<AdminCustomerUser | null>(null);
   const [resetModalUser, setResetModalUser] = useState<AdminCustomerUser | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [magicLinkResult, setMagicLinkResult] = useState<{
+    link: string;
+    token: string;
+    expires_at: string;
+  } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -86,18 +94,62 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!resetModalUser) return;
+  const handleOpenResetModal = (user: AdminCustomerUser) => {
+    setResetModalUser(user);
+    setMagicLinkResult(null);
+    setCopiedLink(false);
+    handleGenerateMagicLink(user);
+  };
+
+  const handleGenerateMagicLink = async (targetUser?: AdminCustomerUser) => {
+    const userToReset = targetUser || resetModalUser;
+    if (!userToReset) return;
     setIsResetting(true);
+    setCopiedLink(false);
     try {
-      const res = await api.post(`/admin/users/${resetModalUser.id}/reset-password`);
-      showToast(res.data?.message || "បានផ្ញើសំណើ Reset Password ជោគជ័យ");
-      setResetModalUser(null);
-      fetchUsers();
+      const res = await api.post(`/admin/users/${userToReset.id}/magic-link`);
+      if (res.data?.success) {
+        setMagicLinkResult({
+          link: res.data.magic_link,
+          token: res.data.token,
+          expires_at: res.data.expires_at,
+        });
+        showToast(res.data.message || "បានបង្កើត Magic Login Link ដោយជោគជ័យ");
+        fetchUsers();
+      }
     } catch (e: any) {
-      showToast("បរាជ័យក្នុងការ Reset Password", "error");
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការបង្កើត Magic Link", "error");
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!magicLinkResult?.link) return;
+    try {
+      await navigator.clipboard.writeText(magicLinkResult.link);
+      setCopiedLink(true);
+      showToast("បានចម្លង Magic Login Link រួចរាល់!");
+      setTimeout(() => setCopiedLink(false), 3000);
+    } catch (e) {
+      showToast("មិនអាចចម្លងតំណភ្ជាប់បានទេ សូមជ្រើសរើសហើយ Copy ដោយផ្ទាល់", "error");
+    }
+  };
+
+  const handleSendTelegram = async () => {
+    if (!resetModalUser) return;
+    setIsSendingTelegram(true);
+    try {
+      const res = await api.post(`/admin/users/${resetModalUser.id}/send-magic-link-telegram`);
+      if (res.data?.success) {
+        showToast("បានផ្ញើ Magic Link ទៅកាន់ Telegram ដោយជោគជ័យ!");
+      } else {
+        showToast(res.data?.message || "មិនអាចផ្ញើទៅ Telegram បានទេ សូមពិនិត្យ Bot", "error");
+      }
+    } catch (e: any) {
+      showToast("បរាជ័យក្នុងការផ្ញើទៅ Telegram", "error");
+    } finally {
+      setIsSendingTelegram(false);
     }
   };
 
@@ -395,16 +447,16 @@ export default function AdminUsersPage() {
                           type="button"
                           onClick={() => setSelectedUser(u)}
                           className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="មើលព័ត៌មានលម្អិត (View Full Profile)"
+                          title="មើលព័ត៌មានលម្អិត • View Full Profile"
                         >
                           <Eye size={16} />
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => setResetModalUser(u)}
+                          onClick={() => handleOpenResetModal(u)}
                           className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
-                          title="កំណត់ពាក្យសម្ងាត់ឡើងវិញ (Reset Password)"
+                          title="Magic Login Link • Reset Password"
                         >
                           <Key size={16} />
                         </button>
@@ -413,7 +465,7 @@ export default function AdminUsersPage() {
                           type="button"
                           onClick={() => handleDeleteUser(u.id, u.display_name)}
                           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="លុបគណនី (Delete User)"
+                          title="លុបគណនី • Delete User"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -513,13 +565,13 @@ export default function AdminUsersPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setResetModalUser(selectedUser);
+                  handleOpenResetModal(selectedUser);
                   setSelectedUser(null);
                 }}
                 className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Key size={14} />
-                <span>Reset Password</span>
+                <span>Magic Login Link • Reset Password</span>
               </button>
 
               <button
@@ -534,38 +586,146 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Modal: Reset Password Confirmation */}
+      {/* Modal: Magic Login & Reset Password Link Generator */}
       {resetModalUser && (
         <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-gray-100 text-center animate-in zoom-in-95">
-            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-inner">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 animate-in zoom-in-95 relative">
+            <button
+              onClick={() => {
+                setResetModalUser(null);
+                setMagicLinkResult(null);
+              }}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
               <Key size={30} />
             </div>
 
-            <h3 className="text-xl font-black text-gray-900 mb-2">
-              កំណត់ពាក្យសម្ងាត់ឡើងវិញ?
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-500 mb-6 leading-relaxed">
-              តើអ្នកពិតជាចង់បង្កើតសំណើ Reset Password សម្រាប់គណនី <b>{resetModalUser.display_name}</b> ({resetModalUser.email}) មែនទេ? ប្រព័ន្ធនឹងបញ្ជូនការជូនដំណឹងទៅគណនីអតិថិជននេះដោយស្វ័យប្រវត្តិ។
-            </p>
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-black text-gray-900 mb-1.5">
+                Magic Login Link • Reset Password
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
+                បង្កើតតំណភ្ជាប់ចូលគណនីផ្ទាល់សម្រាប់អតិថិជន <b>{resetModalUser.display_name}</b> ({resetModalUser.email})។ អតិថិជនអាចចុចចូលភ្លាមៗដោយមិនបាច់វាយពាក្យសម្ងាត់ចាស់។
+              </p>
+            </div>
 
-            <div className="flex gap-3">
+            {isResetting ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-3">
+                <RefreshCw size={28} className="animate-spin text-amber-600" />
+                <span className="text-xs font-bold text-gray-500">កំពុងបង្កើតតំណភ្ជាប់សុវត្ថិភាពពី Neon DB...</span>
+              </div>
+            ) : magicLinkResult ? (
+              <div className="space-y-4">
+                {/* Link Box */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                    តំណភ្ជាប់ចូលគណនីផ្ទាល់ • One-time Magic Link
+                  </label>
+                  <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-2 focus-within:border-amber-500 focus-within:bg-white transition-all">
+                    <Link2 size={16} className="text-gray-400 shrink-0 ml-1" />
+                    <input
+                      type="text"
+                      readOnly
+                      value={magicLinkResult.link}
+                      className="w-full bg-transparent text-xs text-gray-800 font-mono outline-none select-all"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shrink-0 transition-all cursor-pointer ${
+                        copiedLink
+                          ? "bg-emerald-600 text-white"
+                          : "bg-gray-900 hover:bg-gray-800 text-white"
+                      }`}
+                    >
+                      {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedLink ? "បានចម្លង!" : "Copy Link"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expiration Note */}
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
+                  <CheckCircle2 size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    <b>សុពលភាព ២៤ ម៉ោង៖</b> តំណភ្ជាប់នេះមានសុវត្ថិភាពខ្ពស់ និងអាចប្រើប្រាស់បានតែម្តងប៉ុណ្ណោះ។ ពេលអតិថិជនចុចរួច វានឹងផុតកំណត់ដោយស្វ័យប្រវត្តិ។
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                  {/* Send via Telegram */}
+                  <button
+                    type="button"
+                    onClick={handleSendTelegram}
+                    disabled={isSendingTelegram}
+                    className="py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8ec3] text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <Send size={14} className={isSendingTelegram ? "animate-spin" : ""} />
+                    <span>{isSendingTelegram ? "កំពុងផ្ញើ..." : "ផ្ញើទៅ Telegram Group"}</span>
+                  </button>
+
+                  {/* Share to Telegram directly */}
+                  <a
+                    href={`https://t.me/share/url?url=${encodeURIComponent(magicLinkResult.link)}&text=${encodeURIComponent('S Tech Store Magic Login Link សម្រាប់ចូលគណនី')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer text-center no-underline border border-gray-200"
+                  >
+                    <MessageCircle size={14} className="text-[#229ED9]" />
+                    <span>Share តាម Telegram</span>
+                  </a>
+
+                  {/* Open Link to Test */}
+                  <a
+                    href={magicLinkResult.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2.5 px-3 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer text-center no-underline"
+                  >
+                    <ExternalLink size={14} />
+                    <span>សាកល្បងបើកមើល</span>
+                  </a>
+
+                  {/* Regenerate new link */}
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateMagicLink()}
+                    className="py-2.5 px-3 rounded-xl border border-amber-200 text-amber-700 hover:bg-amber-50 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw size={14} />
+                    <span>បង្កើត Link ថ្មីឡើងវិញ</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <button
+                  type="button"
+                  onClick={() => handleGenerateMagicLink()}
+                  className="py-3 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                >
+                  <Key size={14} />
+                  <span>បង្កើត Magic Login Link</span>
+                </button>
+              </div>
+            )}
+
+            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
               <button
                 type="button"
-                onClick={() => setResetModalUser(null)}
-                disabled={isResetting}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 font-bold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => {
+                  setResetModalUser(null);
+                  setMagicLinkResult(null);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-gray-900 text-white font-bold text-xs cursor-pointer hover:bg-black transition-colors"
               >
-                បោះបង់
-              </button>
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={isResetting}
-                className="flex-1 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Key size={14} className={isResetting ? "animate-spin" : ""} />
-                <span>{isResetting ? "កំពុងដំណើរការ..." : "យល់ព្រម Reset"}</span>
+                បិទផ្ទាំង
               </button>
             </div>
           </div>

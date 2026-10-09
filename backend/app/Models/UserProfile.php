@@ -13,6 +13,7 @@ class UserProfile extends Model
         'two_fa_enabled', 'notif_orders', 'notif_promos', 'notif_builds',
         'points', 'is_admin', 'avatar_url',
         'is_active', 'status', 'last_password_reset_at',
+        'magic_login_token', 'magic_token_expires_at',
     ];
 
     protected $casts = [
@@ -26,6 +27,7 @@ class UserProfile extends Model
         'gps_lat' => 'float',
         'gps_lng' => 'float',
         'last_password_reset_at' => 'datetime',
+        'magic_token_expires_at' => 'datetime',
     ];
 
     public function notifications()

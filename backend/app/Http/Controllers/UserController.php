@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\UserCartItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -104,6 +105,178 @@ class UserController extends Controller
             'success' => true,
             'message' => "បានផ្ញើសំណើ Reset Password ទៅកាន់គណនី {$user->display_name} ជោគជ័យ!",
             'reset_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function generateMagicLink(Request $request, $id)
+    {
+        $user = UserProfile::findOrFail($id);
+
+        if (!($user->is_active ?? true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "គណនី '{$user->display_name}' ត្រូវបានផ្អាកដំណើរការ (Account Disabled)។ មិនអាចបង្កើត Magic Link បានទេ។",
+            ], 403);
+        }
+
+        if (empty($user->firebase_uid)) {
+            $user->firebase_uid = 'stech_u_' . $user->id . '_' . Str::random(10);
+        }
+
+        $token = Str::random(60);
+        $user->magic_login_token = $token;
+        $user->magic_token_expires_at = now()->addHours(24);
+        $user->last_password_reset_at = now();
+        $user->save();
+
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        $origin = $request->header('Origin') ?: $request->header('Referer');
+        if ($origin) {
+            $parsed = parse_url($origin);
+            if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
+                $frontendUrl = $parsed['scheme'] . '://' . $parsed['host'] . (!empty($parsed['port']) ? ':' . $parsed['port'] : '');
+            }
+        }
+
+        $magicLink = rtrim($frontendUrl, '/') . '/km/magic-login?token=' . $token;
+
+        if (!empty($user->firebase_uid)) {
+            try {
+                UserNotification::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'title' => '🔑 តំណភ្ជាប់ចូលគណនីផ្ទាល់ (Magic Login Link)',
+                    'message' => 'Admin បានបង្កើតតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ជូនលោកអ្នក។ មានសុពលភាព ២៤ ម៉ោង។',
+                    'type' => 'system',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $e) {}
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានបង្កើត Magic Login Link សម្រាប់ {$user->display_name} ជោគជ័យ!",
+            'magic_link' => $magicLink,
+            'token' => $token,
+            'expires_at' => $user->magic_token_expires_at->toIso8601String(),
+            'user' => [
+                'id' => $user->id,
+                'firebase_uid' => $user->firebase_uid,
+                'display_name' => $user->display_name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'telegram' => $user->telegram,
+            ],
+        ]);
+    }
+
+    public function sendMagicLinkViaTelegram(Request $request, $id)
+    {
+        $user = UserProfile::findOrFail($id);
+
+        if (!($user->is_active ?? true)) {
+            return response()->json([
+                'success' => false,
+                'message' => "គណនីត្រូវបានផ្អាកដំណើរការ (Account Disabled)",
+            ], 403);
+        }
+
+        if (empty($user->magic_login_token) || ($user->magic_token_expires_at && now()->greaterThan($user->magic_token_expires_at))) {
+            if (empty($user->firebase_uid)) {
+                $user->firebase_uid = 'stech_u_' . $user->id . '_' . Str::random(10);
+            }
+            $user->magic_login_token = Str::random(60);
+            $user->magic_token_expires_at = now()->addHours(24);
+            $user->last_password_reset_at = now();
+            $user->save();
+        }
+
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+        $origin = $request->header('Origin') ?: $request->header('Referer');
+        if ($origin) {
+            $parsed = parse_url($origin);
+            if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
+                $frontendUrl = $parsed['scheme'] . '://' . $parsed['host'] . (!empty($parsed['port']) ? ':' . $parsed['port'] : '');
+            }
+        }
+
+        $magicLink = rtrim($frontendUrl, '/') . '/km/magic-login?token=' . $user->magic_login_token;
+        $directChatId = $request->input('chat_id');
+
+        $alertRes = \App\Services\TelegramService::sendCustomerMagicLinkAlert($user, $magicLink, $directChatId);
+
+        return response()->json([
+            'success' => ($alertRes['ok'] ?? false) === true,
+            'message' => ($alertRes['ok'] ?? false) === true ? "បានផ្ញើ Magic Link ទៅកាន់ Telegram ដោយជោគជ័យ!" : "មិនអាចផ្ញើទៅ Telegram បានទេ សូមពិនិត្យការតភ្ជាប់ Bot",
+            'magic_link' => $magicLink,
+            'telegram_response' => $alertRes,
+        ]);
+    }
+
+    public function magicLogin(Request $request)
+    {
+        $validated = $request->validate([
+            'token' => 'required|string',
+        ]);
+
+        $token = trim($validated['token']);
+        $user = UserProfile::where('magic_login_token', $token)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'តំណភ្ជាប់ចូលគណនីមិនត្រឹមត្រូវ ឬត្រូវបានប្រើប្រាស់រួចហើយ (Invalid or already used token)។',
+            ], 404);
+        }
+
+        if ($user->magic_token_expires_at && now()->greaterThan($user->magic_token_expires_at)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'តំណភ្ជាប់ចូលគណនីនេះបានផុតកំណត់សុពលភាពហើយ (Token Expired)។ សូមទាក់ទង Admin ដើម្បីបង្កើតតំណភ្ជាប់ថ្មី។',
+            ], 410);
+        }
+
+        if (!($user->is_active ?? true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការ (Account Disabled)។',
+            ], 403);
+        }
+
+        if (empty($user->firebase_uid)) {
+            $user->firebase_uid = 'stech_u_' . $user->id . '_' . Str::random(10);
+        }
+
+        // Token consumed (one-time use security)
+        $user->magic_login_token = null;
+        $user->magic_token_expires_at = null;
+        $user->last_password_reset_at = now();
+        $user->save();
+
+        try {
+            UserNotification::create([
+                'firebase_uid' => $user->firebase_uid,
+                'title' => 'ចូលគណនីតាម Magic Link ជោគជ័យ 🔐',
+                'message' => 'លោកអ្នកបានចូលប្រើប្រាស់គណនីដោយជោគជ័យតាមរយៈ Magic Login Link។',
+                'type' => 'login',
+                'read' => false,
+            ]);
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => "ស្វាគមន៍ការចូលគណនី {$user->display_name}! (Magic Login Successful)",
+            'user' => [
+                'id' => $user->id,
+                'firebase_uid' => $user->firebase_uid,
+                'display_name' => $user->display_name ?: ('អតិថិជន #' . $user->id),
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'photo_url' => $user->photo_url ?: $user->avatar_url,
+                'address' => $user->address,
+                'city' => $user->city,
+                'is_admin' => (bool)$user->is_admin,
+                'points' => (int)($user->points ?? 0),
+            ],
         ]);
     }
 

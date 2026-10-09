@@ -59,7 +59,7 @@ api.interceptors.request.use(
         // localStorage error fallback
       }
 
-      // 2. Attach Firebase Auth info
+      // 2. Attach Firebase Auth info or Direct Magic Login session
       try {
         const auth = getAuth();
         const user = auth.currentUser;
@@ -68,9 +68,20 @@ api.interceptors.request.use(
           config.headers["X-Firebase-Email"] = user.email || "";
           config.headers["X-Firebase-Name"] = user.displayName || "";
           config.headers["X-Firebase-Photo"] = user.photoURL || "";
+        } else {
+          const sessionUserStr = localStorage.getItem("stech_user_session");
+          if (sessionUserStr) {
+            const sessionUser = JSON.parse(sessionUserStr);
+            if (sessionUser?.firebase_uid) {
+              config.headers["X-Firebase-UID"] = sessionUser.firebase_uid;
+              config.headers["X-Firebase-Email"] = sessionUser.email || "";
+              config.headers["X-Firebase-Name"] = sessionUser.display_name || "";
+              config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
+            }
+          }
         }
       } catch (e) {
-        // Firebase not initialized yet — skip
+        // Auth not initialized yet — skip
       }
     }
     return config;
