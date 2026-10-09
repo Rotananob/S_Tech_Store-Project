@@ -68,16 +68,16 @@ export function HeroSection() {
           {/* Dynamic Animated Content Container */}
           <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 pt-10 sm:pt-8 z-10">
             {/* Animated Text */}
-            <div className="flex flex-col items-start text-left w-[58%] sm:w-[50%] z-20">
-              <div className="h-[28px] sm:h-[36px] overflow-hidden mb-1 flex items-center relative w-full">
+            <div className="flex flex-col items-start text-left w-[58%] sm:w-[56%] lg:w-[58%] z-20">
+              <div className="min-h-[32px] sm:min-h-[42px] md:min-h-[50px] mb-1.5 flex items-center relative w-full overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.h1
                     key={slideIndex}
-                    initial={{ y: 15, opacity: 0 }}
+                    initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -15, opacity: 0 }}
+                    exit={{ y: -20, opacity: 0 }}
                     transition={{ duration: 0.35 }}
-                    className="text-gray-900 text-base sm:text-2xl md:text-3xl font-black leading-[1.1] drop-shadow-sm absolute w-full"
+                    className="text-gray-900 text-base sm:text-2xl md:text-3xl lg:text-4xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
                   >
                     {current.title}
                   </motion.h1>
@@ -100,31 +100,31 @@ export function HeroSection() {
               <div className="flex items-center gap-2.5">
                 <Link
                   href="/category/all"
-                  className="bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-[11px] sm:text-sm font-bold px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-md transition-all no-underline flex items-center gap-2 hover:scale-105"
+                  className="bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-[11px] sm:text-sm font-bold px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-md transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
                 >
                   <span>Shop Now</span>
                   <span className="text-xs sm:text-sm">&rarr;</span>
                 </Link>
-                <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hidden sm:inline-block border border-gray-200">
+                <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hidden sm:inline-block border border-gray-200 shrink-0">
                   {current.badge}
                 </span>
               </div>
             </div>
 
             {/* Auto Sliding 4 Images with Smooth Transition */}
-            <div className="absolute right-[-8%] sm:right-[0%] top-1/2 -translate-y-1/2 w-[55%] sm:w-[45%] lg:w-[42%] h-[130%] sm:h-[135%] z-10 flex items-center justify-center pointer-events-none">
-              <div className="absolute w-44 h-44 bg-red-400/15 blur-3xl rounded-full" />
+            <div className="absolute right-2 sm:right-6 lg:right-10 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[35%] h-[82%] sm:h-[88%] z-10 flex items-center justify-center pointer-events-none">
+              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 bg-red-400/15 blur-3xl rounded-full" />
               
               <AnimatePresence mode="wait">
                 <motion.img
                   key={slideIndex}
                   src={current.image}
                   alt={current.alt}
-                  initial={{ opacity: 0, scale: 0.92, x: 30 }}
+                  initial={{ opacity: 0, scale: 0.94, x: 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 1.05, x: -30 }}
+                  exit={{ opacity: 0, scale: 1.04, x: -20 }}
                   transition={{ duration: 0.45, ease: "easeOut" }}
-                  className="w-full h-full object-cover rounded-full shadow-[0_0_35px_rgba(0,0,0,0.15)] border-4 border-white/60"
+                  className="max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80"
                 />
               </AnimatePresence>
             </div>
@@ -382,6 +382,7 @@ export function ProductCard({ product }: { product: any }) {
   const addItem = useCartStore((state) => state.addItem);
   const [flyAnim, setFlyAnim] = useState<{ id: number; x: number; y: number } | null>(null);
   const [isShaking, setIsShaking] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -435,16 +436,18 @@ export function ProductCard({ product }: { product: any }) {
 
         {/* Product Image Frame */}
         <Link href={`/products/${product.slug}`} className="block relative w-full h-[180px] sm:h-[200px] lg:h-[220px] bg-gradient-to-b from-gray-50/80 to-gray-100/40 p-4 sm:p-5 overflow-hidden flex items-center justify-center no-underline">
-          {(product.image_url || product.image) ? (
+          {!imgError && (product.image_url || product.image) ? (
             <img
               src={product.image_url || product.image}
               alt={product.name}
-              className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-108 transition-transform duration-300 drop-shadow-sm"
+              onError={() => setImgError(true)}
+              className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300 drop-shadow-sm"
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-12 h-12"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1.5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-gray-300"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">S Tech Store</span>
             </div>
           )}
         </Link>
@@ -464,18 +467,18 @@ export function ProductCard({ product }: { product: any }) {
 
           {/* Pricing Row */}
           <div className="mt-auto pt-3 border-t border-gray-100 flex flex-col gap-2.5">
-            <div className="flex items-baseline justify-between">
-              <div>
-                <div className="text-[18px] sm:text-[20px] font-black text-[#8B1A1A] leading-tight drop-shadow-sm font-mono">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-[17px] sm:text-[19px] xl:text-[20px] font-black text-[#8B1A1A] leading-tight drop-shadow-sm font-mono truncate">
                   {formatUSD(product.price)}
                 </div>
-                <div className="text-[11px] text-gray-400 font-semibold mt-0.5">
+                <div className="text-[11px] text-gray-400 font-semibold mt-0.5 truncate">
                   {formatKHR(product.price)}
                 </div>
               </div>
               <Link 
                 href={`/products/${product.slug}`}
-                className="text-[11px] text-[#1a4fa0] hover:text-[#8B1A1A] font-bold no-underline transition-colors"
+                className="text-[11px] sm:text-xs text-[#1a4fa0] hover:text-[#8B1A1A] font-bold no-underline transition-colors shrink-0 whitespace-nowrap pl-1"
               >
                 Details &rarr;
               </Link>
@@ -592,13 +595,13 @@ export function PromoCTA() {
   return (
     <section className="bg-white py-10 sm:py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-[#8B1A1A] via-[#a32222] to-[#1a4fa0] rounded-3xl p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden text-white border border-[#8B1A1A]/30">
+        <div className="bg-gradient-to-r from-[#8B1A1A] via-[#a32222] to-[#1a4fa0] rounded-3xl p-6 sm:p-8 lg:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 shadow-xl relative overflow-hidden text-white border border-[#8B1A1A]/30">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-black/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-start md:items-center gap-5 text-center sm:text-left z-10 max-w-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20 shadow-md">
-              <Sparkles size={32} className="text-amber-300" />
+          <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-5 text-center sm:text-left z-10 max-w-xl xl:max-w-2xl">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/20 shadow-md">
+              <Sparkles size={30} className="text-amber-300" />
             </div>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
@@ -613,16 +616,16 @@ export function PromoCTA() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto z-10 shrink-0">
+          <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto z-10 shrink-0">
             <Link
               href="/register"
-              className="w-full sm:w-auto bg-white hover:bg-gray-100 text-[#8B1A1A] text-sm sm:text-base font-bold py-3.5 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-center no-underline hover:scale-105"
+              className="w-full sm:w-auto bg-white hover:bg-gray-100 !text-[#8B1A1A] text-[#8B1A1A] text-sm sm:text-base font-black py-3.5 px-7 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-center no-underline hover:scale-105 shrink-0 whitespace-nowrap"
             >
               {tNav('register')} Free
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border border-white/30 text-sm sm:text-base font-bold py-3.5 px-6 rounded-xl backdrop-blur-md transition-all text-center no-underline"
+              className="w-full sm:w-auto bg-white/15 hover:bg-white/25 !text-white text-white border border-white/30 text-sm sm:text-base font-bold py-3.5 px-6 rounded-xl backdrop-blur-md transition-all text-center no-underline shrink-0 whitespace-nowrap"
             >
               {tNav('signIn')}
             </Link>

@@ -25,7 +25,7 @@ export default function FloatingBackButton() {
   return (
     <button
       onClick={() => router.back()}
-      className="fixed top-[70px] left-3 z-40 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-xl text-gray-800 border border-gray-200/80 rounded-[14px] shadow-sm hover:shadow-md hover:bg-gray-50 active:scale-95 transition-all duration-300 cursor-pointer"
+      className="lg:hidden fixed top-[70px] left-3 z-40 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-xl text-gray-800 border border-gray-200/80 rounded-[14px] shadow-sm hover:shadow-md hover:bg-gray-50 active:scale-95 transition-all duration-300 cursor-pointer"
       aria-label={label}
       title={label}
     >

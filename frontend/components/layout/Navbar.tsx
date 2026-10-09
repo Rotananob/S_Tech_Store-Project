@@ -147,7 +147,7 @@ export default function Navbar() {
 
       {/* ── 2. Main Header Row (Logo + Search Bar + Icons) ───────────────── */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
-        <div className="container h-[56px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-4">
+        <div className="container h-[56px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-3 xl:gap-4">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 lg:gap-2.5 flex-shrink-0 no-underline group">
@@ -168,7 +168,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Search Bar (Visible on lg and larger) */}
-          <div className="hidden lg:flex flex-1 max-w-xl mx-4">
+          <div className="hidden lg:flex flex-1 min-w-[180px] max-w-xs xl:max-w-md 2xl:max-w-xl mx-2 xl:mx-4">
             <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
@@ -182,7 +182,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={openVisualSearch}
-                  title="Taobao Visual Camera Search / ស្កេនរូបភាព"
+                  title="Visual Camera Search / ស្កេនរូបភាព"
                   className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-[#8B1A1A] flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 shadow-sm"
                   aria-label="Scan image with Camera"
                 >
@@ -200,7 +200,7 @@ export default function Navbar() {
           </div>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 lg:gap-1.5 xl:gap-2 shrink-0">
             <Link
               href="/wishlist"
               title={t('wishlist')}
@@ -320,42 +320,42 @@ export default function Navbar() {
             </Link>
 
             {/* ── Prominent Language Switcher Pill (Desktop Only) ── */}
-            <div className="hidden lg:block">
+            <div className="hidden lg:block shrink-0">
               <LanguageSwitcher />
             </div>
 
             {/* ── Prominent Sign In / Register Buttons or User Profile (Desktop Only) ── */}
             {user ? (
-              <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200">
+              <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200 shrink-0">
                 <Link
                   href="/account/profile"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-sm transition-all border border-gray-200 hover:border-red-200 no-underline shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-sm transition-all border border-gray-200 hover:border-red-200 no-underline shadow-sm shrink-0 whitespace-nowrap"
                 >
-                  <div className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center text-[10px] font-black">
+                  <div className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center text-[10px] font-black shrink-0">
                     {(user.displayName || user.email || "U")[0].toUpperCase()}
                   </div>
-                  <span className="max-w-[100px] truncate">{user.displayName || user.email?.split("@")[0]}</span>
+                  <span className="max-w-[90px] xl:max-w-[120px] truncate">{user.displayName || user.email?.split("@")[0]}</span>
                 </Link>
                 <button
                   type="button"
                   onClick={() => signOut(auth)}
-                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-red-600 hover:text-white text-gray-700 rounded-xl text-xs font-bold transition-all border border-gray-200 cursor-pointer flex items-center gap-1"
+                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-red-600 hover:text-white text-gray-700 rounded-xl text-xs font-bold transition-all border border-gray-200 cursor-pointer flex items-center gap-1 shrink-0"
                   title={t('signOut')}
                 >
                   <LogOut size={14} />
                 </button>
               </div>
             ) : (
-              <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-gray-200">
+              <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 pl-2 border-l border-gray-200 shrink-0">
                 <Link
                   href="/login"
-                  className="px-3.5 py-1.5 rounded-xl text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline"
+                  className="px-3 xl:px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline shrink-0 whitespace-nowrap"
                 >
                   {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3.5 py-1.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1"
+                  className="px-3 xl:px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                 >
                   <span>{t('register')}</span>
                 </Link>
