@@ -1,8 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { Link } from "@/i18n/routing";
 import { getAdminStats, getRecentOrders, AdminStats, Order } from "@/lib/services/admin.service";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { DollarSign, ShoppingBag, Wrench, Tag, FileText, ArrowUpRight, ArrowDownRight, Settings } from "lucide-react";
+import { DollarSign, ShoppingBag, Wrench, Tag, FileText, ArrowUpRight, ArrowDownRight, Settings, Send } from "lucide-react";
 
 // Mock data for the chart to make it look real
 const monthlySalesData = [
@@ -74,6 +75,33 @@ export default function AdminDashboardOverview() {
           <FileText size={16} />
           Export Report
         </button>
+      </div>
+
+      {/* Telegram Notification Banner (ABA Merchant Style) */}
+      <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-[#0088cc] text-white flex items-center justify-center shrink-0 shadow-md">
+            <Send size={20} className="fill-white/20" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-gray-900">Telegram Bot Notifications</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#0088cc]/10 text-[#0088cc]">
+                ABA Merchant Style
+              </span>
+            </div>
+            <p className="text-xs text-gray-600 mt-0.5">
+              ភ្ជាប់ Bot ទៅកាន់ Telegram Group ដើម្បីទទួលបាន Notification ការបញ្ជាទិញថ្មីស្វ័យប្រវត្តិ (Auto-command 1-Click)
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/admin/settings"
+          className="px-4 py-2 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all no-underline shrink-0"
+        >
+          <span>គ្រប់គ្រង Telegram Bot</span>
+          <ArrowUpRight size={14} />
+        </Link>
       </div>
 
       {/* Stats Grid */}

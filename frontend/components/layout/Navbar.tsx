@@ -168,7 +168,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Search Bar (Visible on lg and larger) */}
-          <div className="hidden lg:flex flex-1 min-w-[180px] max-w-xs xl:max-w-md 2xl:max-w-xl mx-2 xl:mx-4">
+          <div className="hidden lg:flex flex-1 max-w-md xl:max-w-xl 2xl:max-w-2xl mx-4 xl:mx-6">
             <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
@@ -346,18 +346,18 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <div className="hidden lg:flex items-center gap-1.5 xl:gap-2 pl-2 border-l border-gray-200 shrink-0">
+              <div className="hidden lg:flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
                 <Link
                   href="/login"
-                  className="px-3 xl:px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline shrink-0 whitespace-nowrap"
+                  className="px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline shrink-0 whitespace-nowrap"
                 >
                   {t('signIn')}
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3 xl:px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1 shrink-0 whitespace-nowrap"
+                  className="px-4 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-[#8B1A1A] hover:bg-[#6b1111] !text-white text-white transition-all shadow-md hover:shadow-lg no-underline flex items-center gap-1 shrink-0 whitespace-nowrap"
                 >
-                  <span>{t('register')}</span>
+                  <span className="!text-white text-white font-bold">{t('register')}</span>
                 </Link>
               </div>
             )}
@@ -402,13 +402,13 @@ export default function Navbar() {
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-            {/* Taobao-style Camera Scanner Button */}
+            {/* Camera Visual Search Scanner Button */}
             <button
               type="button"
               onClick={openVisualSearch}
-              title="Scan by Camera (Taobao Style) / ស្កេនកាមេរ៉ា"
+              title="Visual Camera Search / ស្កេនរូបភាព"
               className="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-[#8B1A1A] flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 shadow-sm"
-              aria-label="Scan image with Camera like Taobao"
+              aria-label="Scan image with Camera"
             >
               <Camera size={16} strokeWidth={2.2} />
             </button>

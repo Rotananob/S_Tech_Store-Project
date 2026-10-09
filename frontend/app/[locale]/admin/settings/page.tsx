@@ -1,8 +1,9 @@
 "use client";
 import React, { useState } from "react";
-import { Store, Globe, Shield, Bell, Upload, Trash2 } from "lucide-react";
+import { Store, Globe, Shield, Bell, Upload, Trash2, Send } from "lucide-react";
+import TelegramBotCard from "@/components/admin/TelegramBotCard";
 
-const ACTIVE_TABS = ["Store Profile", "Regional & Currency", "Security", "Notification Settings"];
+const ACTIVE_TABS = ["Store Profile", "Telegram Bot", "Regional & Currency", "Security", "Notification Settings"];
 
 export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState("Store Profile");
@@ -54,6 +55,7 @@ export default function SystemSettingsPage() {
 
   const TAB_ICONS: Record<string, React.ReactNode> = {
     "Store Profile": <Store size={18} />,
+    "Telegram Bot": <Send size={18} className="text-[#0088cc]" />,
     "Regional & Currency": <Globe size={18} />,
     "Security": <Shield size={18} />,
     "Notification Settings": <Bell size={18} />,
@@ -189,6 +191,11 @@ export default function SystemSettingsPage() {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* ── TELEGRAM BOT (ABA MERCHANT STYLE) ── */}
+          {activeTab === "Telegram Bot" && (
+            <TelegramBotCard />
           )}
 
           {/* ── REGIONAL & CURRENCY ── */}

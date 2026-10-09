@@ -64,3 +64,64 @@ export const updateOrderStatus = async (orderId: number, status: string): Promis
     return false;
   }
 };
+
+export interface TelegramStatus {
+  connected: boolean;
+  chat_id?: string | null;
+  chat_title?: string | null;
+  chat_type?: string | null;
+  connected_at?: string | null;
+  connected_by?: string | null;
+  bot_username: string;
+  notify_orders: boolean;
+  notify_low_stock: boolean;
+  notify_repairs: boolean;
+  notify_shifts: boolean;
+}
+
+export interface TelegramPairLink {
+  success: boolean;
+  pair_code: string;
+  bot_username: string;
+  group_url: string;
+  direct_url: string;
+  expires_in: number;
+  message?: string;
+}
+
+export const getTelegramStatus = async (): Promise<TelegramStatus> => {
+  try {
+    const res = await api.get("/admin/telegram/status");
+    return res.data;
+  } catch (e) {
+    return {
+      connected: false,
+      bot_username: "STechStoreBot",
+      notify_orders: true,
+      notify_low_stock: true,
+      notify_repairs: true,
+      notify_shifts: true,
+    };
+  }
+};
+
+export const generateTelegramLink = async (userEmail?: string): Promise<TelegramPairLink> => {
+  const res = await api.post("/admin/telegram/generate-link", { user: userEmail });
+  return res.data;
+};
+
+export const testTelegramNotification = async (): Promise<{ success: boolean; message: string }> => {
+  const res = await api.post("/admin/telegram/test");
+  return res.data;
+};
+
+export const disconnectTelegram = async (): Promise<boolean> => {
+  const res = await api.post("/admin/telegram/disconnect");
+  return res.data.success;
+};
+
+export const updateTelegramSettings = async (settings: Partial<TelegramStatus>): Promise<boolean> => {
+  const res = await api.post("/admin/telegram/settings", settings);
+  return res.data.success;
+};
+

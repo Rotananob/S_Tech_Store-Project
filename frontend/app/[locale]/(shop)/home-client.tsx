@@ -100,10 +100,10 @@ export function HeroSection() {
               <div className="flex items-center gap-2.5">
                 <Link
                   href="/category/all"
-                  className="bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-[11px] sm:text-sm font-bold px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-md transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
+                  className="bg-[#8B1A1A] hover:bg-[#6B1010] !text-white text-white text-xs sm:text-sm font-bold px-5 sm:px-7 py-2.5 sm:py-3 rounded-full shadow-md hover:shadow-lg transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
                 >
-                  <span>Shop Now</span>
-                  <span className="text-xs sm:text-sm">&rarr;</span>
+                  <span className="!text-white text-white font-bold">Shop Now</span>
+                  <span className="!text-white text-white text-xs sm:text-sm">&rarr;</span>
                 </Link>
                 <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hidden sm:inline-block border border-gray-200 shrink-0">
                   {current.badge}
@@ -445,8 +445,8 @@ export function ProductCard({ product }: { product: any }) {
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1.5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-10 h-10 text-gray-300"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1.5 bg-gray-50/60 p-4 rounded-xl">
+              <img src="/logo.jpg" alt="S Tech Store" className="w-12 h-12 object-contain rounded-xl opacity-75 shadow-sm" />
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">S Tech Store</span>
             </div>
           )}

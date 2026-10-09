@@ -93,6 +93,13 @@ class OrderController extends Controller
                 \App\Models\UserCartItem::where('firebase_uid', $uid)->delete();
             }
 
+            // Dispatch instant notification to connected Telegram group (ABA Merchant Style)
+            try {
+                \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::error("Telegram order notification failed: " . $t->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Order placed successfully',
                 'order' => $order->load('items')

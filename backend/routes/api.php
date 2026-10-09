@@ -130,4 +130,15 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     // Users
     Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::patch('/admin/users/{id}/admin-status', [\App\Http\Controllers\UserController::class, 'updateAdminStatus']);
+
+    // Telegram Bot Integration (ABA Merchant Style)
+    Route::get('/admin/telegram/status', [\App\Http\Controllers\TelegramController::class, 'status']);
+    Route::post('/admin/telegram/generate-link', [\App\Http\Controllers\TelegramController::class, 'generateLink']);
+    Route::post('/admin/telegram/pair', [\App\Http\Controllers\TelegramController::class, 'pair']);
+    Route::post('/admin/telegram/test', [\App\Http\Controllers\TelegramController::class, 'test']);
+    Route::post('/admin/telegram/disconnect', [\App\Http\Controllers\TelegramController::class, 'disconnect']);
+    Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
 });
+
+// Public Telegram Webhook Endpoint
+Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramController::class, 'webhook']);
