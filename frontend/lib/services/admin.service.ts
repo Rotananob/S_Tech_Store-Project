@@ -7,6 +7,7 @@ export interface AdminStats {
   ordersGrowth: number;
   pendingRepairs: number;
   activePromotions: number;
+  monthlySales?: { name: string; sales: number }[];
 }
 
 export interface Order {

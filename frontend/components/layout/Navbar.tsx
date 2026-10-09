@@ -15,6 +15,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { ThemeDropdown } from "@/components/ui/ThemeDropdown";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { AnimatePresence, motion } from "framer-motion";
@@ -146,7 +147,7 @@ export default function Navbar() {
       </div>
 
       {/* ── 2. Main Header Row (Logo + Search Bar + Icons) ───────────────── */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40 shadow-sm">
+      <header className="bg-white dark:bg-[#12151e] border-b border-gray-100 dark:border-white/10 sticky top-0 z-40 shadow-sm transition-colors">
         <div className="container h-[56px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-3 xl:gap-4">
 
           {/* Logo */}
@@ -160,10 +161,10 @@ export default function Navbar() {
               priority 
             />
             <div className="leading-none">
-              <div className="font-dangrek text-[18px] lg:text-[21px] text-[#1a1a1a] tracking-wide">
-                S <span className="text-[#8B1A1A]">Tech</span> <span className="text-[#1a4fa0]">Store</span>
+              <div className="font-dangrek text-[18px] lg:text-[21px] text-[#1a1a1a] dark:text-white tracking-wide">
+                S <span className="text-[#8B1A1A] dark:text-red-400">Tech</span> <span className="text-[#1a4fa0] dark:text-blue-400">Store</span>
               </div>
-              <div className="font-khmer text-[10px] lg:text-[11px] text-[#888] hidden sm:block">ហាងបច្ចេកវិទ្យា</div>
+              <div className="font-khmer text-[10px] lg:text-[11px] text-[#888] dark:text-gray-400 hidden sm:block">ហាងបច្ចេកវិទ្យា</div>
             </div>
           </Link>
 
@@ -172,7 +173,7 @@ export default function Navbar() {
             <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
-                className="w-full bg-gray-50 border border-gray-200 rounded-full pl-11 pr-20 h-10 text-[14px] outline-none focus:border-[#8B1A1A] focus:bg-white focus:shadow-sm transition-all"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full pl-11 pr-20 h-10 text-[14px] text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 focus:bg-white dark:focus:bg-[#161a25] focus:shadow-sm transition-all"
                 placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -183,14 +184,14 @@ export default function Navbar() {
                   type="button"
                   onClick={openVisualSearch}
                   title="Visual Camera Search / ស្កេនរូបភាព"
-                  className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-[#8B1A1A] flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 shadow-sm"
+                  className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center transition-transform active:scale-90 cursor-pointer border border-red-200 dark:border-red-800/40 shadow-sm"
                   aria-label="Scan image with Camera"
                 >
                   <Camera size={13} strokeWidth={2.2} />
                 </button>
                 <button
                   type="submit"
-                  className="w-7 h-7 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none"
+                  className="w-7 h-7 bg-[#8B1A1A] hover:bg-[#6b1111] text-white rounded-full flex items-center justify-center transition-colors cursor-pointer border-none shadow-sm"
                   aria-label="Search"
                 >
                   <Search size={13} />
@@ -204,7 +205,7 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               title={t('wishlist')}
-              className="flex w-[44px] h-[44px] lg:w-9 lg:h-9 items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              className="flex w-[44px] h-[44px] lg:w-9 lg:h-9 items-center justify-center rounded-lg text-[#555] dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[#1a1a1a] dark:hover:text-white transition-colors"
             >
               <Heart size={20} />
             </Link>
@@ -215,7 +216,7 @@ export default function Navbar() {
                 type="button"
                 onClick={() => setNotifOpen(!notifOpen)}
                 title={t('alerts')}
-                className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors cursor-pointer border-none bg-transparent"
+                className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[#1a1a1a] dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
               >
                 <Bell size={20} />
                 {mounted && unreadCount > 0 && (
@@ -320,17 +321,18 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* ── Prominent Language Switcher Pill (Desktop Only) ── */}
-            <div className="hidden lg:block shrink-0">
+            {/* ── Theme & Language Switchers (Comfortable Dropdowns) ── */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <ThemeDropdown />
               <LanguageSwitcher />
             </div>
 
             {/* ── Prominent Sign In / Register Buttons or User Profile (Desktop Only) ── */}
             {user ? (
-              <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200 shrink-0">
+              <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200 dark:border-white/10 shrink-0">
                 <Link
                   href="/account/profile"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-red-50 text-[#1a1a1a] hover:text-[#8B1A1A] font-bold text-sm transition-all border border-gray-200 hover:border-red-200 no-underline shadow-sm shrink-0 whitespace-nowrap"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-950/40 text-[#1a1a1a] dark:text-gray-100 hover:text-[#8B1A1A] dark:hover:text-red-400 font-bold text-sm transition-all border border-gray-200 dark:border-white/10 hover:border-red-200 no-underline shadow-sm shrink-0 whitespace-nowrap"
                 >
                   <div className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center text-[10px] font-black shrink-0">
                     {(user.displayName || user.email || "U")[0].toUpperCase()}
@@ -340,17 +342,17 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => signOut(auth)}
-                  className="px-2.5 py-1.5 bg-gray-100 hover:bg-red-600 hover:text-white text-gray-700 rounded-xl text-xs font-bold transition-all border border-gray-200 cursor-pointer flex items-center gap-1 shrink-0"
+                  className="px-2.5 py-1.5 bg-gray-100 dark:bg-white/10 hover:bg-red-600 hover:text-white text-gray-700 dark:text-gray-300 rounded-xl text-xs font-bold transition-all border border-gray-200 dark:border-white/10 cursor-pointer flex items-center gap-1 shrink-0"
                   title={t('signOut')}
                 >
                   <LogOut size={14} />
                 </button>
               </div>
             ) : (
-              <div className="hidden lg:flex items-center gap-2.5 pl-3 border-l border-gray-200 shrink-0">
+              <div className="hidden lg:flex items-center gap-2.5 pl-3 border-l border-gray-200 dark:border-white/10 shrink-0">
                 <Link
                   href="/login"
-                  className="px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] transition-all border border-gray-200 shadow-sm no-underline shrink-0 whitespace-nowrap"
+                  className="px-3.5 py-1.5 rounded-xl text-xs xl:text-sm font-bold bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-[#1a1a1a] dark:text-gray-100 transition-all border border-gray-200 dark:border-white/10 shadow-sm no-underline shrink-0 whitespace-nowrap"
                 >
                   {t('signIn')}
                 </Link>
@@ -366,7 +368,7 @@ export default function Navbar() {
         </div>
 
         {/* ── 3. Dedicated Category Navigation Bar (Desktop lg+) ── */}
-        <nav className="hidden lg:block bg-gray-50/80 border-t border-gray-100">
+        <nav className="hidden lg:block bg-gray-50/80 dark:bg-[#0c0d12]/90 border-t border-gray-100 dark:border-white/5">
           <div className="container flex items-center justify-center gap-6 xl:gap-8 py-2.5 overflow-x-auto no-scrollbar">
             {navLinks.map((link) => (
               <Link
@@ -374,13 +376,13 @@ export default function Navbar() {
                 href={link.href}
                 className={`relative px-3 py-1.5 text-[14px] font-medium rounded-md whitespace-nowrap transition-colors no-underline group overflow-hidden ${
                   pathname === link.href
-                    ? "text-[#8B1A1A] font-bold bg-red-50/30"
-                    : "text-[#444] hover:text-[#8B1A1A]"
+                    ? "text-[#8B1A1A] dark:text-red-400 font-bold bg-red-50/30 dark:bg-red-950/20"
+                    : "text-[#444] dark:text-gray-300 hover:text-[#8B1A1A] dark:hover:text-red-400"
                 }`}
               >
                 {link.label}
                 <span 
-                  className={`absolute left-0 bottom-0 w-full h-[2px] bg-[#8B1A1A] transition-transform duration-300 origin-left ${
+                  className={`absolute left-0 bottom-0 w-full h-[2px] bg-[#8B1A1A] dark:bg-red-500 transition-transform duration-300 origin-left ${
                     pathname === link.href ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                   }`} 
                 />
@@ -391,11 +393,11 @@ export default function Navbar() {
       </header>
 
       {/* ── 4. Persistent Mobile Search Bar (Below Header on < lg) ── */}
-      <div className="lg:hidden sticky top-[56px] z-30 bg-white px-3 sm:px-4 py-2 border-b border-gray-100 shadow-sm">
+      <div className="lg:hidden sticky top-[56px] z-30 bg-white dark:bg-[#12151e] px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-white/10 shadow-sm transition-colors">
         <form onSubmit={handleSearch} className="relative w-full flex items-center">
           <input
             type="search"
-            className="w-full bg-gray-100 border border-gray-200/80 rounded-full pl-11 pr-20 h-[42px] leading-normal text-[14px] outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] focus:bg-white transition-all shadow-inner"
+            className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-full pl-11 pr-20 h-[42px] leading-normal text-[14px] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#161a25] transition-all shadow-inner"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}

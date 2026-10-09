@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
     const loginPass = customPass || password;
 
     if (!loginEmail || !loginPass) {
-      setError("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់ (Please enter email & password).");
+      setError("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់ • Please enter email & password");
       return;
     }
 
@@ -42,14 +42,14 @@ export default function AdminLoginPage() {
         document.cookie = `stech_admin_token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
 
-      setSuccessMsg(`សូមស្វាគមន៍ ${user.name} (${user.role.toUpperCase()})! កំពុងដំណើរការ...`);
+      setSuccessMsg(`សូមស្វាគមន៍ ${user.name} • ${user.role.toUpperCase()}! កំពុងដំណើរការ...`);
 
       setTimeout(() => {
         router.push("/rok-mix-khernh");
       }, 1000);
     } catch (err: any) {
       console.error("Admin login error:", err);
-      const msg = err.response?.data?.message || "ការចូលគណនីមិនត្រឹមត្រូវ សូមពិនិត្យឡើងវិញ (Invalid credentials).";
+      const msg = err.response?.data?.message || "ការចូលគណនីមិនត្រឹមត្រូវ សូមពិនិត្យឡើងវិញ • Invalid credentials";
       setError(msg);
     } finally {
       setLoading(false);
@@ -84,14 +84,14 @@ export default function AdminLoginPage() {
             S <span className="text-[#c0392b]">Tech</span> Portal
           </h1>
           <p className="text-xs text-gray-400">
-            ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក និងរដ្ឋបាលហាង (Admin & Staff Management)
+            ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក និងរដ្ឋបាលហាង • Admin & Staff Management
           </p>
         </div>
 
         {/* Security Notice Pill */}
         <div className="mb-5 flex items-center justify-center gap-2 py-1.5 px-3 bg-[#8B1A1A]/10 border border-[#8B1A1A]/30 rounded-full text-[11px] text-[#ff8080] font-medium mx-auto w-fit">
           <ShieldCheck size={14} className="text-[#ff4d4d]" />
-          <span>ច្រកចូលផ្លូវការបុគ្គលិក — គ្មានទម្រង់ចុះឈ្មោះសាធារណៈ (Internal Login Only)</span>
+          <span>ច្រកចូលផ្លូវការបុគ្គលិក — គ្មានទម្រង់ចុះឈ្មោះសាធារណៈ • Internal Login Only</span>
         </div>
 
         {/* Login Card */}
@@ -183,7 +183,7 @@ export default function AdminLoginPage() {
           {/* Quick Access Badges (For instant 1-click test) */}
           <div className="mt-6 pt-5 border-t border-white/10">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider text-center mb-3">
-              គណនីសាកល្បងរហ័ស (Quick Login Accounts)
+              គណនីសាកល្បងរហ័ស • Quick Login Accounts
             </p>
             <div className="grid grid-cols-2 gap-2.5">
               <button
@@ -233,7 +233,7 @@ export default function AdminLoginPage() {
             href="/"
             className="text-xs text-gray-500 hover:text-gray-300 no-underline transition-colors"
           >
-            ← ត្រឡប់ទៅកាន់ទំព័រដើមហាង (Back to Public Store)
+            ← ត្រឡប់ទៅកាន់ទំព័រដើមហាង • Back to Public Store
           </a>
         </div>
       </div>

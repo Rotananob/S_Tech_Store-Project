@@ -252,54 +252,7 @@ class TelegramController extends Controller
         $update = $request->all();
         Log::info("Telegram Webhook Update received:", $update);
 
-        // 1. Handle Inline Keyboard Callback Queries (e.g. Retry Setup button)
-        if (isset($update['callback_query'])) {
-            $callbackQuery = $update['callback_query'];
-            $callbackData = $callbackQuery['data'] ?? '';
-            $chatId = $callbackQuery['message']['chat']['id'] ?? null;
-            $callbackId = $callbackQuery['id'] ?? null;
-
-            if ($callbackData === 'setup_topics' && $chatId) {
-                TelegramService::setupTopics($chatId);
-
-                // Acknowledge callback query
-                $settings = TelegramService::getSettings();
-                $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-                if ($token && !str_contains($token, 'Placeholder')) {
-                    try {
-                        \Illuminate\Support\Facades\Http::post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
-                            'callback_query_id' => $callbackId,
-                            'text' => 'កំពុងពិនិត្យ និងរៀបចំ Forum Topics...',
-                        ]);
-                    } catch (\Throwable $e) {}
-                }
-            }
-
-            return response()->json(['ok' => true]);
-        }
-
-        // 2. Handle Messages
-        $message = $update['message'] ?? $update['channel_post'] ?? null;
-
-        if ($message) {
-            $text = trim($message['text'] ?? '');
-            $chat = $message['chat'] ?? [];
-            $chatId = $chat['id'] ?? null;
-            $chatTitle = $chat['title'] ?? ($chat['first_name'] ?? 'S Tech Channel');
-            $chatType = $chat['type'] ?? 'group';
-
-            // Check if text is `/start <CODE>` or `/start@BotName <CODE>`
-            if (preg_match('/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)/', $text, $matches)) {
-                $pairCode = strtoupper(trim($matches[1]));
-                TelegramService::pairChat($pairCode, $chatId, $chatTitle, $chatType);
-            }
-            // Check if user types `/setup_topics` or `/topics` manually
-            elseif (preg_match('/^\/(?:setup_topics|topics)(?:@\w+)?/i', $text)) {
-                if ($chatId) {
-                    TelegramService::setupTopics($chatId);
-                }
-            }
-        }
+        TelegramService::processUpdate($update);
 
         return response()->json(['ok' => true]);
     }

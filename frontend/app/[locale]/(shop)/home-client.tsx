@@ -233,61 +233,67 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
     }
   }, [initialCategories]);
 
-  // Clean GenZ / Human-design style icons (hand-crafted geometry, no AI generic stock vibe)
+  // Bespoke Luxury Cyber-Tech Category Icons (Custom crafted, glow-accented, non-template)
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
     if (s.includes("laptop")) return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="12" rx="2" />
-        <path d="M2 18h20" />
-        <path d="M10 18v2h4v-2" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <rect x="5" y="6" width="22" height="15" rx="2.5" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
+        <path d="M9 11h14M9 14h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+        <path d="M2 24c0-1.1.9-2 2-2h24a2 2 0 0 1 2 2v1H2v-1z" fill="currentColor" />
+        <rect x="13" y="22.5" width="6" height="1.5" rx="0.75" fill="#fff" fillOpacity="0.8" />
+        <circle cx="16" cy="13.5" r="1.5" fill="#fff" fillOpacity="0.9" />
       </svg>
     );
     if (s.includes("desktop")) return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="4" y="2" width="16" height="20" rx="2.5" />
-        <circle cx="12" cy="7" r="1.5" fill="currentColor" />
-        <line x1="8" y1="13" x2="16" y2="13" />
-        <line x1="8" y1="16" x2="16" y2="16" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <rect x="7" y="3" width="18" height="26" rx="3.5" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
+        <circle cx="16" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.4" />
+        <path d="M11 15h10M11 18h10M11 21h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <rect x="10" y="24" width="12" height="2" rx="1" fill="#fff" fillOpacity="0.7" />
+        <circle cx="21" cy="8" r="0.8" fill="#fff" />
       </svg>
     );
     if (s.includes("part") || s.includes("component") || s.includes("accessor")) return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="5" y="5" width="14" height="14" rx="2" />
-        <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" fillOpacity="0.2" />
-        <path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <rect x="7" y="7" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
+        <rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" />
+        <circle cx="16" cy="16" r="1.5" fill="#fff" />
+        <path d="M12 3v4M16 3v4M20 3v4M12 25v4M16 25v4M20 25v4M3 12h4M3 16h4M3 20h4M25 12h4M25 16h4M25 20h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     );
     if (s.includes("gaming")) return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 12h4m-2-2v4" />
-        <circle cx="15" cy="11" r="1" fill="currentColor" />
-        <circle cx="17" cy="13" r="1" fill="currentColor" />
-        <path d="M17.3 5H6.7a4 4 0 0 0-3.9 3.1L2 14.5a3.5 3.5 0 0 0 5.4 3.7L9.5 17h5l2.1 1.2a3.5 3.5 0 0 0 5.4-3.7l-.8-6.4A4 4 0 0 0 17.3 5z" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <path d="M6 14c0-3.5 2.5-6 6.5-6h7c4 0 6.5 2.5 6.5 6 0 4.5-2 9-4 9-1.5 0-2.5-2-4-2h-4c-1.5 0-2.5 2-4 2-2 0-4-4.5-4-9z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
+        <path d="M11 11v6M8 14h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="21" cy="12.5" r="1.3" fill="#fff" />
+        <circle cx="23.5" cy="15" r="1.3" fill="#fff" />
+        <circle cx="18.5" cy="15" r="1.3" fill="#fff" />
+        <circle cx="21" cy="17.5" r="1.3" fill="#fff" />
       </svg>
     );
     if (s.includes("second") || s.includes("used") || s.includes("hand")) return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-        <path d="M21 3v5h-5" />
-        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-        <path d="M3 21v-5h5" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <path d="M16 3l11 5v7c0 7-5 12.5-11 14C10 27.5 5 22 5 15V8l11-5z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
+        <path d="M11.5 16l3 3 6.5-7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
     return (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
+        <path d="M22 6a5.5 5.5 0 0 0-7.78 0L6 14.22a3 3 0 0 0 0 4.24l7.54 7.54a3 3 0 0 0 4.24 0L26 17.78A5.5 5.5 0 0 0 22 6z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
+        <path d="M19 9l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="12" cy="20" r="1.5" fill="#fff" />
       </svg>
     );
   };
 
   const defaultCategories = [
-    { name: t("laptops"), slug: "laptops", color: "from-blue-500 to-indigo-600", desc: "Laptops & MacBooks" },
-    { name: t("desktops"), slug: "desktops", color: "from-[#8B1A1A] to-red-700", desc: "Custom PCs & Desktops" },
-    { name: t("parts"), slug: "parts", color: "from-purple-500 to-violet-700", desc: "CPUs, GPUs & Storage" },
-    { name: t("gaming"), slug: "gaming", color: "from-emerald-500 to-teal-700", desc: "Gaming Gear & Gear" },
-    { name: t("secondHand"), slug: "secondhand", color: "from-amber-500 to-orange-600", badge: "HOT", desc: "Inspected Pre-Owned" },
-    { name: t("services"), slug: "services", color: "from-cyan-500 to-blue-700", desc: "Repair & Support" },
+    { name: t("laptops"), slug: "laptops", color: "from-blue-600 via-indigo-600 to-sky-500", glow: "shadow-blue-500/25", desc: "Laptops & MacBooks" },
+    { name: t("desktops"), slug: "desktops", color: "from-[#8B1A1A] via-red-600 to-rose-500", glow: "shadow-red-600/25", desc: "Custom PCs & Desktops" },
+    { name: t("parts"), slug: "parts", color: "from-purple-600 via-violet-600 to-fuchsia-500", glow: "shadow-purple-500/25", desc: "CPUs, GPUs & Storage" },
+    { name: t("gaming"), slug: "gaming", color: "from-emerald-600 via-teal-600 to-cyan-500", glow: "shadow-emerald-500/25", desc: "Gaming Gear & Esports" },
+    { name: t("secondHand"), slug: "secondhand", color: "from-amber-500 via-orange-600 to-yellow-500", glow: "shadow-amber-500/25", badge: "HOT", desc: "Inspected Pre-Owned" },
+    { name: t("services"), slug: "services", color: "from-cyan-600 via-blue-600 to-indigo-700", glow: "shadow-cyan-500/25", desc: "Repair & Support" },
   ];
 
   // Exclude "smartphones" per user explicit instruction
@@ -310,12 +316,12 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   let displayCategories = merged.slice(0, 6);
 
   const colors = [
-    "from-blue-500 to-indigo-600",
-    "from-[#8B1A1A] to-red-700",
-    "from-purple-500 to-violet-700",
-    "from-emerald-500 to-teal-700",
-    "from-amber-500 to-orange-600",
-    "from-cyan-500 to-blue-700"
+    "from-blue-600 via-indigo-600 to-sky-500",
+    "from-[#8B1A1A] via-red-600 to-rose-500",
+    "from-purple-600 via-violet-600 to-fuchsia-500",
+    "from-emerald-600 via-teal-600 to-cyan-500",
+    "from-amber-500 via-orange-600 to-yellow-500",
+    "from-cyan-600 via-blue-600 to-indigo-700"
   ];
   displayCategories = displayCategories.map((c, i) => ({
     ...c,
@@ -323,49 +329,49 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   }));
 
   return (
-    <section className="bg-white py-6 sm:py-10 border-b border-gray-100">
+    <section className="bg-white dark:bg-[#0c0e12] py-6 sm:py-10 border-b border-gray-100 dark:border-white/5 transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-end mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] animate-pulse" />
-              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] uppercase tracking-wider">Explore Genuine Gear</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] dark:bg-red-500 animate-pulse" />
+              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Explore Genuine Gear</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               {t("shopByCategory")}
             </h2>
           </div>
           <Link
             href="/category/all"
-            className="text-xs sm:text-sm bg-gray-100 hover:bg-[#8B1A1A] text-gray-800 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm"
+            className="text-xs sm:text-sm bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] dark:hover:bg-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm"
           >
             <span>View All</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
         </div>
 
-        {/* Exactly 6 Categories in 1 balanced row on Desktop (lg:grid-cols-6) & 2 rows on Phone (grid-cols-3) */}
+        {/* Exactly 6 Categories in 1 balanced row on Desktop & 2 rows on Phone */}
         <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
           {displayCategories.map((cat) => (
             <Link
               key={cat.slug}
               href={`/category/${cat.slug}`}
-              className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 hover:bg-white border border-gray-100 hover:border-red-200 hover:shadow-xl transition-all duration-300 group no-underline relative text-center"
+              className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 dark:bg-[#151922] hover:bg-white dark:hover:bg-[#1c2230] border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 hover:shadow-xl transition-all duration-300 group no-underline relative text-center"
             >
               {cat.badge && (
-                <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-[#8B1A1A] text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white uppercase tracking-wider">
+                <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white dark:border-zinc-900 uppercase tracking-wider">
                   {cat.badge}
                 </span>
               )}
-              <div className={`w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] rounded-[18px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-hover:scale-110 transition-all duration-300 mb-2.5`}>
-                <div className="transition-transform group-hover:rotate-6 duration-300">
+              <div className={`w-[56px] h-[56px] sm:w-[64px] sm:h-[64px] rounded-[20px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-lg ${cat.glow || 'shadow-red-900/20'} group-hover:scale-110 group-hover:rotate-2 transition-all duration-300 mb-3 border border-white/20`}>
+                <div className="transition-transform group-hover:scale-105 duration-300">
                   {getIcon(cat.slug)}
                 </div>
               </div>
-              <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 group-hover:text-[#8B1A1A] transition-colors leading-tight">
+              <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors leading-tight">
                 {cat.name}
               </span>
-              <span className="text-[10px] text-gray-400 mt-1 hidden lg:block line-clamp-1 font-medium">
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium">
                 {cat.desc || "Explore More"}
               </span>
             </Link>
@@ -417,7 +423,7 @@ export function ProductCard({ product }: { product: any }) {
     <>
       <motion.div 
         whileHover={{ y: -4 }}
-        className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-gray-100 hover:border-red-200 flex flex-col h-full group"
+        className="bg-white dark:bg-[#151922] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-gray-100 dark:border-white/10 hover:border-red-200 dark:hover:border-red-500/30 flex flex-col h-full group"
       >
         {/* Hot / Featured Badge */}
         {product.is_featured ? (
@@ -435,17 +441,17 @@ export function ProductCard({ product }: { product: any }) {
         )}
 
         {/* Product Image Frame */}
-        <Link href={`/products/${product.slug}`} className="block relative w-full h-[180px] sm:h-[200px] lg:h-[220px] bg-gradient-to-b from-gray-50/80 to-gray-100/40 p-4 sm:p-5 overflow-hidden flex items-center justify-center no-underline">
+        <Link href={`/products/${product.slug}`} className="block relative w-full h-[180px] sm:h-[200px] lg:h-[220px] bg-gradient-to-b from-gray-50/80 to-gray-100/40 dark:from-[#1b212f]/80 dark:to-[#141822]/80 p-4 sm:p-5 overflow-hidden flex items-center justify-center no-underline">
           {!imgError && (product.image_url || product.image) ? (
             <img
               src={product.image_url || product.image}
               alt={product.name}
               onError={() => setImgError(true)}
-              className="max-h-full max-w-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300 drop-shadow-sm"
+              className="max-h-full max-w-full object-contain dark:brightness-105 group-hover:scale-105 transition-transform duration-300 drop-shadow-sm"
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-1.5 bg-gray-50/60 p-4 rounded-xl">
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 dark:text-gray-600 gap-1.5 bg-gray-50/60 dark:bg-white/5 p-4 rounded-xl">
               <img src="/logo.jpg" alt="S Tech Store" className="w-12 h-12 object-contain rounded-xl opacity-75 shadow-sm" />
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">S Tech Store</span>
             </div>
@@ -453,32 +459,32 @@ export function ProductCard({ product }: { product: any }) {
         </Link>
 
         {/* Card Body */}
-        <div className="p-4 sm:p-5 flex flex-col flex-grow bg-white border-t border-gray-50">
-          <div className="flex items-center justify-between text-[11px] text-gray-400 font-semibold mb-1.5 uppercase tracking-wider">
+        <div className="p-4 sm:p-5 flex flex-col flex-grow bg-white dark:bg-[#151922] border-t border-gray-50 dark:border-white/5">
+          <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-400 font-semibold mb-1.5 uppercase tracking-wider">
             <span className="truncate max-w-[130px]">{product.category?.name || "Genuine Tech"}</span>
-            <span className="text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">In Stock</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full shrink-0">In Stock</span>
           </div>
 
           <Link href={`/products/${product.slug}`} className="no-underline">
-            <h3 className="text-[14px] sm:text-[15px] font-bold text-gray-900 leading-snug line-clamp-2 min-h-[42px] mb-2 group-hover:text-[#8B1A1A] transition-colors">
+            <h3 className="text-[14px] sm:text-[15px] font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 min-h-[42px] mb-2 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
               {product.name}
             </h3>
           </Link>
 
           {/* Pricing Row */}
-          <div className="mt-auto pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+          <div className="mt-auto pt-3 border-t border-gray-100 dark:border-white/10 flex flex-col gap-2.5">
             <div className="flex items-baseline justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="text-[17px] sm:text-[19px] xl:text-[20px] font-black text-[#8B1A1A] leading-tight drop-shadow-sm font-mono truncate">
+                <div className="text-[17px] sm:text-[19px] xl:text-[20px] font-black text-[#8B1A1A] dark:text-red-400 leading-tight drop-shadow-sm font-mono truncate">
                   {formatUSD(product.price)}
                 </div>
-                <div className="text-[11px] text-gray-400 font-semibold mt-0.5 truncate">
+                <div className="text-[11px] text-gray-400 dark:text-gray-400 font-semibold mt-0.5 truncate">
                   {formatKHR(product.price)}
                 </div>
               </div>
               <Link 
                 href={`/products/${product.slug}`}
-                className="text-[11px] sm:text-xs text-[#1a4fa0] hover:text-[#8B1A1A] font-bold no-underline transition-colors shrink-0 whitespace-nowrap pl-1"
+                className="text-[11px] sm:text-xs text-[#1a4fa0] dark:text-blue-400 hover:text-[#8B1A1A] dark:hover:text-red-400 font-bold no-underline transition-colors shrink-0 whitespace-nowrap pl-1"
               >
                 Details &rarr;
               </Link>
@@ -549,21 +555,21 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
   }, [initialProducts]);
 
   return (
-    <section className="bg-[#f8f9fa] py-8 sm:py-12 border-b border-gray-100">
+    <section className="bg-[#f8f9fa] dark:bg-[#0c0d12] py-8 sm:py-12 border-b border-gray-100 dark:border-white/5">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-end mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A]" />
-              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] uppercase tracking-wider">Top Recommended</span>
+              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Top Recommended</span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               {t("bestSellers")}
             </h2>
           </div>
           <Link
             href="/category/all"
-            className="text-xs sm:text-sm bg-white hover:bg-[#8B1A1A] text-gray-800 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm border border-gray-200"
+            className="text-xs sm:text-sm bg-white dark:bg-white/10 hover:bg-[#8B1A1A] dark:hover:bg-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm border border-gray-200 dark:border-white/10"
           >
             <span>{t("viewAll")}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>

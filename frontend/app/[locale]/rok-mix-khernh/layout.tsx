@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Link, useRouter, usePathname } from "@/i18n/routing";
+import { useLocale } from "next-intl";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { 
   LayoutDashboard, 
   Package, 
@@ -35,6 +37,8 @@ type AdminUser = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const locale = useLocale();
+  const isKm = locale === "km";
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -87,7 +91,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="admin-theme min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center text-white">
         <div className="w-10 h-10 border-3 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm text-gray-400 font-medium">កំពុងផ្ទៀងផ្ទាត់សិទ្ធិគ្រប់គ្រង (Verifying Access)...</p>
+        <p className="text-sm text-gray-400 font-medium">
+          {isKm ? "កំពុងផ្ទៀងផ្ទាត់សិទ្ធិគ្រប់គ្រង..." : "Verifying Administrator Access..."}
+        </p>
       </div>
     );
   }
@@ -97,60 +103,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const NAV_LINKS = [
     { 
       href: "/rok-mix-khernh", 
-      label: "ផ្ទាំងគ្រប់គ្រងទូទៅ (Overview)", 
+      label: isKm ? "ផ្ទាំងគ្រប់គ្រងទូទៅ" : "Dashboard", 
       icon: <LayoutDashboard size={18} />, 
       adminOnly: false 
     },
     { 
       href: "/rok-mix-khernh/products", 
-      label: "គ្រប់គ្រងទំនិញ (Products)", 
+      label: isKm ? "គ្រប់គ្រងទំនិញ" : "Products", 
       icon: <Package size={18} />, 
       adminOnly: false 
     },
     { 
       href: "/rok-mix-khernh/orders", 
-      label: "គ្រប់គ្រងការបញ្ជាទិញ (Orders)", 
+      label: isKm ? "គ្រប់គ្រងការបញ្ជាទិញ" : "Orders", 
       icon: <ShoppingCart size={18} />, 
       adminOnly: false 
     },
     { 
       href: "/rok-mix-khernh/repairs", 
-      label: "សេវាជួសជុល (Repairs)", 
+      label: isKm ? "សេវាជួសជុល" : "Repairs", 
       icon: <Wrench size={18} />, 
+      adminOnly: false 
+    },
+    { 
+      href: "/rok-mix-khernh/users", 
+      label: isKm ? "គ្រប់គ្រងអតិថិជន" : "Customer Accounts", 
+      icon: <UserCheck size={18} />, 
       adminOnly: false 
     },
     // Admin Only Management Features
     { 
       href: "/rok-mix-khernh/staff", 
-      label: "គ្រប់គ្រងបុគ្គលិក (Staff Accounts)", 
+      label: isKm ? "គ្រប់គ្រងបុគ្គលិក" : "Staff Accounts", 
       icon: <Users size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
       href: "/rok-mix-khernh/branches", 
-      label: "គ្រប់គ្រងសាខាហាង (Branches)", 
+      label: isKm ? "គ្រប់គ្រងសាខាហាង" : "Store Branches", 
       icon: <Building2 size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
       href: "/rok-mix-khernh/shifts", 
-      label: "គ្រប់គ្រងវេនធ្វើការ (Shifts)", 
+      label: isKm ? "គ្រប់គ្រងវេនធ្វើការ" : "Work Shifts", 
       icon: <CalendarCheck size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
       href: "/rok-mix-khernh/promotions", 
-      label: "ប្រូម៉ូសិន (Promotions)", 
+      label: isKm ? "ប្រូម៉ូសិន" : "Promotions", 
       icon: <Tag size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
       href: "/rok-mix-khernh/settings", 
-      label: "ការកំណត់ប្រព័ន្ធ (Settings)", 
+      label: isKm ? "ការកំណត់ប្រព័ន្ធ" : "System Settings", 
       icon: <Settings size={18} />, 
       adminOnly: true,
       badge: "Admin" 
@@ -231,14 +243,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <div 
                   key={link.href}
                   className="flex items-center justify-between px-3 py-2.5 text-xs text-gray-600 rounded-lg cursor-not-allowed select-none"
-                  title="មុខងារនេះសម្រាប់តែ Administrator ប៉ុណ្ណោះ (Admin Privilege Only)"
+                  title={isKm ? "មុខងារនេះសម្រាប់តែ Administrator ប៉ុណ្ណោះ" : "Administrator Privilege Only"}
                 >
                   <div className="flex items-center gap-3 opacity-40">
                     {link.icon}
                     <span>{link.label}</span>
                   </div>
                   <span className="text-[9px] font-semibold bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded">
-                    Admin Only
+                    Admin
                   </span>
                 </div>
               );
@@ -276,7 +288,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             className="w-full py-2.5 px-3 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors no-underline shadow-md"
           >
             <Package size={16} />
-            <span>+ Add New Product</span>
+            <span>{isKm ? "+ បន្ថែមទំនិញថ្មី" : "+ Add New Product"}</span>
           </Link>
 
           <button
@@ -284,7 +296,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-red-400 rounded-xl font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer border border-white/10"
           >
             <LogOut size={14} />
-            <span>ចាកចេញពីប្រព័ន្ធ (Logout)</span>
+            <span>{isKm ? "ចាកចេញពីប្រព័ន្ធ" : "Logout"}</span>
           </button>
         </div>
       </aside>
@@ -330,11 +342,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span>{user?.shift?.split(' ')[0] || "Day"}</span>
             </div>
 
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
             {/* User Profile Pill & Logout */}
             <div className="flex items-center gap-2">
               <div className="text-right hidden sm:block">
                 <div className="text-xs font-bold text-gray-900">{user?.name || "Admin"}</div>
-                <div className="text-[10px] text-gray-500">{user?.role === "admin" ? "Super Administrator" : "Store Staff Member"}</div>
+                <div className="text-[10px] text-gray-500">{user?.role === "admin" ? (isKm ? "អ្នកគ្រប់គ្រងជាន់ខ្ពស់" : "Super Administrator") : (isKm ? "បុគ្គលិកហាង" : "Store Staff Member")}</div>
               </div>
 
               <button

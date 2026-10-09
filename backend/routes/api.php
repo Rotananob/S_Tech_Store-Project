@@ -31,6 +31,25 @@ Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewContro
 Route::get('/branches', [BranchController::class, 'index']);
 Route::get('/shifts', [ShiftController::class, 'index']);
 
+// Customer Live Chat Support Alert to Telegram
+Route::post('/chat/request-agent', function (Request $request) {
+    $validated = $request->validate([
+        'name' => 'nullable|string|max:150',
+        'phone' => 'nullable|string|max:50',
+        'email' => 'nullable|string|max:150',
+        'telegram' => 'nullable|string|max:100',
+        'message' => 'nullable|string|max:2000',
+        'product_name' => 'nullable|string|max:255',
+    ]);
+
+    $res = \App\Services\TelegramService::sendCustomerChatAlert($validated);
+    return response()->json([
+        'success' => true,
+        'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
+        'telegram_result' => $res,
+    ]);
+});
+
 // Admin & Staff Authentication (Login Form Only — Strictly No Public Registration)
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 
@@ -86,6 +105,26 @@ Route::get('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, '
 Route::post('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'store']);
 Route::delete('/user/pc-builds/{id}', [\App\Http\Controllers\PcBuildController::class, 'destroy']);
 
+// Customer Live Chat Request to Telegram
+Route::post('/chat/request-agent', function (\Illuminate\Http\Request $request) {
+    $data = $request->validate([
+        'name' => 'nullable|string|max:100',
+        'email' => 'nullable|string|max:100',
+        'phone' => 'nullable|string|max:50',
+        'telegram' => 'nullable|string|max:100',
+        'message' => 'required|string|max:1000',
+        'product_name' => 'nullable|string|max:200',
+        'product_url' => 'nullable|string|max:500',
+    ]);
+
+    $result = \App\Services\TelegramService::sendCustomerChatAlert($data);
+    return response()->json([
+        'success' => true,
+        'message' => 'Live chat request transmitted to Telegram on-duty staff',
+        'telegram_result' => $result,
+    ]);
+});
+
 // Admin & Staff Protected Routes (Guarded by AdminMiddleware)
 Route::middleware(AdminMiddleware::class)->group(function () {
     // Current Admin / Staff Profile & Session
@@ -128,9 +167,18 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::put('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'update']);
     Route::delete('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
 
-    // Users
+    // Repairs & Maintenance Management (សេវាជួសជុល)
+    Route::get('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'index']);
+    Route::post('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'store']);
+    Route::put('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'update']);
+    Route::delete('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'destroy']);
+
+    // Customer Users Management (គ្រប់គ្រងអតិថិជន)
     Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::patch('/admin/users/{id}/admin-status', [\App\Http\Controllers\UserController::class, 'updateAdminStatus']);
+    Route::put('/admin/users/{id}/toggle-status', [\App\Http\Controllers\UserController::class, 'toggleStatus']);
+    Route::post('/admin/users/{id}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword']);
+    Route::delete('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
 
     // Telegram Bot Integration (ABA Merchant Style)
     Route::get('/admin/telegram/status', [\App\Http\Controllers\TelegramController::class, 'status']);

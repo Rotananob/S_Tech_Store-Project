@@ -87,6 +87,44 @@ class ProductController extends Controller
         $product = Product::create($validated);
         $product->load('category');
 
+        // 1. Dispatch push notifications to all customer accounts
+        try {
+            $uids = \App\Models\UserProfile::whereNotNull('firebase_uid')
+                ->where('firebase_uid', '!=', '')
+                ->pluck('firebase_uid')
+                ->unique();
+
+            if ($uids->isNotEmpty()) {
+                $now = now();
+                $title = "🔥 ផលិតផលថ្មីទើបមកដល់: {$product->name}";
+                $priceDisplay = $product->sale_price ? "\${$product->sale_price} (បញ្ចុះពី \${$product->price})" : "\${$product->price}";
+                $message = "ទំនិញថ្មី '{$product->name}' តម្លៃ {$priceDisplay} ត្រូវបានដាក់លក់ក្នុងស្តុកហើយ! ចុចដើម្បីពិនិត្យមើល។";
+
+                $batch = [];
+                foreach ($uids as $uid) {
+                    $batch[] = [
+                        'firebase_uid' => $uid,
+                        'title' => $title,
+                        'message' => $message,
+                        'type' => 'promo',
+                        'read' => false,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+                \App\Models\UserNotification::insert($batch);
+            }
+        } catch (\Throwable $e) {
+            Log::error("Failed to insert user notifications for new product: " . $e->getMessage());
+        }
+
+        // 2. Dispatch instant alert to Telegram Stock Forum Topic
+        try {
+            \App\Services\TelegramService::sendNewProductAlert($product);
+        } catch (\Throwable $e) {
+            Log::error("Failed to send telegram new product alert: " . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Product created successfully',
             'data' => $product

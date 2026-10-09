@@ -214,26 +214,150 @@ class TelegramService
     }
 
     /**
-     * Poll recent updates from Telegram API (for local/staging dev where Webhooks are not publicly reachable)
+     * Process an individual update received from Telegram Webhook or Long Polling
      */
-    public static function pollPendingUpdates(): void
+    public static function processUpdate(array $up): void
     {
         $settings = self::getSettings();
-        if (empty($settings['pending_tokens']) && !empty($settings['connected'])) {
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        $botUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
+
+        // 1. Handle Inline Keyboard Callback Queries (e.g. Retry Setup button)
+        if (isset($up['callback_query'])) {
+            $callbackQuery = $up['callback_query'];
+            $callbackData = $callbackQuery['data'] ?? '';
+            $chatId = $callbackQuery['message']['chat']['id'] ?? null;
+            $callbackId = $callbackQuery['id'] ?? null;
+
+            if ($callbackData === 'setup_topics' && $chatId) {
+                self::setupTopics($chatId);
+                if ($token && !str_contains($token, 'Placeholder')) {
+                    try {
+                        Http::timeout(5)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+                            'callback_query_id' => $callbackId,
+                            'text' => 'កំពុងរៀបចំ Forum Topics...',
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+            }
             return;
         }
 
+        // 2. Handle group membership change (e.g. bot added to supergroup)
+        if (isset($up['my_chat_member'])) {
+            $memberUpdate = $up['my_chat_member'];
+            $newStatus = $memberUpdate['new_chat_member']['status'] ?? '';
+            $chat = $memberUpdate['chat'] ?? [];
+            $chatId = $chat['id'] ?? null;
+            if (in_array($newStatus, ['member', 'administrator']) && $chatId) {
+                $joinMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Notification Bot!</b>\n\n"
+                    . "🏪 <b>ហាង S Tech Store Cambodia</b>\n"
+                    . "Bot ត្រូវបានបន្ថែមចូលក្នុងគ្រុបនេះដោយជោគជ័យ។\n\n"
+                    . "👉 ប្រសិនបើអ្នកមាន Pairing Code សូមវាយបញ្ជា: <code>/start STxxxxx</code>\n"
+                    . "👉 ឬវាយបញ្ជា <code>/setup_topics</code> ដើម្បីរៀបចំ Forum Topics ដោយស្វ័យប្រវត្តិ!";
+                self::sendMessage($chatId, $joinMsg);
+            }
+            return;
+        }
+
+        // 3. Handle Messages & Channel Posts
+        $message = $up['message'] ?? $up['channel_post'] ?? null;
+        if (!$message) return;
+
+        $text = trim($message['text'] ?? '');
+        $chat = $message['chat'] ?? [];
+        $chatId = $chat['id'] ?? null;
+        $chatTitle = $chat['title'] ?? ($chat['first_name'] ?? 'S Tech Store Channel');
+        $chatType = $chat['type'] ?? 'group';
+
+        if (!$chatId) return;
+
+        // Check if bot was added as new chat member
+        if (!empty($message['new_chat_members'])) {
+            foreach ($message['new_chat_members'] as $newMember) {
+                if (($newMember['username'] ?? '') === $botUsername || ($newMember['is_bot'] ?? false)) {
+                    $joinMsg = "👋 <b>ជម្រាបសួរក្រុមការងារ S Tech Store!</b>\n\n"
+                        . "ខ្ញុំគឺ Bot ផ្លូវការរបស់ហាង S Tech Store។\n\n"
+                        . "🔑 ដើម្បីភ្ជាប់គ្រុបនេះជាមួយ Admin Website សូមប្រើពាក្យបញ្ជា:\n"
+                        . "<code>/start STxxxxx</code> (លេខកូដ Pairing ពី Settings)\n\n"
+                        . "🛠️ ឬវាយ <code>/setup_topics</code> ប្រសិនបើចង់បង្កើត Forum Topics ស្វ័យប្រវត្តិ!";
+                    self::sendMessage($chatId, $joinMsg);
+                    return;
+                }
+            }
+        }
+
+        // Command: /start <CODE>
+        if (preg_match('/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)/i', $text, $matches)) {
+            $pairCode = strtoupper(trim($matches[1]));
+            self::pairChat($pairCode, $chatId, $chatTitle, $chatType);
+            return;
+        }
+
+        // Command: /start (without code)
+        if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
+            $isConnected = !empty($settings['connected']);
+            $currentChat = $settings['chat_title'] ?? $chatTitle;
+            $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Notification Bot!</b>\n\n"
+                . "🤖 <b>គណនី Bot:</b> @{$botUsername}\n"
+                . "⚡ <b>ស្ថានភាព:</b> " . ($isConnected ? "🟢 Connected ជាមួយគ្រុប {$currentChat}" : "⚪ មិនទាន់ភ្ជាប់គ្រុប") . "\n\n"
+                . "📌 <b>របៀបភ្ជាប់គ្រុប:</b>\n"
+                . "1️⃣ ចូលទៅកាន់ Admin Dashboard 👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/settings\">Telegram Settings</a>\n"
+                . "2️⃣ ចុចប៊ូតុង <b>Connect Telegram</b> (1-Click Connect)\n"
+                . "3️⃣ ជ្រើសរើស Group របស់ហាង នោះប្រព័ន្ធនឹង Auto Connect ភ្លាមៗ!\n\n"
+                . "⚙️ <b>ពាក្យបញ្ជាដែលមាន:</b>\n"
+                . "• <code>/setup_topics</code> — បង្កើត និងរៀបចំ Forum Topics ស្វ័យប្រវត្តិ\n"
+                . "• <code>/status</code> — ពិនិត្យមើលស្ថានភាពភ្ជាប់បច្ចុប្បន្ន";
+            self::sendMessage($chatId, $welcome);
+            return;
+        }
+
+        // Command: /setup_topics or /topics
+        if (preg_match('/^\/(?:setup_topics|topics)(?:@\w+)?/i', $text)) {
+            self::setupTopics($chatId);
+            return;
+        }
+
+        // Command: /status
+        if (preg_match('/^\/status(?:@\w+)?/i', $text)) {
+            $statusText = "📊 <b>ស្ថានភាព S Tech Store Bot:</b>\n\n"
+                . "• <b>Bot Username:</b> @{$botUsername}\n"
+                . "• <b>Chat ID បច្ចុប្បន្ន:</b> <code>{$chatId}</code>\n"
+                . "• <b>ស្ថានភាពភ្ជាប់:</b> " . (!empty($settings['connected']) ? "🟢 ភ្ជាប់រួចរាល់" : "⚪ មិនទាន់ភ្ជាប់") . "\n"
+                . "• <b>Topics បានរៀបចំ:</b> " . count($settings['topics'] ?? []) . " topics\n\n"
+                . "✅ ប្រព័ន្ធដំណើរការ ២៤/៧ ដោយស្វ័យប្រវត្តិ!";
+            self::sendMessage($chatId, $statusText);
+            return;
+        }
+
+        // In private chat: reply politely so user knows the bot is alive
+        if ($chatType === 'private') {
+            $privateReply = "🤖 <b>S Tech Store Official Assistant</b>\n\n"
+                . "ខ្ញុំជាប្រព័ន្ធស្វ័យប្រវត្តិសម្រាប់ផ្ញើការជូនដំណឹងទំនិញ និងការបញ្ជាទិញ។\n\n"
+                . "🌐 គេហទំព័រហាង: <a href=\"https://s-tech-store.vercel.app\">S Tech Store</a>\n"
+                . "⚡ ប្រើបញ្ជា <code>/start</code> ដើម្បីមើលព័ត៌មានបន្ថែម។";
+            self::sendMessage($chatId, $privateReply);
+        }
+    }
+
+    /**
+     * Poll recent updates from Telegram API (supports long-polling with timeout)
+     */
+    public static function pollPendingUpdates(int $timeout = 0): void
+    {
+        $settings = self::getSettings();
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
 
-        $lastOffset = $settings['last_update_id'] ?? 0;
+        $lastOffset = (int)($settings['last_update_id'] ?? 0);
 
         try {
-            $resp = Http::timeout(3)->get("https://api.telegram.org/bot{$token}/getUpdates", [
+            $resp = Http::timeout($timeout > 0 ? $timeout + 5 : 5)->get("https://api.telegram.org/bot{$token}/getUpdates", [
                 'offset' => $lastOffset + 1,
-                'limit' => 20,
+                'limit' => 50,
+                'timeout' => $timeout,
             ]);
 
             $json = $resp->json();
@@ -246,38 +370,7 @@ class TelegramService
                         $maxId = $upId;
                     }
 
-                    $msg = $up['message'] ?? $up['channel_post'] ?? null;
-                    if ($msg) {
-                        $text = trim($msg['text'] ?? '');
-                        $chat = $msg['chat'] ?? [];
-                        $chatId = $chat['id'] ?? null;
-                        $chatTitle = $chat['title'] ?? ($chat['first_name'] ?? 'S Tech Store Channel');
-                        $chatType = $chat['type'] ?? 'group';
-
-                        if (preg_match('/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)/', $text, $matches)) {
-                            $pairCode = strtoupper(trim($matches[1]));
-                            self::pairChat($pairCode, $chatId, $chatTitle, $chatType);
-                        } elseif (preg_match('/^\/(?:setup_topics|topics)(?:@\w+)?/i', $text)) {
-                            if ($chatId) {
-                                self::setupTopics($chatId);
-                            }
-                        }
-                    }
-
-                    // Check for callback query retry
-                    if (isset($up['callback_query'])) {
-                        $cb = $up['callback_query'];
-                        $chatId = $cb['message']['chat']['id'] ?? null;
-                        if (($cb['data'] ?? '') === 'setup_topics' && $chatId) {
-                            self::setupTopics($chatId);
-                            try {
-                                Http::post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
-                                    'callback_query_id' => $cb['id'],
-                                    'text' => 'កំពុងពិនិត្យ និងរៀបចំ Forum Topics...',
-                                ]);
-                            } catch (\Throwable $e) {}
-                        }
-                    }
+                    self::processUpdate($up);
                 }
 
                 $settings = self::getSettings();
@@ -291,13 +384,56 @@ class TelegramService
 
     /**
      * Automatically create Forum Topics in connected group
+     * Prevents duplicate topics from ever being created!
      * Detects if bot lacks Administrator / Manage Topics permissions and guides user
      */
     public static function setupTopics($chatId): array
     {
         $settings = self::getSettings();
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-        $botUsername = $settings['bot_username'] ?? '';
+        $botUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
+
+        $topicsToCreate = [
+            'orders' => [
+                'name' => '🛒 ការបញ្ជាទិញថ្មី',
+                'icon_color' => 7322096, // Light Blue
+            ],
+            'repairs' => [
+                'name' => '🛠️ សេវាជួសជុល',
+                'icon_color' => 16749490, // Orange
+            ],
+            'stock' => [
+                'name' => '⚠️ ការជូនដំណឹងស្តុក',
+                'icon_color' => 16478047, // Red
+            ],
+            'chat' => [
+                'name' => '💬 សេវាអតិថិជន',
+                'icon_color' => 13338331, // Violet
+            ],
+        ];
+
+        $createdTopics = $settings['topics'] ?? [];
+        if (!is_array($createdTopics)) {
+            $createdTopics = [];
+        }
+
+        // GUARD 1: If all 4 topics already exist in settings, NEVER create duplicates!
+        $allAlreadyExist = true;
+        foreach ($topicsToCreate as $key => $topicData) {
+            if (empty($createdTopics[$key])) {
+                $allAlreadyExist = false;
+                break;
+            }
+        }
+
+        if ($allAlreadyExist) {
+            return [
+                'ok' => true,
+                'already_exists' => true,
+                'topics' => $createdTopics,
+                'message' => 'ប្រធានបទ Topics ទាំងអស់ត្រូវបានបង្កើតរួចរាល់ហើយក្នុងគ្រុប (All topics already exist).',
+            ];
+        }
 
         if (!$token || str_contains($token, 'Placeholder')) {
             // Mock mode for local testing
@@ -312,10 +448,10 @@ class TelegramService
 
             $mockNotice = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
                 . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
-                . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី (New Orders)</b> — ទទួលការជូនដំណឹងរាល់ពេលមាន Order\n"
-                . "2️⃣ 🛠️ <b>សេវាជួសជុល (Repairs & Care)</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
-                . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក (Stock Alerts)</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
-                . "4️⃣ 💬 <b>សេវាអតិថិជន (Customer Inquiries)</b> — សម្រាប់សន្ទនាទូទៅក្នុងក្រុម\n\n"
+                . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី</b> — ទទួលការជូនដំណឹងរាល់ពេលមាន Order\n"
+                . "2️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+                . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+                . "4️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនាទូទៅក្នុងក្រុម\n\n"
                 . "✅ <i>ប្រព័ន្ធភ្ជាប់រៀបចំរួចរាល់ ១០០% ហើយ ដំណើរការ ២៤/៧!</i>";
             self::sendMessage($chatId, $mockNotice);
 
@@ -327,28 +463,9 @@ class TelegramService
             ];
         }
 
-        $topicsToCreate = [
-            'orders' => [
-                'name' => '🛒 ការបញ្ជាទិញថ្មី (New Orders)',
-                'icon_color' => 7322096, // Light Blue
-            ],
-            'repairs' => [
-                'name' => '🛠️ សេវាជួសជុល (Repairs & Care)',
-                'icon_color' => 16749490, // Orange
-            ],
-            'stock' => [
-                'name' => '⚠️ ការជូនដំណឹងស្តុក (Stock Alerts)',
-                'icon_color' => 16478047, // Red
-            ],
-            'chat' => [
-                'name' => '💬 សេវាអតិថិជន (Customer Inquiries)',
-                'icon_color' => 13338331, // Violet
-            ],
-        ];
-
-        $createdTopics = $settings['topics'] ?? [];
         $needsAdmin = false;
         $errorMessage = '';
+        $newlyCreatedCount = 0;
 
         foreach ($topicsToCreate as $key => $topicData) {
             if (!empty($createdTopics[$key])) {
@@ -366,6 +483,7 @@ class TelegramService
 
                 if (($json['ok'] ?? false) === true && !empty($json['result']['message_thread_id'])) {
                     $createdTopics[$key] = $json['result']['message_thread_id'];
+                    $newlyCreatedCount++;
                 } else {
                     $desc = $json['description'] ?? 'Permission required';
                     $errorMessage = $desc;
@@ -394,13 +512,13 @@ class TelegramService
 
         if ($needsAdmin) {
             // Self-detect: Send friendly instruction to promote bot and retry
-            $adminNotice = "⚠️ <b>សូមផ្តល់សិទ្ធិជា Administrator ដល់ Bot (Admin Rights Required):</b>\n\n"
+            $adminNotice = "⚠️ <b>សូមផ្តល់សិទ្ធិជា Administrator ដល់ Bot:</b>\n\n"
                 . "ដើម្បីឲ្យ Bot អាចបង្កើត <b>Forum Topics (ប្រធានបទដោយស្វ័យប្រវត្តិ)</b> ក្នុងគ្រុបនេះបាន សូមធ្វើតាមជំហានងាយៗដូចខាងក្រោម៖\n\n"
-                . "1️⃣ ចូលទៅកាន់ <b>Group Settings ⚙️</b> ➡️ បើកមុខងារ <b>Topics</b> (Enable Forum/Topics)\n"
+                . "1️⃣ ចូលទៅកាន់ <b>Group Settings ⚙️</b> ➡️ បើកមុខងារ <b>Topics</b>\n"
                 . "2️⃣ ចូលទៅកាន់ <b>Administrators 🛡️</b> ➡️ Add <b>@{$botUsername}</b> ជា Admin\n"
                 . "3️⃣ បើកសិទ្ធិ <b>Manage Topics</b> (ឬផ្តល់សិទ្ធិ Admin ពេញលេញ)\n"
                 . "4️⃣ បន្ទាប់ពីបើកសិទ្ធិរួច សូមចុចប៊ូតុងខាងក្រោម ឬវាយបញ្ជា <code>/setup_topics</code> ម្តងទៀត!\n\n"
-                . "<i>Bot នឹងបង្កើត Topic ទាំង ៤ ដោយស្វ័យប្រវត្តិភ្លាមៗ!</i>";
+                . "<i>Bot នឹងបង្កើត Topic ដោយស្វ័យប្រវត្តិភ្លាមៗ!</i>";
 
             $keyboard = [
                 'inline_keyboard' => [
@@ -420,16 +538,18 @@ class TelegramService
             ];
         }
 
-        // Successfully created topics! Send congratulatory overview
-        $topicsOverview = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
-            . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
-            . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី (New Orders)</b> — ទទួលការជូនដំណឹងវិក្កយបត្រថ្មីភ្លាមៗ\n"
-            . "2️⃣ 🛠️ <b>សេវាជួសជុល (Repairs & Care)</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
-            . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក (Stock Alerts)</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
-            . "4️⃣ 💬 <b>សេវាអតិថិជន (Customer Inquiries)</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
-            . "✅ <i>ប្រព័ន្ធ Notification ដំណើរការពេញលេញ ២៤/៧!</i>";
+        // Only send congratulatory overview if we actually created new topics
+        if ($newlyCreatedCount > 0) {
+            $topicsOverview = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
+                . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
+                . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី</b> — ទទួលការជូនដំណឹងវិក្កយបត្រថ្មីភ្លាមៗ\n"
+                . "2️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+                . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+                . "4️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
+                . "✅ <i>ប្រព័ន្ធ Notification ដំណើរការពេញលេញ ២៤/៧!</i>";
 
-        self::sendMessage($chatId, $topicsOverview);
+            self::sendMessage($chatId, $topicsOverview);
+        }
 
         return [
             'ok' => true,
@@ -578,21 +698,71 @@ class TelegramService
     }
 
     /**
-     * Send test notification
+     * Send instant live chat request from website customer to Telegram group
      */
-    public static function sendTestNotification(): array
+    public static function sendCustomerChatAlert(array $data): array
     {
         $settings = self::getSettings();
         if (empty($settings['connected']) || empty($settings['chat_id'])) {
-            return ['ok' => false, 'error' => 'No Telegram chat is currently connected.'];
+            return ['ok' => false, 'error' => 'No Telegram group connected'];
         }
 
-        $testText = "🔔 <b>សារសាកល្បងពី S Tech Store (Test Notification)</b>\n\n"
-            . "✅ ការតភ្ជាប់រវាងប្រព័ន្ធលក់ និង Telegram Group ដំណើរការយ៉ាងរលូន ១០០%!\n"
-            . "👥 <b>គ្រុបទទួល:</b> " . htmlspecialchars($settings['chat_title'] ?? '') . "\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "🎉 <i>រាល់ពេលមាន Order ឬទំនិញថ្មី ប្រព័ន្ធនឹងផ្ញើសារមកទីនេះដោយស្វ័យប្រវត្តិ។</i>";
+        $name = htmlspecialchars($data['name'] ?? 'អតិថិជន (Website Customer)');
+        $phone = htmlspecialchars($data['phone'] ?? 'N/A');
+        $email = htmlspecialchars($data['email'] ?? 'N/A');
+        $telegram = htmlspecialchars($data['telegram'] ?? 'N/A');
+        $message = htmlspecialchars($data['message'] ?? 'មានសំណួរចង់សាកសួរក្រុមការងារ...');
+        $product = !empty($data['product_name']) ? htmlspecialchars($data['product_name']) : null;
 
-        return self::sendMessage($settings['chat_id'], $testText);
+        $chatTopicId = $settings['topics']['chat'] ?? null;
+
+        $text = "💬 <b>សំណើសន្ទនាផ្ទាល់ពីអតិថិជន (LIVE CHAT REQUEST)!</b>\n\n"
+            . "👤 <b>ឈ្មោះអតិថិជន:</b> <b>{$name}</b>\n"
+            . "📱 <b>ទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "📧 <b>Email:</b> {$email}\n"
+            . "✈️ <b>Telegram:</b> " . ($telegram !== 'N/A' ? "@" . ltrim($telegram, '@') : 'N/A') . "\n";
+            
+        if ($product) {
+            $text .= "📦 <b>ទំនិញចាប់អារម្មណ៍:</b> {$product}\n";
+        }
+
+        $text .= "📝 <b>សារសាកសួរ:</b>\n<i>\"{$message}\"</i>\n\n"
+            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/chat\">ចូលទៅកាន់ Admin Chat Portal ដើម្បីឆ្លើយតប</a>";
+
+        return self::sendMessage($settings['chat_id'], $text, 'HTML', $chatTopicId);
+    }
+
+    /**
+     * Send instant notification to Telegram group when a new product is added by Admin
+     */
+    public static function sendNewProductAlert($product): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $pName = htmlspecialchars($product->name ?? 'ផលិតផលថ្មី');
+        $price = number_format((float)($product->price ?? 0), 2);
+        $stock = (int)($product->stock ?? 0);
+        $categoryName = htmlspecialchars($product->category->name ?? 'ទូទៅ');
+        $slug = $product->slug ?? '';
+        $brand = !empty($product->brand) ? htmlspecialchars($product->brand) : 'S Tech';
+
+        $stockTopicId = $settings['topics']['stock'] ?? null;
+
+        $msg = "📦 <b>ផលិតផលថ្មីត្រូវបានបន្ថែមក្នុងប្រព័ន្ធ! (NEW PRODUCT ADDED)</b>\n\n"
+            . "🏷️ <b>ឈ្មោះទំនិញ:</b> <b>{$pName}</b>\n"
+            . "💰 <b>តម្លៃ:</b> <b>\${$price} USD</b>\n"
+            . "📦 <b>ចំនួនស្តុក:</b> {$stock} គ្រឿង\n"
+            . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
+            . "🏢 <b>ម៉ាក:</b> {$brand}\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://s-tech-store.vercel.app/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
+        return ($res['ok'] ?? false) === true;
     }
 }
+

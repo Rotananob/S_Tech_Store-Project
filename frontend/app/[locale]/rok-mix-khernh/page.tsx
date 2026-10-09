@@ -16,17 +16,6 @@ import {
   MessageSquare, ExternalLink, Zap
 } from "lucide-react";
 
-// Sales chart mock data
-const monthlySalesData = [
-  { name: 'Jan', sales: 4200 },
-  { name: 'Feb', sales: 3400 },
-  { name: 'Mar', sales: 5100 },
-  { name: 'Apr', sales: 4800 },
-  { name: 'May', sales: 6300 },
-  { name: 'Jun', sales: 7400 },
-  { name: 'Jul', sales: 8900 },
-];
-
 export default function AdminDashboardOverview() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -90,7 +79,7 @@ export default function AdminDashboardOverview() {
       
       if (lastOrderCount > 0 && ordersData.length > lastOrderCount && audioEnabled) {
         playCashChime();
-        showToast("🔔 ការបញ្ជាទិញថ្មីទើបតែបានចូលមកដល់! (New Order Received)");
+        showToast("🔔 ការបញ្ជាទិញថ្មីទើបតែបានចូលមកដល់! • New Order Received");
       }
       setLastOrderCount(ordersData.length);
       setRecentOrders(ordersData);
@@ -164,7 +153,7 @@ export default function AdminDashboardOverview() {
     return (
       <div className="p-16 flex flex-col items-center justify-center text-center">
         <div className="w-12 h-12 border-3 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
-        <div className="text-gray-500 font-bold text-sm">កំពុងផ្ទុកព័ត៌មានផ្ទាំងគ្រប់គ្រង (Loading Dashboard)...</div>
+        <div className="text-gray-500 font-bold text-sm">កំពុងផ្ទុកទិន្នន័យផ្ទាំងគ្រប់គ្រង • Loading Dashboard...</div>
       </div>
     );
   }
@@ -190,7 +179,7 @@ export default function AdminDashboardOverview() {
             Store Management Dashboard
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-1">
-            តាមដានការលក់ ការបញ្ជាទិញ ស្តុកទំនិញ និងការជូនដំណឹង Telegram ក្នុងពេលជាក់ស្តែង (Real-time 24/7)
+            តាមដានការលក់ ការបញ្ជាទិញ ស្តុកទំនិញ និងការជូនដំណឹង Telegram ក្នុងពេលជាក់ស្តែង • Real-time 24/7
           </p>
         </div>
 
@@ -202,7 +191,7 @@ export default function AdminDashboardOverview() {
               const next = !audioEnabled;
               setAudioEnabled(next);
               if (next) playCashChime();
-              showToast(next ? "🔊 បានបើកសំឡេងជូនដំណឹង (Audio Alerts ON)" : "🔇 បានបិទសំឡេងជូនដំណឹង (Audio Alerts OFF)");
+              showToast(next ? "🔊 បានបើកសំឡេងជូនដំណឹង • Audio Alerts ON" : "🔇 បានបិទសំឡេងជូនដំណឹង • Audio Alerts OFF");
             }}
             className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
               audioEnabled 
@@ -220,7 +209,7 @@ export default function AdminDashboardOverview() {
             type="button"
             onClick={fetchData}
             className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
-            title="ទាញទិន្នន័យថ្មី (Refresh)"
+            title="ទាញទិន្នន័យថ្មី • Refresh"
           >
             <RefreshCw size={16} />
           </button>
@@ -243,7 +232,7 @@ export default function AdminDashboardOverview() {
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <div className="truncate">
             <span className="text-gray-400 block text-[10px]">Cloud Database</span>
-            <span className="font-bold text-gray-800">Neon PostgreSQL (22ms)</span>
+            <span className="font-bold text-gray-800">Neon PostgreSQL • 22ms</span>
           </div>
         </div>
 
@@ -290,7 +279,7 @@ export default function AdminDashboardOverview() {
                 Official Telegram Bot: @s_tech_storeBot
               </h3>
               <p className="text-xs text-sky-100 mt-1 leading-relaxed max-w-md">
-                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី (New Orders) និងបែងចែកតាម Forum Topics ដោយស្វ័យប្រវត្តក្នុង Telegram Group។
+                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី • New Orders និងបែងចែកតាម Forum Topics ដោយស្វ័យប្រវត្តក្នុង Telegram Group។
               </p>
             </div>
           </div>
@@ -432,13 +421,13 @@ export default function AdminDashboardOverview() {
               <p className="text-xs text-gray-400 m-0 mt-0.5">Monthly store gross volume in USD</p>
             </div>
             <select className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-600 font-bold outline-none focus:ring-2 focus:ring-blue-100">
-              <option>This Year (2026)</option>
+              <option>This Year 2026</option>
               <option>Previous Year</option>
             </select>
           </div>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlySalesData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <LineChart data={stats?.monthlySales && stats.monthlySales.length > 0 ? stats.monthlySales : []} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dx={-10} tickFormatter={(val) => `$${val}`} />

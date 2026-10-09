@@ -24,6 +24,13 @@
   --text-muted: #888888;
   --text-white: #ffffff;
   --text-white-muted: rgba(255,255,255,0.65);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+
+  /* Surfaces & Defaults */
+  --bg-surface: #ffffff;
+  --bg-surface-2: #f8fafc;
+  --border-default: #e5e7eb;
 
   /* Borders */
   --border: #e5e5e5;
@@ -55,11 +62,16 @@
 
 .dark {
   --bg-white: #121212;
-  --bg-light: #1e1e1e;
+  --bg-light: #1a1e27;
+  --bg-surface: #141720;
+  --bg-surface-2: #1b202c;
   --text-dark: #f8f8f8;
-  --text-med: #aaaaaa;
-  --text-muted: #888888;
-  --border: #333333;
+  --text-med: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --border: #2e3545;
+  --border-default: #2e3545;
 }
 
 /* ─── Fonts & Dynamic Font System ─────────────────────────────────────────── */

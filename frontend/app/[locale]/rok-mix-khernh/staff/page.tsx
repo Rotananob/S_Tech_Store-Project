@@ -28,8 +28,8 @@ export default function AdminStaffPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"staff" | "admin" | "manager">("staff");
-  const [branch, setBranch] = useState("Phnom Penh Main Branch (សាខាកណ្តាល)");
-  const [shift, setShift] = useState("Morning Shift (វេនព្រឹក)");
+  const [branch, setBranch] = useState("Phnom Penh Main Branch");
+  const [shift, setShift] = useState("Morning Shift");
   const [phone, setPhone] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
@@ -62,8 +62,8 @@ export default function AdminStaffPage() {
     setEmail("");
     setPassword("");
     setRole("staff");
-    setBranch("Phnom Penh Main Branch (សាខាកណ្តាល)");
-    setShift("Morning Shift (វេនព្រឹក)");
+    setBranch("Phnom Penh Main Branch");
+    setShift("Morning Shift");
     setPhone("");
     setStatus("active");
     setModalOpen(true);
@@ -75,8 +75,8 @@ export default function AdminStaffPage() {
     setEmail(s.email);
     setPassword(""); // Leave blank if keeping same password
     setRole(s.role);
-    setBranch(s.branch || "Phnom Penh Main Branch (សាខាកណ្តាល)");
-    setShift(s.shift || "Morning Shift (វេនព្រឹក)");
+    setBranch(s.branch || "Phnom Penh Main Branch");
+    setShift(s.shift || "Morning Shift");
     setPhone(s.phone || "");
     setStatus(s.status);
     setModalOpen(true);
@@ -150,10 +150,10 @@ export default function AdminStaffPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-[#8B1A1A]">Admin Privilege</span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-            គ្រប់គ្រងគណនីបុគ្គលិក (Staff & Accounts)
+            គ្រប់គ្រងគណនីបុគ្គលិក • Staff & Accounts
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm">
-            ចាត់ចែងគណនី Admin, Staff, សាខាដែលបម្រើការ និងវេនធ្វើការ (Manage roles, branch assignments & shifts).
+            ចាត់ចែងគណនី Admin, Staff, សាខាដែលបម្រើការ និងវេនធ្វើការ • Manage roles, branch assignments & shifts
           </p>
         </div>
 
@@ -162,7 +162,7 @@ export default function AdminStaffPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-[#8B1A1A]/20 transition-all cursor-pointer"
         >
           <UserPlus size={16} />
-          <span>+ បង្កើតបុគ្គលិកថ្មី (New Staff)</span>
+          <span>+ បង្កើតបុគ្គលិកថ្មី • New Staff</span>
         </button>
       </div>
 
@@ -218,8 +218,8 @@ export default function AdminStaffPage() {
               <tr className="bg-gray-50/80 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                 <th className="p-4">Staff Member</th>
                 <th className="p-4">Role & Access</th>
-                <th className="p-4">Assigned Branch (សាខា)</th>
-                <th className="p-4">Working Shift (វេន)</th>
+                <th className="p-4">Assigned Branch • សាខា</th>
+                <th className="p-4">Working Shift • វេន</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
@@ -294,14 +294,14 @@ export default function AdminStaffPage() {
                         <button
                           onClick={() => openEditModal(s)}
                           className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="កែសម្រួល (Edit)"
+                          title="កែសម្រួល • Edit"
                         >
                           <Edit size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(s.id, s.name)}
                           className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="លុបចេញ (Delete)"
+                          title="លុបចេញ • Delete"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -326,7 +326,7 @@ export default function AdminStaffPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">
-                    {editTarget ? "កែសម្រួលព័ត៌មានបុគ្គលិក (Edit Staff)" : "បង្កើតបុគ្គលិកថ្មី (New Staff Member)"}
+                    {editTarget ? "កែសម្រួលព័ត៌មានបុគ្គលិក • Edit Staff" : "បង្កើតបុគ្គលិកថ្មី • New Staff Member"}
                   </h3>
                   <p className="text-[11px] text-gray-500">បញ្ចូលទិន្នន័យដើម្បីកំណត់តួនាទី និងវេន</p>
                 </div>
@@ -342,7 +342,7 @@ export default function AdminStaffPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះបុគ្គលិក (Full Name) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះបុគ្គលិក • Full Name *</label>
                   <input
                     type="text"
                     required
@@ -354,22 +354,22 @@ export default function AdminStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">តួនាទី (Role) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">តួនាទី • Role *</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white font-medium"
                   >
-                    <option value="staff">Staff (បុគ្គលិកលក់/រៀបចំទំនិញ)</option>
-                    <option value="admin">Admin (អ្នកគ្រប់គ្រងប្រព័ន្ធពេញលេញ)</option>
-                    <option value="manager">Manager (ប្រធានសាខា)</option>
+                    <option value="staff">Store Staff • បុគ្គលិកលក់ និងរៀបចំទំនិញ</option>
+                    <option value="admin">Super Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ</option>
+                    <option value="manager">Store Manager • ប្រធានសាខា</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">អ៊ីមែលការងារ (Work Email) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">អ៊ីមែលការងារ • Work Email *</label>
                   <input
                     type="email"
                     required
@@ -381,7 +381,7 @@ export default function AdminStaffPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">លេខទូរស័ព្ទ (Phone)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">លេខទូរស័ព្ទ • Phone</label>
                   <input
                     type="text"
                     value={phone}
@@ -394,48 +394,48 @@ export default function AdminStaffPage() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {editTarget ? "ពាក្យសម្ងាត់ថ្មី (Password - ទុកទទេរបើមិនផ្លាស់ប្តូរ)" : "ពាក្យសម្ងាត់ (Password) *"}
+                  {editTarget ? "ពាក្យសម្ងាត់ថ្មី • Password • ទុកទទេរបើមិនផ្លាស់ប្តូរ" : "ពាក្យសម្ងាត់ • Password *"}
                 </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={editTarget ? "•••••••• (Keep unchanged)" : "យ៉ាងតិច ៦ តួអក្សរ (Min 6 chars)"}
+                  placeholder={editTarget ? "•••••••• • Keep unchanged" : "យ៉ាងតិច ៦ តួអក្សរ • Min 6 chars"}
                   className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">សាខាបម្រើការ (Branch)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">សាខាបម្រើការ • Branch</label>
                   <select
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white text-xs font-medium"
                   >
-                    <option value="Phnom Penh Main Branch (សាខាកណ្តាល)">Phnom Penh Main Branch (សាខាកណ្តាល)</option>
-                    <option value="Toul Kork Branch (សាខាទួលគោក)">Toul Kork Branch (សាខាទួលគោក)</option>
-                    <option value="Siem Reap Branch (សាខាសៀមរាប)">Siem Reap Branch (សាខាសៀមរាប)</option>
+                    <option value="Phnom Penh Main Branch">Phnom Penh Main Branch</option>
+                    <option value="Toul Kork Branch">Toul Kork Branch</option>
+                    <option value="Siem Reap Branch">Siem Reap Branch</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">វេនធ្វើការ (Working Shift)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">វេនធ្វើការ • Working Shift</label>
                   <select
                     value={shift}
                     onChange={(e) => setShift(e.target.value)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white text-xs font-medium"
                   >
-                    <option value="Morning Shift (វេនព្រឹក)">Morning Shift (វេនព្រឹក: 08:00 - 17:00)</option>
-                    <option value="Afternoon/Evening Shift (វេនរសៀល/យប់)">Afternoon/Evening Shift (13:00 - 21:30)</option>
-                    <option value="Full-Time Shift (វេនពេញម៉ោង)">Full-Time Shift (08:00 - 18:00)</option>
+                    <option value="Morning Shift">Morning Shift • 08:00 - 17:00</option>
+                    <option value="Afternoon Shift">Afternoon Shift • 13:00 - 21:30</option>
+                    <option value="Full-Time Shift">Full-Time Shift • 08:00 - 18:00</option>
                   </select>
                 </div>
               </div>
 
               {editTarget && (
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ស្ថានភាពគណនី (Status)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ស្ថានភាពគណនី • Status</label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                       <input
@@ -445,7 +445,7 @@ export default function AdminStaffPage() {
                         onChange={() => setStatus("active")}
                         className="text-[#8B1A1A]"
                       />
-                      <span>Active (ដំណើរការ)</span>
+                      <span>Active • ដំណើរការ</span>
                     </label>
                     <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
                       <input
@@ -455,7 +455,7 @@ export default function AdminStaffPage() {
                         onChange={() => setStatus("inactive")}
                         className="text-red-600"
                       />
-                      <span>Inactive (ផ្អាកដំណើរការ)</span>
+                      <span>Inactive • ផ្អាកដំណើរការ</span>
                     </label>
                   </div>
                 </div>
@@ -467,13 +467,13 @@ export default function AdminStaffPage() {
                   onClick={() => setModalOpen(false)}
                   className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer"
                 >
-                  បោះបង់ (Cancel)
+                  បោះបង់ • Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8B1A1A]/20 cursor-pointer"
                 >
-                  {editTarget ? "រក្សាទុកការកែប្រែ (Save Changes)" : "បង្កើតគណនី (Create Account)"}
+                  {editTarget ? "រក្សាទុកការកែប្រែ • Save Changes" : "បង្កើតគណនី • Create Account"}
                 </button>
               </div>
             </form>

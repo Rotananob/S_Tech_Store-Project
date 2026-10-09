@@ -21,6 +21,8 @@ import { translations } from "@/lib/translations";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
+import { ThemeDropdown } from "@/components/ui/ThemeDropdown";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 interface ProfileData {
   display_name: string;
@@ -47,30 +49,30 @@ interface ProfileData {
 }
 
 const CAMBODIA_PROVINCES = [
-  "Phnom Penh (រាជធានីភ្នំពេញ)",
-  "Kandal (កណ្តាល)",
-  "Siem Reap (សៀមរាប)",
-  "Battambang (បាត់ដំបង)",
-  "Preah Sihanouk / Kampong Som (ព្រះសីហនុ)",
-  "Kampong Cham (កំពង់ចាម)",
-  "Kampot (កំពត)",
-  "Kampong Chhnang (កំពង់ឆ្នាំង)",
-  "Kampong Speu (កំពង់ស្ពឺ)",
-  "Kampong Thom (កំពង់ធំ)",
-  "Kep (កែប)",
-  "Koh Kong (កោះកុង)",
-  "Kratie (ក្រចេះ)",
-  "Mondulkiri (មណ្ឌលគិរី)",
-  "Oddar Meanchey (ឧត្តរមានជ័យ)",
-  "Pailin (ប៉ៃលិន)",
-  "Preah Vihear (ព្រះវិហារ)",
-  "Prey Veng (ព្រៃវែង)",
-  "Pursat (ពោធិ៍សាត់)",
-  "Ratanakiri (រតនគិរី)",
-  "Stung Treng (ស្ទឹងត្រែង)",
-  "Svay Rieng (ស្វាយរៀង)",
-  "Takeo (តាកែវ)",
-  "Tbong Khmum (ត្បូងឃ្មុំ)",
+  "Phnom Penh",
+  "Kandal",
+  "Siem Reap",
+  "Battambang",
+  "Preah Sihanouk",
+  "Kampong Cham",
+  "Kampot",
+  "Kampong Chhnang",
+  "Kampong Speu",
+  "Kampong Thom",
+  "Kep",
+  "Koh Kong",
+  "Kratie",
+  "Mondulkiri",
+  "Oddar Meanchey",
+  "Pailin",
+  "Preah Vihear",
+  "Prey Veng",
+  "Pursat",
+  "Ratanakiri",
+  "Stung Treng",
+  "Svay Rieng",
+  "Takeo",
+  "Tbong Khmum",
 ];
 
 const PRESET_AVATARS = [
@@ -103,6 +105,8 @@ export default function UserProfilePage() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [mounted, setMounted] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveModal, setSaveModal] = useState<{ show: boolean; success: boolean; title: string; message: string } | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -136,7 +140,7 @@ export default function UserProfilePage() {
     email: "",
     phone: "",
     address: "",
-    city: "Phnom Penh (រាជធានីភ្នំពេញ)",
+    city: "Phnom Penh",
     khan: "Chamkar Mon",
     telegram: "",
     profession: "Tech Enthusiast",
@@ -280,20 +284,62 @@ export default function UserProfilePage() {
     setGpsLoading(true);
     setGpsError(null);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         setGpsLoading(false);
         const lat = Number(pos.coords.latitude.toFixed(6));
         const lng = Number(pos.coords.longitude.toFixed(6));
+        const pinnedAddress = profile.address && !profile.address.startsWith("GPS Pin:") 
+          ? profile.address 
+          : `GPS Pin: ${lat}, ${lng} (Pinned Location)`;
+
         setProfile((p) => ({
           ...p,
           gps_lat: lat,
           gps_lng: lng,
-          address: p.address || `GPS: ${lat}, ${lng} (Pinned Location)`,
+          address: pinnedAddress,
         }));
+
+        // Immediately persist GPS coordinates to cloud PostgreSQL DB
+        try {
+          await api.put("/user/profile", {
+            display_name: profile.display_name,
+            phone: profile.phone,
+            address: pinnedAddress,
+            city: profile.city,
+            telegram: profile.telegram,
+            profession: profile.profession,
+            gender: profile.gender,
+            birthday: profile.birthday,
+            delivery_notes: profile.delivery_notes,
+            gps_lat: lat,
+            gps_lng: lng,
+          });
+
+          setSaveModal({
+            show: true,
+            success: true,
+            title: "GPS Pinned & Saved to Cloud! 📍",
+            message: `Coordinates (${lat}, ${lng}) have been securely saved to your account. Delivery personnel and admin dispatch can now track your exact pin directly.`
+          });
+        } catch (err: any) {
+          console.warn("GPS sync note:", err);
+          setSaveModal({
+            show: true,
+            success: true,
+            title: "GPS Pinned! 📍",
+            message: `Current location (${lat}, ${lng}) captured. Click 'Save Profile' below to re-verify cloud synchronization.`
+          });
+        }
       },
       (err) => {
         setGpsLoading(false);
         setGpsError("Could not retrieve GPS location. Please allow location permissions in your browser.");
+        setSaveModal({
+          show: true,
+          success: false,
+          title: "GPS Retrieval Failed",
+          message: "Please enable location services or browser GPS permissions to automatically pin your address."
+        });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -349,8 +395,9 @@ export default function UserProfilePage() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
-      await api.put("/user/profile", {
+      const res = await api.put("/user/profile", {
         display_name: profile.display_name,
         phone: profile.phone,
         address: profile.address,
@@ -363,11 +410,28 @@ export default function UserProfilePage() {
         gps_lat: profile.gps_lat,
         gps_lng: profile.gps_lng,
       });
-    } catch (e) {
-      console.warn("Backend profile update note (saved in state):", e);
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3500);
+
+      setSaveModal({
+        show: true,
+        success: true,
+        title: "Profile Saved Successfully! ✅",
+        message: "All personal details, delivery address, and GPS coordinates have been saved directly to PostgreSQL cloud database.",
+      });
+    } catch (err: any) {
+      console.error("Save profile error:", err);
+      const errMsg = err.response?.data?.message || err.message || "Failed to communicate with cloud server";
+      setSaveModal({
+        show: true,
+        success: false,
+        title: "Save Failed ⚠️",
+        message: `Could not save profile: ${errMsg}. Please verify your connection and try again.`,
+      });
+    } finally {
+      setIsSaving(false);
     }
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   const handlePasswordReset = async () => {
@@ -648,7 +712,7 @@ export default function UserProfilePage() {
           {/* Mobile Dropdown Tab Switcher (Top to Bottom selector) */}
           <div className="lg:hidden col-span-12 mb-4 relative">
             <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-              Settings Category (ផ្នែកកំណត់)
+              Settings Category
             </label>
             <button
               type="button"
@@ -943,7 +1007,7 @@ export default function UserProfilePage() {
 
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Street Address & House / Building No. (ផ្លូវ និងផ្ទះលេខ)
+                    Street Address & House / Building No.
                   </label>
                   <input
                     type="text"
@@ -957,7 +1021,7 @@ export default function UserProfilePage() {
                 <div className="sm:col-span-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                     <Navigation size={14} className="text-blue-500" />
-                    <span>Delivery Instructions for Driver (កំណត់ចំណាំសម្រាប់អ្នកដឹកជញ្ជូន)</span>
+                    <span>Delivery Instructions for Driver</span>
                   </label>
                   <textarea
                     rows={2}
@@ -1162,7 +1226,7 @@ export default function UserProfilePage() {
             <div className="space-y-6">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
-                  Preferences & PWA Version (ការកំណត់ & អាប់ដេត)
+                  Preferences & PWA Version
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   Notification alerts, theme preferences, and real-time PWA website updates.
@@ -1316,9 +1380,9 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* ── Appearance & Language with Touch-Friendly Controls ── */}
+              {/* ── Appearance & Language with Touch-Friendly Dropdowns ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                {/* Language Switcher with Confirmation */}
+                {/* Language Switcher Dropdown */}
                 <div className="p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 dark:bg-white/5">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center shrink-0">
@@ -1326,24 +1390,14 @@ export default function UserProfilePage() {
                     </div>
                     <div>
                       <span className="text-sm font-bold text-gray-900 dark:text-white block">Display Language</span>
-                      <span className="text-xs text-gray-400 block">English (EN) / ភាសាខ្មែរ (KM)</span>
+                      <span className="text-xs text-gray-400 block">Clean Khmer & English switcher</span>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = lang === "EN" ? "km" : "en";
-                      setPendingLocaleSwitch(next as "en" | "km");
-                    }}
-                    className="min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white dark:bg-black/60 text-[#8B1A1A] dark:text-red-400 border border-red-200 dark:border-red-900/60 shadow-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <span>{lang === "EN" ? "🇺🇸 English (EN)" : "🇰🇭 ភាសាខ្មែរ (KM)"}</span>
-                    <RefreshCw size={13} />
-                  </button>
+                  <LanguageSwitcher />
                 </div>
 
-                {/* Theme Mode Switcher */}
+                {/* Theme Mode Switcher Dropdown */}
                 <div className="p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 dark:bg-white/5">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -1355,38 +1409,7 @@ export default function UserProfilePage() {
                     </div>
                   </div>
 
-                  <div className="flex bg-gray-200/80 dark:bg-white/10 rounded-xl p-1 gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setTheme("light")}
-                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
-                        theme === "light" ? "bg-white shadow-sm text-[#8B1A1A]" : "text-gray-500 bg-transparent hover:text-gray-900"
-                      }`}
-                    >
-                      <Sun size={14} />
-                      <span className="hidden sm:inline">Light</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTheme("dark")}
-                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
-                        theme === "dark" ? "bg-white shadow-sm text-black" : "text-gray-500 bg-transparent hover:text-gray-200"
-                      }`}
-                    >
-                      <Moon size={14} />
-                      <span className="hidden sm:inline">Dark</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTheme("system")}
-                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
-                        theme === "system" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 bg-transparent hover:text-gray-200"
-                      }`}
-                    >
-                      <Monitor size={14} />
-                      <span className="hidden sm:inline">Auto</span>
-                    </button>
-                  </div>
+                  <ThemeDropdown />
                 </div>
               </div>
             </div>
@@ -1398,7 +1421,7 @@ export default function UserProfilePage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
-                    Official Hardware Warranty & RMA Hub (ការធានាផ្លូវការ)
+                    Official Hardware Warranty & RMA Hub
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     Track your registered tech hardware, serial numbers, and 1-year official S Tech Store warranty.
@@ -1944,6 +1967,47 @@ export default function UserProfilePage() {
         }}
         onCancel={() => setPendingLocaleSwitch(null)}
       />
+
+      {/* ── Profile Save & Cloud Sync Status Modal ───────────────────── */}
+      <AnimatePresence>
+        {saveModal?.show && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-[#151922] w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-white/10 text-center relative"
+            >
+              <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4 ${
+                saveModal.success
+                  ? "bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400"
+                  : "bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400"
+              }`}>
+                {saveModal.success ? <CheckCircle2 size={32} /> : <AlertTriangle size={32} />}
+              </div>
+
+              <h3 className="text-base font-black text-gray-900 dark:text-white mb-2">
+                {saveModal.title}
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-5">
+                {saveModal.message}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setSaveModal(null)}
+                className={`w-full py-3 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer ${
+                  saveModal.success
+                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                    : "bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A]"
+                }`}
+              >
+                Done
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

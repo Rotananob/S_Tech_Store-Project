@@ -92,7 +92,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <motion.div
-      className="product-card"
+      className="product-card dark:bg-[#141720] dark:border-white/10 text-gray-900 dark:text-gray-100"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
@@ -101,11 +101,11 @@ export default function ProductCard({ product }: ProductCardProps) {
     >
       {/* Image Container */}
       <div
+        className="bg-gray-50 dark:bg-[#1b202c]"
         style={{
           position: "relative",
           aspectRatio: "1 / 1",
           overflow: "hidden",
-          background: "var(--bg-surface-2)",
         }}
       >
         {/* Product Image */}
@@ -283,12 +283,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Brand */}
           {product.brand && (
             <span
+              className="text-[#1a4fa0] dark:text-sky-400 font-semibold uppercase tracking-wider"
               style={{
                 fontSize: "11px",
-                color: "var(--brand-primary)",
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
               }}
             >
               {product.brand}
@@ -297,10 +294,9 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Name */}
           <h3
+            className="text-gray-900 dark:text-gray-100 font-bold hover:text-[#8B1A1A] dark:hover:text-red-400 transition-colors"
             style={{
               fontSize: "14px",
-              fontWeight: "600",
-              color: "var(--text-primary)",
               marginTop: "4px",
               marginBottom: "8px",
               lineHeight: "1.4",
@@ -331,12 +327,13 @@ export default function ProductCard({ product }: ProductCardProps) {
                     key={i}
                     size={11}
                     fill={i < Math.floor(product.rating!) ? "#f59e0b" : "none"}
-                    color={i < Math.floor(product.rating!) ? "#f59e0b" : "var(--text-muted)"}
+                    color={i < Math.floor(product.rating!) ? "#f59e0b" : "#9ca3af"}
                   />
                 ))}
               </div>
               <span
-                style={{ fontSize: "11px", color: "var(--text-muted)" }}
+                className="text-gray-500 dark:text-gray-400"
+                style={{ fontSize: "11px" }}
               >
                 ({product.reviews?.toLocaleString()})
               </span>
@@ -346,10 +343,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Price */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
+              className={product.sale_price ? "text-red-600 dark:text-red-400 font-black" : "text-gray-900 dark:text-white font-black"}
               style={{
                 fontSize: "17px",
-                fontWeight: "700",
-                color: product.sale_price ? "#f87171" : "var(--text-primary)",
                 fontFamily: "Outfit, sans-serif",
               }}
             >
@@ -357,10 +353,9 @@ export default function ProductCard({ product }: ProductCardProps) {
             </span>
             {product.sale_price && (
               <span
+                className="text-gray-400 dark:text-gray-500 line-through"
                 style={{
                   fontSize: "13px",
-                  color: "var(--text-muted)",
-                  textDecoration: "line-through",
                 }}
               >
                 {formatPrice(product.price)}

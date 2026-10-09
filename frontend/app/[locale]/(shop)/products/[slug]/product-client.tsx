@@ -388,15 +388,15 @@ export function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* Reviews Section with Real User Profiles & Submission Form */}
-            <div className="bg-white p-4 sm:p-5 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100">
+            <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[14px] sm:text-[15px] font-bold text-gray-900">
+                  <h2 className="text-[14px] sm:text-[15px] font-bold text-gray-900 dark:text-white">
                     Item Reviews ({reviews.length > 0 ? reviews.length : (product.reviews || 0)})
                   </h2>
                   <div className="flex items-center text-amber-400 text-xs gap-0.5">
                     <Star size={13} fill="currentColor" />
-                    <span className="font-bold text-gray-800 text-xs ml-0.5">
+                    <span className="font-bold text-gray-800 dark:text-gray-200 text-xs ml-0.5">
                       {reviews.length > 0 
                         ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
                         : (product.rating || "4.9")}
@@ -406,7 +406,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                 <button
                   type="button"
                   onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="text-[#8B1A1A] hover:text-[#a02222] text-[12px] font-bold flex items-center gap-1 transition-colors px-3 py-1 rounded-full bg-red-50 hover:bg-red-100/80 cursor-pointer"
+                  className="text-[#8B1A1A] dark:text-red-400 hover:text-[#a02222] text-[12px] font-bold flex items-center gap-1 transition-colors px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100/80 cursor-pointer"
                 >
                   <Sparkles size={13} />
                   <span>{showReviewForm ? "Cancel" : "Write Review"}</span>
@@ -414,8 +414,8 @@ export function ProductDetailClient({ product }: { product: any }) {
               </div>
 
               {reviewSubmitted && (
-                <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <div className="mb-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span>Review published successfully! Thank you for your feedback.</span>
                 </div>
               )}
@@ -428,10 +428,10 @@ export function ProductDetailClient({ product }: { product: any }) {
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     onSubmit={handleSubmitReview}
-                    className="mb-4 p-4 rounded-xl bg-gray-50 border border-gray-200 overflow-hidden space-y-3"
+                    className="mb-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 overflow-hidden space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-700">Your Rating:</span>
+                      <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Your Rating:</span>
                       <div className="flex items-center gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
@@ -452,14 +452,14 @@ export function ProductDetailClient({ product }: { product: any }) {
                       placeholder="Share your experience with this tech product (quality, performance, packaging)..."
                       rows={3}
                       required
-                      className="w-full text-xs p-3 rounded-lg border border-gray-200 bg-white focus:border-[#8B1A1A] outline-none transition-all resize-none"
+                      className="w-full text-xs p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#12151e] text-gray-900 dark:text-white focus:border-[#8B1A1A] outline-none transition-all resize-none"
                     />
 
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setShowReviewForm(false)}
-                        className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 font-medium"
+                        className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium"
                       >
                         Cancel
                       </button>
@@ -486,13 +486,13 @@ export function ProductDetailClient({ product }: { product: any }) {
               </AnimatePresence>
 
               <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-                <span className="bg-[#fff0f0] text-[#e02e24] px-3 py-1 rounded-full text-[11px] font-bold">★ Verified Buyers</span>
-                <span className="bg-[#f5f5f5] text-gray-700 px-3 py-1 rounded-full text-[11px]">Recommended</span>
-                <span className="bg-[#f5f5f5] text-gray-700 px-3 py-1 rounded-full text-[11px]">High Quality</span>
+                <span className="bg-[#fff0f0] dark:bg-red-950/40 text-[#e02e24] dark:text-red-400 px-3 py-1 rounded-full text-[11px] font-bold">★ Verified Buyers</span>
+                <span className="bg-[#f5f5f5] dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px]">Recommended</span>
+                <span className="bg-[#f5f5f5] dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px]">High Quality</span>
               </div>
 
               {reviews.length > 0 ? (
-                <div className="space-y-3.5 divide-y divide-gray-100">
+                <div className="space-y-3.5 divide-y divide-gray-100 dark:divide-white/5">
                   {reviews.map((rev) => (
                     <div key={rev.id || Math.random()} className="pt-3 first:pt-0">
                       <div className="flex items-center justify-between mb-1.5">
@@ -501,7 +501,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                             <img
                               src={rev.user_avatar}
                               alt={rev.user_name || "Customer"}
-                              className="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-sm"
+                              className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm"
                             />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[11px] font-black shadow-sm">
@@ -510,10 +510,10 @@ export function ProductDetailClient({ product }: { product: any }) {
                           )}
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[13px] font-bold text-gray-900 leading-none">
+                              <span className="text-[13px] font-bold text-gray-900 dark:text-white leading-none">
                                 {rev.user_name || "S Tech Customer"}
                               </span>
-                              <span className="text-[10px] bg-emerald-50 text-emerald-600 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                                 <CheckCircle2 size={10} /> Verified
                               </span>
                             </div>
@@ -530,7 +530,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                         </div>
                       </div>
 
-                      <p className="text-[13px] text-gray-700 whitespace-pre-line leading-relaxed pl-10">
+                      <p className="text-[13px] text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed pl-10">
                         {rev.comment}
                       </p>
                     </div>
@@ -538,13 +538,13 @@ export function ProductDetailClient({ product }: { product: any }) {
                 </div>
               ) : (
                 product.reviews > 0 ? (
-                  <div className="border-b border-gray-50 pb-3 mb-3">
+                  <div className="border-b border-gray-50 dark:border-white/5 pb-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[11px] font-bold text-blue-600">S</div>
-                      <span className="text-[13px] font-bold text-gray-800">S Tech User</span>
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[11px] font-bold text-blue-600 dark:text-blue-400">S</div>
+                      <span className="text-[13px] font-bold text-gray-800 dark:text-gray-200">S Tech User</span>
                     </div>
                     <div className="flex text-amber-400 text-xs mb-1">★★★★★</div>
-                    <p className="text-[13px] text-gray-600 line-clamp-2">
+                    <p className="text-[13px] text-gray-600 dark:text-gray-400 line-clamp-2">
                       Excellent product! Arrived in perfect condition with official warranty.
                     </p>
                   </div>
@@ -555,55 +555,55 @@ export function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* Store Section */}
-            <div className="bg-white p-4 mb-2 lg:rounded-2xl lg:shadow-sm">
+            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full border border-gray-100 overflow-hidden flex items-center justify-center bg-gray-50 shadow-sm">
-                    <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src="https://placehold.co/100x100?text=S+Tech" }} />
+                  <div className="w-12 h-12 rounded-full border border-gray-100 dark:border-white/10 overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-white/5 shadow-sm">
+                    <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src="/logo.jpg" }} />
                   </div>
                   <div>
-                    <h3 className="text-[15px] font-bold text-gray-900 leading-tight">S Tech Store</h3>
-                    <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
+                    <h3 className="text-[15px] font-bold text-gray-900 dark:text-white leading-tight">S Tech Store</h3>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                       <span className="text-yellow-400">★★★★★</span>
                       <span>(99% Positive)</span>
                     </div>
-                    <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-1">
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                       <MapPin size={10} className="text-gray-400" /> Phnom Penh, Cambodia
                     </div>
                   </div>
                 </div>
-                <button className="border border-[#8B1A1A] text-[#8B1A1A] px-3 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#8B1A1A] hover:text-white transition-colors">
+                <button className="border border-[#8B1A1A] dark:border-red-500 text-[#8B1A1A] dark:text-red-400 px-3 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#8B1A1A] hover:text-white transition-colors">
                   View Store
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-4 border-t border-gray-50 pt-3 text-center">
+              <div className="grid grid-cols-3 gap-2 mt-4 border-t border-gray-50 dark:border-white/5 pt-3 text-center">
                 <div>
-                  <div className="text-[13px] font-bold text-gray-900">99+</div>
-                  <div className="text-[10px] text-gray-500">Products</div>
+                  <div className="text-[13px] font-bold text-gray-900 dark:text-white">99+</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">Products</div>
                 </div>
-                <div className="border-l border-r border-gray-50">
-                  <div className="text-[13px] font-bold text-gray-900">100%</div>
-                  <div className="text-[10px] text-gray-500">Response</div>
+                <div className="border-l border-r border-gray-50 dark:border-white/5">
+                  <div className="text-[13px] font-bold text-gray-900 dark:text-white">100%</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">Response</div>
                 </div>
                 <div>
-                  <div className="text-[13px] font-bold text-gray-900">Fast</div>
-                  <div className="text-[10px] text-gray-500">Delivery</div>
+                  <div className="text-[13px] font-bold text-gray-900 dark:text-white">Fast</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400">Delivery</div>
                 </div>
               </div>
             </div>
 
             {/* Product Details Specs */}
-            <div className="bg-white p-4 mb-2 lg:rounded-2xl lg:shadow-sm">
-              <h2 className="text-[14px] font-bold mb-3">Product details</h2>
-              <div className="grid grid-cols-3 gap-2 border-b border-gray-100 pb-4 mb-4">
+            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+              <h2 className="text-[14px] font-bold mb-3 text-gray-900 dark:text-white">Product details</h2>
+              <div className="grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-white/5 pb-4 mb-4">
                 {specs.map((spec, i) => (
                   <div key={i} className="text-center">
                     <div className="text-[11px] text-gray-400 mb-1">{spec.key}</div>
-                    <div className="text-[12px] font-medium text-gray-800 line-clamp-1">{spec.value}</div>
+                    <div className="text-[12px] font-medium text-gray-800 dark:text-gray-200 line-clamp-1">{spec.value}</div>
                   </div>
                 ))}
               </div>
-              <div className="text-[14px] text-gray-700 leading-loose whitespace-pre-line">
+              <div className="text-[14px] text-gray-700 dark:text-gray-300 leading-loose whitespace-pre-line">
                 {(product as any).description || "Genuine product provided by S Tech Store Cambodia. Contact us for more details."}
               </div>
             </div>
@@ -611,23 +611,47 @@ export function ProductDetailClient({ product }: { product: any }) {
           </div>
         </div>
 
-            {/* Suggested Products */}
+            {/* Suggested Products with Luxury Styling and Zero Blank Cards */}
             {suggested.length > 0 && (
-              <div className="bg-white p-4 lg:rounded-2xl lg:shadow-sm">
-                <h2 className="text-[14px] font-bold mb-4">You might also like</h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {suggested.map(item => (
-                    <Link key={item.id} href={`/products/${item.slug}`} className="flex flex-col group block">
-                      <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-2 p-2 relative">
-                        <img src={item.images?.[0] || item.image_url} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform" />
+              <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mt-4 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[15px] sm:text-base font-extrabold text-gray-900 dark:text-white">You might also like</h2>
+                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Top Matches</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                  {suggested.map((item) => (
+                    <Link 
+                      key={item.id} 
+                      href={`/products/${item.slug}`} 
+                      className="flex flex-col group p-2.5 rounded-xl bg-gray-50/80 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 transition-all no-underline"
+                    >
+                      <div className="aspect-square bg-white dark:bg-[#12151e] rounded-lg overflow-hidden mb-2.5 p-2 relative flex items-center justify-center border border-gray-100 dark:border-white/5">
+                        <img 
+                          src={item.images?.[0] || item.image_url || "/logo.jpg"} 
+                          alt={item.name}
+                          onError={(e) => { e.currentTarget.src = "/logo.jpg"; }}
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+                        />
                         {item.sale_price && (
-                          <div className="absolute top-2 left-2 bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded">Sale</div>
+                          <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider">
+                            Sale
+                          </div>
                         )}
                       </div>
-                      <h3 className="text-[12px] font-medium text-gray-800 line-clamp-2 leading-tight mb-1">{item.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#8B1A1A] font-bold text-[14px]">${item.sale_price || item.price}</span>
-                        {item.sale_price && <span className="text-gray-400 text-[11px] line-through">${item.price}</span>}
+                      <h3 className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mb-1.5 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
+                        {item.name}
+                      </h3>
+                      <div className="mt-auto flex items-baseline justify-between gap-1">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-[#8B1A1A] dark:text-red-400 font-black text-[14px] font-mono">
+                            ${Number(item.sale_price || item.price).toFixed(2)}
+                          </span>
+                          {item.sale_price && (
+                            <span className="text-gray-400 text-[10px] line-through font-mono">
+                              ${Number(item.price).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </Link>
                   ))}
@@ -724,40 +748,50 @@ export function ProductDetailClient({ product }: { product: any }) {
       
 
 
-      {/* Chat Options Modal */}
+      {/* Chat Options Modal - Elevated and Centered to Avoid Phone Bottom Bars */}
       <AnimatePresence>
         {showChatOptions && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 relative"
+              className="bg-white dark:bg-[#151922] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl border border-gray-100 dark:border-white/10"
             >
-              <button onClick={() => setShowChatOptions(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <X size={24} />
+              <button 
+                onClick={() => setShowChatOptions(false)} 
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X size={20} />
               </button>
-              <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Contact Us</h3>
+              
+              <div className="text-center mb-5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 text-white flex items-center justify-center mx-auto mb-2.5 shadow-md">
+                  <MessageCircle size={24} />
+                </div>
+                <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">Customer Support</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Connect directly with our tech team</p>
+              </div>
               
               <div className="flex flex-col gap-3">
                 <button 
                   onClick={() => {
                     setShowChatOptions(false);
-                    window.open('https://t.me/stechstore', '_blank');
+                    window.open('https://t.me/s_tech_storeBot', '_blank');
                   }} 
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-sky-50 hover:bg-sky-100 text-sky-600 rounded-xl font-bold transition-colors"
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/40 rounded-xl font-bold transition-all shadow-sm cursor-pointer"
                 >
-                  <Send size={20} /> Chat on Telegram
+                  <Send size={18} /> Chat via Telegram Bot
                 </button>
                 <button 
                   onClick={() => {
                     setShowChatOptions(false);
                     setShowChatBot(true);
                   }} 
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl font-bold transition-colors border border-gray-200"
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-800 dark:text-gray-200 rounded-xl font-bold transition-all border border-gray-200 dark:border-white/10 shadow-sm cursor-pointer"
                 >
-                  <MessageCircle size={20} /> Chat on Website
+                  <MessageCircle size={18} className="text-[#8B1A1A] dark:text-red-400" /> Live Chat on Website
                 </button>
               </div>
             </motion.div>
@@ -769,13 +803,20 @@ export function ProductDetailClient({ product }: { product: any }) {
       <AnimatePresence>
         {showChatBot && (
           <motion.div 
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-[110]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120]"
           >
-            <ChatBot onClose={() => setShowChatBot(false)} />
+            <ChatBot 
+              onClose={() => setShowChatBot(false)} 
+              productInfo={{
+                name: product.name,
+                slug: product.slug,
+                price: product.sale_price || product.price,
+                image: images[0] || product.image_url,
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

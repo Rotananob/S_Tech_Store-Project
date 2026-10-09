@@ -227,7 +227,7 @@ export default function TelegramBotCard() {
             </div>
             <div>
               <div className="text-[11px] text-gray-500 font-extrabold uppercase tracking-wider">
-                Official Store Bot (គណនី Bot ផ្លូវការរបស់ហាង)
+                Official Store Bot
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-0.5">
                 <span className="text-base sm:text-lg font-black text-gray-900 font-mono">
@@ -263,7 +263,7 @@ export default function TelegramBotCard() {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                    Connected Telegram Group (គ្រុបដែលបានភ្ជាប់)
+                    Connected Telegram Group
                   </div>
                   <div className="text-lg sm:text-xl font-black text-gray-900 mt-0.5">
                     {status.chat_title || "S Tech Store Official Team"}
@@ -291,7 +291,7 @@ export default function TelegramBotCard() {
                   className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none disabled:opacity-50"
                 >
                   <Send size={15} className={testing ? "animate-spin" : ""} />
-                  <span>{testing ? "កំពុងផ្ញើ..." : "ផ្ញើសារសាកល្បង (Test)"}</span>
+                  <span>{testing ? "កំពុងផ្ញើ..." : "ផ្ញើសារសាកល្បង"}</span>
                 </button>
 
                 <button
@@ -302,7 +302,7 @@ export default function TelegramBotCard() {
                   title="ផ្តាច់ Bot ចេញពីគ្រុបនេះ"
                 >
                   <Unlink size={15} />
-                  <span>ផ្តាច់ (Disconnect)</span>
+                  <span>ផ្តាច់ការតភ្ជាប់</span>
                 </button>
               </div>
             </div>
@@ -327,11 +327,24 @@ export default function TelegramBotCard() {
                 <button
                   type="button"
                   onClick={handleSetupTopics}
-                  disabled={settingUpTopics}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none disabled:opacity-50"
+                  disabled={settingUpTopics || Boolean(status?.topics?.orders && status?.topics?.repairs && status?.topics?.stock && status?.topics?.chat)}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs sm:text-sm font-bold shadow-md transition-all border-none ${
+                    Boolean(status?.topics?.orders && status?.topics?.repairs && status?.topics?.stock && status?.topics?.chat)
+                      ? "bg-emerald-600/90 hover:bg-emerald-600 cursor-default"
+                      : "bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] cursor-pointer"
+                  } disabled:opacity-80`}
                 >
-                  <RefreshCw size={14} className={settingUpTopics ? "animate-spin" : ""} />
-                  <span>{settingUpTopics ? "កំពុងរៀបចំ Topics..." : "🗂️ Auto-create Topics (បង្កើត Topics ស្វ័យប្រវត្តិ)"}</span>
+                  {Boolean(status?.topics?.orders && status?.topics?.repairs && status?.topics?.stock && status?.topics?.chat) ? (
+                    <>
+                      <CheckCircle2 size={15} className="text-emerald-200" />
+                      <span>ប្រធានបទ Topics រៀបចំរួចរាល់ ១០០%</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={14} className={settingUpTopics ? "animate-spin" : ""} />
+                      <span>{settingUpTopics ? "កំពុងរៀបចំ Topics..." : "🗂️ បង្កើត Topics ស្វ័យប្រវត្តិ"}</span>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -341,31 +354,31 @@ export default function TelegramBotCard() {
                   {
                     key: "orders",
                     icon: "🛒",
-                    title: "ការបញ្ជាទិញថ្មី (New Orders)",
-                    desc: "វិក្កយបត្រ & ព័ត៌មានដឹកជញ្ជូន",
+                    title: "ការបញ្ជាទិញថ្មី",
+                    desc: "វិក្កយបត្រ និងព័ត៌មានដឹកជញ្ជូន",
                     color: "border-sky-200 bg-sky-50/80 text-sky-900",
                     created: Boolean(status?.topics?.orders),
                   },
                   {
                     key: "repairs",
                     icon: "🛠️",
-                    title: "សេវាជួសជុល (Repairs)",
-                    desc: "ប័ណ្ណទទួលជួសជុល & Status",
+                    title: "សេវាជួសជុល",
+                    desc: "ប័ណ្ណទទួលជួសជុល និងស្ថានភាព",
                     color: "border-amber-200 bg-amber-50/80 text-amber-900",
                     created: Boolean(status?.topics?.repairs),
                   },
                   {
                     key: "stock",
                     icon: "⚠️",
-                    title: "ការជូនដំណឹងស្តុក (Stock)",
-                    desc: "ដឹងភ្លាមពេលទំនិញជិតអស់",
+                    title: "ការជូនដំណឹងស្តុក",
+                    desc: "ដឹងភ្លាមពេលទំនិញជិតអស់ពីស្តុក",
                     color: "border-red-200 bg-red-50/80 text-red-900",
                     created: Boolean(status?.topics?.stock),
                   },
                   {
                     key: "chat",
                     icon: "💬",
-                    title: "សេវាអតិថិជន (Customer Chat)",
+                    title: "សេវាអតិថិជន",
                     desc: "សម្រាប់សន្ទនាទូទៅក្នុងក្រុម",
                     color: "border-purple-200 bg-purple-50/80 text-purple-900",
                     created: Boolean(status?.topics?.chat),
@@ -401,31 +414,31 @@ export default function TelegramBotCard() {
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Bell size={16} className="text-[#0088cc]" />
-                <span>Notification Triggers (ជ្រើសរើសប្រភេទការជូនដំណឹង)</span>
+                <span>ការកំណត់ការជូនដំណឹងស្វ័យប្រវត្តិ</span>
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {[
                   {
                     key: "notify_orders" as const,
-                    title: "🛒 ការបញ្ជាទិញថ្មី (New Orders)",
+                    title: "🛒 ការបញ្ជាទិញថ្មី",
                     desc: "ផ្ញើព័ត៌មានលម្អិតពីអតិថិជន និងទំនិញភ្លាមៗពេលមានការកុម្ម៉ង់",
                     value: status.notify_orders,
                   },
                   {
                     key: "notify_low_stock" as const,
-                    title: "⚠️ ទំនិញជិតអស់ពីស្តុក (Low Stock Alert)",
+                    title: "⚠️ ទំនិញជិតអស់ពីស្តុក",
                     desc: "ប្រកាសអាសន្នពេលចំនួនទំនិញក្នុងស្តុកសល់តិចជាង ៥ គ្រឿង",
                     value: status.notify_low_stock,
                   },
                   {
                     key: "notify_repairs" as const,
-                    title: "🔧 សំណើជួសជុល (Repair Tickets)",
+                    title: "🔧 សំណើជួសជុល",
                     desc: "ជូនដំណឹងពេលមានអតិថិជនដាក់សំណើសុំជួសជុលឧបករណ៍",
                     value: status.notify_repairs,
                   },
                   {
                     key: "notify_shifts" as const,
-                    title: "⏰ វេនការងារបុគ្គលិក (Staff Shift Updates)",
+                    title: "⏰ វេនការងារបុគ្គលិក",
                     desc: "ជូនដំណឹងអំពីកាលវិភាគផ្លាស់ប្តូរវេនរបស់បុគ្គលិក",
                     value: status.notify_shifts,
                   },
@@ -459,7 +472,7 @@ export default function TelegramBotCard() {
             <div className="bg-gradient-to-br from-gray-50 via-sky-50/30 to-blue-50/50 p-6 sm:p-8 rounded-3xl border border-sky-100 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
               <div className="max-w-xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-[#0088cc] text-xs font-bold mb-3">
-                  <Smartphone size={14} /> ងាយស្រួលបំផុត ១-ចុច (1-Click ABA Merchant Flow)
+                  <Smartphone size={14} /> ងាយស្រួលបំផុត ១-ចុច ABA Merchant Style
                 </div>
                 <h3 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight leading-snug">
                   ភ្ជាប់ Telegram Bot ទៅកាន់ Group របស់ហាង
@@ -477,7 +490,7 @@ export default function TelegramBotCard() {
                     className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] text-white text-sm sm:text-base font-black shadow-xl shadow-sky-600/25 hover:shadow-2xl transition-all cursor-pointer border-none active:scale-95 disabled:opacity-50"
                   >
                     <Send size={20} className={connecting ? "animate-spin" : ""} />
-                    <span>{connecting ? "កំពុងបើក Telegram..." : "⚡ បើក Telegram ដើម្បីភ្ជាប់ Group (1-Click)"}</span>
+                    <span>{connecting ? "កំពុងបើក Telegram..." : "⚡ បើក Telegram ដើម្បីភ្ជាប់ Group"}</span>
                     <ArrowRight size={18} />
                   </button>
                 </div>
@@ -502,7 +515,7 @@ export default function TelegramBotCard() {
                   <div className="flex items-center gap-2.5">
                     <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping" />
                     <span className="text-sm sm:text-base font-black text-gray-900">
-                      កំពុងរង់ចាំការភ្ជាប់ពី Telegram (Waiting for Group Setup...)
+                      កំពុងរង់ចាំការភ្ជាប់ពី Telegram Group
                     </span>
                   </div>
                   <span className="text-xs font-mono font-bold text-[#0088cc] bg-sky-50 px-3 py-1 rounded-full border border-sky-200">

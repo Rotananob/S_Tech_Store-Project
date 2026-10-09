@@ -140,12 +140,12 @@ export default function PWAUpdatePrompt() {
               {isUpdating ? (
                 <>
                   <RefreshCw size={15} className="animate-spin" />
-                  <span>Updating... (កំពុងដំឡើង)</span>
+                  <span>Updating...</span>
                 </>
               ) : (
                 <>
                   <Zap size={15} className="text-amber-300 fill-amber-300" />
-                  <span>Update Now (ធ្វើបច្ចុប្បន្នភាព)</span>
+                  <span>Update Now</span>
                 </>
               )}
             </button>

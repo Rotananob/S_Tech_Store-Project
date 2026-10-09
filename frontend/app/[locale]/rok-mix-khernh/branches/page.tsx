@@ -138,7 +138,7 @@ export default function AdminBranchesPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-[#8B1A1A]">Admin Operations</span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-            គ្រប់គ្រងសាខាហាង (Branch Management)
+            គ្រប់គ្រងសាខាហាង • Branch Management
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm">
             ចាត់ចែងទីតាំងសាខា S Tech Store ទូទាំងរាជធានី-ខេត្ត លេខទំនាក់ទំនង និងម៉ោងបើកដំណើរការ។
@@ -150,7 +150,7 @@ export default function AdminBranchesPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-[#8B1A1A]/20 transition-all cursor-pointer"
         >
           <Plus size={16} />
-          <span>+ បន្ថែមសាខាថ្មី (Add Branch)</span>
+          <span>+ បន្ថែមសាខាថ្មី • Add Branch</span>
         </button>
       </div>
 
@@ -246,7 +246,7 @@ export default function AdminBranchesPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះសាខា (Branch Name) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះសាខា • Branch Name *</label>
                   <input
                     type="text"
                     required
@@ -258,7 +258,7 @@ export default function AdminBranchesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">កូដសាខា (Branch Code) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">កូដសាខា • Branch Code *</label>
                   <input
                     type="text"
                     required
@@ -271,7 +271,7 @@ export default function AdminBranchesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">អាសយដ្ឋាន (Full Address)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">អាសយដ្ឋាន • Full Address</label>
                 <input
                   type="text"
                   value={address}
@@ -283,7 +283,7 @@ export default function AdminBranchesPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">លេខទូរស័ព្ទ (Phone Contact)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">លេខទូរស័ព្ទ • Phone Contact</label>
                   <input
                     type="text"
                     value={phone}
@@ -294,7 +294,7 @@ export default function AdminBranchesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">អ្នកគ្រប់គ្រង (Branch Manager)</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">អ្នកគ្រប់គ្រង • Branch Manager</label>
                   <input
                     type="text"
                     value={managerName}
@@ -306,7 +306,7 @@ export default function AdminBranchesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងបើកដំណើរការ (Opening Hours)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងបើកដំណើរការ • Opening Hours</label>
                 <input
                   type="text"
                   value={openingHours}
@@ -325,7 +325,7 @@ export default function AdminBranchesPage() {
                   className="w-4 h-4 text-[#8B1A1A] rounded"
                 />
                 <label htmlFor="branchActive" className="text-xs font-semibold text-gray-700 cursor-pointer">
-                  សាខាកំពុងដំណើរការទទួលភ្ញៀវ (Branch Active for Operations)
+                  សាខាកំពុងដំណើរការទទួលភ្ញៀវ • Branch Active for Operations
                 </label>
               </div>
 
@@ -335,13 +335,13 @@ export default function AdminBranchesPage() {
                   onClick={() => setModalOpen(false)}
                   className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer"
                 >
-                  Cancel
+                  បោះបង់ • Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8B1A1A]/20 cursor-pointer"
                 >
-                  {editTarget ? "រក្សាទុក (Update Branch)" : "បង្កើតសាខា (Create Branch)"}
+                  {editTarget ? "រក្សាទុក • Update Branch" : "បង្កើតសាខា • Create Branch"}
                 </button>
               </div>
             </form>

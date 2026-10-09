@@ -124,7 +124,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen text-[#1a1a1a]">
+    <div className="bg-gray-50 dark:bg-[#0c0e12] min-h-screen text-gray-900 dark:text-gray-100 transition-colors">
       <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Title & Secondhand Banner */}
@@ -136,18 +136,18 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               transition={{ duration: 0.5 }}
             >
               <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight capitalize text-[#1a1a1a]">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight capitalize text-gray-900 dark:text-white">
                   {getPageTitle()}
                   <span className="text-[#c0392b]">.</span>
                 </h1>
                 {slug === "secondhand" && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-300 shadow-sm">
-                    <Award size={14} className="text-amber-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-bold rounded-full border border-amber-300 dark:border-amber-700 shadow-sm">
+                    <Award size={14} className="text-amber-600 dark:text-amber-400" />
                     99% Quality - 100% Tested
                   </span>
                 )}
               </div>
-              <p className="font-khmer text-sm text-gray-600 mt-1">
+              <p className="font-khmer text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {slug === "secondhand"
                   ? "កុំព្យូទ័រ និងឧបករណ៍បច្ចេកវិទ្យា ១ ទឹកគុណភាពខ្ពស់"
                   : t.searchSubtitle}
@@ -165,9 +165,9 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 type="button"
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold shadow-sm hover:bg-gray-50 transition-colors cursor-pointer"
+                className="lg:hidden flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[#141720] border border-gray-200 dark:border-white/10 rounded-xl text-sm font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer text-gray-900 dark:text-gray-100"
               >
-                <SlidersHorizontal size={16} className="text-[#8B1A1A]" />
+                <SlidersHorizontal size={16} className="text-[#8B1A1A] dark:text-red-400" />
                 <span>{t.filters}</span>
                 {activeFiltersCount > 0 && (
                   <span className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white text-[11px] font-bold flex items-center justify-center">
@@ -176,17 +176,17 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                 )}
               </motion.button>
 
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                 <span className="whitespace-nowrap hidden sm:inline">{t.sortBy}</span>
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
-                  className="px-3.5 py-2.5 border border-gray-200 rounded-xl bg-white text-sm font-medium text-[#1a1a1a] outline-none cursor-pointer focus:border-[#8B1A1A] shadow-sm"
+                  className="px-3.5 py-2.5 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-[#141720] text-sm font-medium text-gray-900 dark:text-gray-100 outline-none cursor-pointer focus:border-[#8B1A1A] dark:focus:border-red-500 shadow-sm"
                 >
-                  <option value="Popular">{t.popular}</option>
-                  <option value="LowToHigh">{t.priceLowHigh}</option>
-                  <option value="HighToLow">{t.priceHighLow}</option>
-                  <option value="Newest">{t.newest}</option>
+                  <option value="Popular" className="dark:bg-[#141720] dark:text-white">{t.popular}</option>
+                  <option value="LowToHigh" className="dark:bg-[#141720] dark:text-white">{t.priceLowHigh}</option>
+                  <option value="HighToLow" className="dark:bg-[#141720] dark:text-white">{t.priceHighLow}</option>
+                  <option value="Newest" className="dark:bg-[#141720] dark:text-white">{t.newest}</option>
                 </select>
               </div>
             </motion.div>
@@ -204,7 +204,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               placeholder={`Search in ${getPageTitle()} by name, brand, spec...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border-2 border-gray-200 rounded-2xl pl-12 pr-10 py-3.5 text-sm sm:text-base text-[#1a1a1a] outline-none focus:border-[#8B1A1A] focus:shadow-md transition-all placeholder:text-gray-400"
+              className="w-full bg-white dark:bg-[#141720] border-2 border-gray-200 dark:border-white/10 rounded-2xl pl-12 pr-10 py-3.5 text-sm sm:text-base text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 focus:shadow-md transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
             <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <AnimatePresence>
@@ -215,7 +215,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                   exit={{ opacity: 0, scale: 0.5 }}
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors cursor-pointer border-none"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-600 dark:text-gray-300 flex items-center justify-center transition-colors cursor-pointer border-none"
                 >
                   <X size={14} />
                 </motion.button>
@@ -225,20 +225,20 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
 
           {/* Result count */}
           <motion.div 
-            className="flex items-center justify-between mt-3 text-xs text-gray-500"
+            className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-gray-400"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
           >
             <span>
-              Showing <strong className="text-[#1a1a1a] font-bold">{products.length}</strong> products
+              Showing <strong className="text-gray-900 dark:text-white font-bold">{products.length}</strong> products
               {searchQuery && <span> matching "{searchQuery}"</span>}
             </span>
             {(activeFiltersCount > 0 || searchQuery) && (
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="text-red-600 font-semibold hover:underline cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
+                className="text-red-600 dark:text-red-400 font-semibold hover:underline cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
               >
                 Clear all filters
               </button>
@@ -251,45 +251,45 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
 
           {/* Desktop Sidebar */}
           <motion.aside 
-            className="hidden lg:block bg-white p-6 rounded-2xl border border-gray-200 shadow-sm sticky top-24 space-y-6"
+            className="hidden lg:block bg-white dark:bg-[#141720] p-6 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm sticky top-24 space-y-6 text-gray-900 dark:text-gray-100"
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h2 className="text-base font-bold flex items-center gap-2 text-[#1a1a1a]">
-                <Filter size={18} className="text-[#8B1A1A]" />
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 pb-4">
+              <h2 className="text-base font-bold flex items-center gap-2 text-gray-900 dark:text-white">
+                <Filter size={18} className="text-[#8B1A1A] dark:text-red-400" />
                 {t.filters}
               </h2>
               {activeFiltersCount > 0 && (
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="text-xs font-semibold text-red-600 hover:underline cursor-pointer border-none bg-transparent"
+                  className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline cursor-pointer border-none bg-transparent"
                 >
                   Reset
                 </button>
               )}
             </div>
 
-            <label className="flex items-center gap-3 cursor-pointer text-sm font-semibold text-gray-700">
+            <label className="flex items-center gap-3 cursor-pointer text-sm font-semibold text-gray-700 dark:text-gray-300">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300"
+                className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300 dark:border-white/20 dark:bg-white/5"
                 checked={inStockOnly}
                 onChange={() => setInStockOnly(!inStockOnly)}
               />
               <span>{t.inStockOnly}</span>
             </label>
 
-            <div className="border-t border-gray-100 pt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.brand}</h3>
+            <div className="border-t border-gray-100 dark:border-white/10 pt-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">{t.brand}</h3>
               <div className="space-y-2.5">
                 {["ASUS", "Lenovo", "Dell", "MSI", "HP", "Apple"].map((brand) => (
-                  <label key={brand} className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 hover:text-[#1a1a1a]">
+                  <label key={brand} className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300"
+                      className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300 dark:border-white/20 dark:bg-white/5"
                       checked={selectedBrands.includes(brand)}
                       onChange={() => toggleFilter(selectedBrands, setSelectedBrands, brand)}
                     />
@@ -299,15 +299,15 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.priceUsd}</h3>
+            <div className="border-t border-gray-100 dark:border-white/10 pt-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">{t.priceUsd}</h3>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
                   placeholder={t.min}
                   value={minPrice}
                   onChange={(e) => setMinPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 bg-white dark:bg-[#1c212d] text-gray-900 dark:text-white"
                 />
                 <span className="text-gray-400">-</span>
                 <input
@@ -315,19 +315,19 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                   placeholder={t.max}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl text-sm outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 bg-white dark:bg-[#1c212d] text-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
-            <div className="border-t border-gray-100 pt-5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">CPU</h3>
+            <div className="border-t border-gray-100 dark:border-white/10 pt-5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">CPU</h3>
               <div className="space-y-2.5">
                 {["Intel Core i9", "Intel Core i7", "Intel Core i5", "AMD Ryzen 9", "AMD Ryzen 7"].map((cpu) => (
-                  <label key={cpu} className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 hover:text-[#1a1a1a]">
+                  <label key={cpu} className="flex items-center gap-3 cursor-pointer text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300"
+                      className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] border-gray-300 dark:border-white/20 dark:bg-white/5"
                       checked={selectedCPUs.includes(cpu)}
                       onChange={() => toggleFilter(selectedCPUs, setSelectedCPUs, cpu)}
                     />
@@ -342,22 +342,22 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
           <div className="w-full">
             {products.length === 0 ? (
               <motion.div 
-                className="py-20 px-6 text-center bg-white rounded-2xl border border-gray-200 shadow-sm space-y-3"
+                className="py-20 px-6 text-center bg-white dark:bg-[#141720] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm space-y-3"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
               >
-                <div className="w-14 h-14 rounded-full bg-red-50 text-[#8B1A1A] mx-auto flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 mx-auto flex items-center justify-center">
                   <Search size={26} />
                 </div>
-                <h3 className="text-lg font-bold text-[#1a1a1a]">No matching products found</h3>
-                <p className="text-sm text-gray-500 max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">No matching products found</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                   Try adjusting your search or resetting filters.
                 </p>
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="px-5 py-2.5 bg-[#8B1A1A] text-white rounded-xl text-xs font-bold hover:bg-[#a62222] transition-colors cursor-pointer border-none"
+                  className="px-5 py-2.5 bg-[#8B1A1A] text-white rounded-xl text-xs font-bold hover:bg-[#a62222] transition-colors cursor-pointer border-none shadow-md"
                 >
                   Clear all filters
                 </button>

@@ -29,7 +29,7 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
-  const [stockFilter, setStockFilter] = useState("Stock Status (All)");
+  const [stockFilter, setStockFilter] = useState("All Stock Status");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   
@@ -70,7 +70,7 @@ export default function AdminProductsPage() {
       const pCatName = p.category?.name || "Uncategorized";
       const matchCat = categoryFilter === "All Categories" || pCatName === categoryFilter;
       const status = getStockStatus(p.stock);
-      const matchStock = stockFilter === "Stock Status (All)" || status === stockFilter;
+      const matchStock = stockFilter === "All Stock Status" || status === stockFilter;
       const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchStock && matchSearch;
     });
@@ -81,7 +81,7 @@ export default function AdminProductsPage() {
 
   const handleClearFilters = () => {
     setCategoryFilter("All Categories");
-    setStockFilter("Stock Status (All)");
+    setStockFilter("All Stock Status");
     setSearchQuery("");
     setCurrentPage(1);
   };
@@ -193,7 +193,7 @@ export default function AdminProductsPage() {
               onChange={e => { setStockFilter(e.target.value); setCurrentPage(1); }} 
               className="w-full py-2.5 px-4 border border-gray-200 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-gray-50/50"
             >
-              <option>Stock Status (All)</option>
+              <option>All Stock Status</option>
               <option>In Stock</option>
               <option>Low Stock</option>
               <option>Out of Stock</option>
@@ -256,7 +256,7 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded text-xs font-bold ${stockBadge(status)}`}>
-                        {status} ({prod.stock})
+                        {status} • {prod.stock}
                       </span>
                     </td>
                     <td className="p-4 text-right">

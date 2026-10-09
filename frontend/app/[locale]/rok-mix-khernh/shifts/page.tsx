@@ -138,7 +138,7 @@ export default function AdminShiftsPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-[#8B1A1A]">Operations Schedule</span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-gray-900 tracking-tight">
-            គ្រប់គ្រងវេនធ្វើការ (Shifts & Working Hours)
+            គ្រប់គ្រងវេនធ្វើការ • Shifts & Working Hours
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm">
             ចាត់ចែងម៉ោងចូលធ្វើការ វេនព្រឹក វេនរសៀល/យប់ និងវេនពេញម៉ោងសម្រាប់បុគ្គលិកហាង។
@@ -150,7 +150,7 @@ export default function AdminShiftsPage() {
           className="flex items-center gap-2 px-5 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-[#8B1A1A]/20 transition-all cursor-pointer"
         >
           <Plus size={16} />
-          <span>+ បង្កើតវេនថ្មី (Add Shift)</span>
+          <span>+ បង្កើតវេនថ្មី • Add Shift</span>
         </button>
       </div>
 
@@ -238,7 +238,7 @@ export default function AdminShiftsPage() {
               <div className="flex items-center gap-2">
                 <Clock size={18} className="text-[#8B1A1A]" />
                 <h3 className="text-base font-bold text-gray-900">
-                  {editTarget ? "កែសម្រួលវេនធ្វើការ (Edit Shift)" : "បង្កើតវេនធ្វើការថ្មី (Add New Shift)"}
+                  {editTarget ? "កែសម្រួលវេនធ្វើការ • Edit Shift" : "បង្កើតវេនធ្វើការថ្មី • Add New Shift"}
                 </h3>
               </div>
               <button onClick={() => setModalOpen(false)} className="p-1 text-gray-400 hover:text-gray-700 cursor-pointer">
@@ -249,19 +249,19 @@ export default function AdminShiftsPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះវេន (Shift Name) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ឈ្មោះវេន • Shift Name *</label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Morning Shift (វេនព្រឹក)"
+                    placeholder="e.g. Morning Shift"
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">កូដវេន (Shift Code) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">កូដវេន • Shift Code *</label>
                   <input
                     type="text"
                     required
@@ -275,7 +275,7 @@ export default function AdminShiftsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងចូល (Start Time) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងចូល • Start Time *</label>
                   <input
                     type="text"
                     required
@@ -287,7 +287,7 @@ export default function AdminShiftsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងចេញ (End Time) *</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">ម៉ោងចេញ • End Time *</label>
                   <input
                     type="text"
                     required
@@ -300,7 +300,7 @@ export default function AdminShiftsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">ថ្ងៃធ្វើការក្នុងសប្តាហ៍ (Working Days)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">ថ្ងៃធ្វើការក្នុងសប្តាហ៍ • Working Days</label>
                 <input
                   type="text"
                   value={days}
@@ -311,7 +311,7 @@ export default function AdminShiftsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">ការពិពណ៌នាអំពីវេន (Shift Description)</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">ការពិពណ៌នាអំពីវេន • Shift Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -330,7 +330,7 @@ export default function AdminShiftsPage() {
                   className="w-4 h-4 text-[#8B1A1A] rounded"
                 />
                 <label htmlFor="shiftActive" className="text-xs font-semibold text-gray-700 cursor-pointer">
-                  វេនកំពុងដំណើរការ (Shift Active)
+                  វេនកំពុងដំណើរការ • Shift Active
                 </label>
               </div>
 
@@ -340,13 +340,13 @@ export default function AdminShiftsPage() {
                   onClick={() => setModalOpen(false)}
                   className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer"
                 >
-                  Cancel
+                  បោះបង់ • Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8B1A1A]/20 cursor-pointer"
                 >
-                  {editTarget ? "រក្សាទុក (Update Shift)" : "បង្កើតវេន (Create Shift)"}
+                  {editTarget ? "រក្សាទុក • Update Shift" : "បង្កើតវេន • Create Shift"}
                 </button>
               </div>
             </form>

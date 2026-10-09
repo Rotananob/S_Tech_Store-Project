@@ -26,9 +26,13 @@ class OrderController extends Controller
             'address' => 'required|string',
             'delivery_type' => 'nullable|string',
             'payment_method' => 'nullable|string',
+            'total_amount' => 'nullable|numeric',
+            'subtotal' => 'nullable|numeric',
+            'delivery_fee' => 'nullable|numeric',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'nullable|numeric',
         ]);
 
         try {
@@ -39,6 +43,9 @@ class OrderController extends Controller
             
             // Calculate delivery fee
             $deliveryFee = ($validated['delivery_type'] === 'province') ? 3.00 : 2.00;
+            if (!empty($validated['delivery_fee']) && (float)$validated['delivery_fee'] > 0) {
+                $deliveryFee = (float)$validated['delivery_fee'];
+            }
 
             // Business Logic: Calculate total and check stock
             foreach ($validated['items'] as $item) {
@@ -48,7 +55,10 @@ class OrderController extends Controller
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
 
-                $actualPrice = ($product->sale_price > 0) ? $product->sale_price : $product->price;
+                $dbPrice = ((float)($product->sale_price ?? 0) > 0) ? (float)$product->sale_price : (float)($product->price ?? 0);
+                $clientPrice = isset($item['price']) ? (float)$item['price'] : 0;
+                $actualPrice = ($dbPrice > 0) ? $dbPrice : (($clientPrice > 0) ? $clientPrice : 1.00);
+
                 $subtotal = $actualPrice * $item['quantity'];
                 $totalAmount += $subtotal;
 
@@ -65,6 +75,11 @@ class OrderController extends Controller
             }
             
             $totalAmount += $deliveryFee;
+
+            // Safeguard: If client supplied higher validated total_amount and calculated was just delivery fee, use total_amount
+            if (!empty($validated['total_amount']) && (float)$validated['total_amount'] > $deliveryFee && $totalAmount <= $deliveryFee) {
+                $totalAmount = (float)$validated['total_amount'];
+            }
 
             // Create Order
             $order = Order::create([

@@ -11,8 +11,8 @@ export default function SystemSettingsPage() {
   const [phone, setPhone] = useState("+855 12 345 678");
   const [address, setAddress] = useState("123 Monivong Blvd, Phnom Penh, Cambodia");
   const [telegram, setTelegram] = useState("STechSupport");
-  const [language, setLanguage] = useState("English (EN)");
-  const [currency, setCurrency] = useState("US Dollar (USD)");
+  const [language, setLanguage] = useState("English");
+  const [currency, setCurrency] = useState("US Dollar USD");
   const [exchangeRate, setExchangeRate] = useState("4100");
   const [featured, setFeatured] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -214,8 +214,8 @@ export default function SystemSettingsPage() {
                     onChange={e => setLanguage(e.target.value)} 
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white transition-all"
                   >
-                    <option>English (EN)</option>
-                    <option>Khmer (KM)</option>
+                    <option>English</option>
+                    <option>Khmer</option>
                   </select>
                 </div>
                 <div>
@@ -225,15 +225,15 @@ export default function SystemSettingsPage() {
                     onChange={e => setCurrency(e.target.value)} 
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white transition-all"
                   >
-                    <option>US Dollar (USD)</option>
-                    <option>Cambodian Riel (KHR)</option>
+                    <option>US Dollar USD</option>
+                    <option>Cambodian Riel KHR</option>
                   </select>
                 </div>
               </div>
               
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <div className="text-sm font-bold text-gray-900 mb-1">Exchange Rate (USD to KHR)</div>
+                  <div className="text-sm font-bold text-gray-900 mb-1">Exchange Rate • USD to KHR</div>
                   <div className="text-xs text-gray-500">Used for secondary pricing display.</div>
                 </div>
                 <div className="flex items-center gap-3">

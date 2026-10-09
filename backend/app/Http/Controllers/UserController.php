@@ -23,7 +23,100 @@ class UserController extends Controller
 
     public function index()
     {
-        return response()->json(UserProfile::orderBy('created_at', 'desc')->get());
+        $profiles = UserProfile::orderBy('created_at', 'desc')->get();
+        
+        $result = $profiles->map(function ($u) {
+            $orders = Order::where(function ($q) use ($u) {
+                if (!empty($u->firebase_uid)) {
+                    $q->where('user_id', $u->firebase_uid);
+                }
+                if (!empty($u->phone)) {
+                    $q->orWhere('customer_phone', $u->phone);
+                }
+            })
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+            return [
+                'id' => $u->id,
+                'firebase_uid' => $u->firebase_uid,
+                'display_name' => $u->display_name ?: ('អតិថិជន #' . $u->id),
+                'email' => $u->email,
+                'photo_url' => $u->photo_url ?: $u->avatar_url,
+                'phone' => $u->phone,
+                'address' => $u->address,
+                'city' => $u->city,
+                'delivery_notes' => $u->delivery_notes,
+                'gps_lat' => $u->gps_lat,
+                'gps_lng' => $u->gps_lng,
+                'telegram' => $u->telegram,
+                'profession' => $u->profession,
+                'gender' => $u->gender,
+                'birthday' => $u->birthday,
+                'is_admin' => (bool)$u->is_admin,
+                'is_active' => (bool)($u->is_active ?? true),
+                'status' => $u->status ?? 'active',
+                'points' => (int)($u->points ?? 0),
+                'total_orders' => $orders->count(),
+                'total_spent' => (float)$orders->sum('total_amount'),
+                'created_at' => $u->created_at ? $u->created_at->toIso8601String() : null,
+                'last_password_reset_at' => $u->last_password_reset_at ? $u->last_password_reset_at->toIso8601String() : null,
+            ];
+        });
+
+        return response()->json($result);
+    }
+
+    public function toggleStatus(Request $request, $id)
+    {
+        $user = UserProfile::findOrFail($id);
+        $newActive = !($user->is_active ?? true);
+        $user->is_active = $newActive;
+        $user->status = $newActive ? 'active' : 'disabled';
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $newActive ? "បានបើកដំណើរការគណនី '{$user->display_name}' ឡើងវិញ" : "បានផ្អាកដំណើរការគណនី '{$user->display_name}' (Disabled)",
+            'user' => $user,
+        ]);
+    }
+
+    public function resetPassword(Request $request, $id)
+    {
+        $user = UserProfile::findOrFail($id);
+        $user->last_password_reset_at = now();
+        $user->save();
+
+        if (!empty($user->firebase_uid)) {
+            try {
+                UserNotification::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'title' => '🔑 សំណើស្នើសុំកំណត់ពាក្យសម្ងាត់ឡើងវិញ',
+                    'message' => 'Admin បានបង្កើតសំណើកំណត់ពាក្យសម្ងាត់ឡើងវិញជូនលោកអ្នក។ ប្រសិនបើលោកអ្នកមិនបានស្នើសុំទេ សូមទាក់ទងមកកាន់ហាងភ្លាមៗ។',
+                    'type' => 'system',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $e) {}
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានផ្ញើសំណើ Reset Password ទៅកាន់គណនី {$user->display_name} ជោគជ័យ!",
+            'reset_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $user = UserProfile::findOrFail($id);
+        $name = $user->display_name;
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានលុបគណនី '{$name}' ដោយជោគជ័យ",
+        ]);
     }
 
     public function updateAdminStatus(Request $request, $id)
@@ -85,6 +178,13 @@ class UserController extends Controller
             'address' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:100',
             'photo_url' => 'nullable|string',
+            'telegram' => 'nullable|string|max:100',
+            'profession' => 'nullable|string|max:150',
+            'gender' => 'nullable|string|max:30',
+            'birthday' => 'nullable|string|max:50',
+            'delivery_notes' => 'nullable|string|max:1000',
+            'gps_lat' => 'nullable|numeric',
+            'gps_lng' => 'nullable|numeric',
             'two_fa_enabled' => 'nullable|boolean',
             'notif_orders' => 'nullable|boolean',
             'notif_promos' => 'nullable|boolean',

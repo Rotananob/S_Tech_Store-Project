@@ -3,7 +3,10 @@ import React, { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, ArrowLeft } from "lucide-react";
+import { 
+  Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, 
+  ArrowLeft, CheckCircle2, Sparkles, Send, LayoutDashboard 
+} from "lucide-react";
 
 type Category = {
   id: number;
@@ -14,6 +17,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   const router = useRouter();
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   
+  // UX Modal state
+  const [modalState, setModalState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [savingStep, setSavingStep] = useState<number>(1);
+  const [savedProduct, setSavedProduct] = useState<any>(null);
+  const [modalError, setModalError] = useState<string>("");
+
   // Categories from backend
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -58,10 +67,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           { id: 3, name: "Accessories" },
           { id: 4, name: "CPU Processor" },
           { id: 5, name: "Motherboard" },
-          { id: 6, name: "Memory (RAM)" },
+          { id: 6, name: "Memory" },
           { id: 7, name: "Graphics Card" },
-          { id: 8, name: "Storage (SSD/HDD)" },
-          { id: 9, name: "Power Supply (PSU)" },
+          { id: 8, name: "Storage" },
+          { id: 9, name: "Power Supply" },
           { id: 10, name: "PC Case" },
         ]);
       } finally {
@@ -91,7 +100,6 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         const existingMedia: MediaItem[] = [];
         if (p.images && Array.isArray(p.images) && p.images.length > 0) {
           p.images.forEach((img: string) => {
-            // If it's different from primary, or add all
             existingMedia.push({ id: Math.random().toString(), type: "url", url: img });
           });
         }
@@ -110,10 +118,13 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
   const handleSave = async () => {
     if (!name.trim() || !price || !stock) {
-      showToast("Please fill in all required fields (*).", "error");
+      showToast("សូមបំពេញព័ត៌មានដែលចាំបាច់ (*) ឲ្យបានគ្រប់គ្រាន់", "error");
       return;
     }
     
+    setModalState("saving");
+    setSavingStep(1);
+
     try {
       const formData = new FormData();
       formData.append("_method", "PUT");
@@ -141,21 +152,152 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         }
       });
 
-      await api.post(`/products/${params.id}`, formData);
+      setSavingStep(2);
 
-      showToast("Product saved successfully! Redirecting...");
-      setTimeout(() => {
-        router.push("/rok-mix-khernh/products");
-      }, 1500);
+      const res = await api.post(`/products/${params.id}`, formData);
+      const updatedData = res.data?.data || { name, price, stock };
+
+      setSavingStep(3);
+      setSavedProduct(updatedData);
+      setModalState("success");
     } catch (e: any) {
-      const errorMsg = e.response?.data?.message || "Failed to save product";
+      const errorMsg = e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែទំនិញ";
+      setModalError(errorMsg);
+      setModalState("error");
       showToast(errorMsg, "error");
-      console.error(e);
     }
   };
 
   return (
-    <div className="font-sans max-w-6xl mx-auto pb-12">
+    <div className="font-sans max-w-6xl mx-auto pb-12 relative">
+      {/* UX Popup Modal for Updating Product */}
+      {modalState !== "idle" && (
+        <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 overflow-hidden relative animate-in zoom-in-95 duration-200">
+            
+            {modalState === "saving" && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 rounded-full border-4 border-red-100 border-t-[#8B1A1A] animate-spin flex items-center justify-center" />
+                  <Package size={28} className="text-[#8B1A1A] absolute inset-0 m-auto" />
+                </div>
+
+                <h3 className="text-xl font-black text-gray-900 mb-2">
+                  កំពុងត្រួតពិនិត្យ និងកែប្រែទំនិញ...
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 mb-6 leading-relaxed max-w-sm">
+                  សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់ទិន្នន័យ និងធ្វើបច្ចុប្បន្នភាពស្តុកក្នុង Cloud។
+                </p>
+
+                <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-2.5 text-xs text-left">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 1 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
+                      ✓
+                    </span>
+                    <span className={savingStep >= 1 ? "font-bold text-gray-900" : "text-gray-400"}>
+                      ផ្ទៀងផ្ទាត់ទិន្នន័យ និងតម្លៃថ្មី
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 2 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
+                      {savingStep >= 2 ? "✓" : "2"}
+                    </span>
+                    <span className={savingStep >= 2 ? "font-bold text-gray-900" : "text-gray-400"}>
+                      ធ្វើបច្ចុប្បន្នភាពរូបភាព និង PostgreSQL Cloud
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 3 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
+                      {savingStep >= 3 ? "✓" : "3"}
+                    </span>
+                    <span className={savingStep >= 3 ? "font-bold text-gray-900" : "text-gray-400"}>
+                      ធ្វើសមកាលកម្មទិន្នន័យក្នុងប្រព័ន្ធរួចរាល់
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {modalState === "success" && (
+              <div className="flex flex-col items-center text-center py-2">
+                <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4 shadow-inner animate-in zoom-in duration-300">
+                  <CheckCircle2 size={44} />
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-black mb-2 border border-emerald-200">
+                  <Sparkles size={13} className="text-amber-500" />
+                  <span>កែប្រែជោគជ័យ ១០០%</span>
+                </div>
+
+                <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-2">
+                  ទំនិញត្រូវបានធ្វើបច្ចុប្បន្នភាពរួចរាល់!
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-500 mb-5 leading-relaxed">
+                  ព័ត៌មានទំនិញ តម្លៃ និងស្តុកត្រូវបានធ្វើបច្ចុប្បន្នភាពក្នុងប្រព័ន្ធពិតប្រាកដ។
+                </p>
+
+                {/* Product Snapshot Card */}
+                <div className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-200/80 mb-5 flex items-center gap-3.5 text-left">
+                  <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 overflow-hidden">
+                    {savedProduct?.image_url || primaryImageUrl ? (
+                      <img src={savedProduct?.image_url || primaryImageUrl} alt="Product" className="w-full h-full object-cover" />
+                    ) : (
+                      <Package size={24} className="text-gray-400" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-black text-gray-900 truncate">
+                      {savedProduct?.name || name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5 font-mono">
+                      តម្លៃ: <b className="text-emerald-700">${savedProduct?.price || price}</b> • ស្តុក: <b>{savedProduct?.stock || stock} គ្រឿង</b>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Navigation Buttons */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                  <button
+                    onClick={() => router.push("/rok-mix-khernh/products")}
+                    className="py-3 px-3 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                  >
+                    <Package size={14} />
+                    <span>មើលបញ្ជីទំនិញ</span>
+                  </button>
+                  <button
+                    onClick={() => router.push("/rok-mix-khernh")}
+                    className="py-3 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <LayoutDashboard size={14} />
+                    <span>ផ្ទាំងគ្រប់គ្រង</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {modalState === "error" && (
+              <div className="flex flex-col items-center text-center py-4">
+                <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+                  <X size={32} />
+                </div>
+                <h3 className="text-lg font-black text-gray-900 mb-2">
+                  បរាជ័យក្នុងការកែប្រែ
+                </h3>
+                <p className="text-xs text-red-600 mb-6 max-w-sm">
+                  {modalError || "មានបញ្ហាបច្ចេកទេស សូមព្យាយាមម្តងទៀត។"}
+                </p>
+                <button
+                  onClick={() => setModalState("idle")}
+                  className="py-2.5 px-6 rounded-xl bg-gray-900 text-white text-xs font-bold cursor-pointer"
+                >
+                  បិទ និងសាកល្បងឡើងវិញ
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-lg shadow-lg font-medium text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'} transition-opacity`}>
           {toast.msg}
@@ -169,12 +311,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 mb-3 transition-colors no-underline group"
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-          <span>ត្រឡប់ទៅបញ្ជីទំនិញ (Back to Products)</span>
+          <span>ត្រឡប់ទៅបញ្ជីទំនិញ</span>
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Edit Product</h1>
-            <p className="text-gray-500 text-xs sm:text-sm">កែប្រែព័ត៌មានទំនិញ តម្លៃ ស្តុក និងរូបភាព (Update product details, pricing, and stock).</p>
+            <p className="text-gray-500 text-xs sm:text-sm">កែប្រែព័ត៌មានទំនិញ តម្លៃ ស្តុក និងរូបភាព</p>
           </div>
           <div className="flex gap-2.5 w-full md:w-auto">
             <Link 
