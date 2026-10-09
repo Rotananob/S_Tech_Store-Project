@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 
 class TelegramService
 {
+    public const OFFICIAL_BOT_TOKEN = '8899300323:AAFYan1EcMEAEcC6E-3KvahVXKcnPHLhKOI';
+    public const OFFICIAL_BOT_USERNAME = 's_tech_storeBot';
+
     private static $settingsFile = 'telegram_settings.json';
 
     /**
@@ -23,8 +26,8 @@ class TelegramService
             'chat_type' => null,
             'connected_at' => null,
             'connected_by' => null,
-            'bot_username' => env('TELEGRAM_BOT_USERNAME', null),
-            'bot_token' => env('TELEGRAM_BOT_TOKEN', null),
+            'bot_username' => env('TELEGRAM_BOT_USERNAME', self::OFFICIAL_BOT_USERNAME),
+            'bot_token' => env('TELEGRAM_BOT_TOKEN', self::OFFICIAL_BOT_TOKEN),
             'notify_orders' => true,
             'notify_low_stock' => true,
             'notify_repairs' => true,
@@ -37,7 +40,14 @@ class TelegramService
             if (Storage::exists(self::$settingsFile)) {
                 $saved = json_decode(Storage::get(self::$settingsFile), true);
                 if (is_array($saved)) {
-                    return array_merge($default, $saved);
+                    $merged = array_merge($default, $saved);
+                    if (empty($merged['bot_token'])) {
+                        $merged['bot_token'] = self::OFFICIAL_BOT_TOKEN;
+                    }
+                    if (empty($merged['bot_username'])) {
+                        $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
+                    }
+                    return $merged;
                 }
             }
         } catch (\Throwable $e) {
@@ -52,11 +62,7 @@ class TelegramService
      */
     public static function isConfigured(): bool
     {
-        $settings = self::getSettings();
-        $token = $settings['bot_token'] ?? null;
-        $username = $settings['bot_username'] ?? null;
-
-        return !empty($token) && !empty($username) && !str_contains($token, 'Placeholder');
+        return true;
     }
 
     /**

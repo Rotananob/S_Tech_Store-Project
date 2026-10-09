@@ -111,6 +111,7 @@ export default function BottomNav() {
           if (tab.path === '/cart') {
             return (
               <button
+                id="bottom-nav-cart-icon"
                 key={tab.path}
                 type="button"
                 onClick={() => useCartStore.getState().setIsOpen(true)}

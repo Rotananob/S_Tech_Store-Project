@@ -25,3 +25,15 @@ export async function updateProfile(profileData: Partial<User>) {
   const { data } = await api.put<ApiResponse<User>>("/profile", profileData);
   return data;
 }
+
+export async function uploadAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  const { data } = await api.post<{ success: boolean; photo_url: string; message?: string }>("/user/profile/avatar", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return data;
+}
+

@@ -43,6 +43,7 @@ interface ProfileData {
   created_at: string;
   gps_lat?: number;
   gps_lng?: number;
+  photo_url?: string;
 }
 
 const CAMBODIA_PROVINCES = [
@@ -88,6 +89,15 @@ const FONT_SYSTEMS = [
   { id: "noto-sans", name: "Noto Sans Khmer (Google Standard)", sample: "សេវាកម្មដំឡើង និងជួសជុលរហ័ស" },
 ];
 
+const TABS = [
+  { key: "profile", label: "Profile Info", desc: "Personal info & bio", icon: User },
+  { key: "address", label: "Delivery Address", desc: "Location & GPS Pin", icon: MapPin },
+  { key: "security", label: "Security & Devices", desc: "2FA, Passwords & Sessions", icon: Shield },
+  { key: "preferences", label: "Preferences & Updates", desc: "Language, fonts & theme", icon: Settings },
+  { key: "warranty", label: "Warranty & Hardware", desc: "Official RMA & Devices", icon: Cpu },
+  { key: "orders", label: "Order History", desc: "Purchases & PassApp tracking", icon: Package },
+];
+
 export default function UserProfilePage() {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -96,9 +106,13 @@ export default function UserProfilePage() {
   const [resetSent, setResetSent] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUploadSuccess, setAvatarUploadSuccess] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [showCoinsModal, setShowCoinsModal] = useState(false);
   const [showRmaModal, setShowRmaModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "address" | "security" | "preferences" | "warranty" | "orders">("profile");
+  const [mobileTabDropdownOpen, setMobileTabDropdownOpen] = useState(false);
 
   // Font system & Language confirm state
   const [selectedFont, setSelectedFont] = useState("inter");
@@ -181,6 +195,9 @@ export default function UserProfilePage() {
       const res = await api.get("/user/profile");
       if (res.data?.profile) {
         setProfile((prev) => ({ ...prev, ...res.data.profile }));
+        if (res.data.profile.photo_url) {
+          setAvatarPreview(res.data.profile.photo_url);
+        }
       }
       if (res.data?.stats) {
         setStats((prev) => ({ ...prev, ...res.data.stats }));
@@ -192,7 +209,11 @@ export default function UserProfilePage() {
           ...prev,
           display_name: currentUser.displayName || prev.display_name,
           email: currentUser.email || prev.email,
+          photo_url: currentUser.photoURL || undefined,
         }));
+        if (currentUser.photoURL) {
+          setAvatarPreview(currentUser.photoURL);
+        }
       }
     }
   };
@@ -278,15 +299,52 @@ export default function UserProfilePage() {
     );
   };
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Real Cloudinary profile image upload
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setAvatarPreview(ev.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Fast local preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setAvatarPreview(ev.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setAvatarUploading(true);
+    setAvatarError(null);
+    try {
+      const { uploadAvatar } = await import("@/lib/services/user.service");
+      const res = await uploadAvatar(file);
+      const cloudUrl = (res as any).photo_url || (res as any).url || (res as any).data?.photo_url || (res as any).data?.url;
+      if (cloudUrl) {
+        setAvatarPreview(cloudUrl);
+        setProfile((prev) => ({ ...prev, photo_url: cloudUrl }));
+        if (auth.currentUser) {
+          const { updateProfile } = await import("firebase/auth");
+          await updateProfile(auth.currentUser, { photoURL: cloudUrl }).catch(() => {});
+        }
+        setAvatarUploadSuccess(true);
+        setTimeout(() => setAvatarUploadSuccess(false), 3500);
+      }
+    } catch (err: any) {
+      console.error("Avatar Cloudinary upload error:", err);
+      setAvatarError("Failed to upload avatar to Cloudinary. Please try again.");
+    } finally {
+      setAvatarUploading(false);
     }
+  };
+
+  const handleSelectPresetAvatar = async (url: string) => {
+    setAvatarPreview(url);
+    setProfile((prev) => ({ ...prev, photo_url: url }));
+    try {
+      await api.put("/user/profile", { photo_url: url });
+      if (auth.currentUser) {
+        const { updateProfile } = await import("firebase/auth");
+        await updateProfile(auth.currentUser, { photoURL: url }).catch(() => {});
+      }
+    } catch (e) {}
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -393,10 +451,10 @@ export default function UserProfilePage() {
               {/* Avatar Frame with Upload & Presets */}
               <div className="relative group shrink-0">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-amber-400 via-red-500 to-indigo-500 p-0.5 shadow-xl">
-                  <div className="w-full h-full rounded-[14px] bg-[#141720] flex items-center justify-center overflow-hidden border-2 border-[#12141a]">
-                    {avatarPreview || user?.photoURL ? (
+                  <div className="w-full h-full rounded-[14px] bg-[#141720] flex items-center justify-center overflow-hidden border-2 border-[#12141a] relative">
+                    {avatarPreview || user?.photoURL || profile.photo_url ? (
                       <img
-                        src={avatarPreview || user?.photoURL || ""}
+                        src={avatarPreview || profile.photo_url || user?.photoURL || ""}
                         alt="Profile"
                         className="w-full h-full object-cover"
                       />
@@ -405,16 +463,26 @@ export default function UserProfilePage() {
                         {(profile.display_name || user?.displayName || "U")[0].toUpperCase()}
                       </span>
                     )}
+
+                    {/* Real-time Cloudinary Uploading Overlay */}
+                    {avatarUploading && (
+                      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
+                        <RefreshCw size={20} className="animate-spin text-amber-400" />
+                        <span className="text-[9px] font-bold mt-1 text-amber-300">Cloudinary...</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Upload Camera Trigger */}
                 <label
-                  className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-gray-900 shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-transform active:scale-90 border border-gray-200"
-                  title="Upload profile picture"
+                  className={`absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-gray-900 shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-transform active:scale-90 border border-gray-200 ${
+                    avatarUploading ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                  title="Upload profile picture to Cloudinary"
                 >
                   <Camera size={15} />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={avatarUploading} />
                 </label>
               </div>
 
@@ -498,7 +566,7 @@ export default function UserProfilePage() {
               <button
                 key={av.label}
                 type="button"
-                onClick={() => setAvatarPreview(av.url)}
+                onClick={() => handleSelectPresetAvatar(av.url)}
                 className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white text-[11px] font-medium transition-colors border border-white/10 whitespace-nowrap cursor-pointer flex items-center gap-1"
               >
                 <span>{av.label}</span>
@@ -574,39 +642,118 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* ── 3. Navigation Tabs ──────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar p-1.5 bg-gray-100/80 dark:bg-white/5 rounded-2xl border border-gray-200/60 dark:border-white/10">
-          {[
-            { key: "profile", label: "Profile Info", icon: User },
-            { key: "address", label: "Delivery Address", icon: MapPin },
-            { key: "security", label: "Security & Devices", icon: Shield },
-            { key: "preferences", label: "Preferences & Updates", icon: Settings },
-            { key: "warranty", label: "Warranty & Hardware", icon: Cpu },
-            { key: "orders", label: "Order History", icon: Package },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.key;
+        {/* ── 3. Navigation & Content Layout ──────────────────────── */}
+        <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-start">
 
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer border-none ${
-                  active
-                    ? "bg-[#8B1A1A] text-white shadow-md shadow-red-900/20"
-                    : "bg-transparent text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/10"
-                }`}
-              >
-                <Icon size={16} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+          {/* Mobile Dropdown Tab Switcher (Top to Bottom selector) */}
+          <div className="lg:hidden col-span-12 mb-4 relative">
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Settings Category (ផ្នែកកំណត់)
+            </label>
+            <button
+              type="button"
+              onClick={() => setMobileTabDropdownOpen(!mobileTabDropdownOpen)}
+              className="w-full flex items-center justify-between p-3.5 bg-white dark:bg-[#141720] rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm text-left active:scale-[0.99] transition-transform"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#8B1A1A]/10 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center shrink-0">
+                  {(() => {
+                    const ActiveIcon = TABS.find((t) => t.key === activeTab)?.icon || User;
+                    return <ActiveIcon size={20} />;
+                  })()}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                    {TABS.find((t) => t.key === activeTab)?.label}
+                  </div>
+                  <div className="text-[11px] text-gray-400">
+                    {TABS.find((t) => t.key === activeTab)?.desc}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight size={18} className={`text-gray-400 transition-transform ${mobileTabDropdownOpen ? "rotate-90" : ""}`} />
+            </button>
 
-        {/* ── 4. Tab Contents ────────────────────────────────────── */}
-        <div className="bg-white dark:bg-[#141720] rounded-3xl p-5 sm:p-8 border border-gray-100 dark:border-white/5 shadow-sm">
+            <AnimatePresence>
+              {mobileTabDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-2 z-40 bg-white dark:bg-[#141720] rounded-2xl border border-gray-200 dark:border-white/10 shadow-2xl p-2 space-y-1"
+                >
+                  {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const active = activeTab === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => {
+                          setActiveTab(tab.key as any);
+                          setMobileTabDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left ${
+                          active
+                            ? "bg-[#8B1A1A] text-white font-bold shadow-md shadow-red-900/20"
+                            : "hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Icon size={16} />
+                          <span className="text-xs font-bold">{tab.label}</span>
+                        </div>
+                        {active && <Check size={14} className="text-white" />}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Desktop Vertical Tabs Sidebar (Top to Bottom Layout) */}
+          <div className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-24 space-y-2">
+            <div className="bg-white dark:bg-[#141720] rounded-3xl p-3 border border-gray-100 dark:border-white/5 shadow-sm space-y-1.5">
+              <div className="px-3 pt-2 pb-1 text-[11px] font-black text-gray-400 uppercase tracking-wider">
+                Settings Menu (ម៉ឺនុយ)
+              </div>
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key as any)}
+                    className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all cursor-pointer text-left border ${
+                      active
+                        ? "bg-[#8B1A1A] text-white border-transparent shadow-lg shadow-red-900/20 font-bold"
+                        : "bg-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300 border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        active ? "bg-white/20 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400"
+                      }`}>
+                        <Icon size={18} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold leading-tight">{tab.label}</div>
+                        <div className={`text-[11px] leading-tight ${active ? "text-red-100" : "text-gray-400"}`}>{tab.desc}</div>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className={`shrink-0 transition-transform ${active ? "text-white translate-x-1" : "text-gray-400 opacity-60"}`} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Tab Contents */}
+          <div className="lg:col-span-8 xl:col-span-9 col-span-12">
+            <div className="bg-white dark:bg-[#141720] rounded-3xl p-5 sm:p-8 border border-gray-100 dark:border-white/5 shadow-sm">
 
           {/* Success Banner */}
           {saveSuccess && (
@@ -1456,6 +1603,8 @@ export default function UserProfilePage() {
             </div>
           )}
         </div>
+      </div>
+    </div>
 
         {/* ── 5. Sign Out Bar ────────────────────────────────────── */}
         <div className="pt-2">

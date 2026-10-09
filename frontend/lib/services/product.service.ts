@@ -186,3 +186,10 @@ export async function getProductReviews(id: string | number) {
     return [];
   }
 }
+
+export async function submitProductReview(id: string | number, reviewData: { rating: number; comment: string; user_name?: string }) {
+  const { default: api } = await import("@/lib/api");
+  const { data } = await api.post(`/products/${id}/reviews`, reviewData);
+  return data;
+}
+

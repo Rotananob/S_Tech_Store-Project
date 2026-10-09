@@ -8,6 +8,7 @@ use App\Models\Wishlist;
 use App\Models\Order;
 use App\Models\UserCartItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -103,6 +104,76 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
+            'profile' => $profile->fresh(),
+        ]);
+    }
+
+    /**
+     * POST /api/user/profile/avatar
+     * Upload user avatar directly to Cloudinary with local storage fallback
+     */
+    public function uploadAvatar(Request $request)
+    {
+        $uid = $this->getUid($request);
+        if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
+
+        $uploadedUrl = null;
+
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+        } elseif ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+        } elseif ($request->hasFile('image')) {
+            $file = $request->file('image');
+        } else {
+            $file = null;
+        }
+
+        if ($file && $file->isValid()) {
+            // 1. Attempt Cloudinary upload first
+            try {
+                $cloudUrl = config('cloudinary.cloud_url') ?: env('CLOUDINARY_URL');
+                if ($cloudUrl && function_exists('cloudinary')) {
+                    $result = cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                        'folder' => 'stech_store/avatars',
+                        'resource_type' => 'image',
+                        'transformation' => [
+                            'width' => 400,
+                            'height' => 400,
+                            'crop' => 'fill',
+                            'gravity' => 'face'
+                        ]
+                    ]);
+                    $uploadedUrl = $result['secure_url'] ?? null;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Cloudinary avatar upload error: ' . $e->getMessage());
+            }
+
+            // 2. Fallback to public storage
+            if (!$uploadedUrl) {
+                try {
+                    $path = $file->store('avatars', 'public');
+                    $uploadedUrl = asset('storage/' . $path);
+                } catch (\Throwable $e) {
+                    Log::error('Local storage avatar upload failed: ' . $e->getMessage());
+                }
+            }
+        } elseif ($request->filled('photo_url')) {
+            $uploadedUrl = $request->photo_url;
+        }
+
+        if (!$uploadedUrl) {
+            return response()->json(['error' => 'No valid image file uploaded'], 400);
+        }
+
+        $profile = UserProfile::firstOrCreate(['firebase_uid' => $uid]);
+        $profile->update(['photo_url' => $uploadedUrl]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile picture uploaded to Cloudinary successfully',
+            'photo_url' => $uploadedUrl,
             'profile' => $profile->fresh(),
         ]);
     }

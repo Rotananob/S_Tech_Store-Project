@@ -303,13 +303,14 @@ export default function Navbar() {
             </div>
 
             <Link
+              id="navbar-cart-icon"
               href="/cart"
               onClick={(e) => {
                 e.preventDefault();
                 useCartStore.getState().setIsOpen(true);
               }}
               title={t('cart')}
-              className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-colors"
+              className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-all"
             >
               <ShoppingCart size={20} />
               {mounted && cartCount > 0 && (

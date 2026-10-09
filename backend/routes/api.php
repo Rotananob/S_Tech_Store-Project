@@ -40,6 +40,7 @@ Route::post('/admin/login', [AdminAuthController::class, 'login']);
 // Profile
 Route::get('/user/profile', [UserController::class, 'getProfile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
+Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
 
 // Notifications
 Route::get('/notifications', [UserController::class, 'getNotifications']);

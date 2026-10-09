@@ -13,6 +13,7 @@ import { translations } from "@/lib/translations";
 import { auth } from "@/lib/firebase";
 
 import { motion } from "framer-motion";
+import { triggerFlyToCart } from "@/lib/flyToCart";
 
 interface ProductCardProps {
   product: Product;
@@ -58,6 +59,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       router.push("/login");
       return;
     }
+    // Trigger parabolic fly-to-cart animation!
+    triggerFlyToCart(e.currentTarget as HTMLElement, productImg);
+
     addItem({
       id: Number(product.id),
       name: product.name,
@@ -65,8 +69,10 @@ export default function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       image_url: productImg,
     });
-    // Open slide-over cart
-    useCartStore.getState().setIsOpen(true);
+    // Open slide-over cart after animation lands
+    setTimeout(() => {
+      useCartStore.getState().setIsOpen(true);
+    }, 780);
   };
 
   const discountPercent =
