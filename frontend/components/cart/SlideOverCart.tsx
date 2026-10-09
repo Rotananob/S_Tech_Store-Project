@@ -7,9 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
+import { auth } from "@/lib/firebase";
 
 export default function SlideOverCart() {
+  const router = useRouter();
   const { isOpen, setIsOpen, items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
   const { lang } = useLangStore();
   const t = translations[lang].cart;
@@ -130,11 +132,21 @@ export default function SlideOverCart() {
                       {t.viewCart}
                     </button>
                   </Link>
-                  <Link href="/checkout" onClick={() => setIsOpen(false)} className="w-full">
-                    <button className="w-full py-4 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-[15px] font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none flex justify-center items-center gap-2 active:scale-[0.98]">
-                      {t.checkout}
-                    </button>
-                  </Link>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setIsOpen(false);
+                      if (!auth.currentUser) {
+                        router.push("/login?redirect=/checkout");
+                        return;
+                      }
+                      router.push("/checkout");
+                    }}
+                    className="w-full py-4 bg-[#8B1A1A] hover:bg-[#a62222] text-white rounded-xl text-[15px] font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none flex justify-center items-center gap-2 active:scale-[0.98]"
+                  >
+                    {t.checkout}
+                  </button>
                 </div>
               </div>
             )}

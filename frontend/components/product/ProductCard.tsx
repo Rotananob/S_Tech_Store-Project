@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import Image from "next/image";
 import { Heart, ShoppingCart, Star, Eye, Zap } from "lucide-react";
 import { Product } from "@/types";
@@ -10,6 +10,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
+import { auth } from "@/lib/firebase";
 
 import { motion } from "framer-motion";
 
@@ -49,8 +50,14 @@ export default function ProductCard({ product }: ProductCardProps) {
       });
     }
   };
+  const router = useRouter();
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (!auth.currentUser) {
+      router.push("/login");
+      return;
+    }
     addItem({
       id: Number(product.id),
       name: product.name,
@@ -58,7 +65,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       image_url: productImg,
     });
-    // Open slide-over cart instead of alert
+    // Open slide-over cart
     useCartStore.getState().setIsOpen(true);
   };
 
@@ -353,6 +360,18 @@ export default function ProductCard({ product }: ProductCardProps) {
                 {formatPrice(product.price)}
               </span>
             )}
+          </div>
+
+          {/* Quick Add To Cart Button for mobile & desktop touch */}
+          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-default)" }}>
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className="w-full min-h-[42px] py-2 px-3 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer border-none active:scale-[0.98]"
+            >
+              <ShoppingCart size={15} />
+              <span>{t.addToCart}</span>
+            </button>
           </div>
         </div>
       </Link>

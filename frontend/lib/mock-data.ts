@@ -125,10 +125,10 @@ export const mockProducts = [
     sale_price: null,
     rating: 4.6,
     reviews: 91,
-    image: "https://images.unsplash.com/photo-1527443224154-c4a573d3b9e5?w=600&q=80",
+    image: "https://images.unsplash.com/photo-1547658719-da2b51169166?w=600&q=80",
     images: [
-      "https://images.unsplash.com/photo-1527443224154-c4a573d3b9e5?w=600&q=80",
-      "https://images.unsplash.com/photo-1598452963314-b09f397a5c48?w=600&q=80",
+      "https://images.unsplash.com/photo-1547658719-da2b51169166?w=600&q=80",
+      "https://images.unsplash.com/photo-1585792180666-f7347c490ee2?w=600&q=80",
       "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80",
       "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&q=80",
     ],

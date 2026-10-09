@@ -10,8 +10,9 @@ import {
   Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X,
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
-  Copy, Zap, Download, Lock
+  Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike
 } from "lucide-react";
+import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
@@ -40,6 +41,8 @@ interface ProfileData {
   notif_telegram: boolean;
   points: number;
   created_at: string;
+  gps_lat?: number;
+  gps_lng?: number;
 }
 
 const CAMBODIA_PROVINCES = [
@@ -70,11 +73,19 @@ const CAMBODIA_PROVINCES = [
 ];
 
 const PRESET_AVATARS = [
-  { label: "⚡ Gamer", url: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=160&q=80" },
-  { label: "💻 Dev Lead", url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80" },
-  { label: "🎨 Creator", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80" },
-  { label: "🛡️ Cyber Pro", url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=160&q=80" },
-  { label: "👑 VIP Pro", url: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=160&q=80" },
+  { label: "Pro Gamer", url: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=160&q=80" },
+  { label: "Tech Lead", url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80" },
+  { label: "Digital Creator", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80" },
+  { label: "Security Pro", url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=160&q=80" },
+  { label: "VIP Executive", url: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=160&q=80" },
+];
+
+const FONT_SYSTEMS = [
+  { id: "inter", name: "Modern Inter / Default", sample: "S Tech Store Cambodia 2026" },
+  { id: "kantumruy", name: "Kantumruy Pro (Modern Khmer)", sample: "ហាងកំព្យូទ័រ អេស តិច ស្ត័រ" },
+  { id: "koh-santepheap", name: "Koh Santepheap (Clean Khmer)", sample: "គុណភាពស្តង់ដារ និងការធានាផ្លូវការ" },
+  { id: "battambang", name: "Battambang (Classic Khmer)", sample: "ទំនុកចិត្ត គុណភាព និងតម្លៃសមរម្យ" },
+  { id: "noto-sans", name: "Noto Sans Khmer (Google Standard)", sample: "សេវាកម្មដំឡើង និងជួសជុលរហ័ស" },
 ];
 
 export default function UserProfilePage() {
@@ -88,6 +99,16 @@ export default function UserProfilePage() {
   const [showCoinsModal, setShowCoinsModal] = useState(false);
   const [showRmaModal, setShowRmaModal] = useState(false);
   const [activeTab, setActiveTab] = useState<"profile" | "address" | "security" | "preferences" | "warranty" | "orders">("profile");
+
+  // Font system & Language confirm state
+  const [selectedFont, setSelectedFont] = useState("inter");
+  const [pendingLocaleSwitch, setPendingLocaleSwitch] = useState<"en" | "km" | null>(null);
+
+  // GPS Map & PassApp Live tracking state
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [showPassAppModal, setShowPassAppModal] = useState(false);
+  const [trackedOrder, setTrackedOrder] = useState<any>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -115,6 +136,8 @@ export default function UserProfilePage() {
     notif_telegram: true,
     points: 850,
     created_at: "2025-01-15",
+    gps_lat: 11.5564,
+    gps_lng: 104.9282,
   });
 
   const [stats, setStats] = useState({
@@ -211,6 +234,50 @@ export default function UserProfilePage() {
     },
   ];
 
+  // Load persisted font preference
+  useEffect(() => {
+    try {
+      const savedFont = localStorage.getItem("stech_font_system") || "inter";
+      setSelectedFont(savedFont);
+      document.documentElement.setAttribute("data-font", savedFont);
+    } catch (e) {}
+  }, []);
+
+  const handleSelectFont = (fontId: string) => {
+    setSelectedFont(fontId);
+    try {
+      localStorage.setItem("stech_font_system", fontId);
+      document.documentElement.setAttribute("data-font", fontId);
+    } catch (e) {}
+  };
+
+  const handlePinCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError("GPS is not supported by your browser");
+      return;
+    }
+    setGpsLoading(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLoading(false);
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        setProfile((p) => ({
+          ...p,
+          gps_lat: lat,
+          gps_lng: lng,
+          address: p.address || `GPS: ${lat}, ${lng} (Pinned Location)`,
+        }));
+      },
+      (err) => {
+        setGpsLoading(false);
+        setGpsError("Could not retrieve GPS location. Please allow location permissions in your browser.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -235,6 +302,8 @@ export default function UserProfilePage() {
         gender: profile.gender,
         birthday: profile.birthday,
         delivery_notes: profile.delivery_notes,
+        gps_lat: profile.gps_lat,
+        gps_lng: profile.gps_lng,
       });
     } catch (e) {
       console.warn("Backend profile update note (saved in state):", e);
@@ -309,7 +378,7 @@ export default function UserProfilePage() {
   const filteredOrders = orders.filter((o) => (orderFilter === "all" ? true : o.status === orderFilter));
 
   return (
-    <div className="min-h-screen bg-[#f6f8fb] dark:bg-[#0c0e12] text-gray-900 dark:text-gray-100 py-6 sm:py-10">
+    <div className="min-h-screen bg-[#f6f8fb] dark:bg-[#0c0e12] text-gray-900 dark:text-gray-100 pt-6 pb-36 sm:pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
         {/* ── 1. VIP Membership Hero Card ───────────────────────── */}
@@ -567,33 +636,31 @@ export default function UserProfilePage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Full Name / Display Name
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <User size={14} className="text-[#8B1A1A] dark:text-red-400" />
+                    <span>Full Name / Display Name (ឈ្មោះបង្ហាញ)</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={profile.display_name}
-                      onChange={(e) => setProfile((p) => ({ ...p, display_name: e.target.value }))}
-                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
-                      placeholder="e.g. Sopheak Tech"
-                    />
-                    <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
+                  <input
+                    type="text"
+                    value={profile.display_name}
+                    onChange={(e) => setProfile((p) => ({ ...p, display_name: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
+                    placeholder="e.g. Sopheak Tech"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Email Address
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <Mail size={14} className="text-gray-400" />
+                    <span>Email Address (អ៊ីមែល)</span>
                   </label>
                   <div className="relative">
                     <input
                       type="email"
                       value={user?.email || profile.email}
                       disabled
-                      className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-24 py-3 text-sm text-gray-500 cursor-not-allowed"
+                      className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 pr-24 py-3 text-sm text-gray-500 cursor-not-allowed"
                     />
-                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
                       <Check size={10} /> Verified
                     </span>
@@ -601,35 +668,31 @@ export default function UserProfilePage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Phone Number (លេខទូរស័ព្ទកម្ពុជា)
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <Phone size={14} className="text-[#8B1A1A] dark:text-red-400" />
+                    <span>Phone Number (លេខទូរស័ព្ទកម្ពុជា)</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={profile.phone}
-                      onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
-                      placeholder="+855 12 345 678"
-                    />
-                    <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  </div>
+                  <input
+                    type="text"
+                    value={profile.phone}
+                    onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
+                    placeholder="+855 12 345 678"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Telegram Username (@username for shipping updates)
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <Send size={14} className="text-blue-500" />
+                    <span>Telegram Username (@username for shipping)</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={profile.telegram || ""}
-                      onChange={(e) => setProfile((p) => ({ ...p, telegram: e.target.value }))}
-                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
-                      placeholder="@stech_user"
-                    />
-                    <Send size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400" />
-                  </div>
+                  <input
+                    type="text"
+                    value={profile.telegram || ""}
+                    onChange={(e) => setProfile((p) => ({ ...p, telegram: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
+                    placeholder="@stech_user"
+                  />
                 </div>
 
                 <div>
@@ -745,16 +808,89 @@ export default function UserProfilePage() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Delivery Instructions for Driver (កំណត់ចំណាំសម្រាប់អ្នកដឹកជញ្ជូន)
+                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    <Navigation size={14} className="text-blue-500" />
+                    <span>Delivery Instructions for Driver (កំណត់ចំណាំសម្រាប់អ្នកដឹកជញ្ជូន)</span>
                   </label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={profile.delivery_notes || ""}
                     onChange={(e) => setProfile((p) => ({ ...p, delivery_notes: e.target.value }))}
                     placeholder="e.g. Call before coming, leave with building security on ground floor."
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
                   />
+                </div>
+
+                {/* ── Real Google Map & Live GPS Pinning ──────────────── */}
+                <div className="sm:col-span-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                        <MapPin size={16} className="text-[#8B1A1A] dark:text-red-400" />
+                        <span>Real Delivery GPS Pin (ទីតាំងផែនទី Google Map ពិតប្រាកដ)</span>
+                      </h4>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        Used by S Tech Express couriers & PassApp for accurate doorstep delivery.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handlePinCurrentLocation}
+                      disabled={gpsLoading}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all border-none cursor-pointer self-start sm:self-auto disabled:opacity-50"
+                    >
+                      <Crosshair size={14} className={gpsLoading ? "animate-spin" : ""} />
+                      <span>{gpsLoading ? "Pinning Location..." : "Pin Current GPS (ចាប់ទីតាំង)"}</span>
+                    </button>
+                  </div>
+
+                  {gpsError && (
+                    <div className="mb-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+                      <AlertTriangle size={14} className="shrink-0" />
+                      <span>{gpsError}</span>
+                    </div>
+                  )}
+
+                  {/* Interactive Map Frame with Coordinates Display */}
+                  <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 relative">
+                    {/* Live Coordinates HUD Bar */}
+                    <div className="p-3 bg-white/90 dark:bg-[#161922]/90 backdrop-blur-md border-b border-gray-200 dark:border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
+                          <Compass size={13} className="text-emerald-500" />
+                          <span>Lat: {profile.gps_lat || 11.5564}</span>
+                        </span>
+                        <span className="flex items-center gap-1 font-semibold text-gray-700 dark:text-gray-300">
+                          <span>Lng: {profile.gps_lng || 104.9282}</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">
+                          GPS Live Pin
+                        </span>
+                      </div>
+
+                      <a
+                        href={`https://www.google.com/maps?q=${profile.gps_lat || 11.5564},${profile.gps_lng || 104.9282}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#8B1A1A] dark:text-red-400 font-bold hover:underline flex items-center gap-1 no-underline text-xs"
+                      >
+                        <span>Open in Google Maps</span>
+                        <ExternalLink size={12} />
+                      </a>
+                    </div>
+
+                    {/* Interactive Embedded Map View */}
+                    <div className="w-full h-52 sm:h-64 relative bg-gray-200 dark:bg-gray-800">
+                      <iframe
+                        title="Delivery Location Map"
+                        width="100%"
+                        height="100%"
+                        className="border-none"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${(profile.gps_lng || 104.9282) - 0.015}%2C${(profile.gps_lat || 11.5564) - 0.01}%2C${(profile.gps_lng || 104.9282) + 0.015}%2C${(profile.gps_lat || 11.5564) + 0.01}&layer=mapnik&marker=${profile.gps_lat || 11.5564}%2C${profile.gps_lng || 104.9282}`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -764,7 +900,7 @@ export default function UserProfilePage() {
                   className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-sm font-bold shadow-lg hover:shadow-red-900/30 transition-all flex items-center gap-2 cursor-pointer border-none"
                 >
                   <Save size={16} />
-                  <span>Save Shipping Address</span>
+                  <span>Save Shipping Address & GPS Pin</span>
                 </button>
               </div>
             </form>
@@ -990,64 +1126,118 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              {/* Appearance & Language */}
+              {/* ── Font System & Typography ──────────────────────────── */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <Type size={16} className="text-[#8B1A1A] dark:text-red-400" />
+                    <span>Font System & Typography (ជ្រើសរើសពុម្ពអក្សរ)</span>
+                  </h4>
+                  <span className="text-[11px] text-gray-400">Personalize Store Reading Experience</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {FONT_SYSTEMS.map((f) => {
+                    const isSelected = selectedFont === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => handleSelectFont(f.id)}
+                        className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between min-h-[85px] ${
+                          isSelected
+                            ? "border-[#8B1A1A] bg-red-50/60 dark:bg-red-950/20 shadow-sm"
+                            : "border-gray-200/80 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300 dark:hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">
+                            {f.name}
+                          </span>
+                          {isSelected && (
+                            <span className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center text-[10px] font-bold">
+                              <Check size={12} />
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-1">
+                          {f.sample}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Appearance & Language with Touch-Friendly Controls ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-2xl border border-gray-100 dark:border-white/10 flex items-center justify-between">
+                {/* Language Switcher with Confirmation */}
+                <div className="p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 dark:bg-white/5">
                   <div className="flex items-center gap-3">
-                    <Globe size={18} className="text-gray-500" />
+                    <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center shrink-0">
+                      <Globe size={20} />
+                    </div>
                     <div>
-                      <span className="text-xs font-bold text-gray-900 dark:text-white block">Language</span>
-                      <span className="text-[11px] text-gray-400 block">English / ភាសាខ្មែរ</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white block">Display Language</span>
+                      <span className="text-xs text-gray-400 block">English (EN) / ភាសាខ្មែរ (KM)</span>
                     </div>
                   </div>
+
                   <button
                     type="button"
                     onClick={() => {
                       const next = lang === "EN" ? "km" : "en";
-                      useLangStore.getState().setLang(next === "en" ? "EN" : "KM");
-                      router.replace(pathname, { locale: next });
+                      setPendingLocaleSwitch(next as "en" | "km");
                     }}
-                    className="text-xs font-bold text-[#8B1A1A] bg-red-50 dark:bg-red-950/40 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900 cursor-pointer"
+                    className="min-h-[44px] px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-white dark:bg-black/60 text-[#8B1A1A] dark:text-red-400 border border-red-200 dark:border-red-900/60 shadow-sm hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
-                    {lang === "EN" ? "English (EN)" : "ភាសាខ្មែរ (KM)"}
+                    <span>{lang === "EN" ? "🇺🇸 English (EN)" : "🇰🇭 ភាសាខ្មែរ (KM)"}</span>
+                    <RefreshCw size={13} />
                   </button>
                 </div>
 
-                <div className="p-4 rounded-2xl border border-gray-100 dark:border-white/10 flex items-center justify-between">
+                {/* Theme Mode Switcher */}
+                <div className="p-4 sm:p-5 rounded-2xl border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 dark:bg-white/5">
                   <div className="flex items-center gap-3">
-                    <Sun size={18} className="text-gray-500" />
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                      <Sun size={20} />
+                    </div>
                     <div>
-                      <span className="text-xs font-bold text-gray-900 dark:text-white block">Theme Mode</span>
-                      <span className="text-[11px] text-gray-400 block">Light / Dark / System</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white block">Theme Appearance</span>
+                      <span className="text-xs text-gray-400 block">Light, Dark, or System mode</span>
                     </div>
                   </div>
-                  <div className="flex bg-gray-100 dark:bg-white/10 rounded-xl p-1 gap-1">
+
+                  <div className="flex bg-gray-200/80 dark:bg-white/10 rounded-xl p-1 gap-1">
                     <button
                       type="button"
                       onClick={() => setTheme("light")}
-                      className={`p-1.5 rounded-lg border-none cursor-pointer ${
-                        theme === "light" ? "bg-white shadow-sm text-[#8B1A1A]" : "text-gray-400 bg-transparent"
+                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
+                        theme === "light" ? "bg-white shadow-sm text-[#8B1A1A]" : "text-gray-500 bg-transparent hover:text-gray-900"
                       }`}
                     >
                       <Sun size={14} />
+                      <span className="hidden sm:inline">Light</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setTheme("dark")}
-                      className={`p-1.5 rounded-lg border-none cursor-pointer ${
-                        theme === "dark" ? "bg-white shadow-sm text-black" : "text-gray-400 bg-transparent"
+                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
+                        theme === "dark" ? "bg-white shadow-sm text-black" : "text-gray-500 bg-transparent hover:text-gray-200"
                       }`}
                     >
                       <Moon size={14} />
+                      <span className="hidden sm:inline">Dark</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setTheme("system")}
-                      className={`p-1.5 rounded-lg border-none cursor-pointer ${
-                        theme === "system" ? "bg-white shadow-sm text-blue-600" : "text-gray-400 bg-transparent"
+                      className={`min-h-[40px] px-3 py-1.5 rounded-lg border-none cursor-pointer flex items-center gap-1.5 text-xs font-bold transition-all ${
+                        theme === "system" ? "bg-white shadow-sm text-blue-600" : "text-gray-500 bg-transparent hover:text-gray-200"
                       }`}
                     >
                       <Monitor size={14} />
+                      <span className="hidden sm:inline">Auto</span>
                     </button>
                   </div>
                 </div>
@@ -1227,7 +1417,7 @@ export default function UserProfilePage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-200/60 dark:border-white/5">
+                      <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-200/60 dark:border-white/5">
                         <div className="text-right">
                           <div className="text-base font-black text-gray-900 dark:text-white">
                             ${Number(order.total_amount).toFixed(2)}
@@ -1237,12 +1427,27 @@ export default function UserProfilePage() {
                           </span>
                         </div>
 
-                        <Link
-                          href={`/orders/${order.id}`}
-                          className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all no-underline shadow-sm"
-                        >
-                          Details &rarr;
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTrackedOrder(order);
+                              setShowPassAppModal(true);
+                            }}
+                            className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-none"
+                            title="Live Delivery Tracking like PassApp"
+                          >
+                            <Bike size={14} />
+                            <span>Live Tracking</span>
+                          </button>
+
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold transition-all no-underline shadow-sm"
+                          >
+                            Details &rarr;
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1379,6 +1584,217 @@ export default function UserProfilePage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── PassApp-Style Real-Time Live Delivery Tracking Modal ─ */}
+      <AnimatePresence>
+        {showPassAppModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-lg bg-[#111318] text-white rounded-3xl overflow-hidden border border-white/10 shadow-2xl flex flex-col max-h-[92vh]"
+            >
+              {/* Header */}
+              <div className="p-4 sm:p-5 bg-black/40 border-b border-white/10 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
+                    <Bike size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-black text-white">
+                        PassApp Live Delivery Tracking
+                      </h3>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                        Live GPS
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      Order #{trackedOrder?.id || "ST-88421"} • Estimated Arrival: <strong className="text-amber-400">12-15 Mins</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassAppModal(false)}
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border-none"
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                {/* ── Interactive Live Map Simulation ─────────────── */}
+                <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#161a23] h-60 sm:h-72">
+                  {/* Map tile background */}
+                  <iframe
+                    title="Live Driver Tracking Route"
+                    width="100%"
+                    height="100%"
+                    className="border-none opacity-85"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${(profile.gps_lng || 104.9282) - 0.02}%2C${(profile.gps_lat || 11.5564) - 0.015}%2C${(profile.gps_lng || 104.9282) + 0.02}%2C${(profile.gps_lat || 11.5564) + 0.015}&layer=mapnik`}
+                  />
+
+                  {/* PassApp Animated Courier Pin Overlay */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    {/* Customer Destination Pin */}
+                    <div className="absolute top-1/4 right-1/4 flex flex-col items-center">
+                      <div className="px-2 py-0.5 rounded-md bg-[#8B1A1A] text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap">
+                        Your Destination
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center shadow-xl border-2 border-white">
+                        <MapPin size={16} />
+                      </div>
+                    </div>
+
+                    {/* Animated Moving Driver Pin */}
+                    <motion.div
+                      animate={{
+                        x: [-40, 20, 60],
+                        y: [30, 0, -20],
+                      }}
+                      transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        repeatType: "reverse",
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-1/3 bottom-1/3 flex flex-col items-center"
+                    >
+                      <div className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        <span>Driver (35 km/h)</span>
+                      </div>
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl border-2 border-white">
+                          <Bike size={20} />
+                        </div>
+                        {/* Radar wave ping */}
+                        <div className="absolute -inset-1 rounded-full border-2 border-blue-400 animate-ping opacity-60" />
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Floating Map HUD */}
+                  <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="font-bold text-gray-200">Courier On The Way</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-gray-300 font-semibold">
+                      <span>Speed: 35 km/h</span>
+                      <span>•</span>
+                      <span>Dist: 1.8 km</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Driver Information Card ──────────────────────── */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-800 border-2 border-blue-500 shrink-0">
+                      <img
+                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80"
+                        alt="S Tech Express Driver"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-white">Sok Channy (ចាន់នី)</h4>
+                        <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">
+                          VIP Courier
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Honda Dream 125 • Phnom Penh 1AK-8849
+                      </p>
+                      <div className="flex items-center gap-1 text-[11px] text-amber-400 font-bold mt-1">
+                        <span>★ 4.9</span>
+                        <span className="text-gray-500 font-normal">(1,480+ safe deliveries)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href="tel:+85512345678"
+                      className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm"
+                    >
+                      <Phone size={14} />
+                      <span>Call Driver</span>
+                    </a>
+                    <a
+                      href="https://t.me/stechstore"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm"
+                    >
+                      <Send size={14} />
+                      <span>Telegram</span>
+                    </a>
+                  </div>
+                </div>
+
+                {/* ── Order Delivery Steps Timeline ────────────────── */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                  <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                    Delivery Progress Status
+                  </h4>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div className="flex items-center gap-2.5 text-emerald-400 font-bold">
+                      <CheckCircle2 size={16} className="shrink-0" />
+                      <span>Order Confirmed & Payment Verified (10:15 AM)</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-emerald-400 font-bold">
+                      <CheckCircle2 size={16} className="shrink-0" />
+                      <span>Inspected & Packed at S Tech Hub (10:28 AM)</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-blue-400 font-black animate-pulse">
+                      <Bike size={16} className="shrink-0" />
+                      <span>Courier Picked Up & On Route — PassApp Active (10:35 AM)</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-gray-500 font-medium">
+                      <MapPin size={16} className="shrink-0" />
+                      <span>Arrival at Your Pinned Address (Estimated ~ 10:50 AM)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-black/40 border-t border-white/10 flex justify-end shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPassAppModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border-none cursor-pointer"
+                >
+                  Close Tracking
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Language Change Confirmation Modal ───────────────────── */}
+      <LanguageConfirmModal
+        isOpen={Boolean(pendingLocaleSwitch)}
+        targetLocale={pendingLocaleSwitch}
+        onConfirm={() => {
+          if (pendingLocaleSwitch) {
+            useLangStore.getState().setLang(pendingLocaleSwitch === "en" ? "EN" : "KM");
+            router.replace(pathname, { locale: pendingLocaleSwitch });
+            setPendingLocaleSwitch(null);
+          }
+        }}
+        onCancel={() => setPendingLocaleSwitch(null)}
+      />
     </div>
   );
 }

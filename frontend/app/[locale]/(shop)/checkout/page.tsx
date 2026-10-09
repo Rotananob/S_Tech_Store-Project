@@ -9,6 +9,8 @@ import { createOrder } from "@/lib/services/order.service";
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Lock, ShieldCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -134,13 +136,23 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     fetchCart();
-  }, [fetchCart]);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login?redirect=/checkout");
+      }
+    });
+    return () => unsub();
+  }, [fetchCart, router]);
 
   const deliveryFee = delivery === "pnompenh" ? 2 : 3;
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const total = subtotal + deliveryFee;
 
   const handleConfirm = async () => {
+    if (!auth.currentUser) {
+      router.push("/login?redirect=/checkout");
+      return;
+    }
     if (!name.trim() || !phone.trim() || !address.trim()) {
       alert(t("alertFillFields"));
       return;

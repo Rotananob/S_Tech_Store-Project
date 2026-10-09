@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { ShoppingCart, Laptop, Monitor, Cpu, Server, HardDrive, Gamepad2, RotateCcw, Smartphone, Zap, AppWindow, BoxSelect, MonitorPlay, Headphones, Sparkles } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
@@ -378,12 +378,20 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
 
 export function ProductCard({ product }: { product: any }) {
   const t = useTranslations("Products");
+  const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
   const [flyAnim, setFlyAnim] = useState<{ id: number; x: number; y: number } | null>(null);
   const [isShaking, setIsShaking] = useState(false);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    // Check if user is logged in
+    if (!auth.currentUser) {
+      router.push("/login");
+      return;
+    }
     
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 300);
@@ -396,7 +404,7 @@ export function ProductCard({ product }: { product: any }) {
       name: product.name,
       price: product.price,
       quantity: 1,
-      image_url: product.image_url
+      image_url: product.image_url || product.image
     });
     
     setTimeout(() => {
@@ -455,37 +463,36 @@ export function ProductCard({ product }: { product: any }) {
           </Link>
 
           {/* Pricing Row */}
-          <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mb-3">
-            <div>
-              <div className="text-[17px] sm:text-[19px] font-black text-[#8B1A1A] leading-none drop-shadow-sm">
-                {formatUSD(product.price)}
+          <div className="mt-auto pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+            <div className="flex items-baseline justify-between">
+              <div>
+                <div className="text-[18px] sm:text-[20px] font-black text-[#8B1A1A] leading-tight drop-shadow-sm font-mono">
+                  {formatUSD(product.price)}
+                </div>
+                <div className="text-[11px] text-gray-400 font-semibold mt-0.5">
+                  {formatKHR(product.price)}
+                </div>
               </div>
-              <div className="text-[11px] text-gray-400 font-semibold mt-1">
-                {formatKHR(product.price)}
-              </div>
+              <Link 
+                href={`/products/${product.slug}`}
+                className="text-[11px] text-[#1a4fa0] hover:text-[#8B1A1A] font-bold no-underline transition-colors"
+              >
+                Details &rarr;
+              </Link>
             </div>
 
-            {/* Quick Add Button */}
+            {/* Prominent Large Add to Cart Button */}
             <motion.button
               animate={isShaking ? { x: [0, -4, 4, -4, 4, 0] } : {}}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.96 }}
               onClick={handleAddToCart}
-              className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-xs font-bold flex items-center gap-1.5 shadow-md hover:shadow-lg transition-all cursor-pointer border-none"
+              className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#a62222] hover:from-[#6B1010] hover:to-[#8B1A1A] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer border-none active:scale-[0.98]"
               aria-label={t("addToCart")}
             >
-              <ShoppingCart size={15} strokeWidth={2.2} />
-              <span className="hidden sm:inline">Add</span>
+              <ShoppingCart size={16} strokeWidth={2.3} />
+              <span>{t("addToCart")}</span>
             </motion.button>
           </div>
-
-          {/* Preview Details Button */}
-          <Link 
-            href={`/products/${product.slug}`}
-            className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-[#1a4fa0] text-[11px] font-bold rounded-xl text-center transition-colors border border-gray-200/60 no-underline"
-          >
-            Preview Details &rarr;
-          </Link>
         </div>
       </motion.div>
 

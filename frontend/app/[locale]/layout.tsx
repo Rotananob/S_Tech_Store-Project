@@ -88,8 +88,18 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Koh+Santepheap:wght@300;400;700;900&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Battambang:wght@400;700&display=swap"
           rel="stylesheet"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var f = localStorage.getItem('stech_font_system');
+                if (f) document.documentElement.setAttribute('data-font', f);
+              } catch(e) {}
+            `,
+          }}
         />
       </head>
       <body suppressHydrationWarning className={`${inter.variable} ${khmerFont.variable}`}>

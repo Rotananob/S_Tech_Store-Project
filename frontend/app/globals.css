@@ -61,10 +61,34 @@
   --border: #333333;
 }
 
-/* ─── Fonts ───────────────────────────────────────────────────────────────── */
+/* ─── Fonts & Dynamic Font System ─────────────────────────────────────────── */
 @font-face {
   font-family: 'Dongrek';
   font-style: normal;
+}
+
+html[data-font="kantumruy"], body[data-font="kantumruy"], [data-font="kantumruy"] {
+  font-family: 'Kantumruy Pro', var(--font-inter), sans-serif !important;
+}
+
+html[data-font="koh-santepheap"], body[data-font="koh-santepheap"], [data-font="koh-santepheap"] {
+  font-family: 'Koh Santepheap', var(--font-inter), sans-serif !important;
+}
+
+html[data-font="battambang"], body[data-font="battambang"], [data-font="battambang"] {
+  font-family: 'Battambang', var(--font-inter), sans-serif !important;
+}
+
+html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"] {
+  font-family: 'Noto Sans Khmer', var(--font-inter), sans-serif !important;
+}
+
+html[data-font="outfit"], body[data-font="outfit"], [data-font="outfit"] {
+  font-family: 'Outfit', var(--font-inter), sans-serif !important;
+}
+
+html[data-font="inter"], body[data-font="inter"], [data-font="inter"] {
+  font-family: var(--font-inter), system-ui, sans-serif !important;
 }
 
 @keyframes marquee {

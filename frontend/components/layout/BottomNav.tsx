@@ -48,7 +48,7 @@ export default function BottomNav() {
                 type="button"
                 onClick={openVisualSearch}
                 className="relative flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
-                aria-label="Scan products with Camera (Taobao Style)"
+                aria-label="Scan products with Camera (S Tech Visual Search)"
               >
                 <div className="absolute -top-[20px] left-1/2 -translate-x-1/2 z-10">
                   <motion.div
