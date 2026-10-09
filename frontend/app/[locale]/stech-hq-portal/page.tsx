@@ -96,7 +96,7 @@ export default function AdminDashboardOverview() {
           </div>
         </div>
         <Link
-          href="/admin/settings"
+          href="/stech-hq-portal/settings"
           className="px-4 py-2 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-xs flex items-center gap-2 shadow-sm transition-all no-underline shrink-0"
         >
           <span>គ្រប់គ្រង Telegram Bot</span>
@@ -202,13 +202,13 @@ export default function AdminDashboardOverview() {
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h2>
             <div className="flex flex-col gap-3">
-              <a href="/admin/products/new" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group">
+              <Link href="/stech-hq-portal/products/new" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group no-underline">
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600">
                   <ShoppingBag size={18} />
                 </div>
                 <span className="text-sm font-semibold text-gray-700">Add New Product</span>
-              </a>
-              <a href="/admin/repairs" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-red-200 hover:bg-red-50 transition-colors group">
+              </Link>
+              <Link href="/stech-hq-portal/repairs" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-red-200 hover:bg-red-50 transition-colors group no-underline">
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-red-100 group-hover:text-red-600">
                   <Wrench size={18} />
                 </div>
@@ -216,13 +216,13 @@ export default function AdminDashboardOverview() {
                 {stats?.pendingRepairs ? (
                   <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">{stats.pendingRepairs}</span>
                 ) : null}
-              </a>
-              <a href="/admin/settings" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-colors group">
+              </Link>
+              <Link href="/stech-hq-portal/settings" className="flex items-center gap-4 p-3 rounded-lg border border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-colors group no-underline">
                 <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-white">
                   <Settings size={18} />
                 </div>
                 <span className="text-sm font-semibold text-gray-700">System Settings</span>
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -259,7 +259,7 @@ export default function AdminDashboardOverview() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-10">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">Recent Orders</h2>
-          <a href="/admin/orders" className="text-sm font-semibold text-blue-600 hover:text-blue-800">View All</a>
+          <Link href="/stech-hq-portal/orders" className="text-sm font-semibold text-blue-600 hover:text-blue-800 no-underline">View All</Link>
         </div>
         
         {recentOrders.length === 0 ? (

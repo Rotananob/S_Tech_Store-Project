@@ -379,7 +379,7 @@ export default function UserProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] dark:bg-[#0c0e12] text-gray-900 dark:text-gray-100 pt-6 pb-36 sm:pb-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
         {/* ── 1. VIP Membership Hero Card ───────────────────────── */}
         <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-[#12141a] via-[#1a1e27] to-[#0c0e12] border border-white/10 text-white p-6 sm:p-8">

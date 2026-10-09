@@ -27,6 +27,7 @@ class TelegramController extends Controller
             'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
             'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
             'notify_shifts' => (bool)($settings['notify_shifts'] ?? true),
+            'topics' => $settings['topics'] ?? [],
         ]);
     }
 
@@ -74,6 +75,27 @@ class TelegramController extends Controller
             'success' => true,
             'message' => 'Telegram group paired successfully!',
         ]);
+    }
+
+    /**
+     * Trigger or Retry Forum Topics Setup
+     */
+    public function setupTopics()
+    {
+        $settings = TelegramService::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'សូមភ្ជាប់ Telegram Bot ទៅកាន់គ្រុបជាមុនសិន (No Telegram group connected yet).',
+            ], 400);
+        }
+
+        $result = TelegramService::setupTopics($settings['chat_id']);
+        return response()->json([
+            'success' => $result['ok'] ?? false,
+            'data' => $result,
+            'message' => $result['message'] ?? '',
+        ], ($result['ok'] ?? false) ? 200 : 400);
     }
 
     /**
@@ -141,14 +163,40 @@ class TelegramController extends Controller
 
     /**
      * Public Telegram Webhook Endpoint
-     * Handles /start <PAIR_CODE> when bot is added to a group
+     * Handles /start <PAIR_CODE>, /setup_topics, and callback buttons
      */
     public function webhook(Request $request)
     {
         $update = $request->all();
         Log::info("Telegram Webhook Update received:", $update);
 
-        // Handle message or my_chat_member
+        // 1. Handle Inline Keyboard Callback Queries (e.g. Retry Setup button)
+        if (isset($update['callback_query'])) {
+            $callbackQuery = $update['callback_query'];
+            $callbackData = $callbackQuery['data'] ?? '';
+            $chatId = $callbackQuery['message']['chat']['id'] ?? null;
+            $callbackId = $callbackQuery['id'] ?? null;
+
+            if ($callbackData === 'setup_topics' && $chatId) {
+                TelegramService::setupTopics($chatId);
+
+                // Acknowledge callback query
+                $settings = TelegramService::getSettings();
+                $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+                if ($token && !str_contains($token, 'Placeholder')) {
+                    try {
+                        \Illuminate\Support\Facades\Http::post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+                            'callback_query_id' => $callbackId,
+                            'text' => 'កំពុងពិនិត្យ និងរៀបចំ Forum Topics...',
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+            }
+
+            return response()->json(['ok' => true]);
+        }
+
+        // 2. Handle Messages
         $message = $update['message'] ?? $update['channel_post'] ?? null;
 
         if ($message) {
@@ -162,6 +210,12 @@ class TelegramController extends Controller
             if (preg_match('/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)/', $text, $matches)) {
                 $pairCode = strtoupper(trim($matches[1]));
                 TelegramService::pairChat($pairCode, $chatId, $chatTitle, $chatType);
+            }
+            // Check if user types `/setup_topics` or `/topics` manually
+            elseif (preg_match('/^\/(?:setup_topics|topics)(?:@\w+)?/i', $text)) {
+                if ($chatId) {
+                    TelegramService::setupTopics($chatId);
+                }
             }
         }
 

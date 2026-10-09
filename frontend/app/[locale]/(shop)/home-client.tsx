@@ -55,21 +55,21 @@ export function HeroSection() {
   const current = HERO_SLIDES[slideIndex];
 
   return (
-    <section className="bg-white px-4 sm:px-6 lg:px-8 py-3 sm:py-5 w-full overflow-hidden">
-      <div className="max-w-7xl mx-auto">
-        <div className="relative w-full h-[190px] sm:h-[240px] md:h-[270px] lg:h-[300px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200">
+    <section className="bg-white px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
+        <div className="relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200">
           
           {/* Fixed S Tech Store Logo & Brand Badge (Remains Firmly in Place) */}
-          <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100">
+          <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 xl:top-7 xl:left-8 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100">
             <img src="/logo.jpg" alt="S Tech Store" className="w-6 h-6 rounded-full object-cover shadow-sm border border-white" />
             <span className="text-[11px] sm:text-xs font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
           </div>
 
           {/* Dynamic Animated Content Container */}
-          <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 pt-10 sm:pt-8 z-10">
+          <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 xl:px-12 pt-10 sm:pt-8 z-10">
             {/* Animated Text */}
             <div className="flex flex-col items-start text-left w-[58%] sm:w-[56%] lg:w-[58%] z-20">
-              <div className="min-h-[32px] sm:min-h-[42px] md:min-h-[50px] mb-1.5 flex items-center relative w-full overflow-hidden">
+              <div className="min-h-[32px] sm:min-h-[42px] md:min-h-[52px] xl:min-h-[64px] mb-1.5 xl:mb-3 flex items-center relative w-full overflow-hidden">
                 <AnimatePresence mode="wait">
                   <motion.h1
                     key={slideIndex}
@@ -77,7 +77,7 @@ export function HeroSection() {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -20, opacity: 0 }}
                     transition={{ duration: 0.35 }}
-                    className="text-gray-900 text-base sm:text-2xl md:text-3xl lg:text-4xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
+                    className="text-gray-900 text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
                   >
                     {current.title}
                   </motion.h1>
@@ -91,29 +91,29 @@ export function HeroSection() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="text-gray-600 text-[10px] sm:text-sm md:text-base mb-3 sm:mb-5 leading-snug line-clamp-2 font-medium max-w-lg"
+                  className="text-gray-600 text-[10px] sm:text-sm md:text-base xl:text-lg mb-3 sm:mb-5 xl:mb-6 leading-relaxed line-clamp-2 font-medium max-w-xl"
                 >
                   {current.desc}
                 </motion.p>
               </AnimatePresence>
               
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <Link
                   href="/category/all"
-                  className="bg-[#8B1A1A] hover:bg-[#6B1010] !text-white text-white text-xs sm:text-sm font-bold px-5 sm:px-7 py-2.5 sm:py-3 rounded-full shadow-md hover:shadow-lg transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
+                  className="bg-[#8B1A1A] hover:bg-[#6B1010] !text-white text-white text-xs sm:text-sm xl:text-base font-bold px-5 sm:px-7 xl:px-8 py-2.5 sm:py-3 xl:py-3.5 rounded-full shadow-md hover:shadow-lg transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
                 >
                   <span className="!text-white text-white font-bold">Shop Now</span>
-                  <span className="!text-white text-white text-xs sm:text-sm">&rarr;</span>
+                  <span className="!text-white text-white text-xs sm:text-sm xl:text-base">&rarr;</span>
                 </Link>
-                <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full hidden sm:inline-block border border-gray-200 shrink-0">
+                <span className="text-[10px] sm:text-xs xl:text-sm font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border border-gray-200 shrink-0">
                   {current.badge}
                 </span>
               </div>
             </div>
 
             {/* Auto Sliding 4 Images with Smooth Transition */}
-            <div className="absolute right-2 sm:right-6 lg:right-10 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[35%] h-[82%] sm:h-[88%] z-10 flex items-center justify-center pointer-events-none">
-              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 bg-red-400/15 blur-3xl rounded-full" />
+            <div className="absolute right-2 sm:right-6 lg:right-10 xl:right-12 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[36%] xl:w-[35%] h-[82%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center pointer-events-none">
+              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/15 blur-3xl rounded-full" />
               
               <AnimatePresence mode="wait">
                 <motion.img
@@ -180,7 +180,7 @@ export function FeatureStrip() {
 
   return (
     <div className="bg-[#fcfcfc] border-b border-gray-100 overflow-hidden relative w-full">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
         <div className="flex w-max lg:w-full animate-marquee lg:animate-none hover:[animation-play-state:paused] lg:justify-between">
           <div className="flex flex-nowrap lg:flex-wrap items-center py-3 gap-8 sm:gap-12 lg:gap-6 px-4 pr-8 lg:pr-4 w-full lg:justify-between">
             {featuresList.map((f, i) => (
@@ -324,7 +324,7 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
 
   return (
     <section className="bg-white py-6 sm:py-10 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-end mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -550,7 +550,7 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
 
   return (
     <section className="bg-[#f8f9fa] py-8 sm:py-12 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="flex justify-between items-end mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -570,8 +570,8 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
           </Link>
         </div>
 
-        {/* Clean 4 columns on desktop, 3 on tablet, 2 on mobile */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
+        {/* Clean responsive grid: 5 on large 2xl desktop, 4 on standard desktop, 3 on tablet, 2 on mobile */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6 xl:gap-7">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
@@ -594,7 +594,7 @@ export function PromoCTA() {
 
   return (
     <section className="bg-white py-10 sm:py-14">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="bg-gradient-to-r from-[#8B1A1A] via-[#a32222] to-[#1a4fa0] rounded-3xl p-6 sm:p-8 lg:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 shadow-xl relative overflow-hidden text-white border border-[#8B1A1A]/30">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-black/20 rounded-full blur-3xl pointer-events-none" />

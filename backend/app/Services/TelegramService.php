@@ -29,6 +29,7 @@ class TelegramService
             'notify_low_stock' => true,
             'notify_repairs' => true,
             'notify_shifts' => true,
+            'topics' => [],
             'pending_tokens' => [],
         ];
 
@@ -130,7 +131,7 @@ class TelegramService
 
         self::saveSettings($settings);
 
-        // Send welcome & confirmation message into the group
+        // Send initial connection greeting
         $welcomeText = "🎉 <b>S Tech Store Notification Bot បានភ្ជាប់ជោគជ័យ!</b>\n\n"
             . "🏪 <b>ប្រព័ន្ធហាង:</b> S Tech Store Cambodia\n"
             . "👥 <b>ឈ្មោះគ្រុប:</b> " . htmlspecialchars($settings['chat_title']) . "\n"
@@ -141,11 +142,163 @@ class TelegramService
             . "• 🔧 <b>សំណើជួសជុល (Repair Tickets)</b>\n"
             . "• ⚠️ <b>ទំនិញជិតអស់ពីស្តុក (Low Stock Alerts)</b>\n"
             . "• ⏰ <b>វេនការងារបុគ្គលិក (Staff Shift Updates)</b>\n\n"
-            . "<i>Bot ដំណើរការ ២៤/៧ ដោយស្វ័យប្រវត្តិ។</i>";
+            . "<i>កំពុងពិនិត្យសិទ្ធិ និងរៀបចំបង្កើត Forum Topics ដោយស្វ័យប្រវត្តិ...</i>";
 
         self::sendMessage($chatId, $welcomeText);
 
+        // Automatically setup Forum Topics in group
+        self::setupTopics($chatId);
+
         return true;
+    }
+
+    /**
+     * Automatically create Forum Topics in connected group
+     * Detects if bot lacks Administrator / Manage Topics permissions and guides user
+     */
+    public static function setupTopics($chatId): array
+    {
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        $botUsername = $settings['bot_username'] ?? 'STechStoreBot';
+
+        if (!$token || str_contains($token, 'Placeholder')) {
+            // Mock mode for local testing
+            $mockTopics = [
+                'orders' => 101,
+                'repairs' => 102,
+                'stock' => 103,
+                'chat' => 104,
+            ];
+            $settings['topics'] = $mockTopics;
+            self::saveSettings($settings);
+
+            $mockNotice = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
+                . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
+                . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី (New Orders)</b> — ទទួលការជូនដំណឹងរាល់ពេលមាន Order\n"
+                . "2️⃣ 🛠️ <b>សេវាជួសជុល (Repairs & Care)</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+                . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក (Stock Alerts)</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+                . "4️⃣ 💬 <b>សេវាអតិថិជន (Customer Inquiries)</b> — សម្រាប់សន្ទនាទូទៅក្នុងក្រុម\n\n"
+                . "✅ <i>ប្រព័ន្ធភ្ជាប់រៀបចំរួចរាល់ ១០០% ហើយ ដំណើរការ ២៤/៧!</i>";
+            self::sendMessage($chatId, $mockNotice);
+
+            return [
+                'ok' => true,
+                'mock' => true,
+                'topics' => $mockTopics,
+                'message' => 'Forum topics created successfully (Mock mode).',
+            ];
+        }
+
+        $topicsToCreate = [
+            'orders' => [
+                'name' => '🛒 ការបញ្ជាទិញថ្មី (New Orders)',
+                'icon_color' => 7322096, // Light Blue
+            ],
+            'repairs' => [
+                'name' => '🛠️ សេវាជួសជុល (Repairs & Care)',
+                'icon_color' => 16749490, // Orange
+            ],
+            'stock' => [
+                'name' => '⚠️ ការជូនដំណឹងស្តុក (Stock Alerts)',
+                'icon_color' => 16478047, // Red
+            ],
+            'chat' => [
+                'name' => '💬 សេវាអតិថិជន (Customer Inquiries)',
+                'icon_color' => 13338331, // Violet
+            ],
+        ];
+
+        $createdTopics = $settings['topics'] ?? [];
+        $needsAdmin = false;
+        $errorMessage = '';
+
+        foreach ($topicsToCreate as $key => $topicData) {
+            if (!empty($createdTopics[$key])) {
+                continue;
+            }
+
+            try {
+                $resp = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/createForumTopic", [
+                    'chat_id' => $chatId,
+                    'name' => $topicData['name'],
+                    'icon_color' => $topicData['icon_color'],
+                ]);
+
+                $json = $resp->json();
+
+                if (($json['ok'] ?? false) === true && !empty($json['result']['message_thread_id'])) {
+                    $createdTopics[$key] = $json['result']['message_thread_id'];
+                } else {
+                    $desc = $json['description'] ?? 'Permission required';
+                    $errorMessage = $desc;
+                    $descLower = strtolower($desc);
+                    if (
+                        str_contains($descLower, 'not enough rights') || 
+                        str_contains($descLower, 'forum') ||
+                        str_contains($descLower, 'admin') ||
+                        str_contains($descLower, 'manage') ||
+                        str_contains($descLower, 'supergroup')
+                    ) {
+                        $needsAdmin = true;
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::error("Failed to create topic {$key}: " . $e->getMessage());
+                $errorMessage = $e->getMessage();
+                $needsAdmin = true;
+                break;
+            }
+        }
+
+        $settings['topics'] = $createdTopics;
+        self::saveSettings($settings);
+
+        if ($needsAdmin) {
+            // Self-detect: Send friendly instruction to promote bot and retry
+            $adminNotice = "⚠️ <b>សូមផ្តល់សិទ្ធិជា Administrator ដល់ Bot (Admin Rights Required):</b>\n\n"
+                . "ដើម្បីឲ្យ Bot អាចបង្កើត <b>Forum Topics (ប្រធានបទដោយស្វ័យប្រវត្តិ)</b> ក្នុងគ្រុបនេះបាន សូមធ្វើតាមជំហានងាយៗដូចខាងក្រោម៖\n\n"
+                . "1️⃣ ចូលទៅកាន់ <b>Group Settings ⚙️</b> ➡️ បើកមុខងារ <b>Topics</b> (Enable Forum/Topics)\n"
+                . "2️⃣ ចូលទៅកាន់ <b>Administrators 🛡️</b> ➡️ Add <b>@{$botUsername}</b> ជា Admin\n"
+                . "3️⃣ បើកសិទ្ធិ <b>Manage Topics</b> (ឬផ្តល់សិទ្ធិ Admin ពេញលេញ)\n"
+                . "4️⃣ បន្ទាប់ពីបើកសិទ្ធិរួច សូមចុចប៊ូតុងខាងក្រោម ឬវាយបញ្ជា <code>/setup_topics</code> ម្តងទៀត!\n\n"
+                . "<i>Bot នឹងបង្កើត Topic ទាំង ៤ ដោយស្វ័យប្រវត្តិភ្លាមៗ!</i>";
+
+            $keyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '🔄 ចុចដើម្បីបង្កើត Topics ម្តងទៀត (Retry Setup)', 'callback_data' => 'setup_topics']
+                    ]
+                ]
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $adminNotice, $keyboard);
+
+            return [
+                'ok' => false,
+                'needs_admin' => true,
+                'error' => $errorMessage,
+                'message' => 'Bot requires administrator privileges with Manage Topics permission in the group.',
+            ];
+        }
+
+        // Successfully created topics! Send congratulatory overview
+        $topicsOverview = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
+            . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
+            . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី (New Orders)</b> — ទទួលការជូនដំណឹងវិក្កយបត្រថ្មីភ្លាមៗ\n"
+            . "2️⃣ 🛠️ <b>សេវាជួសជុល (Repairs & Care)</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+            . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក (Stock Alerts)</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+            . "4️⃣ 💬 <b>សេវាអតិថិជន (Customer Inquiries)</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
+            . "✅ <i>ប្រព័ន្ធ Notification ដំណើរការពេញលេញ ២៤/៧!</i>";
+
+        self::sendMessage($chatId, $topicsOverview);
+
+        return [
+            'ok' => true,
+            'topics' => $createdTopics,
+            'message' => 'Forum topics successfully created and configured.',
+        ];
     }
 
     /**
@@ -168,30 +321,36 @@ class TelegramService
         $settings['chat_type'] = null;
         $settings['connected_at'] = null;
         $settings['connected_by'] = null;
+        $settings['topics'] = [];
 
         return self::saveSettings($settings);
     }
 
     /**
-     * Send message using Telegram Bot API
+     * Send message using Telegram Bot API (supports Forum Thread ID)
      */
-    public static function sendMessage($chatId, string $text, string $parseMode = 'HTML'): array
+    public static function sendMessage($chatId, string $text, string $parseMode = 'HTML', ?int $threadId = null): array
     {
         $settings = self::getSettings();
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
 
         if (!$token || str_contains($token, 'Placeholder')) {
-            Log::info("[Telegram] Mock send to {$chatId}: {$text}");
+            Log::info("[Telegram] Mock send to {$chatId} (Thread: {$threadId}): {$text}");
             return ['ok' => true, 'mock' => true, 'message' => 'Telegram token is placeholder. Notification logged.'];
         }
 
         try {
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", [
+            $payload = [
                 'chat_id' => $chatId,
                 'text' => $text,
                 'parse_mode' => $parseMode,
                 'disable_web_page_preview' => false,
-            ]);
+            ];
+            if ($threadId) {
+                $payload['message_thread_id'] = $threadId;
+            }
+
+            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
 
             return $response->json() ?? ['ok' => $response->successful()];
         } catch (\Throwable $e) {
@@ -201,7 +360,39 @@ class TelegramService
     }
 
     /**
-     * Send rich Order Notification to connected Telegram group
+     * Send message with Inline Keyboard buttons
+     */
+    public static function sendMessageWithKeyboard($chatId, string $text, array $replyMarkup, string $parseMode = 'HTML', ?int $threadId = null): array
+    {
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+
+        if (!$token || str_contains($token, 'Placeholder')) {
+            Log::info("[Telegram] Mock send with keyboard to {$chatId}: {$text}");
+            return ['ok' => true, 'mock' => true];
+        }
+
+        try {
+            $payload = [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => $parseMode,
+                'reply_markup' => json_encode($replyMarkup),
+            ];
+            if ($threadId) {
+                $payload['message_thread_id'] = $threadId;
+            }
+
+            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            return $response->json() ?? ['ok' => $response->successful()];
+        } catch (\Throwable $e) {
+            Log::error("Failed to send Telegram message with keyboard: " . $e->getMessage());
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Send rich Order Notification to connected Telegram group (routed to Orders Topic if available)
      */
     public static function sendOrderNotification($order): bool
     {
@@ -230,6 +421,8 @@ class TelegramService
             $itemsText = "  • <i>(ព័ត៌មានទំនិញត្រូវបានកត់ត្រាក្នុង Admin)</i>\n";
         }
 
+        $orderTopicId = $settings['topics']['orders'] ?? null;
+
         $msg = "🛒 <b>ការបញ្ជាទិញថ្មី (NEW ORDER RECEIVED)!</b>\n\n"
             . "🔖 <b>លេខវិក្កយបត្រ:</b> <code>{$orderId}</code>\n"
             . "👤 <b>អតិថិជន:</b> <b>{$name}</b>\n"
@@ -241,9 +434,9 @@ class TelegramService
             . $itemsText . "\n"
             . "💵 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/admin/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
+            . "👉 <a href=\"https://s-tech-store.vercel.app/stech-hq-portal/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
 
-        $res = self::sendMessage($settings['chat_id'], $msg);
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
         return ($res['ok'] ?? false) === true;
     }
 

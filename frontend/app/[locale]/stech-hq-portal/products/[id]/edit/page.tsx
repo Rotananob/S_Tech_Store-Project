@@ -8,10 +8,9 @@ import { Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Che
 type Category = {
   id: number;
   name: string;
-  slug?: string;
 };
 
-export default function AddNewProductPage() {
+export default function EditProductPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   
@@ -29,7 +28,7 @@ export default function AddNewProductPage() {
   const [brand, setBrand] = useState("");
   const [condition, setCondition] = useState("Brand New");
 
-  // Primary Image Address Link (e.g. copied from Google, Cloudinary, web)
+  // Primary Image Address Link
   const [primaryImageUrl, setPrimaryImageUrl] = useState("");
   const [imagePreviewError, setImagePreviewError] = useState(false);
 
@@ -43,6 +42,7 @@ export default function AddNewProductPage() {
   const [mediaList, setMediaList] = useState<MediaItem[]>([]);
 
   useEffect(() => {
+    // 1. Fetch categories
     const fetchCats = async () => {
       try {
         setLoadingCats(true);
@@ -50,10 +50,8 @@ export default function AddNewProductPage() {
         const data: Category[] = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         if (data.length > 0) {
           setCategories(data);
-          setCategoryId(data[0].id.toString());
         }
       } catch (err) {
-        // Fallback default categories
         setCategories([
           { id: 1, name: "Laptops" },
           { id: 2, name: "Smartphones" },
@@ -71,7 +69,39 @@ export default function AddNewProductPage() {
       }
     };
     fetchCats();
-  }, []);
+
+    // 2. Fetch product details
+    const fetchProduct = async () => {
+      try {
+        const res = await api.get(`/products/${params.id}`);
+        const p = res.data;
+        setName(p.name || "");
+        setCategoryId(p.category_id?.toString() || "1");
+        setPrice(p.price?.toString() || "");
+        setStock(p.stock?.toString() || "");
+        setDescription(p.description || "");
+        setFeatured(p.is_featured || false);
+        setBrand(p.brand || "");
+        setCondition(p.condition || "Brand New");
+        
+        if (p.image_url) {
+          setPrimaryImageUrl(p.image_url);
+        }
+
+        const existingMedia: MediaItem[] = [];
+        if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+          p.images.forEach((img: string) => {
+            // If it's different from primary, or add all
+            existingMedia.push({ id: Math.random().toString(), type: "url", url: img });
+          });
+        }
+        setMediaList(existingMedia);
+      } catch (err) {
+        showToast("Failed to fetch product data", "error");
+      }
+    };
+    fetchProduct();
+  }, [params.id]);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -86,6 +116,7 @@ export default function AddNewProductPage() {
     
     try {
       const formData = new FormData();
+      formData.append("_method", "PUT");
       formData.append("name", name.trim());
       formData.append("category_id", categoryId);
       formData.append("price", price);
@@ -95,13 +126,13 @@ export default function AddNewProductPage() {
       if (brand.trim()) formData.append("brand", brand.trim());
       if (condition.trim()) formData.append("condition", condition.trim());
       
-      // 1. Send primary image address link if provided
+      // Primary image URL
       if (primaryImageUrl.trim()) {
         formData.append("image_url", primaryImageUrl.trim());
         formData.append("image_urls[]", primaryImageUrl.trim());
       }
 
-      // 2. Send additional media files or URLs
+      // Additional media
       mediaList.forEach(item => {
         if (item.type === "file" && item.file) {
           formData.append("images[]", item.file);
@@ -110,16 +141,16 @@ export default function AddNewProductPage() {
         }
       });
 
-      await api.post("/products", formData);
+      await api.post(`/products/${params.id}`, formData);
 
       showToast("Product saved successfully! Redirecting...");
       setTimeout(() => {
-        router.push("/admin/products");
+        router.push("/stech-hq-portal/products");
       }, 1500);
     } catch (e: any) {
       const errorMsg = e.response?.data?.message || "Failed to save product";
       showToast(errorMsg, "error");
-      console.error("Save product error:", e);
+      console.error(e);
     }
   };
 
@@ -134,7 +165,7 @@ export default function AddNewProductPage() {
       {/* Header section */}
       <div className="mb-6">
         <Link 
-          href="/admin/products" 
+          href="/stech-hq-portal/products" 
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 mb-3 transition-colors no-underline group"
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -142,12 +173,12 @@ export default function AddNewProductPage() {
         </Link>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Add New Product</h1>
-            <p className="text-gray-500 text-xs sm:text-sm">បំពេញព័ត៌មានលម្អិតដើម្បីបន្ថែមទំនិញថ្មីចូលស្តុក (Fill in details to add a new inventory item).</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Edit Product</h1>
+            <p className="text-gray-500 text-xs sm:text-sm">កែប្រែព័ត៌មានទំនិញ តម្លៃ ស្តុក និងរូបភាព (Update product details, pricing, and stock).</p>
           </div>
           <div className="flex gap-2.5 w-full md:w-auto">
             <Link 
-              href="/admin/products" 
+              href="/stech-hq-portal/products" 
               className="flex-1 md:flex-none text-center px-5 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold hover:bg-gray-50 transition-colors no-underline shadow-xs"
             >
               Cancel
@@ -299,20 +330,20 @@ export default function AddNewProductPage() {
             <div className="p-4 bg-blue-50/60 border border-blue-100 rounded-xl mb-5">
               <label className="flex items-center gap-1.5 text-xs font-bold text-blue-900 mb-1.5">
                 <Globe size={14} className="text-blue-600" />
-                Image Link Address (URL)
+                Primary Image Link Address
               </label>
               <p className="text-[11px] text-blue-700/80 mb-2">
                 Paste any copied image address (Cloudinary, Google, CDN, or Web):
               </p>
               <input 
-                type="url"
-                value={primaryImageUrl}
+                type="url" 
+                value={primaryImageUrl} 
                 onChange={e => {
                   setPrimaryImageUrl(e.target.value);
                   setImagePreviewError(false);
-                }}
-                placeholder="https://images.unsplash.com/... or https://res.cloudinary.com/..."
-                className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-white"
+                }} 
+                placeholder="https://images.unsplash.com/... or https://res.cloudinary.com/..." 
+                className="w-full px-3 py-2 border border-blue-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-white" 
               />
 
               {primaryImageUrl.trim() && (
@@ -324,8 +355,8 @@ export default function AddNewProductPage() {
                     <img 
                       src={primaryImageUrl.trim()} 
                       alt="Primary Preview" 
-                      className="max-h-36 max-w-full object-contain rounded"
-                      onError={() => setImagePreviewError(true)}
+                      className="max-h-36 max-w-full object-contain rounded" 
+                      onError={() => setImagePreviewError(true)} 
                     />
                   ) : (
                     <div className="text-[11px] text-red-500 py-3 text-center">
@@ -366,9 +397,9 @@ export default function AddNewProductPage() {
             {mediaList.map((media, index) => (
               <div key={media.id} className="mb-3 p-3 border border-gray-200 rounded-lg relative bg-white shadow-xs">
                 <button 
-                  type="button"
-                  onClick={() => setMediaList(mediaList.filter(m => m.id !== media.id))}
-                  className="absolute top-2 right-2 w-5 h-5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center transition-colors"
+                  type="button" 
+                  onClick={() => setMediaList(mediaList.filter(m => m.id !== media.id))} 
+                  className="absolute top-2 right-2 w-5 h-5 bg-red-50 hover:bg-red-100 text-red-500 rounded-full flex items-center justify-center transition-colors" 
                   title="Remove Image"
                 >
                   <X size={12} />
@@ -443,7 +474,7 @@ export default function AddNewProductPage() {
               </div>
               
               <button 
-                type="button"
+                type="button" 
                 onClick={() => setFeatured(!featured)} 
                 className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer ${featured ? 'bg-[#991b1b]' : 'bg-gray-300'}`}
               >

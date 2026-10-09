@@ -45,7 +45,7 @@ export default function AdminLoginPage() {
       setSuccessMsg(`សូមស្វាគមន៍ ${user.name} (${user.role.toUpperCase()})! កំពុងដំណើរការ...`);
 
       setTimeout(() => {
-        router.push("/admin");
+        router.push("/stech-hq-portal");
       }, 1000);
     } catch (err: any) {
       console.error("Admin login error:", err);
@@ -63,7 +63,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-white flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden font-sans">
+    <div className="admin-theme min-h-screen bg-[#0a0a0c] text-white flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden font-sans">
       {/* Background Ambient Glows */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#8B1A1A]/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-900/15 rounded-full blur-[120px] pointer-events-none" />

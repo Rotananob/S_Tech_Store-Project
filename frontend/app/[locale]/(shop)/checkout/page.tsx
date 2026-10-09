@@ -293,7 +293,7 @@ export default function CheckoutPage() {
       </div>
 
       <div className="container" style={{ padding: "28px 16px" }}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 xl:gap-8 items-start">
 
           {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

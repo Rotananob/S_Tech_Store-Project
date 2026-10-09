@@ -55,7 +55,7 @@ export default function CartPage() {
 
   return (
     <div className="bg-gray-50 min-h-screen text-gray-900 font-sans pb-24 lg:pb-12">
-      <div className="max-w-6xl mx-auto px-4 pt-6 md:pt-10">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10">
         
         {/* Checkout Stepper */}
         <div className="flex justify-center mb-10">
@@ -77,7 +77,7 @@ export default function CartPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-8 xl:gap-10">
           
           {/* LEFT: Cart Items */}
           <div className="space-y-6">

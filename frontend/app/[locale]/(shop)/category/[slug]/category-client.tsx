@@ -125,7 +125,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
 
   return (
     <div className="bg-gray-50 min-h-screen text-[#1a1a1a]">
-      <div className="container max-w-7xl mx-auto px-4 py-8">
+      <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Title & Secondhand Banner */}
         <div className="mb-6">
@@ -364,7 +364,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
               </motion.div>
             ) : (
               <motion.div 
-                className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6"
+                className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6"
                 initial="hidden"
                 animate="visible"
                 variants={{

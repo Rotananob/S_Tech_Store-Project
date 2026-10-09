@@ -136,6 +136,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/telegram/generate-link', [\App\Http\Controllers\TelegramController::class, 'generateLink']);
     Route::post('/admin/telegram/pair', [\App\Http\Controllers\TelegramController::class, 'pair']);
     Route::post('/admin/telegram/test', [\App\Http\Controllers\TelegramController::class, 'test']);
+    Route::post('/admin/telegram/setup-topics', [\App\Http\Controllers\TelegramController::class, 'setupTopics']);
     Route::post('/admin/telegram/disconnect', [\App\Http\Controllers\TelegramController::class, 'disconnect']);
     Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
 });

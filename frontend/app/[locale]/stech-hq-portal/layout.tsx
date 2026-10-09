@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   // If on admin login page, bypass the layout chrome
-  const isLoginPage = pathname === "/admin/login" || pathname.endsWith("/admin/login");
+  const isLoginPage = pathname === "/stech-hq-portal/login" || pathname.endsWith("/stech-hq-portal/login");
 
   useEffect(() => {
     if (isLoginPage) {
@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       if (!token) {
         // Not authenticated — redirect to admin login
-        router.push("/admin/login");
+        router.push("/stech-hq-portal/login");
         return;
       }
 
@@ -76,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       localStorage.removeItem("stech_admin_user");
       document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
-    router.push("/admin/login");
+    router.push("/stech-hq-portal/login");
   };
 
   if (isLoginPage) {
@@ -85,9 +85,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center text-white">
+      <div className="admin-theme min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center text-white">
         <div className="w-10 h-10 border-3 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-sm text-gray-400 font-medium">កំពុងផ្ទៀងផ្ទាត់សិទ្ធិគ្រប់គ្រង (Verifying Admin Access)...</p>
+        <p className="text-sm text-gray-400 font-medium">កំពុងផ្ទៀងផ្ទាត់សិទ្ធិគ្រប់គ្រង (Verifying Access)...</p>
       </div>
     );
   }
@@ -96,60 +96,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const NAV_LINKS = [
     { 
-      href: "/admin", 
+      href: "/stech-hq-portal", 
       label: "ផ្ទាំងគ្រប់គ្រងទូទៅ (Overview)", 
       icon: <LayoutDashboard size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/admin/products", 
+      href: "/stech-hq-portal/products", 
       label: "គ្រប់គ្រងទំនិញ (Products)", 
       icon: <Package size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/admin/orders", 
+      href: "/stech-hq-portal/orders", 
       label: "គ្រប់គ្រងការបញ្ជាទិញ (Orders)", 
       icon: <ShoppingCart size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/admin/repairs", 
+      href: "/stech-hq-portal/repairs", 
       label: "សេវាជួសជុល (Repairs)", 
       icon: <Wrench size={18} />, 
       adminOnly: false 
     },
     // Admin Only Management Features
     { 
-      href: "/admin/staff", 
+      href: "/stech-hq-portal/staff", 
       label: "គ្រប់គ្រងបុគ្គលិក (Staff Accounts)", 
       icon: <Users size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/admin/branches", 
+      href: "/stech-hq-portal/branches", 
       label: "គ្រប់គ្រងសាខាហាង (Branches)", 
       icon: <Building2 size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/admin/shifts", 
+      href: "/stech-hq-portal/shifts", 
       label: "គ្រប់គ្រងវេនធ្វើការ (Shifts)", 
       icon: <CalendarCheck size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/admin/promotions", 
+      href: "/stech-hq-portal/promotions", 
       label: "ប្រូម៉ូសិន (Promotions)", 
       icon: <Tag size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/admin/settings", 
+      href: "/stech-hq-portal/settings", 
       label: "ការកំណត់ប្រព័ន្ធ (Settings)", 
       icon: <Settings size={18} />, 
       adminOnly: true,
@@ -158,7 +158,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="admin-theme flex min-h-screen bg-gray-50 text-gray-900 font-sans">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -172,7 +172,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         
         {/* Brand Logo Header */}
         <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-3 no-underline text-white group">
+          <Link href="/stech-hq-portal" className="flex items-center gap-3 no-underline text-white group">
             <img 
               src="/logo.jpg" 
               alt="S Tech Store Logo" 
@@ -272,7 +272,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Bottom Actions */}
         <div className="p-4 border-t border-white/10 space-y-2 mt-auto">
           <Link 
-            href="/admin/products/new" 
+            href="/stech-hq-portal/products/new" 
             className="w-full py-2.5 px-3 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors no-underline shadow-md"
           >
             <Package size={16} />
@@ -303,7 +303,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Menu size={22} />
             </button>
             
-            <Link href="/admin" className="flex items-center gap-2.5 no-underline">
+            <Link href="/stech-hq-portal" className="flex items-center gap-2.5 no-underline">
               <img 
                 src="/logo.jpg" 
                 alt="S Tech Store" 

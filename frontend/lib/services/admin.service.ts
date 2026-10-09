@@ -77,6 +77,7 @@ export interface TelegramStatus {
   notify_low_stock: boolean;
   notify_repairs: boolean;
   notify_shifts: boolean;
+  topics?: Record<string, number>;
 }
 
 export interface TelegramPairLink {
@@ -118,6 +119,11 @@ export const testTelegramNotification = async (): Promise<{ success: boolean; me
 export const disconnectTelegram = async (): Promise<boolean> => {
   const res = await api.post("/admin/telegram/disconnect");
   return res.data.success;
+};
+
+export const setupTelegramTopics = async (): Promise<{ success: boolean; data?: any; message?: string }> => {
+  const res = await api.post("/admin/telegram/setup-topics");
+  return res.data;
 };
 
 export const updateTelegramSettings = async (settings: Partial<TelegramStatus>): Promise<boolean> => {

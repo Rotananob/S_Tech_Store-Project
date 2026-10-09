@@ -15,7 +15,7 @@ export default function FloatingBackButton() {
     setMounted(true);
   }, []);
 
-  if (pathname === "/" || pathname.startsWith("/admin")) {
+  if (pathname === "/" || pathname.startsWith("/admin") || pathname.startsWith("/stech-hq-portal")) {
     return null;
   }
 

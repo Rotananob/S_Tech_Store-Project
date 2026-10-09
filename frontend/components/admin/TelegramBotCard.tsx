@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { 
   Send, CheckCircle2, AlertCircle, RefreshCw, Unlink, ExternalLink, 
-  Copy, ShieldCheck, Bell, Smartphone, QrCode, Sparkles 
+  Copy, ShieldCheck, Bell, Smartphone, QrCode, Sparkles, Layers, MessageSquare, Wrench, AlertTriangle, Check
 } from "lucide-react";
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
-  disconnectTelegram, updateTelegramSettings, TelegramStatus, TelegramPairLink 
+  disconnectTelegram, updateTelegramSettings, setupTelegramTopics, 
+  TelegramStatus, TelegramPairLink 
 } from "@/lib/services/admin.service";
 
 export default function TelegramBotCard() {
@@ -15,6 +16,7 @@ export default function TelegramBotCard() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [settingUpTopics, setSettingUpTopics] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [pairData, setPairData] = useState<TelegramPairLink | null>(null);
   const [copied, setCopied] = useState(false);
@@ -79,6 +81,24 @@ export default function TelegramBotCard() {
       showToast("ការផ្ញើសារសាកល្បងបានបរាជ័យ", "error");
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleSetupTopics = async () => {
+    setSettingUpTopics(true);
+    try {
+      const res = await setupTelegramTopics();
+      if (res.success) {
+        showToast("Forum Topics ត្រូវបានបង្កើត និងរៀបចំជោគជ័យ! 🎉");
+        await fetchStatus();
+      } else {
+        showToast(res.message || "សូមផ្តល់សិទ្ធិ Manage Topics ដល់ Bot សិន", "error");
+      }
+    } catch (e: any) {
+      const msg = e.response?.data?.error || e.response?.data?.message || "បរាជ័យក្នុងការបង្កើត Topics សូមពិនិត្យសិទ្ធិ Admin របស់ Bot";
+      showToast(msg, "error");
+    } finally {
+      setSettingUpTopics(false);
     }
   };
 
@@ -147,10 +167,10 @@ export default function TelegramBotCard() {
                 <Sparkles size={12} /> ABA Merchant Style One-Click
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white m-0 tracking-tight">
-                Telegram Bot Notifications
+                Telegram Bot Notifications & Forum Topics
               </h2>
               <p className="text-white/80 text-xs sm:text-sm mt-1 leading-relaxed">
-                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី (New Orders) ភ្លាមៗទៅកាន់ Telegram Group របស់ហាង ឬបុគ្គលិក។
+                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី (New Orders) និងគ្រប់គ្រងតាម Forum Topics ស្វ័យប្រវត្តក្នុង Telegram Group។
               </p>
             </div>
           </div>
@@ -224,6 +244,94 @@ export default function TelegramBotCard() {
                   <Unlink size={15} />
                   <span>ផ្តាច់ (Disconnect)</span>
                 </button>
+              </div>
+            </div>
+
+            {/* ── FORUM TOPICS STATUS & AUTO-CREATE CARD ── */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-sky-50/70 via-white to-blue-50/50 border border-sky-100 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0088cc] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900 m-0">
+                      Telegram Forum Topics (បែងចែកប្រធានបទដោយស្វ័យប្រវត្តិ)
+                    </h3>
+                    <p className="text-xs text-gray-500 m-0 mt-0.5">
+                      Bot នឹងបង្កើត និងតម្រៀបសារ Notification ចូលតាម Topic នីមួយៗយ៉ាងមានរបៀប។
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSetupTopics}
+                  disabled={settingUpTopics}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] hover:from-[#0077b5] hover:to-[#006699] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer border-none disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={settingUpTopics ? "animate-spin" : ""} />
+                  <span>{settingUpTopics ? "កំពុងរៀបចំ Topics..." : "🗂️ Auto-create Topics (បង្កើត Topics ស្វ័យប្រវត្តិ)"}</span>
+                </button>
+              </div>
+
+              {/* 4 Topic Badges */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  {
+                    key: "orders",
+                    icon: "🛒",
+                    title: "ការបញ្ជាទិញថ្មី (New Orders)",
+                    desc: "វិក្កយបត្រ & ព័ត៌មានដឹកជញ្ជូន",
+                    color: "border-sky-200 bg-sky-50/80 text-sky-800",
+                    created: Boolean(status?.topics?.orders),
+                  },
+                  {
+                    key: "repairs",
+                    icon: "🛠️",
+                    title: "សេវាជួសជុល (Repairs)",
+                    desc: "ប័ណ្ណទទួលជួសជុល & Status",
+                    color: "border-amber-200 bg-amber-50/80 text-amber-800",
+                    created: Boolean(status?.topics?.repairs),
+                  },
+                  {
+                    key: "stock",
+                    icon: "⚠️",
+                    title: "ការជូនដំណឹងស្តុក (Stock)",
+                    desc: "ដឹងភ្លាមពេលទំនិញជិតអស់",
+                    color: "border-red-200 bg-red-50/80 text-red-800",
+                    created: Boolean(status?.topics?.stock),
+                  },
+                  {
+                    key: "chat",
+                    icon: "💬",
+                    title: "សេវាអតិថិជន (Customer Chat)",
+                    desc: "សម្រាប់សន្ទនាទូទៅក្នុងក្រុម",
+                    color: "border-purple-200 bg-purple-50/80 text-purple-800",
+                    created: Boolean(status?.topics?.chat),
+                  },
+                ].map((top) => (
+                  <div key={top.key} className={`p-3.5 rounded-xl border ${top.color} flex flex-col justify-between gap-2`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl">{top.icon}</span>
+                      <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${top.created ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700'}`}>
+                        {top.created ? "Ready ✓" : "Pending ⏳"}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold leading-tight">{top.title}</div>
+                      <div className="text-[10px] opacity-75 mt-0.5">{top.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Smart Admin Permission Notice */}
+              <div className="mt-4 p-3 bg-white rounded-xl border border-sky-100 flex items-start gap-2.5 text-xs text-gray-600">
+                <AlertCircle size={16} className="text-[#0088cc] flex-shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <b>លក្ខខណ្ឌបង្កើត Topic:</b> គ្រុបត្រូវតែបើកមុខងារ <b>Topics</b> ក្នុង Group Settings ហើយ <b>Bot ត្រូវតែមានសិទ្ធិជា Administrator</b> ជាមួយមុខងារ <b>&quot;Manage Topics&quot;</b>។ ប្រសិនបើ Bot មិនទាន់មានសិទ្ធិទេ វានឹងផ្ញើសារប្រាប់ក្នុង Telegram ដោយស្វ័យប្រវត្តិដើម្បីឲ្យអ្នកទៅបើកសិទ្ធិជាមុនសិន។
+                </div>
               </div>
             </div>
 

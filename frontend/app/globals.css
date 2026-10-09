@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Kantumruy+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 /* ─── Design Tokens ───────────────────────────────────────────────────────── */
@@ -181,7 +182,7 @@ html, body {
 /* ─── Global Container Centering & Padding ────────────────────────────────── */
 .container {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1536px;
   margin-left: auto;
   margin-right: auto;
   padding-left: 16px;
@@ -195,9 +196,33 @@ html, body {
 }
 @media (min-width: 1024px) {
   .container {
-    padding-left: 32px;
-    padding-right: 32px;
+    padding-left: 36px;
+    padding-right: 36px;
   }
+}
+@media (min-width: 1536px) {
+  .container {
+    max-width: 1620px;
+    padding-left: 48px;
+    padding-right: 48px;
+  }
+}
+
+/* ─── Executive Professional Admin Typography ────────────────────────────── */
+.admin-theme,
+.admin-theme input,
+.admin-theme select,
+.admin-theme textarea,
+.admin-theme button,
+.admin-theme table {
+  font-family: 'Plus Jakarta Sans', var(--font-inter), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  letter-spacing: -0.012em;
+  -webkit-font-smoothing: antialiased;
+}
+.admin-theme h1, .admin-theme h2, .admin-theme h3, .admin-theme h4, .admin-theme h5, .admin-theme h6 {
+  font-family: 'Plus Jakarta Sans', var(--font-inter), 'Kantumruy Pro', sans-serif !important;
+  letter-spacing: -0.025em;
+  font-weight: 700;
 }
 
 /* ─── Container iPhone-safe padding ────────────────────────────────────────── */
