@@ -13,6 +13,8 @@ class TelegramController extends Controller
      */
     public function status()
     {
+        TelegramService::pollPendingUpdates();
+
         $settings = TelegramService::getSettings();
         
         return response()->json([

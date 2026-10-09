@@ -208,6 +208,82 @@ class TelegramService
     }
 
     /**
+     * Poll recent updates from Telegram API (for local/staging dev where Webhooks are not publicly reachable)
+     */
+    public static function pollPendingUpdates(): void
+    {
+        $settings = self::getSettings();
+        if (empty($settings['pending_tokens']) && !empty($settings['connected'])) {
+            return;
+        }
+
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return;
+        }
+
+        $lastOffset = $settings['last_update_id'] ?? 0;
+
+        try {
+            $resp = Http::timeout(3)->get("https://api.telegram.org/bot{$token}/getUpdates", [
+                'offset' => $lastOffset + 1,
+                'limit' => 20,
+            ]);
+
+            $json = $resp->json();
+            if (($json['ok'] ?? false) === true && !empty($json['result']) && is_array($json['result'])) {
+                $maxId = $lastOffset;
+
+                foreach ($json['result'] as $up) {
+                    $upId = $up['update_id'] ?? 0;
+                    if ($upId > $maxId) {
+                        $maxId = $upId;
+                    }
+
+                    $msg = $up['message'] ?? $up['channel_post'] ?? null;
+                    if ($msg) {
+                        $text = trim($msg['text'] ?? '');
+                        $chat = $msg['chat'] ?? [];
+                        $chatId = $chat['id'] ?? null;
+                        $chatTitle = $chat['title'] ?? ($chat['first_name'] ?? 'S Tech Store Channel');
+                        $chatType = $chat['type'] ?? 'group';
+
+                        if (preg_match('/^\/start(?:@\w+)?\s+([A-Za-z0-9_-]+)/', $text, $matches)) {
+                            $pairCode = strtoupper(trim($matches[1]));
+                            self::pairChat($pairCode, $chatId, $chatTitle, $chatType);
+                        } elseif (preg_match('/^\/(?:setup_topics|topics)(?:@\w+)?/i', $text)) {
+                            if ($chatId) {
+                                self::setupTopics($chatId);
+                            }
+                        }
+                    }
+
+                    // Check for callback query retry
+                    if (isset($up['callback_query'])) {
+                        $cb = $up['callback_query'];
+                        $chatId = $cb['message']['chat']['id'] ?? null;
+                        if (($cb['data'] ?? '') === 'setup_topics' && $chatId) {
+                            self::setupTopics($chatId);
+                            try {
+                                Http::post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+                                    'callback_query_id' => $cb['id'],
+                                    'text' => 'កំពុងពិនិត្យ និងរៀបចំ Forum Topics...',
+                                ]);
+                            } catch (\Throwable $e) {}
+                        }
+                    }
+                }
+
+                $settings = self::getSettings();
+                $settings['last_update_id'] = $maxId;
+                self::saveSettings($settings);
+            }
+        } catch (\Throwable $e) {
+            // Non-blocking timeout
+        }
+    }
+
+    /**
      * Automatically create Forum Topics in connected group
      * Detects if bot lacks Administrator / Manage Topics permissions and guides user
      */
