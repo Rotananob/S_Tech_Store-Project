@@ -90,14 +90,14 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // 3. Seed Super Admin Account with High Security Hash
-        // Password: StechAdmin@2026!Secure
+        // 3. Seed Super Admin Account with Ultra High Security Hash
+        // Password: STech#Admin_98X$kQ29@2026!Sec
         $adminToken = bin2hex(random_bytes(32));
         $adminUser = User::updateOrCreate(
             ['email' => 'admin@stechstore.com'],
             [
                 'name' => 'S Tech Super Admin',
-                'password' => Hash::make('StechAdmin@2026!Secure', ['rounds' => 12]),
+                'password' => Hash::make('STech#Admin_98X$kQ29@2026!Sec', ['rounds' => 12]),
                 'role' => 'admin',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
@@ -129,14 +129,14 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // 4. Seed Staff Account with High Security Hash
-        // Password: StechStaff@2026!Shift
+        // 4. Seed Staff Account with Ultra High Security Hash
+        // Password: STech#Staff_74Wp@81K!2026$Shift
         $staffToken = bin2hex(random_bytes(32));
         $staffUser = User::updateOrCreate(
             ['email' => 'staff@stechstore.com'],
             [
                 'name' => 'S Tech Staff Member',
-                'password' => Hash::make('StechStaff@2026!Shift', ['rounds' => 12]),
+                'password' => Hash::make('STech#Staff_74Wp@81K!2026$Shift', ['rounds' => 12]),
                 'role' => 'staff',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Morning Shift (វេនព្រឹក)',
@@ -180,7 +180,7 @@ class AdminAndStaffSeeder extends Seeder
                 ['email' => $email],
                 [
                     'name' => 'Rotana Nob (Owner)',
-                    'password' => Hash::make('StechAdmin@2026!Secure', ['rounds' => 12]),
+                    'password' => Hash::make('STech#Admin_98X$kQ29@2026!Sec', ['rounds' => 12]),
                     'role' => 'admin',
                     'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                     'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',

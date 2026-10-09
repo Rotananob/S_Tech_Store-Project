@@ -188,7 +188,7 @@ export default function AdminLoginPage() {
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
-                onClick={() => handleQuickFill("admin@stechstore.com", "StechAdmin@2026!Secure")}
+                onClick={() => handleQuickFill("admin@stechstore.com", "STech#Admin_98X$kQ29@2026!Sec")}
                 className="p-2.5 rounded-xl bg-red-950/30 hover:bg-red-900/40 border border-red-500/30 text-left transition-all group"
               >
                 <div className="text-[11px] font-bold text-red-400 flex items-center justify-between">
@@ -196,12 +196,12 @@ export default function AdminLoginPage() {
                   <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="text-[10px] text-gray-400 mt-0.5 truncate">admin@stechstore.com</div>
-                <div className="text-[9px] text-gray-500 mt-0.5">Full Access (Branches/Shifts)</div>
+                <div className="text-[9px] text-gray-500 mt-0.5">Ultra Secure • Full Access</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleQuickFill("staff@stechstore.com", "StechStaff@2026!Shift")}
+                onClick={() => handleQuickFill("staff@stechstore.com", "STech#Staff_74Wp@81K!2026$Shift")}
                 className="p-2.5 rounded-xl bg-blue-950/30 hover:bg-blue-900/40 border border-blue-500/30 text-left transition-all group"
               >
                 <div className="text-[11px] font-bold text-blue-400 flex items-center justify-between">
@@ -209,7 +209,7 @@ export default function AdminLoginPage() {
                   <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="text-[10px] text-gray-400 mt-0.5 truncate">staff@stechstore.com</div>
-                <div className="text-[9px] text-gray-500 mt-0.5">Products & Order Fulfillment</div>
+                <div className="text-[9px] text-gray-500 mt-0.5">Ultra Secure • Staff Ops</div>
               </button>
             </div>
           </div>
