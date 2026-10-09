@@ -134,3 +134,8 @@ export const updateTelegramSettings = async (settings: Partial<TelegramStatus> &
   return res.data;
 };
 
+export const broadcastTelegramMessage = async (message: string, topic: string = "chat", sender?: string): Promise<{ success: boolean; message: string; error?: string }> => {
+  const res = await api.post("/admin/telegram/broadcast", { message, topic, sender });
+  return res.data;
+};
+

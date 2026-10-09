@@ -144,6 +144,47 @@ class TelegramController extends Controller
     }
 
     /**
+     * Broadcast custom announcement to connected Telegram group
+     */
+    public function broadcast(Request $request)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+            'topic' => 'nullable|string',
+        ]);
+
+        $settings = TelegramService::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Telegram Bot មិនទាន់បានភ្ជាប់ជាមួយ Group នៅឡើយទេ (No connected Telegram group)',
+            ], 400);
+        }
+
+        $topicKey = $validated['topic'] ?? 'chat';
+        $threadId = $settings['topics'][$topicKey] ?? null;
+
+        $sender = $request->input('sender') ?? 'Admin';
+        $broadcastText = "📢 <b>ការប្រកាសពីហាង ({$sender}):</b>\n\n"
+            . htmlspecialchars($validated['message']) . "\n\n"
+            . "⏰ <i>" . date('d-m-Y H:i:s') . "</i>";
+
+        $res = TelegramService::sendMessage($settings['chat_id'], $broadcastText, 'HTML', $threadId);
+
+        if (!($res['ok'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'error' => $res['error'] ?? 'បរាជ័យក្នុងការផ្ញើសារប្រកាសទៅ Telegram',
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានផ្ញើសារប្រកាសទៅ Telegram Group ជោគជ័យ! 🎉',
+        ]);
+    }
+
+    /**
      * Update notification event toggles
      */
     public function updateSettings(Request $request)

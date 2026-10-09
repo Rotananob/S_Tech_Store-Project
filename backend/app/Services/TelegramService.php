@@ -565,7 +565,7 @@ class TelegramService
             . $itemsText . "\n"
             . "💵 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/stech-hq-portal/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
+            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
         return ($res['ok'] ?? false) === true;

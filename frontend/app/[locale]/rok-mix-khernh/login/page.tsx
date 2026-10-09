@@ -45,7 +45,7 @@ export default function AdminLoginPage() {
       setSuccessMsg(`សូមស្វាគមន៍ ${user.name} (${user.role.toUpperCase()})! កំពុងដំណើរការ...`);
 
       setTimeout(() => {
-        router.push("/stech-hq-portal");
+        router.push("/rok-mix-khernh");
       }, 1000);
     } catch (err: any) {
       console.error("Admin login error:", err);

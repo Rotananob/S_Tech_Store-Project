@@ -41,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   // If on admin login page, bypass the layout chrome
-  const isLoginPage = pathname === "/stech-hq-portal/login" || pathname.endsWith("/stech-hq-portal/login");
+  const isLoginPage = pathname === "/rok-mix-khernh/login" || pathname.endsWith("/rok-mix-khernh/login");
 
   useEffect(() => {
     if (isLoginPage) {
@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       if (!token) {
         // Not authenticated — redirect to admin login
-        router.push("/stech-hq-portal/login");
+        router.push("/rok-mix-khernh/login");
         return;
       }
 
@@ -76,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       localStorage.removeItem("stech_admin_user");
       document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
-    router.push("/stech-hq-portal/login");
+    router.push("/rok-mix-khernh/login");
   };
 
   if (isLoginPage) {
@@ -96,60 +96,60 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const NAV_LINKS = [
     { 
-      href: "/stech-hq-portal", 
+      href: "/rok-mix-khernh", 
       label: "ផ្ទាំងគ្រប់គ្រងទូទៅ (Overview)", 
       icon: <LayoutDashboard size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/stech-hq-portal/products", 
+      href: "/rok-mix-khernh/products", 
       label: "គ្រប់គ្រងទំនិញ (Products)", 
       icon: <Package size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/stech-hq-portal/orders", 
+      href: "/rok-mix-khernh/orders", 
       label: "គ្រប់គ្រងការបញ្ជាទិញ (Orders)", 
       icon: <ShoppingCart size={18} />, 
       adminOnly: false 
     },
     { 
-      href: "/stech-hq-portal/repairs", 
+      href: "/rok-mix-khernh/repairs", 
       label: "សេវាជួសជុល (Repairs)", 
       icon: <Wrench size={18} />, 
       adminOnly: false 
     },
     // Admin Only Management Features
     { 
-      href: "/stech-hq-portal/staff", 
+      href: "/rok-mix-khernh/staff", 
       label: "គ្រប់គ្រងបុគ្គលិក (Staff Accounts)", 
       icon: <Users size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/stech-hq-portal/branches", 
+      href: "/rok-mix-khernh/branches", 
       label: "គ្រប់គ្រងសាខាហាង (Branches)", 
       icon: <Building2 size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/stech-hq-portal/shifts", 
+      href: "/rok-mix-khernh/shifts", 
       label: "គ្រប់គ្រងវេនធ្វើការ (Shifts)", 
       icon: <CalendarCheck size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/stech-hq-portal/promotions", 
+      href: "/rok-mix-khernh/promotions", 
       label: "ប្រូម៉ូសិន (Promotions)", 
       icon: <Tag size={18} />, 
       adminOnly: true,
       badge: "Admin" 
     },
     { 
-      href: "/stech-hq-portal/settings", 
+      href: "/rok-mix-khernh/settings", 
       label: "ការកំណត់ប្រព័ន្ធ (Settings)", 
       icon: <Settings size={18} />, 
       adminOnly: true,
@@ -172,7 +172,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         
         {/* Brand Logo Header */}
         <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
-          <Link href="/stech-hq-portal" className="flex items-center gap-3 no-underline text-white group">
+          <Link href="/rok-mix-khernh" className="flex items-center gap-3 no-underline text-white group">
             <img 
               src="/logo.jpg" 
               alt="S Tech Store Logo" 
@@ -272,7 +272,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Bottom Actions */}
         <div className="p-4 border-t border-white/10 space-y-2 mt-auto">
           <Link 
-            href="/stech-hq-portal/products/new" 
+            href="/rok-mix-khernh/products/new" 
             className="w-full py-2.5 px-3 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors no-underline shadow-md"
           >
             <Package size={16} />
@@ -303,7 +303,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Menu size={22} />
             </button>
             
-            <Link href="/stech-hq-portal" className="flex items-center gap-2.5 no-underline">
+            <Link href="/rok-mix-khernh" className="flex items-center gap-2.5 no-underline">
               <img 
                 src="/logo.jpg" 
                 alt="S Tech Store" 

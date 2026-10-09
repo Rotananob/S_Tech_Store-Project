@@ -150,7 +150,7 @@ export default function AdminProductsPage() {
           <p className="text-gray-500 text-sm">Manage inventory, pricing, and specifications.</p>
         </div>
         <button 
-          onClick={() => router.push("/stech-hq-portal/products/new")} 
+          onClick={() => router.push("/rok-mix-khernh/products/new")} 
           className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors"
         >
           <Plus size={16} />
@@ -262,7 +262,7 @@ export default function AdminProductsPage() {
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button 
-                          onClick={() => router.push(`/stech-hq-portal/products/${prod.id}/edit`)} 
+                          onClick={() => router.push(`/rok-mix-khernh/products/${prod.id}/edit`)} 
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
                           title="Edit"
                         >

@@ -145,7 +145,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       showToast("Product saved successfully! Redirecting...");
       setTimeout(() => {
-        router.push("/stech-hq-portal/products");
+        router.push("/rok-mix-khernh/products");
       }, 1500);
     } catch (e: any) {
       const errorMsg = e.response?.data?.message || "Failed to save product";
@@ -165,7 +165,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       {/* Header section */}
       <div className="mb-6">
         <Link 
-          href="/stech-hq-portal/products" 
+          href="/rok-mix-khernh/products" 
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-900 mb-3 transition-colors no-underline group"
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -178,7 +178,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           </div>
           <div className="flex gap-2.5 w-full md:w-auto">
             <Link 
-              href="/stech-hq-portal/products" 
+              href="/rok-mix-khernh/products" 
               className="flex-1 md:flex-none text-center px-5 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-xl text-xs sm:text-sm font-semibold hover:bg-gray-50 transition-colors no-underline shadow-xs"
             >
               Cancel

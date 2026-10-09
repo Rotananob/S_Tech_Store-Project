@@ -139,6 +139,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/telegram/setup-topics', [\App\Http\Controllers\TelegramController::class, 'setupTopics']);
     Route::post('/admin/telegram/disconnect', [\App\Http\Controllers\TelegramController::class, 'disconnect']);
     Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
+    Route::post('/admin/telegram/broadcast', [\App\Http\Controllers\TelegramController::class, 'broadcast']);
 });
 
 // Public Telegram Webhook Endpoint
