@@ -1206,28 +1206,62 @@ class TelegramService
             return false;
         }
 
-        $ip = $data['ip'] ?? request()->ip() ?? '127.0.0.1';
+        $ip = trim($data['ip'] ?? request()->ip() ?? '127.0.0.1');
         $page = htmlspecialchars($data['page'] ?? '/');
         $referrer = htmlspecialchars($data['referrer'] ?? 'Direct Visit');
         $device = htmlspecialchars($data['device'] ?? 'Web Browser');
         $country = htmlspecialchars($data['country'] ?? 'Cambodia 🇰🇭');
+        $city = htmlspecialchars($data['city'] ?? '');
+        $isp = htmlspecialchars($data['isp'] ?? '');
+        $screen = htmlspecialchars($data['screen'] ?? '');
 
-        // Throttle per IP + Page to prevent flood: max 1 notification per 10 minutes per IP
-        $throttleKey = 'tg_traffic_' . md5($ip . '_' . $page);
-        if (Cache::has($throttleKey)) {
-            return false;
+        // 1. Daily Pageviews & Unique Visitors Counter (Counts from 12:00 AM to 11:59 PM)
+        $today = date('Y-m-d');
+        $todayHitsKey = 'site_daily_pageviews_' . $today;
+        $todayUniqueKey = 'site_daily_unique_ips_' . $today;
+
+        $hitsToday = (int)Cache::increment($todayHitsKey);
+        if ($hitsToday === 1) {
+            Cache::put($todayHitsKey, 1, now()->endOfDay()->addDays(2));
         }
-        Cache::put($throttleKey, true, 600);
+
+        $uniqueList = Cache::get($todayUniqueKey, []);
+        if (!is_array($uniqueList)) {
+            $uniqueList = [];
+        }
+        if (!in_array($ip, $uniqueList)) {
+            $uniqueList[] = $ip;
+            Cache::put($todayUniqueKey, $uniqueList, now()->endOfDay()->addDays(2));
+        }
+        $uniqueToday = count($uniqueList);
+
+        // 2. Throttle telegram notification (25s per IP+Page) to avoid Telegram API 429 rate limit
+        // (Note: hitsToday count above is ALWAYS incremented on every single visit!)
+        $throttleKey = 'tg_traffic_sent_' . md5($ip . '_' . $page);
+        if (Cache::has($throttleKey)) {
+            return true;
+        }
+        Cache::put($throttleKey, true, 25);
 
         $trafficTopicId = $settings['topics']['traffic'] ?? null;
 
-        $msg = "🌐 <b>អ្នកចូលទស្សនាគេហទំព័រថ្មី (WEBSITE VISITOR)!</b>\n\n"
-            . "📄 <b>ទំព័រដែលបានចូល:</b> <code>{$page}</code>\n"
+        $locParts = [];
+        if (!empty($city)) $locParts[] = $city;
+        $locParts[] = $country;
+        if (!empty($isp)) $locParts[] = "({$isp})";
+        $locationText = implode(', ', $locParts);
+
+        $msg = "🌐 <b>អ្នកចូលទស្សនាគេហទំព័រ (NEW WEBSITE VISITOR)!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "📊 <b>ចំនួនចូលទស្សនាសរុបថ្ងៃនេះ:</b> <b>{$hitsToday} ដង</b> <i>(12:00 AM - 11:59 PM)</i>\n"
+            . "👥 <b>អ្នកទស្សនាប្លែកគ្នាថ្ងៃនេះ:</b> <b>{$uniqueToday} នាក់</b>\n"
+            . "📄 <b>ទំព័រដែលបានចូល (Page):</b> <code>{$page}</code>\n"
             . "🌍 <b>ប្រភពចូល (Referrer):</b> {$referrer}\n"
-            . "📱 <b>ឧបករណ៍:</b> {$device}\n"
-            . "📍 <b>ទីតាំង / IP:</b> {$country} (<code>" . substr($ip, 0, 8) . "***</code>)\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "⚡ <i>ប្រព័ន្ធតាមដាន Real-time Traffic ស្វ័យប្រវត្ត</i>";
+            . "📱 <b>ឧបករណ៍ & ប្រព័ន្ធ:</b> {$device}" . (!empty($screen) ? " [{$screen}]" : "") . "\n"
+            . "📍 <b>ទីតាំង (Location):</b> {$locationText}\n"
+            . "🌐 <b>Real IP Address:</b> <code>{$ip}</code>\n"
+            . "⏰ <b>កាលបរិច្ឆេទ & ម៉ោង:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⚡ <i>ប្រព័ន្ធតាមដាន S Tech Store Real-time Traffic Counter</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $trafficTopicId);
         return ($res['ok'] ?? false) === true;

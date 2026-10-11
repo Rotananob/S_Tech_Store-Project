@@ -36,6 +36,9 @@ export default function AdminDashboardOverview() {
   const [pentestLogs, setPentestLogs] = useState<{ step: string; status: "success" | "warning" | "error" }[] | null>(null);
   const [showPentestModal, setShowPentestModal] = useState(false);
 
+  // Daily Traffic (12:00 AM - 11:59 PM) state
+  const [todayTraffic, setTodayTraffic] = useState<{ hits_today: number; unique_today: number } | null>(null);
+
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
@@ -84,6 +87,17 @@ export default function AdminDashboardOverview() {
       ]);
       setStats(statsData);
       setRecentOrders(ordersData);
+
+      try {
+        fetch("/api/analytics/today")
+          .then((r) => r.json())
+          .then((data) => {
+            if (data && typeof data.hits_today === "number") {
+              setTodayTraffic({ hits_today: data.hits_today, unique_today: data.unique_today });
+            }
+          })
+          .catch(() => {});
+      } catch {}
 
       try {
         sessionStorage.setItem("admin_dashboard_stats", JSON.stringify(statsData));
@@ -686,9 +700,28 @@ export default function AdminDashboardOverview() {
               </span>
             </div>
 
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-500 mb-3">
               ប្រព័ន្ធការពារការវាយប្រហារ Token Draining, AI DDoS, Spam Flood និង Bot Jailbreak ដំណើរការដោយស្វ័យប្រវត្ត ២៤/៧។
             </p>
+
+            {/* Daily Traffic Counter Highlight (12:00 AM - 11:59 PM) */}
+            <div className="mb-3.5 p-3 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-[#0088cc]">
+                  <Eye size={18} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-gray-500 block">Total Views ថ្ងៃនេះ (12:00 AM - 11:59 PM)</span>
+                  <span className="text-base font-black text-gray-900">
+                    {todayTraffic?.hits_today ?? 0} ដង
+                    <span className="text-xs font-semibold text-sky-600 ml-2">({todayTraffic?.unique_today ?? 0} Unique Visitors)</span>
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-[#0088cc]">
+                Live Counter
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
               <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">

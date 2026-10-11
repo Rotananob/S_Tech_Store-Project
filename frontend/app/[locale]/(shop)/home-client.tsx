@@ -10,13 +10,26 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 
-const PROMO_SLIDE = {
-  title: "🔥 Special Promo: Up to 25% OFF",
-  desc: "ប្រើកូដ STECH25 — បញ្ចុះតម្លៃពិសេសលើ Laptops, Desktops & Gear ទាំងអស់!",
+// ─── Tier 2: Grand Seasonal Festival Mega Campaigns (បុណ្យភ្ជំបិណ្ឌ / ចូលឆ្នាំខ្មែរ / បុណ្យអុំទូក) ─────
+const GRAND_FESTIVAL_SLIDE = {
+  title: "🎉 មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ 30% OFF",
+  desc: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃរហូតដល់ 30% ប្រើកូដ PCHUMBEN2026 ធានា ៣ ទៅ ៦ ខែ ដឹកជូន ២៥ ខេត្ត-ក្រុង!",
   image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop",
-  alt: "Special Promotion",
-  badge: "🔥 Promo 25% OFF",
-  isPromo: true
+  alt: "Pchum Ben Festival Mega Sale Poster",
+  badge: "✨ មហាប្រូម៉ូសិន បុណ្យភ្ជំបិណ្ឌ",
+  isGrandFestival: true,
+  promoCode: "PCHUMBEN2026"
+};
+
+// ─── Tier 1: Regular Store Promotion (Discounts & Promo Codes) ────────────────
+const REGULAR_PROMO_SLIDE = {
+  title: "⚡ Super Tech Deals: Up to 20% OFF",
+  desc: "បញ្ចុះតម្លៃពិសេសលើ Gaming Laptops, Monitors & PC Gear ប្រើកូដ STECH20 ធានា ៣ ទៅ ៦ ខែពេញ!",
+  image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=800&auto=format&fit=crop",
+  alt: "Special Store Promotion",
+  badge: "🔥 Promo 20% OFF",
+  isPromo: true,
+  promoCode: "STECH20"
 };
 
 const DEFAULT_HERO_SLIDES = [
@@ -53,7 +66,7 @@ const DEFAULT_HERO_SLIDES = [
 export function HeroSection() {
   const t = useTranslations("Hero");
   const [slideIndex, setSlideIndex] = useState(0);
-  const [slides, setSlides] = useState([PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
+  const [slides, setSlides] = useState([GRAND_FESTIVAL_SLIDE, REGULAR_PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
   const [isPaused, setIsPaused] = useState(false);
 
   // Auto-slide every 3.8 seconds with smooth cross-fade
@@ -137,12 +150,24 @@ export function HeroSection() {
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <Link
                   href="/category/all"
-                  className="bg-[#8B1A1A] hover:bg-[#6B1010] !text-white text-white text-xs sm:text-sm xl:text-base font-bold px-5 sm:px-7 xl:px-8 py-2.5 sm:py-3 xl:py-3.5 rounded-full shadow-md hover:shadow-lg transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0"
+                  className={`${
+                    (current as any).isGrandFestival
+                      ? "bg-gradient-to-r from-[#8B1A1A] via-[#b91c1c] to-[#dc2626] hover:from-[#701515] hover:to-[#b91c1c] shadow-lg shadow-red-900/20"
+                      : "bg-[#8B1A1A] hover:bg-[#6B1010] shadow-md hover:shadow-lg"
+                  } !text-white text-white text-xs sm:text-sm xl:text-base font-bold px-5 sm:px-7 xl:px-8 py-2.5 sm:py-3 xl:py-3.5 rounded-full transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0`}
                 >
-                  <span className="!text-white text-white font-bold">Shop Now</span>
+                  <span className="!text-white text-white font-bold">
+                    {(current as any).isGrandFestival ? "Shop Festival 30% OFF" : "Shop Now"}
+                  </span>
                   <span className="!text-white text-white text-xs sm:text-sm xl:text-base">&rarr;</span>
                 </Link>
-                <span className="text-[10px] sm:text-xs xl:text-sm font-semibold text-gray-500 dark:text-gray-300 bg-white/90 dark:bg-[#151922]/90 px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border border-gray-200 dark:border-white/10 shrink-0">
+                <span
+                  className={`text-[10px] sm:text-xs xl:text-sm px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border shrink-0 ${
+                    (current as any).isGrandFestival
+                      ? "bg-gradient-to-r from-amber-400 to-amber-500 text-gray-950 font-black border-amber-300 shadow-xs"
+                      : "font-semibold text-gray-500 dark:text-gray-300 bg-white/90 dark:bg-[#151922]/90 border-gray-200 dark:border-white/10"
+                  }`}
+                >
                   {current.badge}
                 </span>
               </div>

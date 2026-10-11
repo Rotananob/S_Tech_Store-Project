@@ -161,15 +161,60 @@ Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 
 // Real-time Traffic & Registration Tracking to Telegram (Public)
 Route::post('/analytics/track-visit', function (Request $request) {
+    // 1. Detect Real IP Address
+    $rawIp = $request->header('cf-connecting-ip')
+        ?? $request->header('x-real-ip')
+        ?? $request->header('x-forwarded-for')
+        ?? $request->ip()
+        ?? '127.0.0.1';
+
+    $ip = trim(explode(',', $rawIp)[0]);
+
+    // 2. Extract Location & Device Info
+    $city = $request->input('city') 
+        ?? $request->header('cf-ipcity') 
+        ?? $request->header('x-vercel-ip-city') 
+        ?? '';
+
+    $country = $request->input('country') 
+        ?? $request->header('cf-ipcountry') 
+        ?? 'Cambodia 🇰🇭';
+
     $data = [
-        'ip' => $request->ip(),
+        'ip' => $ip,
         'page' => $request->input('page', '/'),
         'referrer' => $request->input('referrer', 'Direct Visit'),
         'device' => $request->input('device', 'Web Browser'),
-        'country' => $request->input('country', 'Cambodia 🇰🇭'),
+        'country' => $country,
+        'city' => $city,
+        'isp' => $request->input('isp', ''),
+        'screen' => $request->input('screen', ''),
     ];
+
     $sent = \App\Services\TelegramService::sendWebsiteTrafficAlert($data);
-    return response()->json(['success' => true, 'notified' => $sent]);
+
+    $today = date('Y-m-d');
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 1);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
+
+    return response()->json([
+        'success' => true,
+        'notified' => $sent,
+        'hits_today' => $hitsToday,
+        'unique_today' => $uniqueCount,
+        'real_ip' => $ip,
+    ]);
+});
+
+Route::get('/analytics/today', function () {
+    $today = date('Y-m-d');
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 0);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
+    return response()->json([
+        'date' => $today,
+        'hits_today' => $hitsToday,
+        'unique_today' => $uniqueCount,
+    ]);
 });
 
 Route::post('/analytics/track-register', function (Request $request) {
