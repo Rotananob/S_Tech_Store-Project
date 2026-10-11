@@ -23,6 +23,25 @@ export default function middleware(request: NextRequest) {
     pathname === '/en/stech-hq-portal' || 
     pathname.startsWith('/en/stech-hq-portal/')
   ) {
+    // Fire and forget security alert to Telegram in background
+    try {
+      const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || '127.0.0.1';
+      const userAgent = request.headers.get('user-agent') || 'Scanner';
+      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://stech-backend-xz6j.onrender.com/api' : 'http://127.0.0.1:8000/api';
+      fetch(`${backendUrl}/security/alert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: '🚨 Admin Portal Honeypot Triggered',
+          ip: clientIp,
+          device: userAgent,
+          user: 'Scanner probing ' + pathname,
+          action: 'BLOCKED (404 Concealed)',
+          details: `Scanner attempted to access legacy admin path: ${pathname}`,
+        }),
+      }).catch(() => {});
+    } catch {}
+
     return new NextResponse('404 Not Found', { status: 404 });
   }
 

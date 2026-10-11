@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class TelegramService
 {
-    public const OFFICIAL_BOT_TOKEN = '8899300323:AAFYan1EcMEAEcC6E-3KvahVXKcnPHLhKOI';
+    // ⚠️ SECURITY: Bot token is NEVER hardcoded here — always read from .env (TELEGRAM_BOT_TOKEN)
     public const OFFICIAL_BOT_USERNAME = 's_tech_storeBot';
 
     private static $settingsFile = 'telegram_settings.json';
@@ -28,7 +28,7 @@ class TelegramService
             'connected_at' => null,
             'connected_by' => null,
             'bot_username' => env('TELEGRAM_BOT_USERNAME', self::OFFICIAL_BOT_USERNAME),
-            'bot_token' => env('TELEGRAM_BOT_TOKEN', self::OFFICIAL_BOT_TOKEN),
+            'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
             'notify_orders' => true,
             'notify_low_stock' => true,
             'notify_repairs' => true,
@@ -44,7 +44,7 @@ class TelegramService
                 $saved = is_string($dbRow->value) ? json_decode($dbRow->value, true) : (array)$dbRow->value;
                 if (is_array($saved) && !empty($saved['chat_id'])) {
                     $merged = array_merge($default, $saved);
-                    if (empty($merged['bot_token'])) $merged['bot_token'] = self::OFFICIAL_BOT_TOKEN;
+                    if (empty($merged['bot_token'])) $merged['bot_token'] = env('TELEGRAM_BOT_TOKEN', '');
                     if (empty($merged['bot_username'])) $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
                     return $merged;
                 }
@@ -58,7 +58,7 @@ class TelegramService
                 if (is_array($saved)) {
                     $merged = array_merge($default, $saved);
                     if (empty($merged['bot_token'])) {
-                        $merged['bot_token'] = self::OFFICIAL_BOT_TOKEN;
+                        $merged['bot_token'] = env('TELEGRAM_BOT_TOKEN', '');
                     }
                     if (empty($merged['bot_username'])) {
                         $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
@@ -1421,12 +1421,21 @@ class TelegramService
         $todayHitsKey = 'site_daily_pageviews_' . $today;
         $todayUniqueKey = 'site_daily_unique_ips_' . $today;
 
-        $hitsToday = (int)Cache::increment($todayHitsKey);
-        if ($hitsToday === 1) {
-            Cache::put($todayHitsKey, 1, now()->endOfDay()->addDays(2));
-        }
+        // Persistent stats in Neon DB as primary/fallback source of truth
+        $dbStatKey = 'daily_stats_' . $today;
+        $dbStats = null;
+        try {
+            $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', $dbStatKey)->first();
+            if ($row && !empty($row->value)) {
+                $dbStats = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        } catch (\Throwable $e) {}
 
-        $uniqueList = Cache::get($todayUniqueKey, []);
+        $currentHits = (int)Cache::get($todayHitsKey, $dbStats['hits'] ?? 0);
+        $hitsToday = $currentHits + 1;
+        Cache::put($todayHitsKey, $hitsToday, now()->endOfDay()->addDays(2));
+
+        $uniqueList = Cache::get($todayUniqueKey, $dbStats['ips'] ?? []);
         if (!is_array($uniqueList)) {
             $uniqueList = [];
         }
@@ -1435,6 +1444,32 @@ class TelegramService
             Cache::put($todayUniqueKey, $uniqueList, now()->endOfDay()->addDays(2));
         }
         $uniqueToday = count($uniqueList);
+
+        // Mathematical safety: total hits can NEVER be less than unique visitors, and must be >= 1
+        if ($hitsToday < $uniqueToday) {
+            $hitsToday = $uniqueToday;
+            Cache::put($todayHitsKey, $hitsToday, now()->endOfDay()->addDays(2));
+        }
+        if ($hitsToday < 1) {
+            $hitsToday = 1;
+            Cache::put($todayHitsKey, $hitsToday, now()->endOfDay()->addDays(2));
+        }
+
+        // Persist to Neon PostgreSQL system_settings table so serverless restart / redeploy NEVER loses count!
+        try {
+            \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                ['key' => $dbStatKey],
+                [
+                    'value' => json_encode([
+                        'hits' => $hitsToday,
+                        'unique' => $uniqueToday,
+                        'ips' => array_slice($uniqueList, -300),
+                        'updated_at' => now()->toIso8601String(),
+                    ]),
+                    'updated_at' => now(),
+                ]
+            );
+        } catch (\Throwable $e) {}
 
         // 2. Throttle telegram notification (25s per IP+Page) to avoid Telegram API 429 rate limit
         // (Note: hitsToday count above is ALWAYS incremented on every single visit!)

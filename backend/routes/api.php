@@ -194,8 +194,18 @@ Route::post('/analytics/track-visit', function (Request $request) {
     $sent = \App\Services\TelegramService::sendWebsiteTrafficAlert($data);
 
     $today = date('Y-m-d');
-    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 1);
-    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
+    $dbStat = null;
+    try {
+        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'daily_stats_' . $today)->first();
+        if ($row && !empty($row->value)) {
+            $dbStat = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+        }
+    } catch (\Throwable $e) {}
+
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, $dbStat['hits'] ?? 1);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, $dbStat['ips'] ?? []));
+    if ($hitsToday < $uniqueCount) $hitsToday = $uniqueCount;
+    if ($hitsToday < 1) $hitsToday = 1;
 
     return response()->json([
         'success' => true,
@@ -208,8 +218,19 @@ Route::post('/analytics/track-visit', function (Request $request) {
 
 Route::get('/analytics/today', function () {
     $today = date('Y-m-d');
-    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 0);
-    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
+    $dbStat = null;
+    try {
+        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'daily_stats_' . $today)->first();
+        if ($row && !empty($row->value)) {
+            $dbStat = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+        }
+    } catch (\Throwable $e) {}
+
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, $dbStat['hits'] ?? 1);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, $dbStat['ips'] ?? []));
+    if ($hitsToday < $uniqueCount) $hitsToday = $uniqueCount;
+    if ($hitsToday < 1) $hitsToday = 1;
+
     return response()->json([
         'date' => $today,
         'hits_today' => $hitsToday,

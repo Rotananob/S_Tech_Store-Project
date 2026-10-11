@@ -9,19 +9,58 @@ use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Branch;
 use App\Models\Shift;
+use App\Services\TelegramService;
 
 class AdminAuthController extends Controller
 {
     /**
      * Admin/Staff Login
-     * High security: bcrypt password checking + rate limiting (5 attempts/min)
+     * High security: bcrypt password checking + rate limiting (5 attempts/min) + Telegram Red Team Alerts
      */
     public function login(Request $request)
     {
-        $throttleKey = 'admin-login:' . $request->ip();
+        $ip = $request->ip() ?? '127.0.0.1';
+        $userAgent = $request->userAgent() ?? 'Unknown Agent';
+        $throttleKey = 'admin-login:' . $ip;
 
+        // 1. Red Team & SQL Injection / XSS Payload Detection
+        $rawEmail = (string)$request->input('email', '');
+        $rawPassword = (string)$request->input('password', '');
+        $sqliPatterns = ["'", '"', '--', '/*', '*/', 'UNION', 'SELECT', 'OR 1=1', 'DROP', 'INSERT', '<script', 'alert('];
+        $detectedPayload = false;
+        foreach ($sqliPatterns as $pattern) {
+            if (stripos($rawEmail, $pattern) !== false || stripos($rawPassword, $pattern) !== false) {
+                $detectedPayload = true;
+                break;
+            }
+        }
+
+        if ($detectedPayload) {
+            RateLimiter::hit($throttleKey, 300); // 5-minute penalty
+            TelegramService::sendSecurityAlert([
+                'type' => '🚨 SQL Injection / XSS Exploit Attempt',
+                'ip' => $ip,
+                'device' => $userAgent,
+                'user' => 'Red Team / Attacker (' . htmlspecialchars(substr($rawEmail, 0, 50)) . ')',
+                'action' => 'BLOCKED (Immediate Penalty & Logged)',
+                'details' => 'Detected suspicious SQLi/XSS injection signature in admin login parameters.',
+            ]);
+            return response()->json([
+                'message' => 'Malicious payload signature detected. Incident reported to security team.',
+            ], 403);
+        }
+
+        // 2. Rate Limiting & Brute-Force Alert
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
+            TelegramService::sendSecurityAlert([
+                'type' => '💥 Admin Login Brute-Force Attack',
+                'ip' => $ip,
+                'device' => $userAgent,
+                'user' => 'Target Email: ' . htmlspecialchars(substr($rawEmail, 0, 50)),
+                'action' => "RATE LIMITED (Blocked for {$seconds}s)",
+                'details' => "Repeated failed login attempts exceeded limit (5 attempts/min). IP temporarily banned.",
+            ]);
             return response()->json([
                 'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
             ], 429);
@@ -35,19 +74,50 @@ class AdminAuthController extends Controller
         $user = User::where('email', strtolower(trim($validated['email'])))->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            RateLimiter::hit($throttleKey, 60);
+            $attempts = RateLimiter::hit($throttleKey, 60);
+
+            // Alert on repeated failures (>= 3 attempts)
+            if ($attempts >= 3) {
+                TelegramService::sendSecurityAlert([
+                    'type' => '⚠️ Suspicious Failed Admin Logins (' . $attempts . 'x)',
+                    'ip' => $ip,
+                    'device' => $userAgent,
+                    'user' => 'Attempted Email: ' . htmlspecialchars($validated['email']),
+                    'action' => 'Credentials Rejected (401)',
+                    'details' => "Multiple consecutive password failures from this IP address ({$attempts} attempts).",
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Invalid email or password. Access denied.',
             ], 401);
         }
 
         if ($user->status !== 'active') {
+            TelegramService::sendSecurityAlert([
+                'type' => '🚫 Inactive Admin Account Access Attempt',
+                'ip' => $ip,
+                'device' => $userAgent,
+                'user' => $user->name . ' (' . $user->email . ')',
+                'action' => 'Account Deactivated (403)',
+                'details' => 'User attempted login to a deactivated staff/admin account.',
+            ]);
             return response()->json([
                 'message' => 'This account has been deactivated. Please contact the administrator.',
             ], 403);
         }
 
         RateLimiter::clear($throttleKey);
+
+        // Audit Trail: Notify Telegram of successful Admin Login
+        TelegramService::sendSecurityAlert([
+            'type' => '✅ Admin / Staff Authenticated',
+            'ip' => $ip,
+            'device' => $userAgent,
+            'user' => "{$user->name} ({$user->role})",
+            'action' => 'AUTHORIZED (Session Granted)',
+            'details' => "Admin successfully logged into the management portal at " . date('d-m-Y H:i:s'),
+        ]);
 
         // Generate high-entropy 64-char API token
         $token = bin2hex(random_bytes(32));

@@ -64,9 +64,39 @@ class AdminMiddleware
                 return $next($request);
             }
 
+            $probeKey = 'admin_probe:' . $request->ip();
+            $probes = (int)\Illuminate\Support\Facades\Cache::get($probeKey, 0) + 1;
+            \Illuminate\Support\Facades\Cache::put($probeKey, $probes, 60);
+
+            if ($probes === 3 || $probes === 10) {
+                \App\Services\TelegramService::sendSecurityAlert([
+                    'type' => '🚨 Unauthorized Admin API Probing / Scanner',
+                    'ip' => $request->ip() ?? 'Unknown IP',
+                    'device' => $request->userAgent() ?? 'Scanner Bot',
+                    'user' => 'Probe on /' . ltrim($request->path(), '/'),
+                    'action' => 'Access Denied (403)',
+                    'details' => "Detected {$probes} unauthorized requests to protected admin API endpoints without valid credentials.",
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Forbidden: Admin access required',
             ], 403);
+        }
+
+        $probeKey = 'admin_probe:' . $request->ip();
+        $probes = (int)\Illuminate\Support\Facades\Cache::get($probeKey, 0) + 1;
+        \Illuminate\Support\Facades\Cache::put($probeKey, $probes, 60);
+
+        if ($probes === 3 || $probes === 10) {
+            \App\Services\TelegramService::sendSecurityAlert([
+                'type' => '🚨 Unauthorized Admin API Probing / Scanner',
+                'ip' => $request->ip() ?? 'Unknown IP',
+                'device' => $request->userAgent() ?? 'Scanner Bot',
+                'user' => 'Probe on /' . ltrim($request->path(), '/'),
+                'action' => 'Access Denied (403)',
+                'details' => "Detected {$probes} unauthorized requests to protected admin API endpoints without valid credentials.",
+            ]);
         }
 
         return response()->json([

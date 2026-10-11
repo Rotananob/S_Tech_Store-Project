@@ -16,7 +16,7 @@ function getApiBaseUrl(): string {
   if (typeof window !== "undefined") {
     return "/api";
   }
-  const backend = process.env.BACKEND_URL || process.env.INTERNAL_API_URL || (process.env.NODE_ENV === "production" ? "https://www.s-tech-store.tech/api" : "http://127.0.0.1:8000/api");
+  const backend = process.env.BACKEND_URL || process.env.INTERNAL_API_URL || (process.env.NODE_ENV === "production" ? "https://stech-backend-xz6j.onrender.com/api" : "http://127.0.0.1:8000/api");
   return backend.endsWith("/api") ? backend : `${backend.replace(/\/$/, "")}/api`;
 }
 

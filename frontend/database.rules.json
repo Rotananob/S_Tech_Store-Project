@@ -8,7 +8,10 @@
         ".write": true,
         "messages": {
           ".read": true,
-          ".write": true
+          ".write": true,
+          "$messageId": {
+            ".validate": "newData.hasChildren(['text', 'timestamp', 'sender']) && newData.child('text').isString() && newData.child('text').val().length <= 3000"
+          }
         },
         "meta": {
           ".read": true,

@@ -295,23 +295,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     const textToSend = (overrideText || input).trim();
     if (!textToSend || isAiThinking) return;
 
-    // Check Authentication: If not logged in, prompt user to login but allow Live Agent alert
-    if (!currentUser) {
-      showToast("🔒 សូមចូលគណនី (Login) ដើម្បីអាចជជែកផ្ទាល់!", "warning");
-      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "system",
-          text: "🔒 ដើម្បីការពារសុវត្ថិភាព និងទប់ស្កាត់ការ Spam សូមចូលគណនី (Login) ជាមុនសិន ដើម្បីជជែកជាមួយ AI ឬបុគ្គលិក។ ប៉ុន្តែបងអាចចុចប៊ូតុង 'Live Agent' ខាងលើដើម្បី Alert ទៅ Telegram ក្រុមការងារបានភ្លាមៗ!",
-          time: timeStr,
-          suggestAgent: true,
-        },
-      ]);
-      return;
-    }
-
-    // Check Rate Limit
+    // Rate Limit Check
     const rateCheck = checkRateLimit();
     if (!rateCheck.allowed) {
       showToast(rateCheck.reason!, "error");

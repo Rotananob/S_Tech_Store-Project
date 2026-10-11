@@ -52,7 +52,12 @@ function getBaseUrl(): string {
     return ensureApiSuffix(process.env.NEXT_PUBLIC_API_URL);
   }
 
-  // 4. Local dev SSR fallback
+  // 4. Production cloud backend fallback
+  if (process.env.NODE_ENV === "production") {
+    return "https://stech-backend-xz6j.onrender.com/api";
+  }
+
+  // 5. Local dev SSR fallback
   return "http://127.0.0.1:8000/api";
 }
 

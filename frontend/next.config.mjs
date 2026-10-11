@@ -29,9 +29,10 @@ const nextConfig = {
       process.env.BACKEND_URL ||
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.INTERNAL_API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      process.env.API_URL ||
-      'http://127.0.0.1:8000';
+      (process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL.startsWith('http') ? process.env.NEXT_PUBLIC_API_URL : null) ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://stech-backend-xz6j.onrender.com'
+        : 'http://127.0.0.1:8000');
 
     // Strip trailing /api or slash to prevent double /api
     backendUrl = backendUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
