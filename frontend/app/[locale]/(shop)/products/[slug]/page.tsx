@@ -16,30 +16,66 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
   
   if (!product) {
     return {
-      title: "Product Not Found",
+      title: "ទំនិញរកមិនឃើញ / Product Not Found | S Tech Store",
     };
   }
 
-  const title = product.name;
-  const description = product.description || `Buy ${product.name} at S Tech Store`;
-  const image = product.images?.[0] || product.image || "/og-image.png";
+  const title = `${product.name} | S Tech Store Cambodia`;
+  const description = product.description 
+    ? `${product.description.slice(0, 160)}... តម្លៃត្រឹមតែ $${product.price} មានធានាផ្លូវការនៅ S Tech Store`
+    : `ទិញ ${product.name} តម្លៃពិសេស $${product.price} ជាមួយការធានាផ្លូវការ និងសេវាដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia។`;
+    
+  const rawImage = product.images?.[0] || product.image || "/og-image.png";
+  const imageUrl = rawImage.startsWith("http") 
+    ? rawImage 
+    : `https://www.s-tech-store.tech${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
+
+  const canonicalUrl = `https://www.s-tech-store.tech/${locale}/products/${slug}`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        km: `https://www.s-tech-store.tech/km/products/${slug}`,
+        en: `https://www.s-tech-store.tech/en/products/${slug}`,
+      },
+    },
     openGraph: {
+      type: "website",
+      locale: locale === "en" ? "en_US" : "km_KH",
+      url: canonicalUrl,
+      siteName: "S Tech Store Cambodia",
       title,
       description,
-      images: [image],
-      url: `https://s-tech-store-project.vercel.app/${locale}/products/${slug}`,
-    }
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: product.name,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+    other: {
+      "product:price:amount": String(product.price || 0),
+      "product:price:currency": "USD",
+      "product:availability": (product.stock ?? 1) > 0 ? "in stock" : "out of stock",
+    },
   };
 }
 
 export default async function ProductDetailPage({
   params,
 }: Props) {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   
   try {
     const productRes: any = await getProduct(slug);
@@ -53,18 +89,32 @@ export default async function ProductDetailPage({
       );
     }
 
+    const rawImage = product.images?.[0] || product.image || "/og-image.png";
+    const imageUrl = rawImage.startsWith("http") 
+      ? rawImage 
+      : `https://www.s-tech-store.tech${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
+
     const jsonLd = {
       "@context": "https://schema.org",
       "@type": "Product",
       name: product.name,
-      image: product.images?.[0] || product.image,
-      description: product.description || `Buy ${product.name} at S Tech Store`,
+      image: [imageUrl],
+      description: product.description || `Buy ${product.name} at S Tech Store Cambodia`,
+      brand: {
+        "@type": "Brand",
+        name: product.brand || "S Tech",
+      },
       offers: {
         "@type": "Offer",
-        url: `https://s-tech-store-project.vercel.app/products/${product.slug || slug}`,
+        url: `https://www.s-tech-store.tech/${locale}/products/${product.slug || slug}`,
         priceCurrency: "USD",
         price: product.price,
-        availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        itemCondition: "https://schema.org/NewCondition",
+        availability: (product.stock ?? 1) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        seller: {
+          "@type": "Organization",
+          name: "S Tech Store Cambodia",
+        },
       },
     };
 

@@ -123,6 +123,17 @@ class PromoCodeController extends Controller
         ]);
 
         $promo = PromoCode::create($validated);
+
+        try {
+            $user = $request->header('X-User-Email') ?? 'Admin';
+            \App\Services\TelegramService::sendPromotionAlert([
+                'title' => $promo->name,
+                'actor' => $user,
+                'details' => $promo->description ?? "បញ្ចុះតម្លៃ " . ($promo->type === 'percentage' ? "{$promo->value}%" : "\${$promo->value}"),
+                'discount' => $promo->code ?? ($promo->type === 'percentage' ? "{$promo->value}% OFF" : "\${$promo->value} OFF"),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json(['message' => 'Promo code created', 'data' => $promo], 201);
     }
 

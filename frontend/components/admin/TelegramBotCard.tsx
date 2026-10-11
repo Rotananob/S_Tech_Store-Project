@@ -9,7 +9,7 @@ import {
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
   disconnectTelegram, updateTelegramSettings, setupTelegramTopics, 
-  TelegramStatus, TelegramPairLink 
+  pairTelegramGroup, TelegramStatus, TelegramPairLink 
 } from "@/lib/services/admin.service";
 
 const OFFICIAL_BOT_USERNAME = "s_tech_storeBot";
@@ -25,9 +25,36 @@ export default function TelegramBotCard() {
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
+  // Manual Direct Connect State
+  const [manualChatId, setManualChatId] = useState("-1003967108799");
+  const [manualChatTitle, setManualChatTitle] = useState("all my cv");
+  const [showManualConnect, setShowManualConnect] = useState(false);
+  const [manualConnecting, setManualConnecting] = useState(false);
+
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleDirectConnect = async () => {
+    if (!manualChatId.trim()) {
+      showToast("សូមបញ្ចូល Telegram Chat ID", "error");
+      return;
+    }
+    setManualConnecting(true);
+    try {
+      const res = await pairTelegramGroup(manualChatId.trim(), undefined, manualChatTitle.trim() || "Store Group");
+      if (res.success) {
+        showToast("🎉 Telegram Group បានភ្ជាប់ជោគជ័យ ១០០%!");
+        fetchStatus();
+      } else {
+        showToast(res.message || "បរាជ័យក្នុងការភ្ជាប់", "error");
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "បរាជ័យក្នុងការភ្ជាប់ Telegram Group", "error");
+    } finally {
+      setManualConnecting(false);
+    }
   };
 
   const fetchStatus = async () => {
@@ -506,6 +533,62 @@ export default function TelegramBotCard() {
                   @{botUsername}
                 </span>
               </div>
+            </div>
+
+            {/* Direct Connect by Group ID (Instant Alternative) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-white border border-gray-200/80 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setShowManualConnect(!showManualConnect)}
+                className="w-full flex items-center justify-between text-left text-xs sm:text-sm font-bold text-gray-700 hover:text-[#0088cc] bg-transparent border-none cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Key size={16} className="text-[#0088cc]" />
+                  <span>ជម្រើសភ្ជាប់ដោយផ្ទាល់តាមរយៈ Group Chat ID (Direct Connect)</span>
+                </div>
+                <span className="text-xs text-[#0088cc]">{showManualConnect ? "បិទវិញ ▲" : "បើកមើល ▼"}</span>
+              </button>
+
+              {showManualConnect && (
+                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
+                  <p className="text-xs text-gray-500 m-0">
+                    បញ្ចូល Chat ID របស់ Telegram Group ឬ Supergroup (ឧទាហរណ៍: <code>-1003967108799</code>) ដើម្បីភ្ជាប់ភ្លាមៗដោយមិនចាំបាច់រង់ចាំ Webhook ឬ Bot Token ថ្មី:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Telegram Chat ID</label>
+                      <input
+                        type="text"
+                        value={manualChatId}
+                        onChange={(e) => setManualChatId(e.target.value)}
+                        placeholder="-1003967108799"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs sm:text-sm font-mono focus:border-[#0088cc] focus:ring-1 focus:ring-[#0088cc] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-500 uppercase mb-1">Group Name / ចំណងជើង</label>
+                      <input
+                        type="text"
+                        value={manualChatTitle}
+                        onChange={(e) => setManualChatTitle(e.target.value)}
+                        placeholder="all my cv"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs sm:text-sm focus:border-[#0088cc] focus:ring-1 focus:ring-[#0088cc] outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-1">
+                    <button
+                      type="button"
+                      onClick={handleDirectConnect}
+                      disabled={manualConnecting}
+                      className="px-5 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-bold border-none cursor-pointer flex items-center gap-2 shadow-sm disabled:opacity-50"
+                    >
+                      <Zap size={14} className={manualConnecting ? "animate-spin" : ""} />
+                      <span>{manualConnecting ? "កំពុងភ្ជាប់..." : "ភ្ជាប់ Group ភ្លាមៗ (Instant Connect)"}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Waiting Radar Modal/Panel if pairData is generated */}

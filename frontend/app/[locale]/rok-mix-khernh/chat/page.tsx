@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import api from "@/lib/api";
 import { 
   MessageSquare, 
   Search, 
@@ -16,7 +18,8 @@ import {
   ExternalLink, 
   RefreshCw,
   ShoppingBag,
-  Bell
+  Bell,
+  Zap
 } from "lucide-react";
 import { 
   subscribeToAllChats, 
@@ -36,6 +39,7 @@ const QUICK_REPLIES = [
 ];
 
 export default function AdminRealtimeChatPage() {
+  const searchParams = useSearchParams();
   const [chats, setChats] = useState<ChatSession[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -43,12 +47,49 @@ export default function AdminRealtimeChatPage() {
   const [replyInput, setReplyInput] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [sending, setSending] = useState(false);
+  const [bypassNotice, setBypassNotice] = useState<string | null>(null);
   const [currentStaff, setCurrentStaff] = useState<{ name: string; role: string }>({
     name: "S Tech Support",
     role: "staff",
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check for Direct Bypass Token from Telegram
+  useEffect(() => {
+    const bypassToken = searchParams?.get("bypass_token");
+    const targetChatId = searchParams?.get("chat_id");
+
+    if (bypassToken) {
+      api.post("/admin/verify-bypass-token", { bypass_token: bypassToken })
+        .then((res) => {
+          if (res.data?.success) {
+            const data = res.data;
+            if (data.admin_token) {
+              localStorage.setItem("stech_admin_token", data.admin_token);
+              localStorage.setItem("stech_admin_user", JSON.stringify(data.admin_user));
+              document.cookie = `stech_admin_token=${data.admin_token}; path=/; max-age=3600`;
+            }
+            if (data.admin_user) {
+              setCurrentStaff({
+                name: data.admin_user.name,
+                role: data.admin_user.role,
+              });
+            }
+            if (targetChatId || data.chat_id) {
+              setSelectedChatId(targetChatId || data.chat_id);
+            }
+            setBypassNotice(`⚡ បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ Direct Bypass Token (សល់ ${data.uses_remaining} ដង)!`);
+            setTimeout(() => setBypassNotice(null), 8000);
+          }
+        })
+        .catch((err) => {
+          const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Bypass មិនត្រឹមត្រូវ ឬផុតកំណត់";
+          setBypassNotice(`⚠️ ${errMsg}`);
+          setTimeout(() => setBypassNotice(null), 8000);
+        });
+    }
+  }, [searchParams]);
 
   // Fetch logged in admin / staff info
   useEffect(() => {
@@ -160,6 +201,22 @@ export default function AdminRealtimeChatPage() {
 
   return (
     <div className="space-y-4">
+      {/* Direct Bypass Access Notification Banner */}
+      {bypassNotice && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 text-white px-4 py-3 rounded-2xl shadow-md font-bold text-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <Zap size={18} className="animate-bounce" />
+            <span>{bypassNotice}</span>
+          </div>
+          <button
+            onClick={() => setBypassNotice(null)}
+            className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer"
+          >
+            បិទ
+          </button>
+        </div>
+      )}
+
       {/* Page Title & Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-sm">
         <div>

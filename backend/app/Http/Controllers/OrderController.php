@@ -140,6 +140,13 @@ class OrderController extends Controller
             // Dispatch instant notification to connected Telegram group (ABA Merchant Style)
             try {
                 \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
+                \App\Services\TelegramService::sendFinanceAlert([
+                    'type' => 'New Order Payment (' . strtoupper($order->payment_method ?? 'COD') . ')',
+                    'amount' => $order->total_amount,
+                    'method' => strtoupper($order->payment_method ?? 'COD'),
+                    'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                    'customer' => $order->customer_name ?? 'Customer',
+                ]);
             } catch (\Throwable $t) {
                 \Illuminate\Support\Facades\Log::error("Telegram order notification failed: " . $t->getMessage());
             }
@@ -151,6 +158,14 @@ class OrderController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            try {
+                \App\Services\TelegramService::sendSystemErrorAlert([
+                    'error' => $e->getMessage(),
+                    'context' => 'OrderController::store',
+                    'actor' => $request->ip(),
+                    'file' => $e->getFile() . ':' . $e->getLine(),
+                ]);
+            } catch (\Throwable $t) {}
             return response()->json(['error' => $e->getMessage()], 400);
         }
     }

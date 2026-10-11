@@ -21,12 +21,13 @@ type Product = {
   category_id: number;
 };
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 export default function AdminProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [stockFilter, setStockFilter] = useState("All Stock Status");
@@ -42,12 +43,15 @@ export default function AdminProductsPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (showSpinner = false) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       const res = await api.get('/products');
       const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       setProducts(list);
+      try {
+        sessionStorage.setItem('admin_cached_products', JSON.stringify(list));
+      } catch (e) {}
     } catch (e) {
       showToast("Failed to fetch products", "error");
     } finally {
@@ -56,7 +60,20 @@ export default function AdminProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    let hasCache = false;
+    try {
+      const cached = sessionStorage.getItem('admin_cached_products');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setProducts(parsed);
+          setLoading(false);
+          hasCache = true;
+        }
+      }
+    } catch (e) {}
+
+    fetchProducts(!hasCache);
   }, []);
 
   const getStockStatus = (stock: number) => {
@@ -88,13 +105,21 @@ export default function AdminProductsPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    setIsDeleting(true);
     try {
       await api.delete(`/products/${deleteTarget.id}`);
-      setProducts(prev => prev.filter(p => p.id !== deleteTarget.id));
-      showToast(`"${deleteTarget.name}" deleted successfully.`);
+      setProducts(prev => {
+        const next = prev.filter(p => p.id !== deleteTarget.id);
+        try {
+          sessionStorage.setItem('admin_cached_products', JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      showToast(`បានលុបទំនិញ "${deleteTarget.name}" ចេញពី Neon DB ជោគជ័យ!`);
     } catch (e) {
-      showToast("Failed to delete product.", "error");
+      showToast("បរាជ័យក្នុងការលុបទំនិញ សូមព្យាយាមម្តងទៀត។", "error");
     } finally {
+      setIsDeleting(false);
       setDeleteTarget(null);
     }
   };
@@ -115,27 +140,68 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (Bilingual & High Warning) */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl text-center">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#151922] p-6 sm:p-7 rounded-2xl max-w-md w-full shadow-2xl text-center border border-gray-100 dark:border-white/10 animate-in fade-in zoom-in-95">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-950/60 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600 dark:text-red-400">
               <AlertCircle size={32} />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Product?</h3>
-            <p className="text-gray-500 text-sm mb-6">Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.</p>
-            <div className="flex gap-3">
+            
+            <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white mb-2">
+              តើបងប្រាកដជាចង់លុបទំនិញនេះមែនទេ?
+            </h3>
+            <p className="text-xs text-red-600 dark:text-red-400 font-bold mb-4 uppercase tracking-wider">
+              ⚠️ Warning: Permanent Database Deletion
+            </p>
+
+            <div className="p-3.5 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200/60 dark:border-white/10 mb-5 flex items-center gap-3 text-left">
+              {deleteTarget.image_url ? (
+                <img
+                  src={deleteTarget.image_url}
+                  alt=""
+                  className="w-12 h-12 rounded-lg object-cover border bg-white shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-white/10 flex items-center justify-center text-gray-500 font-bold shrink-0">
+                  IMG
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                  {deleteTarget.name}
+                </div>
+                <div className="text-xs text-gray-500 font-mono mt-0.5">
+                  ID: #{deleteTarget.id} • ${deleteTarget.price} • ស្តុក: {deleteTarget.stock}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mb-6 leading-relaxed">
+              ទំនិញនេះនឹងត្រូវ<strong>លុបចេញពី Database Neon PostgreSQL</strong> ទាំងស្រុង ហើយអតិថិជននឹង<strong>លែងឃើញនៅលើគេហទំព័រ</strong>ទៀតហើយ! តើបងចង់បន្តលុបឬទេ?
+            </p>
+
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => setDeleteTarget(null)} 
-                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                disabled={isDeleting}
+                className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-white/15 rounded-xl bg-white dark:bg-white/5 text-gray-700 dark:text-gray-200 font-bold text-sm hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
               >
-                Cancel
+                បោះបង់ (Cancel)
               </button>
               <button 
                 onClick={handleDelete} 
-                className="flex-1 py-2.5 border-none rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors"
+                disabled={isDeleting}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
               >
-                Delete
+                {isDeleting ? (
+                  <span>កំពុងលុប...</span>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <span>បាទ/ចាស លុបទំនិញ</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

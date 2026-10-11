@@ -69,20 +69,26 @@ export default function AdminDashboardOverview() {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
+      if (!silent) setLoading(true);
       const [statsData, ordersData] = await Promise.all([
         getAdminStats(),
         getRecentOrders(6),
       ]);
       setStats(statsData);
-      
+      setRecentOrders(ordersData);
+
+      try {
+        sessionStorage.setItem("admin_dashboard_stats", JSON.stringify(statsData));
+        sessionStorage.setItem("admin_dashboard_orders", JSON.stringify(ordersData));
+      } catch {}
+
       if (lastOrderCount > 0 && ordersData.length > lastOrderCount && audioEnabled) {
         playCashChime();
         showToast("🔔 ការបញ្ជាទិញថ្មីទើបតែបានចូលមកដល់! • New Order Received");
       }
       setLastOrderCount(ordersData.length);
-      setRecentOrders(ordersData);
     } catch (error) {
       console.error("Error fetching admin data:", error);
     } finally {
@@ -91,11 +97,28 @@ export default function AdminDashboardOverview() {
   };
 
   useEffect(() => {
-    fetchData();
-    // Auto-refresh orders every 15 seconds
-    const interval = setInterval(fetchData, 15000);
+    // 1. Instant hydration from sessionStorage (0ms render)
+    let hasCachedData = false;
+    try {
+      const cachedStats = sessionStorage.getItem("admin_dashboard_stats");
+      const cachedOrders = sessionStorage.getItem("admin_dashboard_orders");
+      if (cachedStats) {
+        setStats(JSON.parse(cachedStats));
+        setLoading(false);
+        hasCachedData = true;
+      }
+      if (cachedOrders) {
+        setRecentOrders(JSON.parse(cachedOrders));
+      }
+    } catch {}
+
+    // 2. Fetch fresh updates in background
+    fetchData(!hasCachedData);
+
+    // 3. Gentle background polling every 45 seconds (avoids hammering Neon DB)
+    const interval = setInterval(() => fetchData(true), 45000);
     return () => clearInterval(interval);
-  }, [audioEnabled, lastOrderCount]);
+  }, []);
 
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();

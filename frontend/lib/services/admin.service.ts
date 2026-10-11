@@ -140,6 +140,15 @@ export const testTelegramNotification = async (): Promise<{ success: boolean; me
   return res.data;
 };
 
+export const pairTelegramGroup = async (chatId: string, pairCode?: string, chatTitle?: string): Promise<{ success: boolean; message?: string }> => {
+  const res = await api.post("/admin/telegram/pair", {
+    chat_id: chatId,
+    pair_code: pairCode,
+    chat_title: chatTitle,
+  });
+  return res.data;
+};
+
 export const disconnectTelegram = async (): Promise<boolean> => {
   const res = await api.post("/admin/telegram/disconnect");
   return res.data.success;

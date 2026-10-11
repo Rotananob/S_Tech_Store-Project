@@ -31,7 +31,7 @@ Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewContro
 Route::get('/branches', [BranchController::class, 'index']);
 Route::get('/shifts', [ShiftController::class, 'index']);
 
-// Customer Live Chat Support Alert to Telegram
+// Customer Live Chat Support Alert to Telegram (with 2-use Admin Direct Bypass Link)
 Route::post('/chat/request-agent', function (Request $request) {
     $validated = $request->validate([
         'name' => 'nullable|string|max:150',
@@ -42,11 +42,117 @@ Route::post('/chat/request-agent', function (Request $request) {
         'product_name' => 'nullable|string|max:255',
     ]);
 
+    // Generate secure 2-use bypass token for Admin One-Click Direct Chat Access
+    $bypassToken = \Illuminate\Support\Str::random(40);
+    $chatId = $request->input('chat_id') ?? $request->input('email') ?? ('visitor_' . time());
+
+    \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
+        'chat_id' => $chatId,
+        'user_name' => $validated['name'] ?? 'Website Customer',
+        'uses' => 2, // Max 2 uses
+        'created_at' => now()->toIso8601String(),
+    ], 45 * 60); // 45 minutes expiration
+
+    $validated['bypass_token'] = $bypassToken;
+    $validated['chat_id'] = $chatId;
+
     $res = \App\Services\TelegramService::sendCustomerChatAlert($validated);
     return response()->json([
         'success' => true,
         'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
+        'bypass_token' => $bypassToken,
         'telegram_result' => $res,
+    ]);
+});
+
+// Admin Verify & Consume Live Chat Bypass Token (One-Click Telegram Redirect - Max 2 Uses)
+Route::post('/admin/verify-bypass-token', function (Request $request) {
+    $token = trim($request->input('bypass_token', ''));
+    if (!$token) {
+        return response()->json(['success' => false, 'error' => 'Token is required'], 400);
+    }
+
+    $cacheKey = "bypass_chat_token_{$token}";
+    $data = \Illuminate\Support\Facades\Cache::get($cacheKey);
+
+    if (!$data || !is_array($data)) {
+        return response()->json([
+            'success' => false,
+            'error' => 'តំណភ្ជាប់ Bypass នេះមិនត្រឹមត្រូវ ឬបានផុតកំណត់សុពលភាពហើយ (Invalid or expired token)!',
+        ], 403);
+    }
+
+    $usesLeft = (int)($data['uses'] ?? 1);
+    if ($usesLeft <= 0) {
+        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+        return response()->json([
+            'success' => false,
+            'error' => 'តំណភ្ជាប់នេះត្រូវបានប្រើប្រាស់គ្រប់ចំនួនកំណត់ ២ ដងរួចហើយ (Max uses exceeded)! សូម Login តាមទម្រង់ធម្មតា។',
+        ], 403);
+    }
+
+    // Decrement usage
+    $usesLeft -= 1;
+    if ($usesLeft <= 0) {
+        \Illuminate\Support\Facades\Cache::forget($cacheKey);
+    } else {
+        $data['uses'] = $usesLeft;
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $data, 45 * 60);
+    }
+
+    return response()->json([
+        'success' => true,
+        'chat_id' => $data['chat_id'] ?? null,
+        'user_name' => $data['user_name'] ?? 'Customer',
+        'uses_remaining' => $usesLeft,
+        'admin_token' => 'admin_bypass_' . md5($token . time()),
+        'admin_user' => [
+            'id' => 999,
+            'name' => 'Live Support Agent',
+            'email' => 'support@s-tech-store.tech',
+            'role' => 'admin',
+            'branch' => 'Headquarters',
+            'shift' => 'Live Chat On-Duty',
+        ],
+    ]);
+});
+
+// Admin Send Password Reset / Magic Login Token Link to Customer (Telegram & In-App)
+Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $id) {
+    $user = \App\Models\UserProfile::findOrFail($id);
+
+    // Generate 24-hr token
+    $token = \Illuminate\Support\Str::random(60);
+    $user->magic_login_token = $token;
+    $user->magic_token_expires_at = now()->addHours(24);
+    $user->last_password_reset_at = now();
+    $user->save();
+
+    $frontendUrl = 'https://www.s-tech-store.tech';
+    $magicLink = "{$frontendUrl}/km/magic-login?token={$token}";
+
+    // Dispatch Telegram alert to users topic with forwardable template
+    $tgRes = \App\Services\TelegramService::sendCustomerMagicLinkAlert($user, $magicLink);
+
+    // Also create in-app notification for the user
+    if (!empty($user->firebase_uid)) {
+        try {
+            \App\Models\UserNotification::create([
+                'firebase_uid' => $user->firebase_uid,
+                'title' => '🔑 តំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញ',
+                'message' => 'Admin បានបង្កើតតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ជូនលោកអ្នក (មានសុពលភាព ២៤ ម៉ោង)។',
+                'type' => 'system',
+                'link' => "/magic-login?token={$token}",
+                'read' => false,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => "បានបង្កើត និងបញ្ជូនតំណភ្ជាប់ Reset Token ទៅកាន់ Telegram & Profile របស់ {$user->display_name} ជោគជ័យ!",
+        'magic_link' => $magicLink,
+        'telegram_alert' => $tgRes,
     ]);
 });
 
@@ -76,6 +182,55 @@ Route::post('/analytics/track-register', function (Request $request) {
     ]);
     $sent = \App\Services\TelegramService::sendNewUserRegistrationNotification($data);
     return response()->json(['success' => true, 'notified' => $sent]);
+});
+
+// Security & Anti-Abuse Alerts (Frontend Rate Limiter / DDoS Sentinel)
+Route::post('/security/alert', function (Request $request) {
+    $data = $request->validate([
+        'type' => 'required|string|max:150',
+        'ip' => 'nullable|string|max:60',
+        'device' => 'nullable|string|max:255',
+        'user' => 'nullable|string|max:150',
+        'action' => 'nullable|string|max:150',
+        'details' => 'nullable|string|max:1000',
+    ]);
+    $sent = \App\Services\TelegramService::sendSecurityAlert($data);
+    return response()->json(['success' => true, 'notified' => $sent]);
+});
+
+// Device Registration Rate Limiter Rule: Max 5 accounts per device/IP per day
+Route::post('/auth/check-register-limit', function (Request $request) {
+    $ip = $request->ip() ?? '127.0.0.1';
+    $deviceId = $request->header('X-Device-Id') ?? md5($ip . ($request->userAgent() ?? ''));
+    $today = date('Y-m-d');
+    $cacheKey = "reg_limit_{$deviceId}_{$today}";
+    $currentCount = (int)\Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+
+    if ($currentCount >= 5) {
+        \App\Services\TelegramService::sendSecurityAlert([
+            'type' => 'Spam Register Blocked (Max 5 accs/day reached)',
+            'ip' => $ip,
+            'device' => $request->userAgent() ?? 'Unknown Device',
+            'user' => 'Visitor registering beyond daily quota',
+            'action' => 'Registration Blocked (429)',
+            'details' => "ឧបករណ៍នេះបានចុះឈ្មោះគណនីលើស ៥ ក្នុងថ្ងៃតែមួយ ({$currentCount}/5 accounts created today).",
+        ]);
+
+        return response()->json([
+            'allowed' => false,
+            'error' => 'ឧបករណ៍ ឬបណ្តាញរបស់អ្នកបានចុះឈ្មោះលើសកំណត់ ៥ គណនីក្នុងមួយថ្ងៃហើយ (Device limit: max 5 accounts/day)! សូមសាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក។',
+        ], 429);
+    }
+
+    if ($request->input('confirm_register') === true) {
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $currentCount + 1, 86400);
+    }
+
+    return response()->json([
+        'allowed' => true,
+        'registered_today' => $currentCount,
+        'remaining' => 5 - $currentCount,
+    ]);
 });
 
 // Real-time Active Promotion Popup & Banner (Public)

@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "chats": {
+      ".read": true,
+      ".write": true,
+      "$chatId": {
+        ".read": true,
+        ".write": true,
+        "messages": {
+          ".read": true,
+          ".write": true
+        },
+        "meta": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    },
+    "rate_limits": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}

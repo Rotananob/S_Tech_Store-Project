@@ -6,6 +6,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -14,35 +15,41 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category');
+        $version = Cache::get('products_cache_version', 1);
+        $cacheKey = "products_list_v{$version}_" . md5(json_encode($request->all()));
 
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
-        }
+        $products = Cache::remember($cacheKey, 3600, function () use ($request) {
+            $query = Product::with('category');
 
-        if ($request->filled('category')) {
-            $slug = $request->category;
-            $query->whereHas('category', function ($q) use ($slug) {
-                $q->where('slug', $slug);
-            });
-        }
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
 
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $isPg = config('database.default') === 'pgsql';
-            $likeOp = $isPg ? 'ilike' : 'like';
-            $query->where(function ($q) use ($s, $likeOp) {
-                $q->where('name', $likeOp, "%{$s}%")
-                  ->orWhere('description', $likeOp, "%{$s}%")
-                  ->orWhere('brand', $likeOp, "%{$s}%");
-            });
-        }
+            if ($request->filled('category')) {
+                $slug = $request->category;
+                $query->whereHas('category', function ($q) use ($slug) {
+                    $q->where('slug', $slug);
+                });
+            }
 
-        if ($request->has('featured')) {
-            $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
-        }
+            if ($request->filled('search')) {
+                $s = $request->search;
+                $isPg = config('database.default') === 'pgsql';
+                $likeOp = $isPg ? 'ilike' : 'like';
+                $query->where(function ($q) use ($s, $likeOp) {
+                    $q->where('name', $likeOp, "%{$s}%")
+                      ->orWhere('description', $likeOp, "%{$s}%")
+                      ->orWhere('brand', $likeOp, "%{$s}%");
+                });
+            }
 
-        $products = $query->orderBy('id', 'desc')->get();
+            if ($request->has('featured')) {
+                $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
+            }
+
+            return $query->orderBy('id', 'desc')->get();
+        });
+
         return response()->json($products);
     }
 
@@ -129,6 +136,8 @@ class ProductController extends Controller
             Log::error("Failed to send telegram new product alert: " . $e->getMessage());
         }
 
+        Cache::increment('products_cache_version');
+
         return response()->json([
             'message' => 'Product created successfully',
             'data' => $product
@@ -140,15 +149,25 @@ class ProductController extends Controller
      */
     public function show($identifier)
     {
-        $query = Product::with('category');
-        
-        if (is_numeric($identifier)) {
-            $query->where('id', $identifier);
-        } else {
-            $query->where('slug', $identifier);
+        $version = Cache::get('products_cache_version', 1);
+        $cacheKey = "product_single_{$identifier}_v{$version}";
+
+        $product = Cache::remember($cacheKey, 3600, function () use ($identifier) {
+            $query = Product::with('category');
+            
+            if (is_numeric($identifier)) {
+                $query->where('id', $identifier);
+            } else {
+                $query->where('slug', $identifier);
+            }
+
+            return $query->first();
+        });
+
+        if (!$product) {
+            return response()->json(['message' => 'Product not found'], 404);
         }
 
-        $product = $query->firstOrFail();
         return response()->json($product);
     }
 
@@ -196,6 +215,8 @@ class ProductController extends Controller
         $product->update($validated);
         $product->load('category');
 
+        Cache::increment('products_cache_version');
+
         return response()->json([
             'message' => 'Product updated successfully',
             'data' => $product
@@ -209,6 +230,8 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         $product->delete();
+
+        Cache::increment('products_cache_version');
 
         return response()->json([
             'message' => 'Product deleted successfully'

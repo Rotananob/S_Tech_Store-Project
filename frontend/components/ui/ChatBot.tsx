@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Bot, Headphones, AlertCircle, LogIn, Clock, Sparkles } from "lucide-react";
+import { X, Send, Bot, Headphones, AlertCircle, LogIn, Clock, Sparkles, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -10,8 +10,8 @@ import { getOrCreateVisitorId, sendChatMessage, subscribeToMessages } from "@/li
 import { useRouter } from "next/navigation";
 
 // ─── Rate limiting constants ─────────────────────────────────────────────────
-const RATE_LIMIT_PER_MINUTE = 5;    // max 5 messages per 60 seconds
-const RATE_LIMIT_PER_HOUR = 150;    // max 150 messages per 3600 seconds
+const RATE_LIMIT_PER_MINUTE = 5; // max 5 messages per 60 seconds
+const RATE_LIMIT_PER_HOUR = 150; // max 150 messages per 3600 seconds
 const ONE_MINUTE_MS = 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
@@ -23,6 +23,16 @@ interface ChatBotProps {
     price?: number;
     image?: string;
   };
+}
+
+interface ChatItem {
+  id?: string;
+  sender: "bot" | "user" | "system" | "staff";
+  text: string;
+  senderName?: string;
+  time?: string;
+  showGreetingButtons?: boolean;
+  suggestAgent?: boolean;
 }
 
 type ToastType = "error" | "warning" | "info" | "success";
@@ -37,32 +47,28 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   // ─── Auth state ────────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userName, setUserName] = useState<string>("បង");
   const [authLoading, setAuthLoading] = useState(true);
 
   // ─── Chat state ───────────────────────────────────────────────────────────
   const [chatId, setChatId] = useState<string>("");
-  const [messages, setMessages] = useState<
-    Array<{ sender: "bot" | "user" | "system" | "staff"; text: string; senderName?: string; time?: string }>
-  >([
-    {
-      sender: "bot",
-      text: "សួស្តី! Welcome to S Tech Store Cambodia! 🇰🇭 How can we assist you today?",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatItem[]>([]);
   const [input, setInput] = useState("");
+  const [isAiThinking, setIsAiThinking] = useState(false);
 
   // ─── Agent modal state ─────────────────────────────────────────────────────
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [isSendingAgentReq, setIsSendingAgentReq] = useState(false);
   const [agentReqSent, setAgentReqSent] = useState(false);
+  const [hasNotifiedTelegram, setHasNotifiedTelegram] = useState(false);
+
   const [agentForm, setAgentForm] = useState({
     name: "",
     phone: "",
     email: "",
     telegram: "",
     message: productInfo?.name
-      ? `I am interested in ${productInfo.name}. Can you provide more details?`
+      ? `ខ្ញុំចាប់អារម្មណ៍ទំនិញ ${productInfo.name}។ តើអាចជួយផ្តល់ព័ត៌មានបន្ថែមបានទេ?`
       : "",
   });
 
@@ -72,8 +78,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   // ─── Rate limiting: store timestamps of sent messages ─────────────────────
   const messageTimes = useRef<number[]>([]);
-
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // ─── Show toast helper ────────────────────────────────────────────────────
   const showToast = useCallback((message: string, type: ToastType = "info") => {
@@ -85,237 +91,364 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Check rate limits ────────────────────────────────────────────────────
   const checkRateLimit = useCallback((): { allowed: boolean; reason?: string } => {
     const now = Date.now();
-    // Clean old timestamps outside 1-hour window
     const withinHour = messageTimes.current.filter((t) => now - t < ONE_HOUR_MS);
     const withinMinute = withinHour.filter((t) => now - t < ONE_MINUTE_MS);
 
     if (withinMinute.length >= RATE_LIMIT_PER_MINUTE) {
       return {
         allowed: false,
-        reason: `⏱️ Too many messages! Please wait 1 minute. (Max ${RATE_LIMIT_PER_MINUTE} per minute)`,
+        reason: `⏱️ ផ្ញើសារញឹកញាប់ពេកហើយបង! សូមរង់ចាំ ១ នាទី (កម្រិត ${RATE_LIMIT_PER_MINUTE} សារ/នាទី)`,
       };
     }
     if (withinHour.length >= RATE_LIMIT_PER_HOUR) {
       return {
         allowed: false,
-        reason: `🚫 Hourly chat limit reached (${RATE_LIMIT_PER_HOUR} messages/hour). Please try again later.`,
+        reason: `🚫 បានដល់កម្រិតកំណត់ក្នុង ១ ម៉ោង (${RATE_LIMIT_PER_HOUR} សារ/ម៉ោង)។ សូមសាកល្បងម្ដងទៀតនៅពេលក្រោយ។`,
       };
     }
 
-    // Record this attempt
     messageTimes.current = [...withinHour, now];
     return { allowed: true };
   }, []);
 
-  // ─── Auth listener ────────────────────────────────────────────────────────
+  // ─── Initialize Auth & Greeting ───────────────────────────────────────────
+  // ─── LocalStorage Session History Helpers ─────────────────────────────────
+  const getStorageKey = (cid: string) => `stech_ai_chat_history_${cid || "guest"}`;
+
+  const loadStoredMessages = (cid: string): ChatItem[] | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem(getStorageKey(cid));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return null;
+  };
+
+  const saveMessagesToStorage = (cid: string, msgs: ChatItem[]) => {
+    if (typeof window === "undefined" || !cid) return;
+    try {
+      localStorage.setItem(getStorageKey(cid), JSON.stringify(msgs.slice(-50)));
+    } catch {}
+  };
+
+  // ─── Initialize Auth, Greeting & Restore Chat History ─────────────────────
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       setAuthLoading(false);
 
+      let detectedName = "បង";
+      let activeChatId = getOrCreateVisitorId();
+
       if (user) {
-        // Authenticated: use Firebase UID as chatId
-        setChatId(user.uid);
+        activeChatId = user.uid;
+        detectedName = user.displayName || user.email?.split("@")[0] || "បង";
+        setUserName(detectedName);
+
         setAgentForm((prev) => ({
           ...prev,
           name: prev.name || user.displayName || "",
           email: prev.email || user.email || "",
         }));
 
-        // Try fetching detailed profile
-        api
-          .get("/user/profile")
-          .then((res) => {
-            if (res.data?.success && res.data.profile) {
-              const p = res.data.profile;
-              setAgentForm((prev) => ({
-                ...prev,
-                name: prev.name || p.full_name || user.displayName || "",
-                phone: prev.phone || p.phone || "",
-                telegram: prev.telegram || p.telegram || "",
-                email: prev.email || user.email || "",
-              }));
+        try {
+          const res = await api.get("/user/profile");
+          if (res.data?.success && res.data.profile) {
+            const p = res.data.profile;
+            const realFullName = p.full_name || p.name || user.displayName || "";
+            if (realFullName) {
+              detectedName = realFullName;
+              setUserName(realFullName);
             }
-          })
-          .catch(() => {});
+            setAgentForm((prev) => ({
+              ...prev,
+              name: prev.name || realFullName,
+              phone: prev.phone || p.phone || "",
+              telegram: prev.telegram || p.telegram || "",
+              email: prev.email || user.email || "",
+            }));
+          }
+        } catch {}
+      }
+
+      setChatId(activeChatId);
+
+      // Restore existing history from localStorage if present
+      const stored = loadStoredMessages(activeChatId);
+      if (stored && stored.length > 0) {
+        setMessages(stored);
       } else {
-        // Unauthenticated: use visitor ID for UI only (cannot write to RTDB)
-        setChatId(getOrCreateVisitorId());
+        // Initial Greeting Message with Real User Name and 2 Action Buttons
+        const greetingText = `សួស្តីបង ${detectedName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃរបស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+
+        setMessages([
+          {
+            sender: "bot",
+            text: greetingText,
+            senderName: "S Tech AI",
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            showGreetingButtons: true,
+          },
+        ]);
       }
     });
 
     return () => unsub();
   }, []);
 
-  // ─── Subscribe to real-time messages (authenticated only) ─────────────────
+  // ─── Save Messages to LocalStorage on Change ──────────────────────────────
   useEffect(() => {
-    if (!chatId || !currentUser) return;
+    if (chatId && messages.length > 0) {
+      saveMessagesToStorage(chatId, messages);
+    }
+  }, [messages, chatId]);
+
+  // ─── Reset Chat / New Session Handler ─────────────────────────────────────
+  const handleResetChat = () => {
+    if (typeof window !== "undefined" && chatId) {
+      try {
+        localStorage.removeItem(getStorageKey(chatId));
+      } catch {}
+    }
+    const greetingText = `សួស្តីបង ${userName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃរបស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+    setMessages([
+      {
+        sender: "bot",
+        text: greetingText,
+        senderName: "S Tech AI",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        showGreetingButtons: true,
+      },
+    ]);
+    showToast("🧹 បានសម្អាត និងចាប់ផ្តើមការជជែកថ្មី!", "info");
+  };
+
+  // ─── Subscribe to real-time messages from Firebase RTDB ───────────────────
+  useEffect(() => {
+    if (!chatId) return;
 
     const unsub = subscribeToMessages(chatId, (firebaseMsgs) => {
       if (firebaseMsgs && firebaseMsgs.length > 0) {
-        setMessages(
-          firebaseMsgs.map((m) => ({
-            sender:
-              m.sender === "admin" || m.sender === "staff"
-                ? "staff"
-                : m.sender === "user"
-                ? "user"
-                : "system",
-            text: m.text,
-            senderName: m.senderName,
-            time: m.timestamp
-              ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-              : "",
-          }))
-        );
+        // Merge staff/admin replies from RTDB into local message thread
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id || m.text));
+          const newStaffMsgs: ChatItem[] = [];
+
+          for (const m of firebaseMsgs) {
+            if ((m.sender === "admin" || m.sender === "staff") && !existingIds.has(m.id || m.text)) {
+              newStaffMsgs.push({
+                id: m.id,
+                sender: "staff",
+                senderName: m.senderName || "S Tech Support",
+                text: m.text,
+                time: m.timestamp
+                  ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+              });
+            }
+          }
+
+          if (newStaffMsgs.length > 0) {
+            return [...prev, ...newStaffMsgs];
+          }
+          return prev;
+        });
       }
     });
 
     return () => unsub();
-  }, [chatId, currentUser]);
+  }, [chatId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isAiThinking]);
 
-  // ─── Send message handler ─────────────────────────────────────────────────
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const userText = input.trim();
-    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  // ─── Notify Telegram about active chat (throttled) ────────────────────────
+  const triggerTelegramAlert = useCallback(
+    async (firstMessageText: string) => {
+      if (hasNotifiedTelegram) return;
+      try {
+        await api.post("/chat/request-agent", {
+          name: agentForm.name || userName || "Website Customer",
+          email: agentForm.email || currentUser?.email || "N/A",
+          phone: agentForm.phone || "N/A",
+          telegram: agentForm.telegram || "N/A",
+          message: `💬 [Live Chat] "${firstMessageText}"`,
+          product_name: productInfo?.name || null,
+          product_url: typeof window !== "undefined" ? window.location.href : "https://www.s-tech-store.tech",
+        });
+        setHasNotifiedTelegram(true);
+      } catch (err) {
+        // Silent
+      }
+    },
+    [agentForm, userName, currentUser, productInfo, hasNotifiedTelegram]
+  );
 
-    // ── Auth guard: block Firebase chat for unauthenticated users ────────────
+  // ─── Send Message Handler ─────────────────────────────────────────────────
+  const handleSend = async (overrideText?: string) => {
+    const textToSend = (overrideText || input).trim();
+    if (!textToSend || isAiThinking) return;
+
+    // Check Authentication: If not logged in, prompt user to login but allow Live Agent alert
     if (!currentUser) {
-      showToast("🔐 Please login to chat with our support team. You can still request an agent below.", "warning");
-      // Show login prompt in messages
+      showToast("🔒 សូមចូលគណនី (Login) ដើម្បីអាចជជែកផ្ទាល់!", "warning");
+      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
       setMessages((prev) => [
         ...prev,
         {
-          sender: "bot",
-          text: "🔐 To start a real-time chat, please login to your account first. You can also click 'Connect Agent' to send us a Telegram alert — no login required!",
+          sender: "system",
+          text: "🔒 ដើម្បីការពារសុវត្ថិភាព និងទប់ស្កាត់ការ Spam សូមចូលគណនី (Login) ជាមុនសិន ដើម្បីជជែកជាមួយ AI ឬបុគ្គលិក។ ប៉ុន្តែបងអាចចុចប៊ូតុង 'Live Agent' ខាងលើដើម្បី Alert ទៅ Telegram ក្រុមការងារបានភ្លាមៗ!",
           time: timeStr,
+          suggestAgent: true,
         },
       ]);
-      setInput("");
       return;
     }
 
-    // ── Rate limit check ──────────────────────────────────────────────────────
+    // Check Rate Limit
     const rateCheck = checkRateLimit();
     if (!rateCheck.allowed) {
       showToast(rateCheck.reason!, "error");
       return;
     }
 
-    // ── Send to Firebase RTDB ─────────────────────────────────────────────────
-    sendChatMessage(
-      chatId,
-      {
-        sender: "user",
-        senderName: agentForm.name || currentUser.displayName || "Customer",
-        text: userText,
-        productInfo: productInfo
-          ? {
-              name: productInfo.name,
-              price: productInfo.price,
-              image: productInfo.image,
-              slug: productInfo.slug,
-            }
-          : null,
-      },
-      {
-        userName: agentForm.name || currentUser.displayName || "Customer",
-        userEmail: agentForm.email || currentUser.email || undefined,
-        userPhone: agentForm.phone || undefined,
-      }
-    ).catch((err) => {
-      console.error("RTDB write error:", err);
-      showToast("Failed to send message. Please try again.", "error");
-    });
+    const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const userMsg: ChatItem = {
+      sender: "user",
+      text: textToSend,
+      senderName: userName || "អតិថិជន",
+      time: timeStr,
+    };
 
-    setMessages((prev) => [...prev, { sender: "user", text: userText, time: timeStr }]);
+    // Update UI immediately
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    setIsAiThinking(true);
 
-    // ── Keyword auto-reply ────────────────────────────────────────────────────
-    const lower = userText.toLowerCase();
-    setTimeout(() => {
-      let reply =
-        "I am S Tech Assistant. You can also click 'Live Agent' above to connect directly with our staff on Telegram!";
-      if (lower.includes("price") || lower.includes("ថ្លៃ") || lower.includes("តម្លៃ")) {
-        reply =
-          "All our prices are in USD ($) and converted accurately to Khmer Riel (៛). Official warranties are included!";
-      } else if (
-        lower.includes("delivery") ||
-        lower.includes("ដឹក") ||
-        lower.includes("delivery fee")
-      ) {
-        reply =
-          "🚚 Delivery is $2.00 in Phnom Penh (Express same-day) and $3.00 across all 24 provinces via trusted logistics!";
-      } else if (lower.includes("warranty") || lower.includes("ធានា")) {
-        reply =
-          "🛡️ All products come with official warranty: 1-3 years for brand new electronics, and 3-6 months for certified pre-owned devices.";
-      } else if (
-        lower.includes("human") ||
-        lower.includes("agent") ||
-        lower.includes("staff") ||
-        lower.includes("ឆាត") ||
-        lower.includes("telegram")
-      ) {
-        setShowAgentModal(true);
-        reply =
-          "Connecting you to our live team! Please confirm your contact info below so our staff can reach you immediately.";
-      }
-
-      setMessages((prev) => [
-        ...prev,
+    // 1. Sync message into Firebase Realtime Database
+    if (chatId) {
+      sendChatMessage(
+        chatId,
         {
-          sender: "bot",
-          text: reply,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sender: "user",
+          senderName: userName || "អតិថិជន",
+          text: textToSend,
+          productInfo: productInfo || null,
         },
-      ]);
-    }, 600);
+        {
+          userName: userName || "អតិថិជន",
+          userEmail: agentForm.email || currentUser?.email || undefined,
+          userPhone: agentForm.phone || undefined,
+        }
+      ).catch(() => {});
+    }
+
+    // 2. Alert Telegram so staff know customer is chatting
+    triggerTelegramAlert(textToSend);
+
+    // 3. Call Gemini AI via Server-side Next.js route
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: textToSend,
+          userName: userName,
+          history: messages.slice(-6),
+          productInfo: productInfo || null,
+        }),
+      });
+
+      const data = await res.json();
+      const aiReplyText =
+        data?.reply ||
+        "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! 🙏 ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ!";
+      const shouldSuggestAgent = !!data?.suggestAgent;
+
+      const aiMsg: ChatItem = {
+        sender: "bot",
+        senderName: "S Tech AI",
+        text: aiReplyText,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        suggestAgent: shouldSuggestAgent,
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+
+      // Also record AI reply into Firebase RTDB
+      if (chatId) {
+        sendChatMessage(
+          chatId,
+          {
+            sender: "system",
+            senderName: "S Tech AI",
+            text: aiReplyText,
+          },
+          {
+            userName: userName,
+          }
+        ).catch(() => {});
+      }
+    } catch (err) {
+      // Graceful fallback — Never show technical error!
+      const fallbackMsg: ChatItem = {
+        sender: "bot",
+        senderName: "S Tech AI",
+        text: "ប្រព័ន្ធ AI កំពុងរវល់ខ្លាំងបន្តិចបាទ! 🙏 ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ!",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        suggestAgent: true,
+      };
+      setMessages((prev) => [...prev, fallbackMsg]);
+    } finally {
+      setIsAiThinking(false);
+    }
   };
 
-  // ─── Live Agent request (works for BOTH authenticated & guests) ────────────
+  // ─── Human Agent Telegram Alert Submission ────────────────────────────────
   const handleRequestAgentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!agentForm.message.trim() && !input.trim()) {
-      alert("Please enter a short message for the agent.");
+      alert("សូមសរសេរសំណួរ ឬព័ត៌មានដែលបងចង់សាកសួរក្រុមការងារបន្តិចបាទ!");
       return;
     }
 
     setIsSendingAgentReq(true);
     try {
-      // Authenticated users also write to Firebase for real-time tracking
-      if (chatId && currentUser) {
+      // Send Telegram alert
+      await api.post("/chat/request-agent", {
+        name: agentForm.name || userName || "Website Visitor",
+        email: agentForm.email || currentUser?.email || "N/A",
+        phone: agentForm.phone || "N/A",
+        telegram: agentForm.telegram || "N/A",
+        message: agentForm.message || input || "អតិថិជនស្នើសុំជួប Human Agent លើ Telegram",
+        product_name: productInfo?.name || null,
+        product_url: typeof window !== "undefined" ? window.location.href : "https://www.s-tech-store.tech",
+      });
+
+      // Write system log to RTDB
+      if (chatId) {
         sendChatMessage(
           chatId,
           {
             sender: "system",
             senderName: "Alert",
-            text: `🚨 Live Agent Request: ${agentForm.name || "Customer"} (${
+            text: `🚨 Human Agent Requested: ${agentForm.name || "Customer"} (${
               agentForm.phone || agentForm.email || "No contact"
-            }). Inquiry: "${agentForm.message || input}"`,
+            }). Note: "${agentForm.message || input}"`,
           },
           {
-            userName: agentForm.name || "Customer",
-            userEmail: agentForm.email || currentUser.email || undefined,
+            userName: agentForm.name || userName,
+            userEmail: agentForm.email || currentUser?.email || undefined,
             userPhone: agentForm.phone || undefined,
           }
         ).catch(() => {});
       }
-
-      // Telegram alert works for EVERYONE (no auth required)
-      await api.post("/chat/request-agent", {
-        name: agentForm.name || currentUser?.displayName || "Website Visitor",
-        email: agentForm.email || currentUser?.email || "N/A",
-        phone: agentForm.phone || "N/A",
-        telegram: agentForm.telegram || "N/A",
-        message: agentForm.message || input || "Live chat inquiry from customer",
-        product_name: productInfo?.name || null,
-        product_url: typeof window !== "undefined" ? window.location.href : null,
-      });
 
       setAgentReqSent(true);
       setShowAgentModal(false);
@@ -325,28 +458,24 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ...prev,
         {
           sender: "system",
-          text: `🔔 Alert Sent! Our support staff in Telegram & Live Dashboard have been notified. An agent will respond to you shortly!`,
+          text: `🔔 បានបញ្ជូន Alert ទៅកាន់ Telegram របស់ក្រុមការងាររួចរាល់ហើយ! បុគ្គលិកផ្នែកបម្រើអតិថិជននឹងឆ្លើយតបមកបងក្នុងពេលឆាប់ៗនេះ។`,
           time: timeStr,
         },
       ]);
+      showToast("✅ បានបញ្ជូន Alert ទៅ Telegram ក្រុមការងាររួចរាល់!", "success");
     } catch (err) {
-      console.error("Failed to send agent request", err);
-      alert("Notice: Telegram notification was received by backup queue.");
+      showToast("បានបញ្ជូនសំណើទៅកាន់ Backup Queue រួចរាល់!", "info");
       setShowAgentModal(false);
     } finally {
       setIsSendingAgentReq(false);
     }
   };
 
-  // ─── Login redirect ───────────────────────────────────────────────────────
-  const handleLoginRedirect = () => {
-    onClose();
-    router.push("/login");
-  };
-
   return (
-    <div className="fixed inset-0 z-[120] flex flex-col bg-white dark:bg-[#0c0d12] text-gray-900 dark:text-gray-100">
-
+    <div
+      className="fixed inset-0 z-[99999] flex flex-col bg-white dark:bg-[#0c0d12] text-gray-900 dark:text-gray-100 w-full overflow-hidden"
+      style={{ height: "100dvh" }}
+    >
       {/* ── Toast Notifications ──────────────────────────────────────────────── */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 w-[90vw] max-w-sm pointer-events-none">
         <AnimatePresence>
@@ -376,80 +505,70 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div
-        className="bg-white dark:bg-[#12151e] px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between shadow-sm flex-shrink-0"
-        style={{ paddingTop: "calc(16px + env(safe-area-inset-top))" }}
+        className="bg-white dark:bg-[#12151e] px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between shadow-sm flex-shrink-0"
+        style={{ paddingTop: "calc(12px + env(safe-area-inset-top))" }}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md">
-            <Bot size={22} />
+        <div className="flex items-center gap-2.5">
+          {/* Official S-Tech Logo & Bot Badge */}
+          <div className="relative">
+            <img
+              src="/logo.jpg"
+              alt="S Tech Store"
+              className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-gray-200 dark:border-white/15"
+            />
+            <div className="w-4 h-4 rounded-full bg-[#8B1A1A] absolute -bottom-1 -right-1 flex items-center justify-center text-white text-[9px] shadow-sm border border-white dark:border-[#12151e]">
+              <Bot size={10} />
+            </div>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 border-2 border-white dark:border-[#12151e] animate-pulse" />
           </div>
+
           <div>
-            <h3 className="font-extrabold text-gray-900 dark:text-white text-[15px] leading-tight flex items-center gap-1.5">
-              <span>S Tech Live Support</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            </h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-extrabold text-gray-900 dark:text-white text-[14px] sm:text-[15px] leading-tight">
+                S Tech Smart AI
+              </h3>
+              <span className="text-[9.5px] bg-red-100 dark:bg-red-950/60 text-[#8B1A1A] dark:text-red-400 font-black px-1.5 py-0.5 rounded uppercase">
+                Official
+              </span>
+            </div>
             <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-              Online • Fast Response
+              Online • ជំនួយការឆ្លាតវៃ S Tech Store
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Login button — shown only when not authenticated */}
-          {!authLoading && !currentUser && (
-            <button
-              onClick={handleLoginRedirect}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/40 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-600 hover:text-white transition-all cursor-pointer shadow-sm"
-            >
-              <LogIn size={13} />
-              Login
-            </button>
-          )}
-
-          {/* Connect Agent button */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* New Chat / Reset Button */}
           <button
-            onClick={() => setShowAgentModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-[#8B1A1A] hover:text-white transition-all cursor-pointer shadow-sm"
+            onClick={handleResetChat}
+            title="ចាប់ផ្តើមសារថ្មី (New Chat / សម្អាតសារ)"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-all cursor-pointer"
           >
-            <Headphones size={13} />
-            <span className="hidden sm:inline">Connect</span> Agent
+            <RefreshCw size={15} />
           </button>
 
+          {/* Connect Live Agent Button */}
+          <button
+            onClick={() => setShowAgentModal(true)}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 text-[#8B1A1A] dark:text-red-400 text-xs font-bold hover:bg-[#8B1A1A] hover:text-white transition-all cursor-pointer shadow-sm"
+          >
+            <Headphones size={13} />
+            <span className="hidden xs:inline">Live Agent</span>
+          </button>
+
+          {/* Close Modal Button */}
           <button
             onClick={onClose}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors cursor-pointer"
           >
-            <X size={19} />
+            <X size={18} />
           </button>
         </div>
       </div>
 
-      {/* ── Auth Banner for unauthenticated users ─────────────────────────────── */}
-      {!authLoading && !currentUser && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-b border-blue-100 dark:border-blue-900/30 px-4 py-2.5 flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-            <LogIn size={14} className="text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">
-              Login to start a real-time chat session
-            </p>
-            <p className="text-[10.5px] text-blue-600/80 dark:text-blue-400/80">
-              Guests can still request an agent via Telegram below
-            </p>
-          </div>
-          <button
-            onClick={handleLoginRedirect}
-            className="shrink-0 px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold hover:bg-blue-700 transition-colors"
-          >
-            Login
-          </button>
-        </div>
-      )}
-
-      {/* ── Product Banner ──────────────────────────────────────────────────── */}
+      {/* ── Product Banner (if opened from product details) ─────────────────── */}
       {productInfo?.name && (
-        <div className="bg-gradient-to-r from-red-50/80 via-white to-gray-50 dark:from-[#191d29] dark:via-[#141722] dark:to-[#12151e] border-b border-gray-100 dark:border-white/5 px-4 py-2 flex items-center justify-between text-xs">
+        <div className="bg-gradient-to-r from-red-50/90 via-white to-gray-50 dark:from-[#191d29] dark:via-[#141722] dark:to-[#12151e] border-b border-gray-100 dark:border-white/5 px-4 py-2 flex items-center justify-between text-xs flex-shrink-0">
           <div className="flex items-center gap-2 truncate pr-2">
             {productInfo.image && (
               <img
@@ -468,35 +587,53 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             )}
           </div>
           <button
-            onClick={() => setShowAgentModal(true)}
-            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold shrink-0"
+            onClick={() => handleSend(`សួស្តី! ខ្ញុំចង់សួរពីតម្លៃ និងព័ត៌មានបន្ថែមនៃ ${productInfo.name}`)}
+            className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline font-bold shrink-0 cursor-pointer"
           >
-            Ask About This
+            សួរពីទំនិញនេះ
           </button>
         </div>
       )}
 
-      {/* ── Messages ─────────────────────────────────────────────────────────── */}
+      {/* ── Messages Thread ──────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-50/50 dark:bg-[#0c0d12]">
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`flex w-full ${
+            className={`flex flex-col ${
               msg.sender === "user"
-                ? "justify-end"
+                ? "items-end"
                 : msg.sender === "system"
-                ? "justify-center"
-                : "justify-start"
+                ? "items-center"
+                : "items-start"
             }`}
           >
             {msg.sender === "system" ? (
-              <div className="max-w-[85%] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs rounded-xl px-3.5 py-2 text-center font-medium shadow-sm">
-                {msg.text}
+              <div className="max-w-[90%] sm:max-w-[85%] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-300 text-xs rounded-xl px-3.5 py-2.5 text-center font-medium shadow-sm flex flex-col items-center gap-2">
+                <span>{msg.text}</span>
+                {!currentUser && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => router.push("/login")}
+                      className="px-3.5 py-1.5 rounded-lg bg-[#8B1A1A] text-white text-xs font-bold hover:bg-red-700 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <LogIn size={12} />
+                      <span>ចូលគណនី (Sign In)</span>
+                    </button>
+                    <button
+                      onClick={() => setShowAgentModal(true)}
+                      className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 text-xs font-bold hover:bg-gray-300 transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Headphones size={12} />
+                      <span>Alert Live Agent</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : msg.sender === "staff" ? (
-              <div className="flex flex-col items-start gap-1 max-w-[82%] sm:max-w-[70%]">
+              <div className="flex flex-col items-start gap-1 max-w-[85%] sm:max-w-[70%]">
                 <span className="text-[10.5px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-200/60 shadow-xs">
-                  🛡️ {msg.senderName || "S Tech Staff"}
+                  🛡️ {msg.senderName || "S Tech Staff (ក្រុមការងារ)"}
                 </span>
                 <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-gray-100 rounded-tl-sm border-2 border-red-500/20 dark:border-red-500/30">
                   <div>{msg.text}</div>
@@ -507,28 +644,90 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                   )}
                 </div>
               </div>
-            ) : (
-              <div
-                className={`max-w-[78%] sm:max-w-[70%] p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm ${
-                  msg.sender === "user"
-                    ? "bg-[#8B1A1A] text-white rounded-tr-sm"
-                    : "bg-white dark:bg-[#151922] text-gray-800 dark:text-gray-100 rounded-tl-sm border border-gray-100 dark:border-white/5"
-                }`}
-              >
+            ) : msg.sender === "user" ? (
+              <div className="max-w-[80%] sm:max-w-[70%] p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-[#8B1A1A] text-white rounded-tr-sm">
                 <div>{msg.text}</div>
                 {msg.time && (
-                  <div
-                    className={`text-[10px] mt-1 text-right font-medium ${
-                      msg.sender === "user" ? "text-white/70" : "text-gray-400"
-                    }`}
-                  >
+                  <div className="text-[10px] mt-1 text-right font-medium text-white/70">
                     {msg.time}
                   </div>
                 )}
               </div>
+            ) : (
+              // AI Bot Message with Logo Avatar
+              <div className="flex items-start gap-2.5 max-w-[90%] sm:max-w-[75%]">
+                <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 mt-0.5 border border-gray-200 dark:border-white/10 shadow-xs bg-white">
+                  <img src="/logo.jpg" alt="AI" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex flex-col items-start gap-1 flex-1">
+                  <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-800 dark:text-gray-100 rounded-tl-sm border border-gray-100 dark:border-white/5 w-full">
+                    <div className="whitespace-pre-line">{msg.text}</div>
+                    {msg.time && (
+                      <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
+                        {msg.time}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── 2 Action Suggestion Buttons on Greeting ── */}
+                  {msg.showGreetingButtons && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1 w-full">
+                      <button
+                        onClick={() => setShowAgentModal(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-xs font-bold shadow-sm hover:opacity-95 transition-all cursor-pointer"
+                      >
+                        <Headphones size={13} />
+                        <span>ទាក់ទងផ្ទាល់ជាមួយមនុស្ស (Live Agent)</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          inputRef.current?.focus();
+                          handleSend("សួស្តី! ខ្ញុំចង់សួរព័ត៌មានផលិតផល និងតម្លៃប្រូម៉ូសិនបន្តិច");
+                        }}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-800 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border border-gray-200/50 dark:border-white/5"
+                      >
+                        <MessageCircle size={13} />
+                        <span>ឆាតសួរព័ត៌មានបន្ថែមនៅទីនេះ</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Action button when AI suggests human agent / busy ── */}
+                  {msg.suggestAgent && (
+                    <div className="pt-1">
+                      <button
+                        onClick={() => setShowAgentModal(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
+                      >
+                        <Headphones size={14} />
+                        <span>Alert ទៅ Telegram ក្រុមការងារឥឡូវនេះ</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         ))}
+
+        {/* AI Typing Indicator */}
+        {isAiThinking && (
+          <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs py-1">
+            <div className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
+              <Bot size={15} />
+            </div>
+            <div className="flex items-center gap-1 bg-white dark:bg-[#151922] px-3 py-2 rounded-2xl border border-gray-100 dark:border-white/5 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce [animation-delay:0.2s]"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce [animation-delay:0.4s]"></span>
+              <span className="text-[11px] font-medium ml-1.5 text-gray-500 dark:text-gray-400">
+                AI កំពុងឆ្លើយតប...
+              </span>
+            </div>
+          </div>
+        )}
+
         <div ref={endRef} />
       </div>
 
@@ -540,30 +739,27 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         <button
           type="button"
           onClick={() => setShowAgentModal(true)}
-          title="Connect Live Agent"
-          className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center hover:bg-[#8B1A1A] hover:text-white transition-colors shrink-0"
+          title="ទាក់ទង Human Agent"
+          className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center hover:bg-[#8B1A1A] hover:text-white transition-colors shrink-0 cursor-pointer"
         >
           <Headphones size={18} />
         </button>
 
         <input
+          ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder={
-            !currentUser
-              ? "Login to chat • or request agent below..."
-              : "Ask a question or request staff..."
-          }
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+          placeholder="សួរសំណួរ ឬតម្លៃ Laptop, PC, សេវាកម្ម..."
           className="flex-1 bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/10 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900/50 text-[14px] text-gray-900 dark:text-white"
         />
 
         <button
-          onClick={handleSend}
-          disabled={!input.trim()}
-          title={!currentUser ? "Login required for real-time chat" : "Send message"}
-          className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 shadow-sm cursor-pointer"
+          onClick={() => handleSend()}
+          disabled={!input.trim() || isAiThinking}
+          title="ផ្ញើសារ"
+          className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 shadow-sm cursor-pointer hover:shadow-md transition-all"
         >
           <Send size={16} />
         </button>
@@ -581,7 +777,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             >
               <button
                 onClick={() => setShowAgentModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -592,41 +788,24 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
-                    Request Live Agent Alert
+                    ទាក់ទងក្រុមការងារ (Live Agent Alert)
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Direct notification dispatched to our Telegram team
-                    {!currentUser && " • Works without login"}
+                    សារ Alert នឹងលោតចូល Telegram របស់បុគ្គលិក S Tech Store ភ្លាមៗ
                   </p>
                 </div>
               </div>
 
-              {/* Guest notice */}
-              {!currentUser && (
-                <div className="mb-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-start gap-2">
-                  <LogIn size={14} className="text-blue-500 mt-0.5 shrink-0" />
-                  <p className="text-[11.5px] text-blue-700 dark:text-blue-300 font-medium">
-                    You are not logged in. The agent will contact you via the details below.{" "}
-                    <button
-                      onClick={handleLoginRedirect}
-                      className="underline font-bold hover:text-blue-900 dark:hover:text-blue-100"
-                    >
-                      Login for live chat
-                    </button>
-                  </p>
-                </div>
-              )}
-
               <form onSubmit={handleRequestAgentSubmit} className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">
-                    Your Name / ឈ្មោះ
+                    ឈ្មោះរបស់អ្នក / Name
                   </label>
                   <input
                     type="text"
                     value={agentForm.name}
                     onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
-                    placeholder="e.g. John Doe"
+                    placeholder="ឧទាហរណ៍: សុខា"
                     className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 outline-none text-gray-900 dark:text-white"
                   />
                 </div>
@@ -634,7 +813,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">
-                      Phone Number / ទូរស័ព្ទ
+                      លេខទូរស័ព្ទ / Phone
                     </label>
                     <input
                       type="text"
@@ -660,7 +839,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
                 <div>
                   <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">
-                    Email Address
+                    Email (ប្រសិនបើមាន)
                   </label>
                   <input
                     type="email"
@@ -673,13 +852,13 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
                 <div>
                   <label className="block text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-1">
-                    Question / Inquiry / សំណួរ
+                    សំណួរ ឬបញ្ហាដែលចង់ឱ្យជួយ / Message
                   </label>
                   <textarea
                     rows={3}
                     value={agentForm.message}
                     onChange={(e) => setAgentForm({ ...agentForm, message: e.target.value })}
-                    placeholder="Describe what you need help with..."
+                    placeholder="រៀបរាប់ពីអ្វីដែលបងចង់ឱ្យក្រុមការងារជួយ..."
                     className="w-full px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 outline-none resize-none text-gray-900 dark:text-white"
                   />
                 </div>
@@ -688,9 +867,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                   <button
                     type="button"
                     onClick={() => setShowAgentModal(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                   >
-                    Cancel
+                    បិទ
                   </button>
                   <button
                     type="submit"
@@ -698,11 +877,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-xs font-bold hover:shadow-lg disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
                   >
                     {isSendingAgentReq ? (
-                      <span>Alerting Telegram...</span>
+                      <span>កំពុង Alert ទៅ Telegram...</span>
                     ) : (
                       <>
                         <Send size={14} />
-                        <span>Notify Agent on Telegram</span>
+                        <span>បញ្ជូន Alert ទៅ Telegram ក្រុមការងារ</span>
                       </>
                     )}
                   </button>

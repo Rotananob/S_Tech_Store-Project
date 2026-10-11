@@ -377,9 +377,11 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* ── Theme & Language Switchers (Comfortable Dropdowns) ── */}
+            {/* ── Theme & Language Switchers (Theme hidden on mobile navbar, kept in Account Settings) ── */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <ThemeDropdown />
+              <div className="hidden lg:block">
+                <ThemeDropdown />
+              </div>
               <LanguageSwitcher />
             </div>
 

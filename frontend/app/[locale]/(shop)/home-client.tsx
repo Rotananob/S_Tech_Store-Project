@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@/i18n/routing";
-import { ShoppingCart, Laptop, Monitor, Cpu, Server, HardDrive, Gamepad2, RotateCcw, Smartphone, Zap, AppWindow, BoxSelect, MonitorPlay, Headphones, Sparkles } from "lucide-react";
+import { ShoppingCart, Laptop, Monitor, Cpu, Server, HardDrive, Gamepad2, RotateCcw, Smartphone, Zap, AppWindow, BoxSelect, MonitorPlay, Headphones, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
@@ -54,59 +54,86 @@ export function HeroSection() {
   const t = useTranslations("Hero");
   const [slideIndex, setSlideIndex] = useState(0);
   const [slides, setSlides] = useState([PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
+  const [isPaused, setIsPaused] = useState(false);
 
+  // Auto-slide every 4.5 seconds when not hovered
   useEffect(() => {
+    if (isPaused) return;
     const timer = setInterval(() => {
       setSlideIndex((prev) => (prev + 1) % slides.length);
-    }, 4000);
+    }, 4500);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, isPaused]);
 
   const current = slides[slideIndex] || slides[0];
+
+  const nextSlide = () => setSlideIndex((prev) => (prev + 1) % slides.length);
+  const prevSlide = () => setSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
 
   return (
     <section className="bg-white px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
-        <div className="relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200">
-          
-          {/* Fixed S Tech Store Logo & Brand Badge (Remains Firmly in Place) */}
+        <div
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          className="group relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200"
+        >
+          {/* Fixed S Tech Store Logo & Brand Badge */}
           <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 xl:top-7 xl:left-8 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100">
             <img src="/logo.jpg" alt="S Tech Store" className="w-6 h-6 rounded-full object-cover shadow-sm border border-white" />
             <span className="text-[11px] sm:text-xs font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
           </div>
 
+          {/* Prev / Next Chevrons on Hover */}
+          <button
+            onClick={prevSlide}
+            aria-label="Previous slide"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-md shadow-md text-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            onClick={nextSlide}
+            aria-label="Next slide"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-md shadow-md text-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200"
+          >
+            <ChevronRight size={18} />
+          </button>
+
           {/* Dynamic Animated Content Container */}
           <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 xl:px-12 pt-10 sm:pt-8 z-10">
             {/* Animated Text */}
             <div className="flex flex-col items-start text-left w-[58%] sm:w-[56%] lg:w-[58%] z-20">
-              <div className="min-h-[32px] sm:min-h-[42px] md:min-h-[52px] xl:min-h-[64px] mb-1.5 xl:mb-3 flex items-center relative w-full overflow-hidden">
-                <AnimatePresence mode="wait">
+              <div className="min-h-[36px] sm:min-h-[46px] md:min-h-[56px] xl:min-h-[68px] mb-1.5 xl:mb-3 flex items-center relative w-full overflow-hidden">
+                <AnimatePresence initial={false}>
                   <motion.h1
                     key={slideIndex}
-                    initial={{ y: 20, opacity: 0 }}
+                    initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -20, opacity: 0 }}
-                    transition={{ duration: 0.35 }}
+                    exit={{ y: -16, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
                     className="text-gray-900 text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
                   >
                     {current.title}
                   </motion.h1>
                 </AnimatePresence>
               </div>
-              
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={`desc-${slideIndex}`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-gray-600 text-[10px] sm:text-sm md:text-base xl:text-lg mb-3 sm:mb-5 xl:mb-6 leading-relaxed line-clamp-2 font-medium max-w-xl"
-                >
-                  {current.desc}
-                </motion.p>
-              </AnimatePresence>
-              
+
+              <div className="min-h-[30px] sm:min-h-[38px] xl:min-h-[46px] mb-3 sm:mb-5 xl:mb-6 relative w-full overflow-hidden">
+                <AnimatePresence initial={false}>
+                  <motion.p
+                    key={`desc-${slideIndex}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="text-gray-600 text-[10px] sm:text-sm md:text-base xl:text-lg leading-relaxed line-clamp-2 font-medium max-w-xl absolute w-full"
+                  >
+                    {current.desc}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <Link
                   href="/category/all"
@@ -121,20 +148,20 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* Auto Sliding 4 Images with Smooth Transition */}
-            <div className="absolute right-2 sm:right-6 lg:right-10 xl:right-12 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[36%] xl:w-[35%] h-[82%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center pointer-events-none">
-              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/15 blur-3xl rounded-full" />
-              
-              <AnimatePresence mode="wait">
+            {/* Auto Sliding 4 Images with Smooth Crossfade Transition */}
+            <div className="absolute right-2 sm:right-6 lg:right-10 xl:right-12 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[36%] xl:w-[35%] h-[82%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center">
+              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/15 blur-3xl rounded-full pointer-events-none" />
+
+              <AnimatePresence initial={false}>
                 <motion.img
                   key={slideIndex}
                   src={current.image}
                   alt={current.alt}
-                  initial={{ opacity: 0, scale: 0.94, x: 20 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 1.04, x: -20 }}
-                  transition={{ duration: 0.45, ease: "easeOut" }}
-                  className="max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.02 }}
+                  transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80 will-change-transform"
                 />
               </AnimatePresence>
             </div>

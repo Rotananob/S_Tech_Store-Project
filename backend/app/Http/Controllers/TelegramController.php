@@ -13,9 +13,15 @@ class TelegramController extends Controller
      */
     public function status()
     {
-        // Read directly from settings storage without invoking external polling.
-        // The background daemon (artisan telegram:poll) handles continuous polling smoothly.
         $settings = TelegramService::getSettings();
+
+        // If not connected or pending tokens exist, quick-poll updates with 0 timeout to catch newly added bot
+        if (empty($settings['connected']) || !empty($settings['pending_tokens'])) {
+            try {
+                TelegramService::pollPendingUpdates(0);
+                $settings = TelegramService::getSettings();
+            } catch (\Throwable $e) {}
+        }
         
         return response()->json([
             'connected' => (bool)($settings['connected'] ?? false),
@@ -67,16 +73,23 @@ class TelegramController extends Controller
     public function pair(Request $request)
     {
         $validated = $request->validate([
-            'pair_code' => 'required|string',
+            'pair_code' => 'nullable|string',
             'chat_id' => 'required',
             'chat_title' => 'nullable|string',
         ]);
 
-        $success = TelegramService::pairChat(
-            $validated['pair_code'],
-            $validated['chat_id'],
-            $validated['chat_title'] ?? 'S Tech Store Team Group'
-        );
+        if (!empty($validated['pair_code'])) {
+            $success = TelegramService::pairChat(
+                $validated['pair_code'],
+                $validated['chat_id'],
+                $validated['chat_title'] ?? 'S Tech Store Team Group'
+            );
+        } else {
+            $success = TelegramService::connectDirectChat(
+                $validated['chat_id'],
+                $validated['chat_title'] ?? 'S Tech Store Team Group'
+            );
+        }
 
         if (!$success) {
             return response()->json(['error' => 'Invalid or expired pair code'], 400);

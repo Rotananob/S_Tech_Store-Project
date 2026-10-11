@@ -38,6 +38,21 @@ class TelegramService
         ];
 
         try {
+            // 1. Try reading from Neon PostgreSQL database
+            $dbRow = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'telegram_settings')->first();
+            if ($dbRow && !empty($dbRow->value)) {
+                $saved = is_string($dbRow->value) ? json_decode($dbRow->value, true) : (array)$dbRow->value;
+                if (is_array($saved) && !empty($saved['chat_id'])) {
+                    $merged = array_merge($default, $saved);
+                    if (empty($merged['bot_token'])) $merged['bot_token'] = self::OFFICIAL_BOT_TOKEN;
+                    if (empty($merged['bot_username'])) $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
+                    return $merged;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            // 2. Fallback to file storage
             if (Storage::exists(self::$settingsFile)) {
                 $saved = json_decode(Storage::get(self::$settingsFile), true);
                 if (is_array($saved)) {
@@ -107,6 +122,20 @@ class TelegramService
     public static function saveSettings(array $settings): bool
     {
         try {
+            // 1. Save to Neon PostgreSQL database permanently
+            \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                ['key' => 'telegram_settings'],
+                [
+                    'value' => json_encode($settings),
+                    'updated_at' => now(),
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::warning("Failed to save telegram settings to Neon DB: " . $e->getMessage());
+        }
+
+        try {
+            // 2. Also save to storage file as redundancy
             return Storage::put(self::$settingsFile, json_encode($settings, JSON_PRETTY_PRINT));
         } catch (\Throwable $e) {
             Log::error("Failed to save telegram settings: " . $e->getMessage());
@@ -176,6 +205,27 @@ class TelegramService
         $lockKey = "tg_pair_lock_{$chatIdStr}";
         if (!Cache::add($lockKey, time(), 20)) {
             return true;
+        }
+
+        // ── STRICT SECURITY & ANTI-INJECTION LOCK ────────────────────────────
+        // If already connected to an official team chat, strictly disallow overriding chat_id from unknown chats
+        if (!empty($settings['connected']) && !empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr) {
+            Log::warning("Telegram Bot injection/takeover attempt detected from chat {$chatIdStr} ('{$chatTitle}'). Denied.");
+            self::sendSecurityAlert([
+                'type' => 'Unauthorized Telegram Bot Pairing Attempt (Blocked)',
+                'ip' => request()->ip() ?? 'Telegram Network',
+                'device' => 'Telegram Bot API',
+                'user' => "Chat ID: {$chatIdStr} ({$chatTitle})",
+                'action' => 'Hijack Attempt Blocked',
+                'details' => "A non-whitelisted Telegram chat tried to connect or hijack the bot. Request was blocked.",
+            ]);
+            return false;
+        }
+
+        // Strictly reject private chats from taking over the bot as team chat
+        if ($chatType === 'private') {
+            Log::info("Rejected pairing attempt from private chat {$chatIdStr}.");
+            return false;
         }
 
         try {
@@ -397,7 +447,7 @@ class TelegramService
                 . "🤖 <b>គណនី Bot:</b> @{$botUsername}\n"
                 . "⚡ <b>ស្ថានភាព:</b> " . ($isConnected ? "🟢 Connected ជាមួយគ្រុប {$currentChat}" : "⚪ មិនទាន់ភ្ជាប់គ្រុប") . "\n\n"
                 . "📌 <b>របៀបភ្ជាប់គ្រុប:</b>\n"
-                . "1️⃣ ចូលទៅកាន់ Admin Dashboard 👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/settings\">Telegram Settings</a>\n"
+                . "1️⃣ ចូលទៅកាន់ Admin Dashboard 👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/settings\">Telegram Settings</a>\n"
                 . "2️⃣ ចុចប៊ូតុង <b>Connect Telegram</b> (1-Click Connect)\n"
                 . "3️⃣ ជ្រើសរើស Group របស់ហាង នោះប្រព័ន្ធនឹង Auto Connect ភ្លាមៗ!\n\n"
                 . "⚙️ <b>ពាក្យបញ្ជាដែលមាន:</b>\n"
@@ -430,7 +480,7 @@ class TelegramService
         if ($chatType === 'private') {
             $privateReply = "🤖 <b>S Tech Store Official Assistant</b>\n\n"
                 . "ខ្ញុំជាប្រព័ន្ធស្វ័យប្រវត្តិសម្រាប់ផ្ញើការជូនដំណឹងទំនិញ និងការបញ្ជាទិញ។\n\n"
-                . "🌐 គេហទំព័រហាង: <a href=\"https://s-tech-store.vercel.app\">S Tech Store</a>\n"
+                . "🌐 គេហទំព័រហាង: <a href=\"https://www.s-tech-store.tech\">S Tech Store</a>\n"
                 . "⚡ ប្រើបញ្ជា <code>/start</code> ដើម្បីមើលព័ត៌មានបន្ថែម។";
             self::sendMessage($chatId, $privateReply);
         }
@@ -519,6 +569,26 @@ class TelegramService
                     'name' => '🛒 ការបញ្ជាទិញថ្មី',
                     'icon_color' => 7322096, // Light Blue
                 ],
+                'chat' => [
+                    'name' => '💬 អតិថិជនកំពុងឆាត',
+                    'icon_color' => 13338331, // Violet
+                ],
+                'security' => [
+                    'name' => '🛡️ Security & Spam Monitoring',
+                    'icon_color' => 16478047, // Red
+                ],
+                'promotions' => [
+                    'name' => '🎁 ប្រូម៉ូសិន & ស្តុកទំនិញ',
+                    'icon_color' => 16749490, // Orange
+                ],
+                'finance' => [
+                    'name' => '💳 ការទូទាត់ & តម្លៃទំនិញ',
+                    'icon_color' => 9367192, // Green
+                ],
+                'system_errors' => [
+                    'name' => '🚨 បញ្ហាប្រព័ន្ធ (Errors)',
+                    'icon_color' => 16478047, // Red
+                ],
                 'traffic' => [
                     'name' => '🌐 អ្នកចូលទស្សនាវេបសាយ',
                     'icon_color' => 9367192, // Green
@@ -534,10 +604,6 @@ class TelegramService
                 'stock' => [
                     'name' => '⚠️ ការជូនដំណឹងស្តុក',
                     'icon_color' => 16478047, // Red
-                ],
-                'chat' => [
-                    'name' => '💬 សេវាអតិថិជន',
-                    'icon_color' => 13338331, // Violet
                 ],
             ];
 
@@ -771,8 +837,16 @@ class TelegramService
             }
 
             $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $json = $response->json();
 
-            return $response->json() ?? ['ok' => $response->successful()];
+            // Fallback retry if thread does not exist or was closed/deleted
+            if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'thread not found') && $threadId) {
+                unset($payload['message_thread_id']);
+                $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $json = $response->json();
+            }
+
+            return $json ?? ['ok' => $response->successful()];
         } catch (\Throwable $e) {
             Log::error("Failed to send Telegram message: " . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
@@ -804,11 +878,82 @@ class TelegramService
             }
 
             $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
-            return $response->json() ?? ['ok' => $response->successful()];
+            $json = $response->json();
+
+            // Fallback retry if thread does not exist or was closed/deleted
+            if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'thread not found') && $threadId) {
+                unset($payload['message_thread_id']);
+                $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $json = $response->json();
+            }
+
+            return $json ?? ['ok' => $response->successful()];
         } catch (\Throwable $e) {
             Log::error("Failed to send Telegram message with keyboard: " . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Connect chat directly by Chat ID (e.g. from Admin settings)
+     */
+    public static function connectDirectChat($chatId, string $chatTitle = 'S Tech Store Group'): bool
+    {
+        $settings = self::getSettings();
+        $settings['connected'] = true;
+        $settings['chat_id'] = (string)$chatId;
+        if (!empty($chatTitle)) {
+            $settings['chat_title'] = $chatTitle;
+        }
+        $settings['chat_type'] = 'supergroup';
+        $settings['connected_at'] = now()->format('Y-m-d H:i:s');
+        $settings['connected_by'] = 'Admin Direct Connect';
+
+        self::saveSettings($settings);
+
+        // Ensure topics setup
+        self::setupTopics($chatId);
+
+        return true;
+    }
+
+    /**
+     * Send test notification to verify Telegram Bot connection
+     */
+    public static function sendTestNotification(): array
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return [
+                'ok' => false,
+                'error' => 'Telegram Bot មិនទាន់បានភ្ជាប់ជាមួយ Telegram Group ឬ Channel ណាមួយឡើយ (No connected Telegram group).'
+            ];
+        }
+
+        $chatId = $settings['chat_id'];
+        $chatTitle = $settings['chat_title'] ?? 'Store Group';
+        $threadId = $settings['topics']['chat'] ?? $settings['topics']['orders'] ?? null;
+
+        $text = "🔔 <b>[TEST] សាកល្បងការតភ្ជាប់ប្រព័ន្ធ TELEGRAM BOT</b>\n"
+              . "━━━━━━━━━━━━━━━━━━━━\n"
+              . "🎉 <b>ការតភ្ជាប់ជោគជ័យ ១០០%!</b>\n"
+              . "🏪 <b>ហាង:</b> S Tech Store\n"
+              . "🌐 <b>គេហទំព័រ:</b> https://www.s-tech-store.tech\n"
+              . "👥 <b>គ្រុប:</b> " . htmlspecialchars($chatTitle) . "\n"
+              . "🆔 <b>Chat ID:</b> <code>{$chatId}</code>\n"
+              . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('Y-m-d H:i:s') . "\n\n"
+              . "✅ <i>ប្រព័ន្ធជូនដំណឹង Telegram របស់ S Tech Store បានភ្ជាប់ជាមួយប្រព័ន្ធទិន្នន័យ Neon PostgreSQL ដោយរលូន និងត្រៀមខ្លួនរួចរាល់សម្រាប់ការងារ!</i>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🌐 បើកគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech'],
+                    ['text' => '⚡ ផ្ទាំងគ្រប់គ្រង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh']
+                ]
+            ]
+        ];
+
+        return self::sendMessageWithKeyboard($chatId, $text, $keyboard, 'HTML', $threadId);
     }
 
     /**
@@ -854,7 +999,7 @@ class TelegramService
             . $itemsText . "\n"
             . "💵 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
+            . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
         return ($res['ok'] ?? false) === true;
@@ -890,8 +1035,19 @@ class TelegramService
         }
 
         $text .= "📝 <b>សារសាកសួរ:</b>\n<i>\"{$message}\"</i>\n\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/chat\">ចូលទៅកាន់ Admin Chat Portal ដើម្បីឆ្លើយតប</a>";
+            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n";
+
+        $bypassToken = $data['bypass_token'] ?? null;
+        $chatId = $data['chat_id'] ?? null;
+
+        if ($bypassToken) {
+            $directLink = "https://www.s-tech-store.tech/rok-mix-khernh/chat?bypass_token={$bypassToken}&chat_id=" . urlencode($chatId ?? '');
+            $text .= "⚡ <b>ចូលឆ្លើយតបបន្ទាន់ (Direct Bypass Link - ប្រើបាន ២ ដង):</b>\n"
+                . "👉 <a href=\"{$directLink}\">ចុចទីនេះដើម្បីបើកផ្ទាំងឆាតផ្ទាល់ភ្លាមៗ (Bypass Login)</a>\n\n"
+                . "<i>💡 តំណភ្ជាប់នេះមានសុវត្ថិភាពខ្ពស់ អាចចុចចូលឆ្លើយតបភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ!</i>";
+        } else {
+            $text .= "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/chat\">ចូលទៅកាន់ Admin Chat Portal ដើម្បីឆ្លើយតប</a>";
+        }
 
         return self::sendMessage($settings['chat_id'], $text, 'HTML', $chatTopicId);
     }
@@ -922,7 +1078,7 @@ class TelegramService
             . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
             . "🏢 <b>ម៉ាក:</b> {$brand}\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
+            . "👉 <a href=\"https://www.s-tech-store.tech/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
         return ($res['ok'] ?? false) === true;
@@ -945,17 +1101,19 @@ class TelegramService
         $phone = htmlspecialchars($user->phone ?: 'N/A');
         $telegramHandle = !empty($user->telegram) ? htmlspecialchars($user->telegram) : 'N/A';
 
-        $chatTopicId = $settings['topics']['chat'] ?? null;
+        // Route to users topic (Thread 9)
+        $usersTopicId = $settings['topics']['users'] ?? ($settings['topics']['chat'] ?? null);
 
-        $text = "🔑 <b>សំណើសុំចូលគណនីបន្ទាន់ / Reset Password Magic Link</b>\n\n"
+        $text = "🔑 <b>តំណភ្ជាប់ចូលគណនីបន្ទាន់ / Reset Password Token Link</b>\n\n"
             . "👤 <b>អតិថិជន:</b> <b>{$userName}</b>\n"
             . "📧 <b>អ៊ីមែល:</b> <code>{$email}</code>\n"
             . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
             . "💬 <b>Telegram:</b> {$telegramHandle}\n"
             . "⏰ <b>សុពលភាព:</b> ២៤ ម៉ោង (Valid for 24 Hours)\n\n"
-            . "🔗 <b>Magic Login Link:</b>\n"
-            . "{$magicLink}\n\n"
-            . "<i>អតិថិជនគ្រាន់តែចុចលើតំណភ្ជាប់ខាងលើ នោះនឹងអាចចូលគណនីបានភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ចាស់ឡើយ។</i>";
+            . "🔗 <b>Direct Reset / Magic Login Link:</b>\n"
+            . "<code>{$magicLink}</code>\n\n"
+            . "📋 <b>សារសម្រាប់ Forward ទៅអតិថិជន (Forwardable Message):</b>\n"
+            . "<blockquote>សួស្តីបង {$userName}! នេះជាតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញរបស់បងនៅ S Tech Store:\n{$magicLink}\n(តំណភ្ជាប់នេះមានសុពលភាព ២៤ ម៉ោង)។ សូមអរគុណបង!</blockquote>";
 
         $keyboard = [
             'inline_keyboard' => [
@@ -965,7 +1123,7 @@ class TelegramService
             ]
         ];
 
-        return self::sendMessageWithKeyboard($targetChat, $text, $keyboard, 'HTML', $directChatId ? null : $chatTopicId);
+        return self::sendMessageWithKeyboard($targetChat, $text, $keyboard, 'HTML', $directChatId ? null : $usersTopicId);
     }
 
     /**
@@ -1001,7 +1159,7 @@ class TelegramService
             . "👨‍🔧 <b>ជាងទទួលបន្ទុក:</b> {$technician}\n"
             . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$cost} USD\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/repairs\">ចូលទៅកាន់ Repair Center ដើម្បីចាត់ចែង</a>";
+            . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/repairs\">ចូលទៅកាន់ Repair Center ដើម្បីចាត់ចែង</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $repairsTopicId);
         return ($res['ok'] ?? false) === true;
@@ -1032,7 +1190,7 @@ class TelegramService
             . "📱 <b>ទូរស័ព្ទ:</b> {$phone}\n"
             . "🔰 <b>ប្រភេទគណនី:</b> <code>{$role}</code>\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/users\">ពិនិត្យមើល Customer Profiles ក្នុង Admin</a>";
+            . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/users\">ពិនិត្យមើល Customer Profiles ក្នុង Admin</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $usersTopicId);
         return ($res['ok'] ?? false) === true;
@@ -1072,6 +1230,132 @@ class TelegramService
             . "⚡ <i>ប្រព័ន្ធតាមដាន Real-time Traffic ស្វ័យប្រវត្ត</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $trafficTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send real-time security & monitoring alert to Telegram security topic
+     */
+    public static function sendSecurityAlert(array $data): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $type = htmlspecialchars($data['type'] ?? 'Suspicious Activity');
+        $ip = htmlspecialchars($data['ip'] ?? request()->ip() ?? 'Unknown');
+        $device = htmlspecialchars($data['device'] ?? $data['user_agent'] ?? request()->userAgent() ?? 'Web Client');
+        $user = htmlspecialchars($data['user'] ?? 'Anonymous Visitor');
+        $action = htmlspecialchars($data['action'] ?? 'Blocked & Logged');
+        $details = htmlspecialchars($data['details'] ?? 'N/A');
+
+        $secTopicId = $settings['topics']['security'] ?? null;
+
+        $msg = "🛡️ <b>[SECURITY ALERT] ការពារសុវត្ថិភាព & SPAM MONITORING!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "⚠️ <b>ប្រភេទគំរាមកំហែង:</b> <b>{$type}</b>\n"
+            . "🌐 <b>IP Address:</b> <code>{$ip}</code>\n"
+            . "📱 <b>ឧបករណ៍ / Agent:</b> {$device}\n"
+            . "👤 <b>អ្នកប្រើប្រាស់:</b> {$user}\n"
+            . "🛑 <b>ចំណាត់ការ (Action):</b> <code>{$action}</code>\n"
+            . "📝 <b>ព័ត៌មានលម្អិត:</b> <i>{$details}</i>\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "🔒 <i>ប្រព័ន្ធការពារស្វ័យប្រវត្ត S Tech Store Firewall & Anti-Spam Guard</i>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $secTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send promotion & stock update alert to Telegram promotions topic
+     */
+    public static function sendPromotionAlert(array $data): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $title = htmlspecialchars($data['title'] ?? 'Promotion / Stock Update');
+        $actor = htmlspecialchars($data['actor'] ?? 'Admin / Staff');
+        $details = htmlspecialchars($data['details'] ?? 'N/A');
+        $discount = htmlspecialchars($data['discount'] ?? 'N/A');
+
+        $promoTopicId = $settings['topics']['promotions'] ?? $settings['topics']['stock'] ?? null;
+
+        $msg = "🎁 <b>[PROMOTION & STOCK] បច្ចុប្បន្នភាពប្រូម៉ូសិន ឬស្តុក!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🏷️ <b>កម្មវិធី / ការផ្លាស់ប្តូរ:</b> <b>{$title}</b>\n"
+            . "👤 <b>អ្នករៀបចំ:</b> {$actor}\n"
+            . "🎟️ <b>Discount / Code:</b> <code>{$discount}</code>\n"
+            . "📦 <b>ព័ត៌មានលម្អិត:</b> {$details}\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/promotions\">ពិនិត្យមើលក្នុងផ្ទាំង Admin</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $promoTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send financial transaction & price adjustment alert to Telegram finance topic
+     */
+    public static function sendFinanceAlert(array $data): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $type = htmlspecialchars($data['type'] ?? 'Payment Received');
+        $amount = htmlspecialchars((string)($data['amount'] ?? '0.00'));
+        $method = htmlspecialchars($data['method'] ?? 'Bakong KHQR / Cash');
+        $orderId = htmlspecialchars($data['order_id'] ?? 'N/A');
+        $customer = htmlspecialchars($data['customer'] ?? 'Customer');
+
+        $financeTopicId = $settings['topics']['finance'] ?? $settings['topics']['orders'] ?? null;
+
+        $msg = "💳 <b>[FINANCE] ប្រតិបត្តិការហិរញ្ញវត្ថុ / ទូទាត់ប្រាក់!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "💵 <b>ប្រភេទ:</b> <b>{$type}</b>\n"
+            . "💰 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
+            . "🏦 <b>វិធីសាស្ត្រទូទាត់:</b> {$method}\n"
+            . "🔖 <b>លេខវិក្កយបត្រ / Order:</b> <code>{$orderId}</code>\n"
+            . "👤 <b>អតិថិជន:</b> {$customer}\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/orders\">ពិនិត្យមើលក្នុងបញ្ជី Orders</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $financeTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send critical system error notification to Telegram system_errors topic
+     */
+    public static function sendSystemErrorAlert(array $data): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $error = htmlspecialchars($data['error'] ?? 'Unknown Exception');
+        $context = htmlspecialchars($data['context'] ?? 'System Core');
+        $actor = htmlspecialchars($data['actor'] ?? request()->ip() ?? 'System');
+        $file = htmlspecialchars($data['file'] ?? 'N/A');
+
+        $errTopicId = $settings['topics']['system_errors'] ?? null;
+
+        $msg = "🚨 <b>[CRITICAL SYSTEM ERROR] បញ្ហាប្រព័ន្ធបច្ចេកវិទ្យា!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "❌ <b>កំហុស (Error):</b> <code>{$error}</code>\n"
+            . "📍 <b>បរិបទ / Function:</b> <b>{$context}</b>\n"
+            . "📁 <b>ទីតាំង File:</b> <i>{$file}</i>\n"
+            . "👤 <b>ប្រភព / IP:</b> {$actor}\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⚠️ <i>សូមក្រុមការងារបច្ចេកវិទ្យាជួយត្រួតពិនិត្យជាបន្ទាន់</i>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $errTopicId);
         return ($res['ok'] ?? false) === true;
     }
 }

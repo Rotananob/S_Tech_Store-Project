@@ -184,13 +184,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs" 
+          className="fixed inset-0 bg-black/75 z-40 lg:hidden backdrop-blur-sm transition-opacity" 
           onClick={() => setSidebarOpen(false)} 
         />
       )}
 
-      {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0f0f12] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} border-r border-white/10 shadow-xl`}>
+      {/* Sidebar - Enhanced for Mobile Comfort */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-[86vw] max-w-[340px] lg:w-72 bg-[#0c0d12] text-white flex flex-col transform transition-transform duration-300 lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"} border-r border-white/10`}>
         
         {/* Brand Logo Header */}
         <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
@@ -198,12 +198,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <img 
               src="/logo.jpg" 
               alt="S Tech Store Logo" 
-              className="w-10 h-10 rounded-xl object-contain shadow-md bg-white p-0.5 border border-white/20" 
+              className="w-11 h-11 rounded-2xl object-contain shadow-md bg-white p-0.5 border border-white/20" 
             />
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight m-0 leading-tight">S Tech Store</h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${isAdmin ? 'bg-[#8B1A1A] text-white' : 'bg-blue-600 text-white'}`}>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full ${isAdmin ? 'bg-[#8B1A1A] text-white' : 'bg-blue-600 text-white'}`}>
                   {user?.role || "STAFF"}
                 </span>
                 <span className="text-[11px] text-gray-400">Management</span>
@@ -211,8 +211,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </Link>
           <button 
-            className="lg:hidden text-white/70 hover:text-white p-1 rounded-md" 
+            className="lg:hidden text-white/70 hover:text-white w-9 h-9 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors" 
             onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar"
           >
             <X size={20} />
           </button>
@@ -273,7 +274,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 py-2 px-3 overflow-y-auto space-y-1">
+        <nav className="flex-1 py-2 px-3 overflow-y-auto space-y-1.5">
           {NAV_LINKS.map((link) => {
             const isActive = pathname === link.href;
             const isRestrictedForStaff = link.adminOnly && !isAdmin;
@@ -282,7 +283,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               return (
                 <div 
                   key={link.href}
-                  className="flex items-center justify-between px-3 py-2.5 text-xs text-gray-600 rounded-lg cursor-not-allowed select-none"
+                  className="flex items-center justify-between px-3.5 py-3 text-xs text-gray-600 rounded-xl cursor-not-allowed select-none"
                   title={isKm ? "មុខងារនេះសម្រាប់តែ Administrator ប៉ុណ្ណោះ" : "Administrator Privilege Only"}
                 >
                   <div className="flex items-center gap-3 opacity-40">
@@ -301,10 +302,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={link.href} 
                 href={link.href} 
                 onClick={() => setSidebarOpen(false)} 
-                className={`flex items-center justify-between px-3 py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all no-underline ${
+                className={`flex items-center justify-between px-3.5 py-3 text-[13.5px] sm:text-sm font-semibold rounded-2xl transition-all no-underline ${
                   isActive 
-                    ? "text-white bg-[#8B1A1A] shadow-md shadow-[#8B1A1A]/30" 
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "text-white bg-gradient-to-r from-[#8B1A1A] to-red-700 shadow-md shadow-[#8B1A1A]/40" 
+                    : "text-gray-300 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -312,7 +313,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <span>{link.label}</span>
                 </div>
                 {link.badge && (
-                  <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded">
+                  <span className="text-[9px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">
                     {link.badge}
                   </span>
                 )}

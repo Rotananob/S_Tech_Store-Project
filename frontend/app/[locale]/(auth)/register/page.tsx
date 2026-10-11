@@ -32,6 +32,29 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    // Enforce Security Rule: 1 device/IP can register only 5 accounts per day
+    try {
+      const deviceId = typeof window !== "undefined" ? localStorage.getItem("stech_device_id") || (() => {
+        const id = 'dev_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem("stech_device_id", id);
+        return id;
+      })() : "unknown_device";
+
+      const checkRes = await api.post("/auth/check-register-limit", { device_id: deviceId });
+      if (checkRes.data && !checkRes.data.allowed) {
+        setError(checkRes.data.message || "ឧបករណ៍នេះបានចុះឈ្មោះលើសពី ៥ គណនីក្នុង ១ ថ្ងៃហើយ! (Registration limit reached: max 5 per day)");
+        setLoading(false);
+        return;
+      }
+    } catch (e: any) {
+      if (e?.response?.status === 429) {
+        setError(e.response.data?.message || "ឧបករណ៍នេះបានចុះឈ្មោះលើសពី ៥ គណនីក្នុង ១ ថ្ងៃហើយ! (Registration limit reached: max 5 per day)");
+        setLoading(false);
+        return;
+      }
+    }
+
     setAuthOverlay({
       show: true,
       title: "កំពុងដំណើរការបង្កើតគណនី... / Creating Account...",
