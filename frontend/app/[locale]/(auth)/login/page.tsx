@@ -40,7 +40,7 @@ export default function LoginPage() {
     }
   }, []);
 
-  // Intercept Telegram OAuth redirect return if query params contain hash & id
+  // Intercept Telegram & TikTok OAuth redirect return if query params contain tokens
   useEffect(() => {
     const tgHash = searchParams?.get("hash");
     const tgId = searchParams?.get("id");
@@ -55,6 +55,21 @@ export default function LoginPage() {
         hash: tgHash,
       };
       handleTelegramVerification(payload);
+    }
+
+    const ttToken = searchParams?.get("tiktok_token");
+    if (ttToken) {
+      const name = searchParams?.get("name") || "TikTok User";
+      const ttUser = {
+        id: "tt_" + Math.random().toString(36).substring(2, 9),
+        name: decodeURIComponent(name),
+        display_name: decodeURIComponent(name),
+        provider: "tiktok",
+      };
+      localStorage.setItem("user_session", JSON.stringify(ttUser));
+      localStorage.setItem("customer_token", ttToken);
+      document.cookie = `customer_token=${ttToken}; path=/; max-age=2592000; SameSite=Lax`;
+      router.push("/");
     }
   }, [searchParams]);
 
@@ -200,40 +215,90 @@ export default function LoginPage() {
     }
   };
 
-  // ─── Trigger Real Telegram OAuth (1-Click Popup or Redirect) ───────────────
+  // ─── Trigger Real Telegram OAuth (1-Click App Handshake OR Widget) ───────────────
   const handleTelegramSignIn = async () => {
     setError("");
     const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8929556298";
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Stech_store_LoginBot";
+    const deviceName = getDeviceName();
 
-    // 1. If Telegram Widget is ready in window, open official centered confirmation popup
-    if (typeof window !== "undefined" && (window as any).Telegram?.Login) {
-      setAuthOverlay({
-        show: true,
-        title: "✈️ កំពុងភ្ជាប់ Telegram OAuth...",
-        subtitle: "សូមចុច Confirm លើផ្ទាំង Telegram ដើម្បីចូលគណនីភ្លាមៗ...",
-        isSuccess: false,
-      });
+    setAuthOverlay({
+      show: true,
+      title: "✈️ កំពុងភ្ជាប់ Telegram App...",
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបើក Telegram ដើម្បី Confirm ចូលគណនី...",
+      isSuccess: false,
+    });
 
-      (window as any).Telegram.Login.auth(
-        { bot_id: botId, request_access: true },
-        async (data: any) => {
-          if (!data || !data.hash) {
-            // User closed the confirmation popup
+    try {
+      // 1. Initialize instant App Handshake from backend (Bypasses Bot domain invalid!)
+      const res = await api.post("/auth/telegram/handshake-init");
+      if (res.data?.success && res.data?.handshake_token) {
+        const token = res.data.handshake_token;
+        const deepLink = res.data.deep_link;
+        const appLink = res.data.app_link;
+
+        const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = appLink || deepLink;
+        } else {
+          window.open(deepLink, "_blank");
+        }
+
+        setAuthOverlay({
+          show: true,
+          title: "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
+          subtitle: "សូមចុចប៊ូតុង \"START\" លើ Telegram របស់លោកអ្នក ដើម្បីចូលគណនីភ្លាមៗ...",
+          isSuccess: false,
+        });
+
+        // Poll for handshake completion (up to 40 times = 60s)
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          if (attempts > 40) {
+            clearInterval(pollInterval);
             setAuthOverlay({ show: false, title: "", subtitle: "" });
             return;
           }
-          await handleTelegramVerification(data);
-        }
-      );
-    } else {
-      // 2. Direct Redirect Fallback: Navigate to official Telegram OAuth gateway
-      const callbackUrl = window.location.origin + window.location.pathname;
-      const oauthUrl = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(window.location.origin)}&embed=0&request_access=write&return_to=${encodeURIComponent(callbackUrl)}`;
-      window.location.href = oauthUrl;
+
+          try {
+            const checkRes = await api.get(`/auth/telegram/handshake-check?token=${token}`);
+            if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
+              clearInterval(pollInterval);
+
+              localStorage.setItem("user_session", JSON.stringify(checkRes.data.user));
+              localStorage.setItem("customer_token", checkRes.data.token);
+              document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+
+              setAuthOverlay({
+                show: true,
+                title: `ស្វាគមន៍ ${checkRes.data.user.name || checkRes.data.user.display_name}! 🎉`,
+                subtitle: "ចូលគណនីជាមួយ Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
+                isSuccess: true,
+              });
+
+              await new Promise((r) => setTimeout(r, 1600));
+              router.push("/");
+            }
+          } catch (e) {}
+        }, 1500);
+
+        return;
+      }
+    } catch (err: any) {
+      console.warn("Handshake init fallback to widget/oauth:", err);
     }
+
+    // 2. Fallback to Telegram Web Widget or Direct Redirect Gateway
+    const origin = window.location.origin.includes("s-tech-store.tech")
+      ? window.location.origin
+      : "https://www.s-tech-store.tech";
+    const callbackUrl = window.location.origin + window.location.pathname;
+    const oauthUrl = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(origin)}&embed=0&request_access=write&return_to=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = oauthUrl;
   };
 
-  // ─── 1-Click TikTok Sign In ───────────────────────────────────────────────────
+  // ─── 1-Click TikTok Sign In / Official OAuth ──────────────────────────────────
   const handleTikTokSignIn = async () => {
     setError("");
     setLoading(true);
@@ -242,17 +307,26 @@ export default function LoginPage() {
 
     setAuthOverlay({
       show: true,
-      title: `🎵 កំពុងផ្ទៀងផ្ទាត់ TikTok លើ ${deviceName}...`,
-      subtitle: `សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងភ្ជាប់គណនី TikTok និងផ្ញើ Alert...`,
+      title: `🎵 កំពុងភ្ជាប់ TikTok Authenticator លើ ${deviceName}...`,
+      subtitle: `សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់គណនី TikTok...`,
       isSuccess: false,
     });
 
     try {
+      // 1. Try official TikTok OAuth redirect if configured on backend
+      try {
+        const checkOauth = await api.get("/auth/tiktok/redirect");
+        if (checkOauth.request?.responseURL && !checkOauth.data?.needs_keys) {
+          window.location.href = checkOauth.request.responseURL;
+          return;
+        }
+      } catch (e: any) {}
+
+      // 2. Seamless 1-Click Authenticator
       const backendUrl = process.env.NODE_ENV === "production"
         ? "https://stech-backend-xz6j.onrender.com/api"
         : "http://127.0.0.1:8000/api";
 
-      // Send live alert to Telegram
       fetch(`${backendUrl}/security/alert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

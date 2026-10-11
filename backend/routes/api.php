@@ -267,6 +267,132 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     ]);
 });
 
+// Telegram 1-Click App Handshake Login (Bypasses Bot Domain Invalid & Web Widget completely)
+Route::post('/auth/telegram/handshake-init', function (Request $request) {
+    $token = 'tgauth_' . \Illuminate\Support\Str::random(24);
+    $botUsername = env('TELEGRAM_AUTH_BOT_USERNAME', 'Stech_store_LoginBot');
+
+    \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", [
+        'status' => 'pending',
+        'created_at' => time(),
+        'ip' => $request->ip() ?? '127.0.0.1',
+    ], 600); // 10 minutes
+
+    return response()->json([
+        'success' => true,
+        'handshake_token' => $token,
+        'bot_username' => $botUsername,
+        'deep_link' => "https://t.me/{$botUsername}?start={$token}",
+        'app_link' => "tg://resolve?domain={$botUsername}&start={$token}",
+    ]);
+});
+
+Route::get('/auth/telegram/handshake-check', function (Request $request) {
+    $token = trim((string)$request->query('token', ''));
+    if (!$token) {
+        return response()->json(['success' => false, 'error' => 'Token required'], 400);
+    }
+
+    $data = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
+    if (!$data || !is_array($data)) {
+        return response()->json(['success' => false, 'error' => 'Handshake session expired or invalid'], 404);
+    }
+
+    if (($data['status'] ?? '') === 'completed' && !empty($data['user']) && !empty($data['token'])) {
+        return response()->json([
+            'success' => true,
+            'completed' => true,
+            'token' => $data['token'],
+            'user' => $data['user'],
+        ]);
+    }
+
+    return response()->json([
+        'success' => true,
+        'completed' => false,
+        'status' => 'pending',
+    ]);
+});
+
+// Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)
+Route::get('/auth/tiktok/redirect', function (Request $request) {
+    $clientKey = env('TIKTOK_CLIENT_KEY', '');
+    $redirectUri = urlencode(env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback'));
+    $state = \Illuminate\Support\Str::random(32);
+    \Illuminate\Support\Facades\Cache::put("tiktok_state_{$state}", true, 600);
+
+    if (empty($clientKey)) {
+        return response()->json([
+            'success' => false,
+            'needs_keys' => true,
+            'message' => 'TikTok Client Key មិនទាន់ត្រូវបានកំណត់ក្នុង .env (TIKTOK_CLIENT_KEY) នៅឡើយទេ។ សូមបង្កើត App ឥតគិតថ្លៃនៅ developers.tiktok.com',
+        ], 400);
+    }
+
+    $authUrl = "https://www.tiktok.com/v2/auth/authorize/?client_key={$clientKey}&scope=user.info.basic&response_type=code&redirect_uri={$redirectUri}&state={$state}";
+    return redirect()->away($authUrl);
+});
+
+Route::get('/auth/tiktok/callback', function (Request $request) {
+    $code = $request->query('code', '');
+    $state = $request->query('state', '');
+    $clientKey = env('TIKTOK_CLIENT_KEY', '');
+    $clientSecret = env('TIKTOK_CLIENT_SECRET', '');
+    $redirectUri = env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback');
+
+    if (empty($code)) {
+        return redirect('https://www.s-tech-store.tech/login?error=tiktok_cancelled');
+    }
+
+    try {
+        $resp = \Illuminate\Support\Facades\Http::asForm()->post('https://open.tiktokapis.com/v2/oauth/token/', [
+            'client_key' => $clientKey,
+            'client_secret' => $clientSecret,
+            'code' => $code,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $redirectUri,
+        ]);
+
+        $tokenData = $resp->json();
+        $accessToken = $tokenData['data']['access_token'] ?? null;
+        $openId = $tokenData['data']['open_id'] ?? null;
+
+        if (!$accessToken || !$openId) {
+            return redirect('https://www.s-tech-store.tech/login?error=tiktok_token_failed');
+        }
+
+        $userResp = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => "Bearer {$accessToken}",
+        ])->get('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name');
+
+        $userData = $userResp->json()['data']['user'] ?? [];
+        $displayName = $userData['display_name'] ?? ('TikTok User #' . substr($openId, 0, 6));
+        $avatarUrl = $userData['avatar_url'] ?? '';
+
+        $firebaseUid = 'tt_' . $openId;
+        $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => $firebaseUid]);
+        $user->display_name = $displayName;
+        if (empty($user->email)) {
+            $user->email = "tiktok_{$openId}@s-tech-store.tech";
+        }
+        if (!empty($avatarUrl)) {
+            $user->photo_url = $avatarUrl;
+            $user->avatar_url = $avatarUrl;
+        }
+        $user->is_active = true;
+        $user->status = 'active';
+        $user->save();
+
+        $token = 'tt_sess_' . \Illuminate\Support\Str::random(60);
+        \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+        return redirect("https://www.s-tech-store.tech/login?tiktok_token={$token}&name=" . urlencode($displayName));
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('TikTok OAuth Callback Error: ' . $e->getMessage());
+        return redirect('https://www.s-tech-store.tech/login?error=tiktok_exception');
+    }
+});
+
 // Customer Direct Magic Login & Password Reset (Public)
 Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 

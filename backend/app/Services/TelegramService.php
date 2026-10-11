@@ -669,16 +669,81 @@ class TelegramService
             }
         }
 
-        // 4. Extract Pairing Code / Hash from incoming commands & deep links (Admin Pairing)
+        // 4. Extract Pairing Code / Hash / Handshake from incoming commands & deep links
         $extractedCode = null;
         if (preg_match('/^\/start(?:@\w+)?(?:[\s=_]+|\?)(?:start(?:group)?=)?([A-Za-z0-9_-]+)/i', $text, $matches)) {
             $extractedCode = $matches[1];
         } elseif (preg_match('/start(?:group)?=([A-Za-z0-9_-]+)/i', $text, $matches)) {
             $extractedCode = $matches[1];
-        } elseif (preg_match('/\b(ST[A-Za-z0-9]{4,12})\b/i', $text, $matches)) {
+        } elseif (preg_match('/\b(ST[A-Za-z0-9]{4,12}|tgauth_[A-Za-z0-9_-]+)\b/i', $text, $matches)) {
             $extractedCode = $matches[1];
         }
 
+        // 4.1 Handle 1-Click Telegram App Customer Login Handshake (tgauth_...)
+        if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
+            $cleanToken = strtolower(trim($extractedCode));
+            $handshakeKey = "tg_handshake_{$cleanToken}";
+            $handshake = Cache::get($handshakeKey);
+            if ($handshake && is_array($handshake)) {
+                $tgId = (string)($from['id'] ?? $chatId);
+                $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
+                $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
+                $email = !empty($from['username'])
+                    ? ($from['username'] . '@telegram.s-tech-store.tech')
+                    : ("tg_{$tgId}@s-tech-store.tech");
+
+                $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+                $user->display_name = $fullName;
+                if (empty($user->email)) $user->email = $email;
+                $user->telegram = $tgUsername;
+                $user->is_active = true;
+                $user->status = 'active';
+                $user->save();
+
+                $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
+                Cache::put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
+
+                // Mark handshake complete
+                Cache::put($handshakeKey, [
+                    'status' => 'completed',
+                    'token' => $sessionToken,
+                    'user' => [
+                        'id' => $user->id,
+                        'uid' => $user->firebase_uid,
+                        'name' => $user->display_name,
+                        'display_name' => $user->display_name,
+                        'email' => $user->email,
+                        'telegram' => $user->telegram,
+                        'telegram_id' => $tgId,
+                        'provider' => 'telegram',
+                    ],
+                ], 600);
+
+                // Send audit security alert
+                self::sendSecurityAlert([
+                    'type' => '👤 1-Click Telegram App Handshake Verified',
+                    'ip' => $handshake['ip'] ?? request()->ip() ?? '127.0.0.1',
+                    'device' => 'Telegram Mobile/Desktop Client',
+                    'user' => "{$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
+                    'action' => 'TELEGRAM_APP_HANDSHAKE_SUCCESS',
+                    'details' => "អតិថិជនបាន Login តាមរយៈ 1-Click Telegram App Handshake ជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId}។",
+                ]);
+
+                $doneMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ចូលគណនីជោគជ័យ (Login Verified)!</b>\n\n"
+                    . "ជម្រាបសួរ <b>{$fullName}</b>! គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ និង Logged in លើវេបសាយ S Tech Store ដោយជោគជ័យ។\n\n"
+                    . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) វិញដើម្បីបន្តការទិញទំនិញ!</b>";
+                $doneKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ត្រឡប់ទៅគេហទំព័រវិញ (Return to Web)', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => '🛍️ ឬបើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                    ],
+                ];
+                self::sendMessageWithKeyboard($chatId, $doneMsg, $doneKb, 'HTML', null, $activeToken);
+                return;
+            }
+        }
+
+        // 4.2 Handle Admin Pairing Code
         if ($extractedCode) {
             $cleanCode = strtoupper(trim($extractedCode));
             if (preg_match('/^(ST[A-Za-z0-9]{4,8})/i', $cleanCode, $mCode)) {
