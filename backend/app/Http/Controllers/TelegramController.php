@@ -258,14 +258,15 @@ class TelegramController extends Controller
 
     /**
      * Public Telegram Webhook Endpoint
-     * Handles /start <PAIR_CODE>, /setup_topics, and callback buttons
+     * Handles /start <PAIR_CODE>, customer commands, FAQ inquiries, and callback buttons
      */
     public function webhook(Request $request)
     {
         $update = $request->all();
-        Log::info("Telegram Webhook Update received:", $update);
+        $botParam = $request->query('bot', '');
+        Log::info("Telegram Webhook Update received [bot={$botParam}]:", $update);
 
-        TelegramService::processUpdate($update);
+        TelegramService::processUpdate($update, $botParam);
 
         return response()->json(['ok' => true]);
     }
