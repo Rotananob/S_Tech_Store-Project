@@ -1,7 +1,29 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Bot, Headphones, AlertCircle, LogIn, Clock, Sparkles, MessageCircle, ExternalLink, RefreshCw } from "lucide-react";
+import { 
+  X, 
+  Send, 
+  Bot, 
+  Headphones, 
+  AlertCircle, 
+  LogIn, 
+  Clock, 
+  Sparkles, 
+  MessageCircle, 
+  ExternalLink, 
+  RefreshCw,
+  History,
+  Plus,
+  Trash2,
+  ChevronRight,
+  Menu,
+  Layers,
+  Search,
+  CheckCheck,
+  Zap,
+  MessageSquare
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -14,6 +36,15 @@ const RATE_LIMIT_PER_MINUTE = 5; // max 5 messages per 60 seconds
 const RATE_LIMIT_PER_HOUR = 150; // max 150 messages per 3600 seconds
 const ONE_MINUTE_MS = 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
+
+export interface ChatSessionItem {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  lastMessage?: string;
+  messages: ChatItem[];
+}
 
 interface ChatBotProps {
   onClose: () => void;
@@ -56,6 +87,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [input, setInput] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
 
+  // ─── Multi-Session State (Gemini App Style) ────────────────────────────────
+  const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState("");
+
+  // ─── Live Thinking Preview State (Gemini Thinking UI) ─────────────────────
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
+  const [showThoughtProcess, setShowThoughtProcess] = useState(true);
+
   // ─── Agent modal state ─────────────────────────────────────────────────────
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [isSendingAgentReq, setIsSendingAgentReq] = useState(false);
@@ -88,6 +129,18 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
+  // ─── Live Thinking Timer ──────────────────────────────────────────────────
+  useEffect(() => {
+    let interval: any;
+    if (isAiThinking) {
+      setThinkingSeconds(0);
+      interval = setInterval(() => {
+        setThinkingSeconds((prev) => +(prev + 0.1).toFixed(1));
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isAiThinking]);
+
   // ─── Check rate limits ────────────────────────────────────────────────────
   const checkRateLimit = useCallback((): { allowed: boolean; reason?: string } => {
     const now = Date.now();
@@ -111,32 +164,58 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     return { allowed: true };
   }, []);
 
-  // ─── Initialize Auth & Greeting ───────────────────────────────────────────
-  // ─── LocalStorage Session History Helpers ─────────────────────────────────
-  const getStorageKey = (cid: string) => `stech_ai_chat_history_${cid || "guest"}`;
+  // ─── Session Title Generator ──────────────────────────────────────────────
+  const generateSessionTitle = (text: string): string => {
+    let clean = text.replace(/^(សួស្តី|hello|hi|ជំរាបសួរ|បង|admin)[,\s!.]*/i, "").trim();
+    if (!clean) clean = text.trim();
+    if (clean.length > 32) {
+      clean = clean.slice(0, 32) + "...";
+    }
+    return clean || "ការសន្ទនាថ្មី";
+  };
 
-  const loadStoredMessages = (cid: string): ChatItem[] | null => {
-    if (typeof window === "undefined") return null;
+  // ─── LocalStorage Multi-Session Helpers ────────────────────────────────────
+  const getSessionsStorageKey = (uid: string) => `stech_gemini_sessions_${uid || "guest"}`;
+
+  const loadAllSessions = (uid: string): ChatSessionItem[] => {
+    if (typeof window === "undefined") return [];
     try {
-      const saved = localStorage.getItem(getStorageKey(cid));
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+      const data = localStorage.getItem(getSessionsStorageKey(uid));
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+
+      // Backward compatibility: Migrate legacy single-thread history
+      const oldKey = `stech_ai_chat_history_${uid || "guest"}`;
+      const oldData = localStorage.getItem(oldKey);
+      if (oldData) {
+        const oldMsgs = JSON.parse(oldData);
+        if (Array.isArray(oldMsgs) && oldMsgs.length > 0) {
+          const firstUserMsg = oldMsgs.find((m: any) => m.sender === "user")?.text;
+          const initialSession: ChatSessionItem = {
+            id: "ses_" + Date.now().toString(36),
+            title: firstUserMsg ? generateSessionTitle(firstUserMsg) : "ការសន្ទនាពីមុន",
+            createdAt: Date.now() - 3600000,
+            updatedAt: Date.now(),
+            lastMessage: oldMsgs[oldMsgs.length - 1]?.text || "",
+            messages: oldMsgs,
+          };
+          return [initialSession];
         }
       }
     } catch {}
-    return null;
+    return [];
   };
 
-  const saveMessagesToStorage = (cid: string, msgs: ChatItem[]) => {
-    if (typeof window === "undefined" || !cid) return;
+  const saveSessionsToStorage = (uid: string, sList: ChatSessionItem[]) => {
+    if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(getStorageKey(cid), JSON.stringify(msgs.slice(-50)));
+      localStorage.setItem(getSessionsStorageKey(uid), JSON.stringify(sList.slice(0, 30)));
     } catch {}
   };
 
-  // ─── Initialize Auth, Greeting & Restore Chat History ─────────────────────
+  // ─── Initialize Auth, User Info & Sessions ─────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -144,6 +223,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
       let detectedName = "បង";
       let activeChatId = getOrCreateVisitorId();
+      const userKey = user ? user.uid : "guest";
 
       if (user) {
         activeChatId = user.uid;
@@ -178,15 +258,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
       setChatId(activeChatId);
 
-      // Restore existing history from localStorage if present
-      const stored = loadStoredMessages(activeChatId);
-      if (stored && stored.length > 0) {
-        setMessages(stored);
+      // Load sessions for this user / guest
+      const loadedSessions = loadAllSessions(userKey);
+      if (loadedSessions.length > 0) {
+        setSessions(loadedSessions);
+        setActiveSessionId(loadedSessions[0].id);
+        setMessages(loadedSessions[0].messages || []);
       } else {
-        // Initial Greeting Message with Real User Name and 2 Action Buttons
-        const greetingText = `សួស្តីបង ${detectedName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃរបស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
-
-        setMessages([
+        // Create first fresh session with greeting
+        const firstSessionId = "ses_" + Date.now().toString(36);
+        const greetingText = `សួស្តីបង ${detectedName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃ Gemini 3.8 របស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+        const initialMsgs: ChatItem[] = [
           {
             sender: "bot",
             text: greetingText,
@@ -194,29 +276,71 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             showGreetingButtons: true,
           },
-        ]);
+        ];
+        const newSession: ChatSessionItem = {
+          id: firstSessionId,
+          title: "ការសន្ទនាថ្មី",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          lastMessage: greetingText,
+          messages: initialMsgs,
+        };
+
+        setSessions([newSession]);
+        setActiveSessionId(firstSessionId);
+        setMessages(initialMsgs);
+        saveSessionsToStorage(userKey, [newSession]);
       }
     });
 
     return () => unsub();
   }, []);
 
-  // ─── Save Messages to LocalStorage on Change ──────────────────────────────
+  // ─── Sync messages back to active session & LocalStorage ───────────────────
   useEffect(() => {
-    if (chatId && messages.length > 0) {
-      saveMessagesToStorage(chatId, messages);
-    }
-  }, [messages, chatId]);
+    if (!activeSessionId || messages.length === 0) return;
 
-  // ─── Reset Chat / New Session Handler ─────────────────────────────────────
-  const handleResetChat = () => {
-    if (typeof window !== "undefined" && chatId) {
-      try {
-        localStorage.removeItem(getStorageKey(chatId));
-      } catch {}
-    }
-    const greetingText = `សួស្តីបង ${userName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃរបស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
-    setMessages([
+    setSessions((prev) => {
+      const userUid = currentUser?.uid || "guest";
+      const existingIdx = prev.findIndex((s) => s.id === activeSessionId);
+
+      let title = "ការសន្ទនាថ្មី";
+      const firstUserMsg = messages.find((m) => m.sender === "user")?.text;
+      if (firstUserMsg) {
+        title = generateSessionTitle(firstUserMsg);
+      }
+
+      const updatedSession: ChatSessionItem = existingIdx >= 0
+        ? {
+            ...prev[existingIdx],
+            title: prev[existingIdx].title === "ការសន្ទនាថ្មី" && firstUserMsg ? title : prev[existingIdx].title,
+            updatedAt: Date.now(),
+            lastMessage: messages[messages.length - 1]?.text || "",
+            messages,
+          }
+        : {
+            id: activeSessionId,
+            title,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            lastMessage: messages[messages.length - 1]?.text || "",
+            messages,
+          };
+
+      const newList = existingIdx >= 0
+        ? prev.map((s, idx) => (idx === existingIdx ? updatedSession : s))
+        : [updatedSession, ...prev];
+
+      saveSessionsToStorage(userUid, newList);
+      return newList;
+    });
+  }, [messages, activeSessionId, currentUser]);
+
+  // ─── Start New Chat Session (Gemini App Style) ─────────────────────────────
+  const handleNewChat = () => {
+    const newId = "ses_" + Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 6);
+    const greetingText = `សួស្តីបង ${userName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃ Gemini 3.8 របស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+    const initialMsgs: ChatItem[] = [
       {
         sender: "bot",
         text: greetingText,
@@ -224,8 +348,55 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         showGreetingButtons: true,
       },
-    ]);
-    showToast("🧹 បានសម្អាត និងចាប់ផ្តើមការជជែកថ្មី!", "info");
+    ];
+
+    const newSession: ChatSessionItem = {
+      id: newId,
+      title: "ការសន្ទនាថ្មី",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      lastMessage: greetingText,
+      messages: initialMsgs,
+    };
+
+    setSessions((prev) => {
+      const updated = [newSession, ...prev];
+      saveSessionsToStorage(currentUser?.uid || "guest", updated);
+      return updated;
+    });
+
+    setActiveSessionId(newId);
+    setMessages(initialMsgs);
+    setShowHistoryDrawer(false);
+    showToast("✨ បានចាប់ផ្តើមការសន្ទនាថ្មី!", "info");
+  };
+
+  // ─── Switch Chat Session ──────────────────────────────────────────────────
+  const handleSelectSession = (session: ChatSessionItem) => {
+    setActiveSessionId(session.id);
+    setMessages(session.messages || []);
+    setShowHistoryDrawer(false);
+  };
+
+  // ─── Delete Chat Session ──────────────────────────────────────────────────
+  const handleDeleteSession = (e: React.MouseEvent, sid: string) => {
+    e.stopPropagation();
+    const userUid = currentUser?.uid || "guest";
+    setSessions((prev) => {
+      const filtered = prev.filter((s) => s.id !== sid);
+      saveSessionsToStorage(userUid, filtered);
+      if (activeSessionId === sid) {
+        if (filtered.length > 0) {
+          setActiveSessionId(filtered[0].id);
+          setMessages(filtered[0].messages || []);
+        } else {
+          // If all sessions deleted, create a fresh one
+          setTimeout(() => handleNewChat(), 50);
+        }
+      }
+      return filtered;
+    });
+    showToast("🗑️ បានលុបការសន្ទនារួចរាល់!", "info");
   };
 
   // ─── Subscribe to real-time messages from Firebase RTDB ───────────────────
@@ -455,6 +626,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     }
   };
 
+  // Current active session title
+  const currentSession = sessions.find((s) => s.id === activeSessionId);
+  const currentTitle = currentSession?.title || "ការសន្ទនាថ្មី";
+
+  // Filter sessions by search
+  const filteredSessions = sessions.filter((s) =>
+    s.title.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+    (s.lastMessage && s.lastMessage.toLowerCase().includes(sessionSearch.toLowerCase()))
+  );
+
   return (
     <div
       className="fixed inset-0 z-[99999] flex flex-col bg-white dark:bg-[#0c0d12] text-gray-900 dark:text-gray-100 w-full overflow-hidden"
@@ -492,43 +673,58 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         className="bg-white dark:bg-[#12151e] px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between shadow-sm flex-shrink-0"
         style={{ paddingTop: "calc(12px + env(safe-area-inset-top))" }}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          {/* History / Sessions Drawer Button (Gemini App Style) */}
+          <button
+            onClick={() => setShowHistoryDrawer(true)}
+            title="មើលប្រវត្តិការសន្ទនា (Chat Sessions)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border border-gray-200/50 dark:border-white/5 shrink-0"
+          >
+            <History size={15} className="text-[#8B1A1A] dark:text-red-400" />
+            <span className="hidden sm:inline">Sessions</span>
+            <span className="w-5 h-5 rounded-full bg-[#8B1A1A] text-white text-[10px] flex items-center justify-center font-mono">
+              {sessions.length}
+            </span>
+          </button>
+
           {/* Official S-Tech Logo & Bot Badge */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <img
               src="/logo.jpg"
               alt="S Tech Store"
-              className="w-10 h-10 rounded-2xl object-cover shadow-sm border border-gray-200 dark:border-white/15"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl object-cover shadow-sm border border-gray-200 dark:border-white/15"
             />
             <div className="w-4 h-4 rounded-full bg-[#8B1A1A] absolute -bottom-1 -right-1 flex items-center justify-center text-white text-[9px] shadow-sm border border-white dark:border-[#12151e]">
-              <Bot size={10} />
+              <Sparkles size={9} />
             </div>
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-0.5 -right-0.5 border-2 border-white dark:border-[#12151e] animate-pulse" />
           </div>
 
-          <div>
+          <div className="truncate min-w-0">
             <div className="flex items-center gap-1.5">
-              <h3 className="font-extrabold text-gray-900 dark:text-white text-[14px] sm:text-[15px] leading-tight">
+              <h3 className="font-extrabold text-gray-900 dark:text-white text-[13.5px] sm:text-[15px] leading-tight truncate">
                 S Tech Smart AI
               </h3>
-              <span className="text-[9.5px] bg-red-100 dark:bg-red-950/60 text-[#8B1A1A] dark:text-red-400 font-black px-1.5 py-0.5 rounded uppercase">
-                Official
+              <span className="text-[9px] bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black px-1.5 py-0.5 rounded uppercase shrink-0">
+                Gemini 3.8
               </span>
             </div>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-              Online • ជំនួយការឆ្លាតវៃ S Tech Store
-            </span>
+            <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate">
+              <MessageSquare size={10} className="shrink-0 text-emerald-500" />
+              <span className="truncate">{currentTitle}</span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* New Chat / Reset Button */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* New Chat Button (+) */}
           <button
-            onClick={handleResetChat}
-            title="ចាប់ផ្តើមសារថ្មី (New Chat / សម្អាតសារ)"
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition-all cursor-pointer"
+            onClick={handleNewChat}
+            title="ចាប់ផ្តើមការសន្ទនាថ្មី (+ New Chat)"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border border-gray-200/40 dark:border-white/5"
           >
-            <RefreshCw size={15} />
+            <Plus size={14} className="text-[#8B1A1A] dark:text-red-400" />
+            <span className="hidden md:inline">New Chat</span>
           </button>
 
           {/* Connect Live Agent Button */}
@@ -583,7 +779,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-50/50 dark:bg-[#0c0d12]">
         {messages.map((msg, i) => (
           <div
-            key={i}
+            key={msg.id || i}
             className={`flex flex-col ${
               msg.sender === "user"
                 ? "items-end"
@@ -592,50 +788,48 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 : "items-start"
             }`}
           >
-            {msg.sender === "system" ? (
-              <div className="max-w-[90%] sm:max-w-[85%] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-900 dark:text-amber-300 text-xs rounded-xl px-3.5 py-2.5 text-center font-medium shadow-sm flex flex-col items-center gap-2">
-                <span>{msg.text}</span>
-                {!currentUser && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <button
-                      onClick={() => router.push("/login")}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#8B1A1A] text-white text-xs font-bold hover:bg-red-700 transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <LogIn size={12} />
-                      <span>ចូលគណនី (Sign In)</span>
-                    </button>
-                    <button
-                      onClick={() => setShowAgentModal(true)}
-                      className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 text-xs font-bold hover:bg-gray-300 transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Headphones size={12} />
-                      <span>Alert Live Agent</span>
-                    </button>
-                  </div>
+            {msg.sender === "user" ? (
+              // User Bubble
+              <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
+                <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white rounded-tr-sm">
+                  {msg.text}
+                </div>
+                {msg.time && (
+                  <span className="text-[10px] text-gray-400 mt-1 font-medium pr-1 flex items-center gap-1">
+                    <CheckCheck size={11} className="text-blue-400" />
+                    {msg.time}
+                  </span>
                 )}
+              </div>
+            ) : msg.sender === "system" ? (
+              // System Message
+              <div className="bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/40 text-xs px-3.5 py-2 rounded-xl max-w-[90%] text-center my-1 shadow-xs">
+                {msg.text}
               </div>
             ) : msg.sender === "staff" ? (
-              <div className="flex flex-col items-start gap-1 max-w-[85%] sm:max-w-[70%]">
-                <span className="text-[10.5px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-200/60 shadow-xs">
-                  🛡️ {msg.senderName || "S Tech Staff (ក្រុមការងារ)"}
-                </span>
-                <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-gray-100 rounded-tl-sm border-2 border-red-500/20 dark:border-red-500/30">
-                  <div>{msg.text}</div>
-                  {msg.time && (
-                    <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
-                      {msg.time}
-                    </div>
-                  )}
+              // Live Human Staff Reply (Instagram / Support style)
+              <div className="flex items-start gap-2.5 max-w-[90%] sm:max-w-[75%]">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shrink-0 shadow-sm mt-0.5">
+                  <Headphones size={15} />
                 </div>
-              </div>
-            ) : msg.sender === "user" ? (
-              <div className="max-w-[80%] sm:max-w-[70%] p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-[#8B1A1A] text-white rounded-tr-sm">
-                <div>{msg.text}</div>
-                {msg.time && (
-                  <div className="text-[10px] mt-1 text-right font-medium text-white/70">
-                    {msg.time}
+                <div className="flex flex-col items-start gap-1 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                      {msg.senderName || "S Tech Support"}
+                    </span>
+                    <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 font-bold px-1.5 py-0.2 rounded-full">
+                      Live Staff
+                    </span>
                   </div>
-                )}
+                  <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-white rounded-tl-sm border border-emerald-200/50 dark:border-emerald-800/30">
+                    <div className="whitespace-pre-line">{msg.text}</div>
+                    {msg.time && (
+                      <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
+                        {msg.time}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               // AI Bot Message with Logo Avatar
@@ -695,21 +889,61 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           </div>
         ))}
 
-        {/* AI Typing Indicator */}
+        {/* ── HIGH-TECH GEMINI 3.8 FLASH LIVE THINKING CARD ── */}
         {isAiThinking && (
-          <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 text-xs py-1">
-            <div className="w-7 h-7 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
-              <Bot size={15} />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-start gap-2.5 max-w-[95%] sm:max-w-[85%] my-2"
+          >
+            {/* Glowing Gemini Colorful Avatar */}
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-pink-500 p-[1.5px] shrink-0 mt-0.5 shadow-md animate-pulse">
+              <div className="w-full h-full bg-white dark:bg-[#0c0d12] rounded-[10px] flex items-center justify-center text-indigo-500 dark:text-indigo-400">
+                <Sparkles size={16} className="animate-spin [animation-duration:4s]" />
+              </div>
             </div>
-            <div className="flex items-center gap-1 bg-white dark:bg-[#151922] px-3 py-2 rounded-2xl border border-gray-100 dark:border-white/5 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce"></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce [animation-delay:0.2s]"></span>
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-bounce [animation-delay:0.4s]"></span>
-              <span className="text-[11px] font-medium ml-1.5 text-gray-500 dark:text-gray-400">
-                AI កំពុងឆ្លើយតប...
-              </span>
+
+            {/* Thinking Box */}
+            <div className="flex-1 bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-pink-50/50 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-pink-950/30 rounded-2xl rounded-tl-sm p-3.5 border border-indigo-200/70 dark:border-indigo-800/40 shadow-sm relative overflow-hidden">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
+                  <span className="font-extrabold text-xs bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    Gemini 3.8 Flash • កំពុងគិត ({thinkingSeconds.toFixed(1)}s)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowThoughtProcess(!showThoughtProcess)}
+                  className="text-[10.5px] text-gray-500 hover:text-gray-800 dark:text-gray-400 font-semibold cursor-pointer underline"
+                >
+                  {showThoughtProcess ? "បិទដំណើរការគិត" : "មើលដំណើរការគិត"}
+                </button>
+              </div>
+
+              {showThoughtProcess && (
+                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-indigo-100 dark:border-indigo-900/40 text-[12px] text-gray-700 dark:text-gray-300">
+                  <div className="flex items-center gap-2 font-medium">
+                    <span className="text-indigo-600 dark:text-indigo-400">
+                      {thinkingSeconds < 1.5
+                        ? "💡 Gemini កំពុងពិចារណា & វិភាគសំណួររបស់អ្នក..."
+                        : thinkingSeconds < 3.5
+                        ? "🔎 ផ្ទៀងផ្ទាត់ទិន្នន័យផលិតផល ស្តុក និងតម្លៃ S Tech Store..."
+                        : "✍️ កំពុងចងក្រង និងសរសេរចម្លើយជាភាសាខ្មែរ..."}
+                    </span>
+                  </div>
+
+                  {/* Animated Wave Bars */}
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <div className="h-1.5 w-8 rounded-full bg-indigo-500 animate-pulse" />
+                    <div className="h-1.5 w-14 rounded-full bg-purple-500 animate-pulse [animation-delay:0.2s]" />
+                    <div className="h-1.5 w-20 rounded-full bg-pink-500 animate-pulse [animation-delay:0.4s]" />
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          </motion.div>
         )}
 
         <div ref={endRef} />
@@ -749,10 +983,166 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         </button>
       </div>
 
+      {/* ── GEMINI APP STYLE CHAT SESSIONS DRAWER ────────────────────────────── */}
+      <AnimatePresence>
+        {showHistoryDrawer && (
+          <div className="fixed inset-0 z-[150] flex">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowHistoryDrawer(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
+            />
+
+            {/* Slide-out Drawer Panel */}
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="relative w-full max-w-xs sm:max-w-sm bg-white dark:bg-[#12151e] h-full shadow-2xl flex flex-col border-r border-gray-100 dark:border-white/10 z-10"
+            >
+              {/* Drawer Header */}
+              <div
+                className="p-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between"
+                style={{ paddingTop: "calc(16px + env(safe-area-inset-top))" }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-pink-500 p-[1.5px]">
+                    <div className="w-full h-full bg-white dark:bg-[#12151e] rounded-[10px] flex items-center justify-center text-indigo-500">
+                      <Sparkles size={16} />
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">
+                      Chat Sessions
+                    </h4>
+                    <span className="text-[11px] text-gray-400">ប្រវត្តិការសន្ទនា ({sessions.length})</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowHistoryDrawer(false)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-500 cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* New Chat Button CTA */}
+              <div className="p-3">
+                <button
+                  onClick={handleNewChat}
+                  className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-all cursor-pointer"
+                >
+                  <Plus size={16} />
+                  <span>ចាប់ផ្តើមការសន្ទនាថ្មី (+ New Chat)</span>
+                </button>
+              </div>
+
+              {/* Search Box */}
+              <div className="px-3 pb-2">
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 px-3 py-2 rounded-xl border border-transparent dark:border-white/10 text-xs">
+                  <Search size={14} className="text-gray-400" />
+                  <input
+                    type="text"
+                    value={sessionSearch}
+                    onChange={(e) => setSessionSearch(e.target.value)}
+                    placeholder="ស្វែងរកប្រវត្តិឆាត..."
+                    className="bg-transparent outline-none flex-1 text-gray-900 dark:text-white"
+                  />
+                  {sessionSearch && (
+                    <button onClick={() => setSessionSearch("")} className="text-gray-400 hover:text-gray-600">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Sessions List */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                {filteredSessions.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400 text-xs">
+                    <MessageSquare size={32} className="mx-auto mb-2 opacity-40" />
+                    <span>មិនមានប្រវត្តិការសន្ទនាណាត្រូវគ្នានឹងការស្វែងរកឡើយ</span>
+                  </div>
+                ) : (
+                  filteredSessions.map((session) => {
+                    const isActive = session.id === activeSessionId;
+                    return (
+                      <div
+                        key={session.id}
+                        onClick={() => handleSelectSession(session)}
+                        className={`group p-3 rounded-xl border transition-all cursor-pointer relative flex flex-col gap-1 ${
+                          isActive
+                            ? "bg-red-50/80 dark:bg-red-950/30 border-red-200 dark:border-red-900/40 shadow-xs"
+                            : "bg-white dark:bg-white/5 border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {isActive ? (
+                              <span className="w-2 h-2 rounded-full bg-[#8B1A1A] dark:text-red-400 shrink-0" />
+                            ) : (
+                              <MessageSquare size={13} className="text-gray-400 shrink-0" />
+                            )}
+                            <h5 className={`font-bold text-xs truncate ${isActive ? "text-[#8B1A1A] dark:text-red-400" : "text-gray-900 dark:text-white"}`}>
+                              {session.title}
+                            </h5>
+                          </div>
+
+                          {/* Delete Session Button */}
+                          <button
+                            onClick={(e) => handleDeleteSession(e, session.id)}
+                            title="លុបការសន្ទនានេះ"
+                            className="opacity-60 group-hover:opacity-100 hover:text-red-600 p-1 rounded-md transition-all cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                        {session.lastMessage && (
+                          <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate pl-4">
+                            {session.lastMessage}
+                          </p>
+                        )}
+
+                        <span className="text-[9.5px] text-gray-400 pl-4 font-mono">
+                          {new Date(session.updatedAt || session.createdAt).toLocaleDateString([], {
+                            month: "short",
+                            day: "numeric",
+                          })} • {new Date(session.updatedAt || session.createdAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Drawer Footer with User Info */}
+              <div
+                className="p-3 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between"
+                style={{ paddingBottom: "calc(14px + env(safe-area-inset-bottom))" }}
+              >
+                <span>គណនី: <strong className="text-gray-800 dark:text-gray-200">{userName}</strong></span>
+                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+                  Synced Local/Cloud
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Live Agent Request Modal ────────────────────────────────────────── */}
       <AnimatePresence>
         {showAgentModal && (
-          <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
