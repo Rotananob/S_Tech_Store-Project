@@ -481,6 +481,8 @@ class UserController extends Controller
             'title' => 'required|string|max:255',
             'message' => 'required|string',
             'type' => 'nullable|string|in:welcome,login,promo,order,system',
+            'link' => 'nullable|string|max:500',
+            'image' => 'nullable|string|max:1000',
         ]);
 
         $notification = UserNotification::create([
@@ -488,9 +490,77 @@ class UserController extends Controller
             'title' => $validated['title'],
             'message' => $validated['message'],
             'type' => $validated['type'] ?? 'system',
+            'link' => $validated['link'] ?? null,
+            'image' => $validated['image'] ?? null,
         ]);
 
         return response()->json($notification, 201);
+    }
+
+    /**
+     * GET /api/user/public/{identifier}
+     * Retrieve public profile of a user (by firebase_uid or id)
+     * All profiles are public on S Tech Store
+     */
+    public function getPublicProfile($identifier)
+    {
+        $profile = UserProfile::where('firebase_uid', $identifier)
+            ->orWhere('id', is_numeric($identifier) ? (int)$identifier : 0)
+            ->first();
+
+        if (!$profile) {
+            return response()->json([
+                'success' => true,
+                'is_fallback' => true,
+                'display_name' => 'S Tech Customer',
+                'photo_url' => null,
+                'profession' => 'Tech Enthusiast',
+                'city' => 'Phnom Penh, Cambodia',
+                'member_since' => '2026',
+                'verified_buyer' => true,
+                'total_reviews' => 0,
+                'reviews' => [],
+            ]);
+        }
+
+        $reviews = \App\Models\ProductReview::where('firebase_uid', $profile->firebase_uid)
+            ->with(['product:id,name,slug,price,sale_price,image_url,images'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($rev) {
+                return [
+                    'id' => $rev->id,
+                    'rating' => (int)$rev->rating,
+                    'comment' => $rev->comment,
+                    'created_at' => $rev->created_at ? $rev->created_at->toIso8601String() : null,
+                    'product' => $rev->product ? [
+                        'id' => $rev->product->id,
+                        'name' => $rev->product->name,
+                        'slug' => $rev->product->slug,
+                        'price' => $rev->product->price,
+                        'sale_price' => $rev->product->sale_price,
+                        'image' => $rev->product->image_url ?? (!empty($rev->product->images) ? $rev->product->images[0] : null),
+                    ] : null,
+                ];
+            });
+
+        $orderCount = Order::where('user_id', $profile->firebase_uid)->count();
+
+        return response()->json([
+            'success' => true,
+            'id' => $profile->id,
+            'firebase_uid' => $profile->firebase_uid,
+            'display_name' => $profile->display_name ?: ('Customer #' . $profile->id),
+            'photo_url' => $profile->photo_url ?: $profile->avatar_url,
+            'profession' => $profile->profession ?: 'Tech Customer',
+            'city' => $profile->city ?: 'Phnom Penh, Cambodia',
+            'member_since' => $profile->created_at ? $profile->created_at->format('M Y') : '2026',
+            'verified_buyer' => true,
+            'points' => (int)($profile->points ?? 0),
+            'total_reviews' => $reviews->count(),
+            'reviews' => $reviews,
+        ]);
     }
 
     /**

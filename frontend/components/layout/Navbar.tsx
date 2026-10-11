@@ -9,7 +9,7 @@ import { auth } from "../../lib/firebase";
 import {
   Search, ShoppingCart, User, Phone,
   Menu, X, ChevronDown, Heart, Bell,
-  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera
+  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera, ExternalLink
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
@@ -22,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import SlideOverCart from "@/components/cart/SlideOverCart";
 import { useVisualSearchStore } from "@/store/visualSearchStore";
 import VisualSearchModal from "@/components/search/VisualSearchModal";
+import NotificationPopupModal from "@/components/ui/NotificationPopupModal";
 
 export default function Navbar() {
   const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
@@ -45,6 +46,7 @@ export default function Navbar() {
     markAllAsRead,
     clearAll,
     getUnreadCount,
+    setActivePopupNotif,
   } = useNotificationStore();
 
   const navLinks = [
@@ -291,8 +293,12 @@ export default function Navbar() {
                         return (
                           <div
                             key={n.id}
-                            onClick={() => markAsRead(n.id)}
-                            className={`px-4 py-3.5 flex items-start gap-3 transition-colors cursor-pointer ${
+                            onClick={() => {
+                              markAsRead(n.id);
+                              setNotifOpen(false);
+                              setActivePopupNotif(n);
+                            }}
+                            className={`px-4 py-3.5 flex items-start gap-3 transition-colors cursor-pointer group ${
                               !n.read ? "bg-red-50/50 hover:bg-red-50" : "bg-white hover:bg-gray-50"
                             }`}
                           >
@@ -301,7 +307,7 @@ export default function Navbar() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <h4 className="text-[13px] font-bold text-[#1a1a1a] truncate">{n.title}</h4>
+                                <h4 className="text-[13px] font-bold text-[#1a1a1a] truncate group-hover:text-[#8B1A1A] transition-colors">{n.title}</h4>
                                 <span className="text-[11px] text-gray-400 flex items-center gap-1 flex-shrink-0">
                                   <Clock size={11} />
                                   {formatTimeAgo(n.created_at)}
@@ -310,10 +316,33 @@ export default function Navbar() {
                               <p className="text-[12px] text-[#555] mt-0.5 line-clamp-2 leading-relaxed">
                                 {n.message}
                               </p>
+                              {n.link && (
+                                <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#8B1A1A]">
+                                  <span>View Details</span>
+                                  <ExternalLink size={10} />
+                                </div>
+                              )}
                             </div>
-                            {!n.read && (
-                              <span className="w-2 h-2 rounded-full bg-[#8B1A1A] flex-shrink-0 mt-1.5" />
-                            )}
+                            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                              {!n.read && (
+                                <span className="w-2 h-2 rounded-full bg-[#8B1A1A] mt-1.5" />
+                              )}
+                              {n.link && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markAsRead(n.id);
+                                    setNotifOpen(false);
+                                    router.push(n.link!);
+                                  }}
+                                  title="Go directly to page"
+                                  className="p-1 rounded-md bg-gray-100 hover:bg-[#8B1A1A] hover:text-white text-gray-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                >
+                                  <ExternalLink size={12} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })
@@ -454,6 +483,7 @@ export default function Navbar() {
 
       <SlideOverCart />
       <VisualSearchModal />
+      <NotificationPopupModal />
     </>
   );
 }

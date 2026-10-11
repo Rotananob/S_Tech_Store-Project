@@ -193,10 +193,21 @@ export const features = [
   { icon: "🚚", label: "Same-Day Delivery" },
 ];
 
-export function formatKHR(usd: number): string {
-  return `≈${(Math.round(usd * USD_TO_KHR / 1000) * 1000).toLocaleString()} ៛`;
+export function formatKHR(usd: any): string {
+  if (!usd) return "";
+  const cleanNum = parseFloat(String(usd).replace(/[^0-9.]/g, ""));
+  if (isNaN(cleanNum) || cleanNum <= 0) return "";
+  return `≈${(Math.round(cleanNum * USD_TO_KHR / 1000) * 1000).toLocaleString()} ៛`;
 }
 
-export function formatUSD(price: number): string {
-  return `$${price.toLocaleString("en-US", { minimumFractionDigits: 0 })} USD`;
+export function formatUSD(price: any): string {
+  if (price === null || price === undefined || price === "") return "$0.00 USD";
+  const str = String(price).trim();
+  // If it's custom text like "xx$", "Contact", "Inbox", "TBD", etc.
+  if (/[a-zA-Z?]{2,}/i.test(str) || str.toLowerCase().includes("xx")) {
+    return str.endsWith("$") ? str : (str.startsWith("$") ? `${str}` : `${str}`);
+  }
+  const cleanNum = parseFloat(str.replace(/[^0-9.]/g, ""));
+  if (isNaN(cleanNum)) return str;
+  return `$${cleanNum.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USD`;
 }

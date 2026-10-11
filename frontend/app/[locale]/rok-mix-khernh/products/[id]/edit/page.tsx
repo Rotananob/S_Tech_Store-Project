@@ -416,13 +416,11 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     <DollarSign size={16} className="text-gray-400" />
                   </div>
                   <input 
-                    type="number" 
+                    type="text" 
                     value={price} 
                     onChange={e => setPrice(e.target.value)} 
-                    placeholder="0.00" 
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                    placeholder="e.g. 199.00 or xx$" 
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono" 
                   />
                 </div>
               </div>

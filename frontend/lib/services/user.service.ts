@@ -37,3 +37,8 @@ export async function uploadAvatar(file: File) {
   return data;
 }
 
+export async function getPublicUserProfile(identifier: string | number) {
+  const { data } = await api.get(`/user/public/${identifier}`);
+  return data;
+}
+

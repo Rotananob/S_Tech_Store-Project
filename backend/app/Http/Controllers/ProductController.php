@@ -55,8 +55,8 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
+            'price' => 'required|string|max:100',
+            'sale_price' => 'nullable|string|max:100',
             'stock' => 'required|integer|min:0',
             'brand' => 'nullable|string|max:100',
             'badge' => 'nullable|string|max:50',
@@ -101,12 +101,16 @@ class ProductController extends Controller
                 $message = "ទំនិញថ្មី '{$product->name}' តម្លៃ {$priceDisplay} ត្រូវបានដាក់លក់ក្នុងស្តុកហើយ! ចុចដើម្បីពិនិត្យមើល។";
 
                 $batch = [];
+                $productImage = $product->image_url ?? (!empty($product->images) ? $product->images[0] : null);
+                $productLink = "/products/{$product->slug}";
                 foreach ($uids as $uid) {
                     $batch[] = [
                         'firebase_uid' => $uid,
                         'title' => $title,
                         'message' => $message,
                         'type' => 'promo',
+                        'link' => $productLink,
+                        'image' => $productImage,
                         'read' => false,
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -159,8 +163,8 @@ class ProductController extends Controller
             'category_id' => 'sometimes|exists:categories,id',
             'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'sometimes|numeric|min:0',
-            'sale_price' => 'nullable|numeric|min:0',
+            'price' => 'sometimes|string|max:100',
+            'sale_price' => 'nullable|string|max:100',
             'stock' => 'sometimes|integer|min:0',
             'brand' => 'nullable|string|max:100',
             'badge' => 'nullable|string|max:50',

@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // Support custom string pricing like "xx$", "Contact", "TBD", or standard numbers
+        try {
+            DB::statement('ALTER TABLE products ALTER COLUMN price TYPE VARCHAR(100) USING price::VARCHAR');
+        } catch (\Throwable $e) {}
+
+        try {
+            DB::statement('ALTER TABLE products ALTER COLUMN sale_price TYPE VARCHAR(100) USING sale_price::VARCHAR');
+        } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        // No-op or revert if all values are numeric
+    }
+};

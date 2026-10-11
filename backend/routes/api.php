@@ -67,6 +67,7 @@ Route::post('/admin/login', [AdminAuthController::class, 'login']);
 // The UserController handles its own auth via getUid() method
 
 // Profile
+Route::get('/user/public/{identifier}', [UserController::class, 'getPublicProfile']);
 Route::get('/user/profile', [UserController::class, 'getProfile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);

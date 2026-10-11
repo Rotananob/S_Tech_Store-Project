@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ChatBot from "@/components/ui/ChatBot";
 import { Link, useRouter } from "@/i18n/routing";
-import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin, X, Copy, Send, Image as ImageIcon, Star, Sparkles, ThumbsUp } from "lucide-react";
+import { ShoppingCart, ChevronLeft, ChevronRight, Heart, MessageCircle, Store, Share, CheckCircle2, MapPin, X, Copy, Send, Image as ImageIcon, Star, Sparkles, ThumbsUp, Laptop, User } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { triggerFlyToCart } from "@/lib/flyToCart";
 import { auth } from "@/lib/firebase";
 import { submitProductReview } from "@/lib/services/product.service";
+import PublicProfileModal from "@/components/ui/PublicProfileModal";
 
 export function ProductDetailClient({ product }: { product: any }) {
   const [activeImage, setActiveImage] = useState(0);
@@ -22,6 +23,11 @@ export function ProductDetailClient({ product }: { product: any }) {
   const [showChatBot, setShowChatBot] = useState(false);
   const [reviews, setReviews] = useState<any[]>([]);
   const [suggested, setSuggested] = useState<any[]>([]);
+  const [selectedProfileUser, setSelectedProfileUser] = useState<{
+    id: string | number | null;
+    name?: string;
+    avatar?: string | null;
+  } | null>(null);
 
   // 3D Spatial Visualizer State
   const [tiltX, setTiltX] = useState(0);
@@ -46,7 +52,7 @@ export function ProductDetailClient({ product }: { product: any }) {
           setReviews(revs.data);
         }
         
-        // Fetch suggested
+        // Fetch suggested (filter out test spam or empty products)
         const prodsRes = await getProducts();
         let allProds: any[] = [];
         if (Array.isArray(prodsRes)) {
@@ -55,11 +61,15 @@ export function ProductDetailClient({ product }: { product: any }) {
            allProds = prodsRes.data;
         }
         
-        // filter same category, remove current
-        const related = allProds.filter(p => p.id !== product.id && p.category_id === product.category_id).slice(0, 4);
-        // if not enough, fill with random
+        // Filter out current product, empty names, and test spam like 'aaaa'
+        const validProds = allProds.filter(
+          p => p.id !== product.id && p.name && p.name.trim().length > 1 && !["aaaa", "rotana", "testt"].includes(p.name.trim().toLowerCase())
+        );
+
+        // First prioritize same category, then others
+        let related = validProds.filter(p => p.category_id === product.category_id).slice(0, 4);
         if (related.length < 4) {
-           const others = allProds.filter(p => p.id !== product.id && p.category_id !== product.category_id).slice(0, 4 - related.length);
+           const others = validProds.filter(p => p.category_id !== product.category_id).slice(0, 4 - related.length);
            related.push(...others);
         }
         setSuggested(related);
@@ -496,29 +506,41 @@ export function ProductDetailClient({ product }: { product: any }) {
                   {reviews.map((rev) => (
                     <div key={rev.id || Math.random()} className="pt-3 first:pt-0">
                       <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2.5">
+                        <div 
+                          onClick={() => {
+                            setSelectedProfileUser({
+                              id: rev.firebase_uid || rev.user_id || rev.id,
+                              name: rev.user_name || "S Tech Customer",
+                              avatar: rev.user_avatar || null,
+                            });
+                          }}
+                          className="flex items-center gap-2.5 cursor-pointer group/user select-none"
+                          title="Click to view public tech profile"
+                        >
                           {rev.user_avatar ? (
                             <img
                               src={rev.user_avatar}
                               alt={rev.user_name || "Customer"}
-                              className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm"
+                              className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm group-hover/user:ring-2 ring-[#8B1A1A]/40 transition-all"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[11px] font-black shadow-sm">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[11px] font-black shadow-sm group-hover/user:scale-105 transition-transform">
                               {(rev.user_name || "C")[0].toUpperCase()}
                             </div>
                           )}
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[13px] font-bold text-gray-900 dark:text-white leading-none">
-                                {rev.user_name || "S Tech Customer"}
+                              <span className="text-[13px] font-bold text-gray-900 dark:text-white leading-none group-hover/user:text-[#8B1A1A] dark:group-hover/user:text-red-400 group-hover/user:underline transition-colors flex items-center gap-1">
+                                <span>{rev.user_name || "S Tech Customer"}</span>
                               </span>
                               <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                                 <CheckCircle2 size={10} /> Verified
                               </span>
                             </div>
-                            <span className="text-[10px] text-gray-400">
-                              {rev.created_at ? new Date(rev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent Purchase"}
+                            <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                              <span>{rev.created_at ? new Date(rev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent Purchase"}</span>
+                              <span className="text-gray-300 dark:text-gray-600">•</span>
+                              <span className="text-[#8B1A1A] dark:text-red-400 font-medium">View Profile</span>
                             </span>
                           </div>
                         </div>
@@ -613,48 +635,72 @@ export function ProductDetailClient({ product }: { product: any }) {
 
             {/* Suggested Products with Luxury Styling and Zero Blank Cards */}
             {suggested.length > 0 && (
-              <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mt-4 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[15px] sm:text-base font-extrabold text-gray-900 dark:text-white">You might also like</h2>
-                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Top Matches</span>
+              <div className="bg-white dark:bg-[#151922] p-4 sm:p-6 mt-6 lg:rounded-3xl lg:shadow-md border border-gray-100 dark:border-white/10">
+                <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-extrabold text-gray-900 dark:text-white">You might also like</h2>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Top related tech hardware & gear</p>
+                  </div>
+                  <span className="text-[11px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider bg-red-50 dark:bg-red-950/40 px-3 py-1 rounded-full border border-red-200 dark:border-red-900/40">
+                    Recommended
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                  {suggested.map((item) => (
-                    <Link 
-                      key={item.id} 
-                      href={`/products/${item.slug}`} 
-                      className="flex flex-col group p-2.5 rounded-xl bg-gray-50/80 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 transition-all no-underline"
-                    >
-                      <div className="aspect-square bg-white dark:bg-[#12151e] rounded-lg overflow-hidden mb-2.5 p-2 relative flex items-center justify-center border border-gray-100 dark:border-white/5">
-                        <img 
-                          src={item.images?.[0] || item.image_url || "/logo.jpg"} 
-                          alt={item.name}
-                          onError={(e) => { e.currentTarget.src = "/logo.jpg"; }}
-                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
-                        />
-                        {item.sale_price && (
-                          <div className="absolute top-1.5 left-1.5 bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider">
-                            Sale
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-5">
+                  {suggested.map((item) => {
+                    const itemImg = item.images?.[0] || item.image_url;
+                    const hasValidImg = Boolean(itemImg && typeof itemImg === "string" && itemImg.startsWith("http"));
+                    return (
+                      <Link 
+                        key={item.id} 
+                        href={`/products/${item.slug}`} 
+                        className="flex flex-col group p-3 rounded-2xl bg-gray-50/70 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-gray-200/70 dark:border-white/10 hover:border-red-300 dark:hover:border-red-500/40 transition-all shadow-xs hover:shadow-lg hover:-translate-y-1 no-underline"
+                      >
+                        <div className="h-36 sm:h-44 w-full bg-white dark:bg-[#12151e] rounded-xl overflow-hidden mb-3 p-2.5 relative flex items-center justify-center border border-gray-100 dark:border-white/5">
+                          {hasValidImg ? (
+                            <img 
+                              src={itemImg} 
+                              alt={item.name}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = "none";
+                                const parent = (e.currentTarget as HTMLElement).parentElement;
+                                if (parent) {
+                                  const fallback = parent.querySelector(".img-fallback");
+                                  if (fallback) (fallback as HTMLElement).style.display = "flex";
+                                }
+                              }}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" 
+                            />
+                          ) : null}
+                          <div 
+                            className={`img-fallback w-full h-full ${hasValidImg ? 'hidden' : 'flex'} flex-col items-center justify-center text-gray-400 gap-1.5`}
+                          >
+                            <Laptop size={32} className="text-[#8B1A1A]/40" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">S Tech Device</span>
                           </div>
-                        )}
-                      </div>
-                      <h3 className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mb-1.5 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
-                        {item.name}
-                      </h3>
-                      <div className="mt-auto flex items-baseline justify-between gap-1">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="text-[#8B1A1A] dark:text-red-400 font-black text-[14px] font-mono">
-                            ${Number(item.sale_price || item.price).toFixed(2)}
-                          </span>
                           {item.sale_price && (
-                            <span className="text-gray-400 text-[10px] line-through font-mono">
-                              ${Number(item.price).toFixed(2)}
-                            </span>
+                            <div className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-amber-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm uppercase tracking-wider">
+                              Sale
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                        <h3 className="text-xs sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug mb-2 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
+                          {item.name}
+                        </h3>
+                        <div className="mt-auto flex items-baseline justify-between gap-1 pt-1">
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-[#8B1A1A] dark:text-red-400 font-black text-sm font-mono">
+                              {formatUSD(item.sale_price || item.price)}
+                            </span>
+                            {item.sale_price && (
+                              <span className="text-gray-400 text-[10px] line-through font-mono">
+                                {formatUSD(item.price)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -869,6 +915,15 @@ export function ProductDetailClient({ product }: { product: any }) {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Public Profile View Modal */}
+      <PublicProfileModal
+        isOpen={Boolean(selectedProfileUser)}
+        userId={selectedProfileUser?.id ?? null}
+        fallbackName={selectedProfileUser?.name}
+        fallbackAvatar={selectedProfileUser?.avatar}
+        onClose={() => setSelectedProfileUser(null)}
+      />
     </div>
   );
 }

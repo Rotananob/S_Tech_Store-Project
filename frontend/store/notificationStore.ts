@@ -6,6 +6,8 @@ export interface NotificationItem {
   title: string;
   message: string;
   type: "welcome" | "login" | "promo" | "order" | "system";
+  link?: string | null;
+  image?: string | null;
   read: boolean;
   created_at: string;
 }
@@ -13,8 +15,10 @@ export interface NotificationItem {
 interface NotificationState {
   notifications: NotificationItem[];
   loading: boolean;
+  activePopupNotif: NotificationItem | null;
+  setActivePopupNotif: (notif: NotificationItem | null) => void;
   fetchNotifications: () => Promise<void>;
-  addNotification: (title: string, message: string, type: string) => Promise<void>;
+  addNotification: (title: string, message: string, type: string, link?: string, image?: string) => Promise<void>;
   markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   clearAll: () => Promise<void>;
@@ -25,6 +29,9 @@ export const useNotificationStore = create<NotificationState>()(
   (set, get) => ({
     notifications: [],
     loading: false,
+    activePopupNotif: null,
+
+    setActivePopupNotif: (notif) => set({ activePopupNotif: notif }),
 
     fetchNotifications: async () => {
       try {
@@ -41,9 +48,9 @@ export const useNotificationStore = create<NotificationState>()(
       }
     },
 
-    addNotification: async (title: string, message: string, type: string) => {
+    addNotification: async (title: string, message: string, type: string, link?: string, image?: string) => {
       try {
-        const res = await api.post("/user/notifications", { title, message, type });
+        const res = await api.post("/user/notifications", { title, message, type, link, image });
         set((state) => ({
           notifications: [res.data, ...state.notifications],
         }));
