@@ -16,7 +16,40 @@ export interface CreateOrderPayload {
   subtotal: number;
   delivery_fee: number;
   total_amount: number;
+  promo_code?: string;
+  discount_amount?: number;
 }
+
+export interface PromoValidationResult {
+  success: boolean;
+  message?: string;
+  data?: {
+    id: number;
+    code: string;
+    name: string;
+    type: "percentage" | "fixed";
+    value: number;
+    discount_amount: number;
+  };
+}
+
+export const validatePromoCode = async (
+  code: string,
+  subtotal: number
+): Promise<PromoValidationResult> => {
+  try {
+    const res = await api.post("/promo-codes/validate", {
+      code,
+      subtotal,
+    });
+    return res.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message || "កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ (Invalid promo code)",
+    };
+  }
+};
 
 export const createOrder = async (payload: CreateOrderPayload) => {
   try {

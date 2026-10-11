@@ -219,6 +219,14 @@ export function ProductDetailClient({ product }: { product: any }) {
     { key: "Condition", value: product.condition || ((product.name || "").toLowerCase().includes("used") || (product.description || "").toLowerCase().includes("used") ? "Used (99%)" : "New") },
   ];
 
+  // Check if promo/sale is currently active and not expired in real-time
+  const promoEnd = product.promo_end || product.valid_until || product.discount_until;
+  const isExpired = promoEnd ? new Date(promoEnd).getTime() <= Date.now() : false;
+  const hasSale = !isExpired && product.sale_price && Number(product.sale_price) > 0 && Number(product.sale_price) < Number(product.price);
+  const activeSalePrice = hasSale ? Number(product.sale_price) : null;
+  const activeOriginalPrice = Number(product.price || 0);
+  const discountPct = hasSale ? Math.round(((activeOriginalPrice - activeSalePrice!) / activeOriginalPrice) * 100) : null;
+
   return (
     <div className="bg-[#f5f5f5] min-h-screen text-gray-900 pb-[80px] lg:pb-0">
       
@@ -361,27 +369,31 @@ export function ProductDetailClient({ product }: { product: any }) {
           <div className="lg:py-4">
             
             {/* Price Banner */}
-            <div className="bg-white p-4 mb-2 lg:rounded-2xl lg:shadow-sm">
+            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
               <div className="flex justify-between items-end mb-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[#e02e24] text-[28px] font-bold leading-none">{formatUSD(product.sale_price || product.price)}</span>
-                  {product.sale_price && (
-                    <span className="text-gray-400 text-[13px] line-through">{formatUSD(product.price)}</span>
+                  <span className="text-[#e02e24] dark:text-red-400 text-[28px] font-bold leading-none">
+                    {formatUSD(hasSale ? activeSalePrice! : activeOriginalPrice)}
+                  </span>
+                  {hasSale && (
+                    <span className="text-gray-400 dark:text-gray-500 text-[14px] line-through font-mono">
+                      {formatUSD(activeOriginalPrice)}
+                    </span>
                   )}
                 </div>
               </div>
               <div className="flex items-center gap-2 mb-3">
-                {product.sale_price && (
-                  <span className="bg-[#fdefee] text-[#e02e24] px-2 py-0.5 rounded text-[11px] font-bold italic">
-                    ⚡ {Math.round((1 - product.sale_price / product.price) * 100)}% off
+                {hasSale && discountPct && (
+                  <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-sm animate-pulse">
+                    🔥 -{discountPct}% OFF PROMO
                   </span>
                 )}
                 {product.stock > 0 ? (
-                   <span className="bg-[#eefdf4] text-[#16a34a] px-2 py-0.5 rounded text-[11px] font-bold">
+                   <span className="bg-[#eefdf4] dark:bg-emerald-950/40 text-[#16a34a] dark:text-emerald-400 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                      In Stock
                    </span>
                 ) : (
-                   <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[11px] font-bold">
+                   <span className="bg-gray-100 dark:bg-white/10 text-gray-500 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                      Out of Stock
                    </span>
                 )}

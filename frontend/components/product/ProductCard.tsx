@@ -75,10 +75,18 @@ export default function ProductCard({ product }: ProductCardProps) {
     }, 780);
   };
 
-  const discountPercent =
-    product.sale_price && product.price
-      ? Math.round(((product.price - product.sale_price) / product.price) * 100)
-      : null;
+  // Check if promo/sale is currently active and not expired in real-time
+  const promoEnd = (product as any).promo_end || (product as any).valid_until || (product as any).discount_until;
+  const isExpired = promoEnd ? new Date(promoEnd).getTime() <= Date.now() : false;
+
+  const numSalePrice = !isExpired && product.sale_price !== null && product.sale_price !== undefined ? Number(product.sale_price) : null;
+  const numPrice = Number(product.price || 0);
+
+  const hasDiscount = !isExpired && numSalePrice !== null && numSalePrice > 0 && numSalePrice < numPrice;
+
+  const discountPercent = hasDiscount
+    ? Math.round(((numPrice - numSalePrice!) / numPrice) * 100)
+    : null;
 
   const getBadgeClass = (badge: string | null | undefined) => {
     if (!badge) return "";
@@ -86,6 +94,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       HOT: "badge-hot",
       NEW: "badge-new",
       SALE: "badge-sale",
+      PROMO: "badge-hot",
     };
     return `badge ${map[badge] || "badge-new"}`;
   };
@@ -140,34 +149,24 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Badge */}
-        {product.badge && (
-          <span
-            className={getBadgeClass(product.badge)}
-            style={{ position: "absolute", top: "10px", left: "10px" }}
-          >
-            {product.badge}
-          </span>
-        )}
+        {/* Real-time Promo / Discount Badges (Auto-hides when expired) */}
+        <div style={{ position: "absolute", top: "10px", left: "10px", zIndex: 10, display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" }}>
+          {hasDiscount && discountPercent && discountPercent > 0 && (
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white text-[11px] font-black tracking-tight shadow-lg shadow-red-500/20 animate-pulse"
+              style={{ lineHeight: 1 }}
+            >
+              <Zap size={11} className="fill-white" />
+              <span>-{discountPercent}% OFF</span>
+            </span>
+          )}
 
-        {/* Discount percent */}
-        {discountPercent && (
-          <span
-            style={{
-              position: "absolute",
-              top: product.badge ? "40px" : "10px",
-              left: "10px",
-              background: "rgba(239, 68, 68, 0.9)",
-              color: "white",
-              padding: "3px 8px",
-              borderRadius: "4px",
-              fontSize: "11px",
-              fontWeight: "700",
-            }}
-          >
-            -{discountPercent}%
-          </span>
-        )}
+          {!isExpired && product.badge && (
+            <span className={getBadgeClass(product.badge)}>
+              {product.badge}
+            </span>
+          )}
+        </div>
 
         {/* Out of Stock overlay */}
         {!product.in_stock && (
@@ -343,22 +342,22 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Price */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
-              className={product.sale_price ? "text-red-600 dark:text-red-400 font-black" : "text-gray-900 dark:text-white font-black"}
+              className={hasDiscount ? "text-red-600 dark:text-red-400 font-black" : "text-gray-900 dark:text-white font-black"}
               style={{
                 fontSize: "17px",
                 fontFamily: "Outfit, sans-serif",
               }}
             >
-              {formatPrice(product.sale_price ?? product.price)}
+              {formatPrice(hasDiscount ? numSalePrice! : numPrice)}
             </span>
-            {product.sale_price && (
+            {hasDiscount && (
               <span
-                className="text-gray-400 dark:text-gray-500 line-through"
+                className="text-gray-400 dark:text-gray-500 line-through font-mono"
                 style={{
                   fontSize: "13px",
                 }}
               >
-                {formatPrice(product.price)}
+                {formatPrice(numPrice)}
               </span>
             )}
           </div>

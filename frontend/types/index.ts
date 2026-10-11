@@ -32,6 +32,9 @@ export interface Product {
   brand?: string;
   sku?: string;
   badge?: string | null;
+  promo_end?: string | null;
+  valid_until?: string | null;
+  discount_until?: string | null;
   rating?: number;
   reviews?: number;
   reviews_count?: number;

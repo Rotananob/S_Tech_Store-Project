@@ -1,10 +1,41 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
-import { getRecentOrders, updateOrderStatus, Order } from "@/lib/services/admin.service";
-import { Download, Plus, Search, ChevronDown, Eye, Edit2 } from "lucide-react";
+import { getRecentOrders, updateOrderStatus, pushOrderNotification, Order } from "@/lib/services/admin.service";
+import { Download, Plus, Search, ChevronDown, Eye, Edit2, Bell, Send, CheckCircle2 } from "lucide-react";
 
 const STATUSES = ["All Statuses", "Processing", "Completed", "Pending", "Cancelled"];
 const ITEMS_PER_PAGE = 5;
+
+const NOTIF_TEMPLATES = [
+  {
+    id: "confirmed",
+    name: "📦 បញ្ជាក់ការបញ្ជាទិញ (Confirmed)",
+    title: "📦 ការបញ្ជាទិញត្រូវបានបញ្ជាក់ (Order Confirmed)",
+    status: "processing",
+    message: (orderId: string) => `ការបញ្ជាទិញ #${orderId} របស់អ្នកត្រូវបានបញ្ជាក់ដោយជោគជ័យ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`,
+  },
+  {
+    id: "shipping",
+    name: "🚚 កំពុងដឹកជញ្ជូន (Out for Delivery)",
+    title: "🚚 ទំនិញកំពុងដឹកជញ្ជូន (Out for Delivery)",
+    status: "shipped",
+    message: (orderId: string) => `ទំនិញ #${orderId} របស់អ្នកកំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូន។ សូមត្រៀមទទួលការទូរស័ព្ទពីអ្នកដឹកជញ្ជូន!`,
+  },
+  {
+    id: "delivered",
+    name: "✅ ដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
+    title: "✅ ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
+    status: "delivered",
+    message: (orderId: string) => `ការបញ្ជាទិញ #${orderId} ត្រូវបានប្រគល់ជូនដោយជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store!`,
+  },
+  {
+    id: "delay",
+    name: "⚠️ ពន្យារពេល / ដំណឹងបន្ទាន់ (Notice)",
+    title: "⚠️ ព័ត៌មានបន្ថែមទាក់ទងនឹងការបញ្ជាទិញ",
+    status: "",
+    message: (orderId: string) => `ជំរាបសួរ! ក្រុមការងារ S Tech Store សូមជម្រាបជូនអំពីការបញ្ជាទិញ #${orderId} របស់អ្នកថា...`,
+  },
+];
 
 const getStatusStyle = (status: string) => {
   const s = status.toLowerCase();
@@ -24,6 +55,13 @@ export default function OrderManagementPage() {
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [editStatus, setEditStatus] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // Push Notification state
+  const [notifyOrder, setNotifyOrder] = useState<Order | null>(null);
+  const [notifyTitle, setNotifyTitle] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyStatusSync, setNotifyStatusSync] = useState("");
+  const [sendingNotify, setSendingNotify] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => { 
     setToast({ msg, type }); 
@@ -66,6 +104,33 @@ export default function OrderManagementPage() {
     } else {
       setEditOrder(null);
       showToast("Failed to update order status.", "error");
+    }
+  };
+
+  const openPushModal = (order: Order) => {
+    setNotifyOrder(order);
+    setNotifyTitle(`📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #${order.order_id}`);
+    setNotifyMessage(`ការបញ្ជាទិញ #${order.order_id} របស់អ្នកត្រូវបានបញ្ជាក់រួចរាល់ហើយ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`);
+    setNotifyStatusSync(order.status);
+  };
+
+  const handleSendNotification = async () => {
+    if (!notifyOrder || !notifyMessage.trim()) return;
+    setSendingNotify(true);
+    const res = await pushOrderNotification(notifyOrder.id, {
+      title: notifyTitle.trim() || undefined,
+      message: notifyMessage.trim(),
+      status: notifyStatusSync || undefined,
+    });
+    setSendingNotify(false);
+    if (res.success) {
+      showToast(res.message || "Notification sent to customer!");
+      if (notifyStatusSync && notifyStatusSync !== notifyOrder.status) {
+        setOrders(prev => prev.map(o => o.id === notifyOrder.id ? { ...o, status: notifyStatusSync } : o));
+      }
+      setNotifyOrder(null);
+    } else {
+      showToast(res.message || "Failed to send notification", "error");
     }
   };
 
@@ -128,12 +193,25 @@ export default function OrderManagementPage() {
                 {capitalize(viewOrder.status)}
               </span>
             </div>
-            <button 
-              onClick={() => setViewOrder(null)} 
-              className="mt-8 w-full py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Close
-            </button>
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setViewOrder(null)} 
+                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer text-sm"
+              >
+                Close
+              </button>
+              <button 
+                onClick={() => {
+                  const target = viewOrder;
+                  setViewOrder(null);
+                  openPushModal(target);
+                }} 
+                className="flex-1 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
+              >
+                <Bell size={16} />
+                <span>Notify Customer</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -171,6 +249,144 @@ export default function OrderManagementPage() {
                 className="flex-1 py-2.5 border-none rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Push Notification to Customer Modal */}
+      {notifyOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
+            <div className="p-5 bg-gradient-to-r from-purple-700 to-indigo-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Bell size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold leading-tight">Push Notification to Customer</h3>
+                  <p className="text-xs text-purple-200">Order: {notifyOrder.order_id} • {notifyOrder.customer_name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setNotifyOrder(null)} 
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Customer Info Card */}
+              <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-100 flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-bold text-purple-950">{notifyOrder.customer_name}</div>
+                  <div className="text-purple-700 font-mono">{notifyOrder.customer_phone || "No phone"}</div>
+                </div>
+                <div className="text-right">
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusStyle(notifyOrder.status)}`}>
+                    {capitalize(notifyOrder.status)}
+                  </span>
+                  <div className="text-[11px] font-bold text-gray-700 mt-1">${Number(notifyOrder.total_amount).toFixed(2)}</div>
+                </div>
+              </div>
+
+              {/* Quick Template Picker */}
+              <div>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
+                  ជ្រើសរើសគំរូសាររហ័ស (Quick Templates)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {NOTIF_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      onClick={() => {
+                        setNotifyTitle(tmpl.title);
+                        setNotifyMessage(tmpl.message(notifyOrder.order_id));
+                        if (tmpl.status) setNotifyStatusSync(tmpl.status);
+                      }}
+                      className="text-left p-2.5 rounded-xl border border-gray-200 hover:border-purple-500 hover:bg-purple-50/40 transition-all text-xs cursor-pointer group"
+                    >
+                      <div className="font-bold text-gray-800 group-hover:text-purple-700">{tmpl.name}</div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 truncate">{tmpl.title}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title input */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  ចំណងជើងជូនដំណឹង (Notification Title) *
+                </label>
+                <input
+                  type="text"
+                  value={notifyTitle}
+                  onChange={(e) => setNotifyTitle(e.target.value)}
+                  placeholder="e.g. 📦 ការបញ្ជាទិញត្រូវបានបញ្ជាក់"
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                />
+              </div>
+
+              {/* Message textarea */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  ខ្លឹមសារជូនដំណឹង (Notification Message) *
+                </label>
+                <textarea
+                  rows={3}
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  placeholder="សរសេរខ្លឹមសារជូនដំណឹងទៅកាន់អតិថិជន..."
+                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 resize-none"
+                />
+              </div>
+
+              {/* Sync status option */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  ប្តូរ Status នៃការបញ្ជាទិញជាមួយគ្នា (Optional Status Sync)
+                </label>
+                <div className="relative">
+                  <select
+                    value={notifyStatusSync}
+                    onChange={(e) => setNotifyStatusSync(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 bg-white"
+                  >
+                    <option value="">Keep current status ({notifyOrder.status})</option>
+                    {STATUSES.filter((s) => s !== "All Statuses").map((s) => (
+                      <option key={s} value={s.toLowerCase()}>Set to {s}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setNotifyOrder(null)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-100 transition-colors cursor-pointer text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendNotification}
+                disabled={sendingNotify || !notifyMessage.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm"
+              >
+                {sendingNotify ? (
+                  <span>Sending...</span>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    <span>Send Notification</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -308,15 +524,22 @@ export default function OrderManagementPage() {
                         <td className="p-4">
                           <div className="flex justify-end gap-2">
                             <button 
+                              onClick={() => openPushModal(order)} 
+                              className="p-1.5 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-md transition-colors cursor-pointer" 
+                              title="Push Notification to Customer"
+                            >
+                              <Bell size={18} />
+                            </button>
+                            <button 
                               onClick={() => setViewOrder(order)} 
-                              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors" 
+                              className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors cursor-pointer" 
                               title="View"
                             >
                               <Eye size={18} />
                             </button>
                             <button 
                               onClick={() => { setEditOrder(order); setEditStatus(order.status); }} 
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors" 
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors cursor-pointer" 
                               title="Edit Status"
                             >
                               <Edit2 size={18} />

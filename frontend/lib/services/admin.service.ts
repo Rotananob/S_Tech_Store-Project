@@ -66,6 +66,26 @@ export const updateOrderStatus = async (orderId: number, status: string): Promis
   }
 };
 
+export const pushOrderNotification = async (
+  orderId: number,
+  data: { title?: string; message: string; status?: string }
+): Promise<{ success: boolean; message?: string; has_customer?: boolean }> => {
+  try {
+    const res = await api.post(`/admin/orders/${orderId}/notify`, data);
+    return {
+      success: true,
+      message: res.data?.message || "បានផ្ញើការជូនដំណឹងជោគជ័យ!",
+      has_customer: res.data?.has_customer,
+    };
+  } catch (error: any) {
+    console.error("Failed to push order notification:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "បរាជ័យក្នុងការផ្ញើការជូនដំណឹង",
+    };
+  }
+};
+
 export interface TelegramStatus {
   connected: boolean;
   is_configured?: boolean;

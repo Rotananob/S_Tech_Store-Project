@@ -26,6 +26,8 @@ class OrderController extends Controller
             'address' => 'required|string',
             'delivery_type' => 'nullable|string',
             'payment_method' => 'nullable|string',
+            'promo_code' => 'nullable|string|max:50',
+            'discount_amount' => 'nullable|numeric|min:0',
             'total_amount' => 'nullable|numeric',
             'subtotal' => 'nullable|numeric',
             'delivery_fee' => 'nullable|numeric',
@@ -76,8 +78,33 @@ class OrderController extends Controller
             
             $totalAmount += $deliveryFee;
 
+            // Handle Promo Code Discount
+            $discountAmount = 0;
+            $appliedPromoCode = null;
+            if (!empty($validated['promo_code'])) {
+                $cleanCode = strtoupper(trim($validated['promo_code']));
+                $promo = \App\Models\PromoCode::whereRaw('UPPER(code) = ?', [$cleanCode])->first();
+                if ($promo && $promo->status === 'active') {
+                    $appliedPromoCode = $promo->code;
+                    if (!empty($validated['discount_amount']) && (float)$validated['discount_amount'] > 0) {
+                        $discountAmount = (float)$validated['discount_amount'];
+                    } elseif ($promo->type === 'percentage') {
+                        $discountAmount = ($totalAmount * (float)$promo->value) / 100;
+                    } else {
+                        $discountAmount = (float)$promo->value;
+                    }
+                    $promo->increment('usage_count');
+                }
+            } elseif (!empty($validated['discount_amount']) && (float)$validated['discount_amount'] > 0) {
+                $discountAmount = (float)$validated['discount_amount'];
+            }
+
+            if ($discountAmount > 0) {
+                $totalAmount = max(0, $totalAmount - $discountAmount);
+            }
+
             // Safeguard: If client supplied higher validated total_amount and calculated was just delivery fee, use total_amount
-            if (!empty($validated['total_amount']) && (float)$validated['total_amount'] > $deliveryFee && $totalAmount <= $deliveryFee) {
+            if (!empty($validated['total_amount']) && (float)$validated['total_amount'] > $deliveryFee && $totalAmount <= $deliveryFee && $discountAmount == 0) {
                 $totalAmount = (float)$validated['total_amount'];
             }
 
@@ -89,6 +116,8 @@ class OrderController extends Controller
                 'shipping_address' => $validated['address'],
                 'delivery_type' => $validated['delivery_type'] ?? null,
                 'payment_method' => $validated['payment_method'] ?? null,
+                'promo_code' => $appliedPromoCode,
+                'discount_amount' => $discountAmount,
                 'total_amount' => $totalAmount,
                 'status' => 'pending',
                 // Generate a random order_id
@@ -136,15 +165,73 @@ class OrderController extends Controller
         $oldStatus = $order->status;
         $order->update(['status' => $validated['status']]);
 
-        if ($order->user_id && $oldStatus !== $validated['status']) {
+        // Resolve customer Firebase UID
+        $uid = $order->user_id ?: \App\Models\UserProfile::where('phone', $order->customer_phone)->value('firebase_uid');
+
+        if ($uid && $oldStatus !== $validated['status']) {
+            $statusTitles = [
+                'pending' => "⏳ ការបញ្ជាទិញរង់ចាំការបញ្ជាក់",
+                'processing' => "📦 កំពុងរៀបចំការបញ្ជាទិញ",
+                'shipped' => "🚚 ទំនិញកំពុងដឹកជញ្ជូន",
+                'delivered' => "✅ ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ",
+                'cancelled' => "❌ ការបញ្ជាទិញត្រូវបានបោះបង់",
+            ];
+
+            $statusMessages = [
+                'pending' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដាក់ស្នើ និងកំពុងរង់ចាំការបញ្ជាក់ (Pending)។",
+                'processing' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងត្រូវបានរៀបចំវេចខ្ចប់ដោយហាង (Processing)។",
+                'shipped' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក (Shipped)។",
+                'delivered' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដឹកជញ្ជូនដល់ជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store! (Delivered)",
+                'cancelled' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានបោះបង់ (Cancelled)។",
+            ];
+
             \App\Models\UserNotification::create([
-                'firebase_uid' => $order->user_id,
-                'title' => 'Order Update',
-                'message' => "Your order {$order->order_id} is now {$validated['status']}.",
-                'type' => 'order'
+                'firebase_uid' => $uid,
+                'title' => $statusTitles[$validated['status']] ?? "Order Update",
+                'message' => $statusMessages[$validated['status']] ?? "Your order {$order->order_id} is now {$validated['status']}.",
+                'type' => 'order',
+                'link' => '/orders',
+                'read' => false,
             ]);
         }
 
         return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
+    }
+
+    public function pushNotification(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'title' => 'nullable|string|max:255',
+            'message' => 'required|string',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
+        ]);
+
+        $order = Order::findOrFail($id);
+
+        if (!empty($validated['status']) && $validated['status'] !== $order->status) {
+            $order->update(['status' => $validated['status']]);
+        }
+
+        $uid = $order->user_id ?: \App\Models\UserProfile::where('phone', $order->customer_phone)->value('firebase_uid');
+
+        $notification = null;
+        if ($uid) {
+            $notification = \App\Models\UserNotification::create([
+                'firebase_uid' => $uid,
+                'title' => $validated['title'] ?: "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}",
+                'message' => $validated['message'],
+                'type' => 'order',
+                'link' => '/orders',
+                'read' => false,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $uid ? 'ការជូនដំណឹងត្រូវបានផ្ញើទៅកាន់អតិថិជនជោគជ័យ!' : 'Order updated, but no linked customer user profile found for this order phone number.',
+            'has_customer' => !empty($uid),
+            'order' => $order,
+            'notification' => $notification,
+        ]);
     }
 }

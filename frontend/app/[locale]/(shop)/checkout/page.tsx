@@ -9,13 +9,14 @@ import {
   createPaymentSession, 
   processCardPayment, 
   checkPaymentStatus, 
-  confirmManualPayment 
+  confirmManualPayment,
+  validatePromoCode
 } from "@/lib/services/order.service";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, 
   ExternalLink, X, Smartphone, ArrowRight, CreditCard, 
-  Clock, Check, RefreshCw, AlertCircle, Sparkles
+  Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -144,6 +145,20 @@ export default function CheckoutPage() {
   const [cardCvv, setCardCvv] = useState("");
   const [cardError, setCardError] = useState("");
 
+  // Promo code state
+  const [promoInput, setPromoInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    id: number;
+    code: string;
+    name: string;
+    type: "percentage" | "fixed";
+    value: number;
+    discount_amount: number;
+  } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccessMsg, setPromoSuccessMsg] = useState("");
+
   // KHQR Payment Session State
   const [showKHQRModal, setShowKHQRModal] = useState(false);
   const [khqrSession, setKhqrSession] = useState<{
@@ -200,7 +215,30 @@ export default function CheckoutPage() {
 
   const deliveryFee = delivery === "pnompenh" ? 2 : 3;
   const subtotal = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
-  const total = subtotal + deliveryFee;
+  const discountAmount = appliedPromo ? Number(appliedPromo.discount_amount) : 0;
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
+
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setPromoLoading(true);
+    setPromoError("");
+    setPromoSuccessMsg("");
+    const res = await validatePromoCode(promoInput.trim(), subtotal);
+    setPromoLoading(false);
+    if (res.success && res.data) {
+      setAppliedPromo(res.data);
+      setPromoSuccessMsg(res.message || `បានអនុវត្តកូដ ${res.data.code}`);
+    } else {
+      setPromoError(res.message || "កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ");
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoInput("");
+    setPromoError("");
+    setPromoSuccessMsg("");
+  };
 
   // Format card number with spaces every 4 digits
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -287,6 +325,8 @@ export default function CheckoutPage() {
       name: name.trim(),
       phone: phone.trim(),
       address: address.trim(),
+      promo_code: appliedPromo ? appliedPromo.code : undefined,
+      discount_amount: discountAmount,
       items: items.map((item) => ({
         product_id: item.product?.id || (item as any).product_id || item.id,
         quantity: item.quantity,
@@ -320,6 +360,8 @@ export default function CheckoutPage() {
       name: name.trim(),
       phone: phone.trim(),
       address: address.trim(),
+      promo_code: appliedPromo ? appliedPromo.code : undefined,
+      discount_amount: discountAmount,
       items: items.map((item) => ({
         product_id: item.product?.id || (item as any).product_id || item.id,
         quantity: item.quantity,
@@ -372,6 +414,8 @@ export default function CheckoutPage() {
       name: name.trim(),
       phone: phone.trim(),
       address: address.trim(),
+      promo_code: appliedPromo ? appliedPromo.code : undefined,
+      discount_amount: discountAmount,
       items: items.map((item) => ({
         product_id: item.product?.id || (item as any).product_id || item.id,
         quantity: item.quantity,
@@ -831,6 +875,77 @@ export default function CheckoutPage() {
               ))}
             </div>
 
+            {/* Promo Code Input Section */}
+            <div className="border-t border-gray-100 dark:border-white/10 pt-3 pb-3">
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Ticket size={13} className="text-[#8B1A1A] dark:text-red-400" />
+                <span>Promotion Code (កូដបញ្ចុះតម្លៃ)</span>
+              </label>
+
+              {appliedPromo ? (
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                      ✓
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                        {appliedPromo.code}
+                      </div>
+                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                        {appliedPromo.type === "percentage" ? `${appliedPromo.value}% OFF` : `$${appliedPromo.value} OFF`} • Saved {fmtUSD(appliedPromo.discount_amount)}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="p-1 rounded-md text-emerald-700 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                    title="Remove Promo Code"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={promoInput}
+                        onChange={(e) => {
+                          setPromoInput(e.target.value.toUpperCase());
+                          setPromoError("");
+                        }}
+                        placeholder="e.g. STECH20, PROMO"
+                        className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || !promoInput.trim()}
+                      className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                    >
+                      {promoLoading ? "..." : "Apply"}
+                    </button>
+                  </div>
+                  {promoError && (
+                    <div className="mt-1.5 text-[11px] text-red-500 font-medium flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      <span>{promoError}</span>
+                    </div>
+                  )}
+                  {promoSuccessMsg && (
+                    <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <CheckCircle2 size={12} />
+                      <span>{promoSuccessMsg}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="border-t border-gray-100 dark:border-white/10 pt-3 space-y-2 text-xs">
               <div className="flex justify-between text-gray-500 dark:text-gray-400">
                 <span>{t("subtotal")}</span>
@@ -840,6 +955,15 @@ export default function CheckoutPage() {
                 <span>{t("deliveryFee")}</span>
                 <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(deliveryFee)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="flex items-center gap-1">
+                    <Tag size={12} />
+                    <span>Discount ({appliedPromo?.code})</span>
+                  </span>
+                  <span className="font-mono">-{fmtUSD(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base font-extrabold text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-white/10">
                 <span>{t("orderTotal")}</span>
                 <span className="text-[#8B1A1A] dark:text-red-400 font-mono">{fmtUSD(total)}</span>

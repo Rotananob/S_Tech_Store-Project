@@ -32,6 +32,78 @@ class PromoCodeController extends Controller
         ]);
     }
 
+    public function validatePromo(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => 'required|string',
+            'subtotal' => 'nullable|numeric|min:0',
+        ]);
+
+        $code = strtoupper(trim($validated['code']));
+        $promo = PromoCode::whereRaw('UPPER(code) = ?', [$code])->first();
+
+        if (!$promo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ (Invalid promo code)',
+            ], 404);
+        }
+
+        if ($promo->status !== 'active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'កូដប្រូម៉ូសិននេះមិនទាន់បើកដំណើរការ ឬត្រូវបានបិទ (Promotion is inactive)',
+            ], 400);
+        }
+
+        $now = now();
+        if ($promo->valid_from && $now->lessThan($promo->valid_from)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'កូដប្រូម៉ូសិននេះមិនទាន់ដល់កាលបរិច្ឆេទអនុវត្តនៅឡើយ (Not yet valid)',
+            ], 400);
+        }
+
+        if ($promo->valid_until && $now->greaterThan($promo->valid_until)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'កូដប្រូម៉ូសិននេះបានផុតកំណត់សុពលភាពហើយ (Promotion expired)',
+            ], 400);
+        }
+
+        if ($promo->usage_max && $promo->usage_count >= $promo->usage_max) {
+            return response()->json([
+                'success' => false,
+                'message' => 'កូដប្រូម៉ូសិននេះត្រូវបានប្រើប្រាស់អស់ចំនួនកំណត់ហើយ (Usage limit reached)',
+            ], 400);
+        }
+
+        $subtotal = (float)($validated['subtotal'] ?? 0);
+        $discount = 0;
+        if ($promo->type === 'percentage') {
+            $discount = ($subtotal * (float)$promo->value) / 100;
+        } else {
+            $discount = (float)$promo->value;
+        }
+
+        if ($subtotal > 0 && $discount > $subtotal) {
+            $discount = $subtotal;
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានអនុវត្តកូដ {$promo->code} ដោយជោគជ័យ!",
+            'data' => [
+                'id' => $promo->id,
+                'code' => $promo->code,
+                'name' => $promo->name,
+                'type' => $promo->type,
+                'value' => (float)$promo->value,
+                'discount_amount' => round($discount, 2),
+            ]
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

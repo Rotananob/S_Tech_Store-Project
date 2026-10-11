@@ -55,6 +55,7 @@ Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 
 // Real-time Active Promotion Popup & Banner (Public)
 Route::get('/promotions/active-popup', [\App\Http\Controllers\PromoCodeController::class, 'activePopup']);
+Route::post('/promo-codes/validate', [\App\Http\Controllers\PromoCodeController::class, 'validatePromo']);
 
 // Real Payment Gateways (Bakong KHQR, ABA PayWay, Deeplinks, Visa/Mastercard)
 Route::post('/payment/session', [\App\Http\Controllers\PaymentController::class, 'createSession']);
@@ -156,6 +157,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     // Order Fulfillment & Status Management
     Route::get('/admin/orders', [OrderController::class, 'index']);
     Route::patch('/admin/orders/{id}', [OrderController::class, 'updateStatus']);
+    Route::post('/admin/orders/{id}/notify', [OrderController::class, 'pushNotification']);
 
     // Staff & Account Management (Admin Role Only)
     Route::get('/admin/staff', [AdminAuthController::class, 'staffList']);
