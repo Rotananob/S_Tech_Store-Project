@@ -1,3 +1,5 @@
+"use client";
+
 import { Link, usePathname } from '@/i18n/routing';
 import { Home, Layers, Camera, MessageSquare, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
