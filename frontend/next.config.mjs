@@ -39,6 +39,10 @@ const nextConfig = {
 
     return [
       {
+        source: '/__/auth/:path*',
+        destination: 'https://fir-tech-store.firebaseapp.com/__/auth/:path*'
+      },
+      {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`
       }
