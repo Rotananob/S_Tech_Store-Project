@@ -26,7 +26,7 @@ const DEFAULT_PCHUM_BEN_PROMO: ActivePromotion = {
   type: "percentage",
   value: "30",
   description: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃពិសេសរហូតដល់ 30% លើ Laptops, Custom PC Builds, Gaming Gear និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ ធានា ៣ ទៅ ៦ ខែ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង!",
-  image_url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop",
+  image_url: "/images/pchum-ben-promo.jpg",
   target_url: "/category/all",
 };
 
@@ -95,10 +95,10 @@ export default function PromotionPopupModal() {
         setPromo(DEFAULT_PCHUM_BEN_PROMO);
       }
 
-      // 1.2s smooth entrance delay
+      // Exactly 3 seconds (3000ms) delay per user requirement
       timer = setTimeout(() => {
         setIsOpen(true);
-      }, 1200);
+      }, 3000);
     };
 
     checkAndFetchPromo();
@@ -158,36 +158,30 @@ export default function PromotionPopupModal() {
             <X size={18} />
           </button>
 
-          {/* Festival Banner Header with Lotus & Pchum Ben Aesthetics */}
-          <div className="relative w-full h-44 sm:h-52 bg-gradient-to-br from-[#8B1A1A] via-[#b82a2a] to-[#d97706] overflow-hidden flex items-center justify-center">
-            {/* Background graphic */}
+          {/* Festival Banner Header with Genuine Pchum Ben Poster */}
+          <div className="relative w-full h-48 sm:h-56 bg-[#1a0e0e] overflow-hidden flex items-center justify-center">
             {promo.image_url && (
               <img
                 src={promo.image_url}
                 alt={promo.name}
-                className="w-full h-full object-cover mix-blend-overlay opacity-60"
+                className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#1c1212] via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1c1212] via-black/25 to-black/20" />
 
             {/* Festival Badge */}
-            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-amber-400/30 shadow-md">
-              <span className="text-base">🇰🇭</span>
-              <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
-                បុណ្យភ្ជំបិណ្ឌ • PCHUM BEN FESTIVAL
+            <div className="absolute top-3.5 left-3.5 z-20 flex items-center gap-1.5 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-amber-400/40 shadow-lg">
+              <span className="text-sm">🇰🇭</span>
+              <span className="text-[10.5px] font-black text-amber-300 uppercase tracking-wider">
+                បុណ្យភ្ជំបិណ្ឌ • PCHUM BEN SPECIAL
               </span>
             </div>
 
-            {/* Grand Discount Callout in Center */}
-            <div className="relative z-10 text-center px-4">
-              <div className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center justify-center gap-2">
-                <Flame size={32} className="text-amber-400 fill-amber-400 animate-pulse" />
-                <span>{discountLabel}</span>
-              </div>
-              <p className="text-xs sm:text-sm font-bold text-amber-200 drop-shadow-sm mt-1">
-                បញ្ចុះតម្លៃពិសេសលើម៉ាស៊ីន និងគ្រឿងបន្លាស់ទាំងអស់
-              </p>
+            {/* Floating Discount Tag */}
+            <div className="absolute bottom-3 right-3.5 z-20 flex items-center gap-1.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 px-3.5 py-1.5 rounded-xl border border-amber-400/30 shadow-lg">
+              <Flame size={16} className="text-amber-300 fill-amber-300 animate-pulse" />
+              <span className="text-sm sm:text-base font-black text-white">{discountLabel}</span>
             </div>
           </div>
 

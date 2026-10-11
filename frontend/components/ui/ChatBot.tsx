@@ -175,12 +175,12 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   };
 
   // ─── LocalStorage Multi-Session Helpers ────────────────────────────────────
-  const getSessionsStorageKey = (uid: string) => `stech_gemini_sessions_${uid || "guest"}`;
+  const getSessionsStorageKey = (uid: string) => `stech_ai_sessions_${uid || "guest"}`;
 
   const loadAllSessions = (uid: string): ChatSessionItem[] => {
     if (typeof window === "undefined") return [];
     try {
-      const data = localStorage.getItem(getSessionsStorageKey(uid));
+      const data = localStorage.getItem(getSessionsStorageKey(uid)) || localStorage.getItem(`stech_gemini_sessions_${uid || "guest"}`);
       if (data) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -267,7 +267,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       } else {
         // Create first fresh session with greeting
         const firstSessionId = "ses_" + Date.now().toString(36);
-        const greetingText = `សួស្តីបង ${detectedName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃ Gemini 3.8 របស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+        const greetingText = `សួស្តីបង ${detectedName}! 👋 ខ្ញុំជា "S Tech AI" (ជំនួយការឆ្លាតវៃផ្លូវការរបស់ហាង S Tech Store)។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
         const initialMsgs: ChatItem[] = [
           {
             sender: "bot",
@@ -339,7 +339,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Start New Chat Session (Gemini App Style) ─────────────────────────────
   const handleNewChat = () => {
     const newId = "ses_" + Date.now().toString(36) + "_" + Math.random().toString(36).substring(2, 6);
-    const greetingText = `សួស្តីបង ${userName}! 👋 ខ្ញុំជាប្រព័ន្ធ AI ឆ្លាតវៃ Gemini 3.8 របស់ S Tech Store។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
+    const greetingText = `សួស្តីបង ${userName}! 👋 ខ្ញុំជា "S Tech AI" (ជំនួយការឆ្លាតវៃផ្លូវការរបស់ហាង S Tech Store)។ តើថ្ងៃនេះបងចង់សាកសួរតម្លៃ រកម៉ាស៊ីនកុំព្យូទ័រ ឬសេវាកម្មអ្វីដែរ?`;
     const initialMsgs: ChatItem[] = [
       {
         sender: "bot",
@@ -703,10 +703,10 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           <div className="truncate min-w-0">
             <div className="flex items-center gap-1.5">
               <h3 className="font-extrabold text-gray-900 dark:text-white text-[13.5px] sm:text-[15px] leading-tight truncate">
-                S Tech Smart AI
+                S Tech AI
               </h3>
-              <span className="text-[9px] bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black px-1.5 py-0.5 rounded uppercase shrink-0">
-                Gemini 3.8
+              <span className="text-[9px] bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 shadow-xs">
+                PRO INTEL
               </span>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate">
@@ -889,7 +889,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           </div>
         ))}
 
-        {/* ── HIGH-TECH GEMINI 3.8 FLASH LIVE THINKING CARD ── */}
+        {/* ── HIGH-TECH S TECH AI LIVE THINKING HUD ── */}
         {isAiThinking && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -897,20 +897,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             exit={{ opacity: 0, y: -10 }}
             className="flex items-start gap-2.5 max-w-[95%] sm:max-w-[85%] my-2"
           >
-            {/* Glowing Gemini Colorful Avatar */}
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-pink-500 p-[1.5px] shrink-0 mt-0.5 shadow-md animate-pulse">
-              <div className="w-full h-full bg-white dark:bg-[#0c0d12] rounded-[10px] flex items-center justify-center text-indigo-500 dark:text-indigo-400">
-                <Sparkles size={16} className="animate-spin [animation-duration:4s]" />
+            {/* Glowing S-Tech Tech Avatar */}
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-amber-500 p-[1.5px] shrink-0 mt-0.5 shadow-md">
+              <div className="w-full h-full bg-white dark:bg-[#0c0d12] rounded-[10px] flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
+                <Zap size={15} className="animate-pulse" />
               </div>
             </div>
 
-            {/* Thinking Box */}
-            <div className="flex-1 bg-gradient-to-br from-indigo-50/70 via-purple-50/40 to-pink-50/50 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-pink-950/30 rounded-2xl rounded-tl-sm p-3.5 border border-indigo-200/70 dark:border-indigo-800/40 shadow-sm relative overflow-hidden">
+            {/* Thinking HUD Box */}
+            <div className="flex-1 bg-gradient-to-br from-red-50/60 via-slate-50/50 to-amber-50/40 dark:from-[#181216] dark:via-[#13151f] dark:to-[#17141f] rounded-2xl rounded-tl-sm p-3.5 border border-red-500/20 dark:border-red-500/25 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
-                  <span className="font-extrabold text-xs bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    Gemini 3.8 Flash • កំពុងគិត ({thinkingSeconds.toFixed(1)}s)
+                  <span className="w-2 h-2 rounded-full bg-[#8B1A1A] dark:bg-red-500 animate-ping" />
+                  <span className="font-extrabold text-xs bg-gradient-to-r from-[#8B1A1A] via-red-600 to-amber-600 bg-clip-text text-transparent">
+                    S Tech AI • កំពុងវិភាគ & គិតគូរ ({thinkingSeconds.toFixed(1)}s)
                   </span>
                 </div>
                 <button
@@ -923,22 +923,22 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
               </div>
 
               {showThoughtProcess && (
-                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-indigo-100 dark:border-indigo-900/40 text-[12px] text-gray-700 dark:text-gray-300">
+                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-red-100 dark:border-white/10 text-[12px] text-gray-700 dark:text-gray-300">
                   <div className="flex items-center gap-2 font-medium">
-                    <span className="text-indigo-600 dark:text-indigo-400">
-                      {thinkingSeconds < 1.5
-                        ? "💡 Gemini កំពុងពិចារណា & វិភាគសំណួររបស់អ្នក..."
-                        : thinkingSeconds < 3.5
-                        ? "🔎 ផ្ទៀងផ្ទាត់ទិន្នន័យផលិតផល ស្តុក និងតម្លៃ S Tech Store..."
-                        : "✍️ កំពុងចងក្រង និងសរសេរចម្លើយជាភាសាខ្មែរ..."}
+                    <span className="text-gray-700 dark:text-gray-200">
+                      {thinkingSeconds < 1.8
+                        ? "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បង..."
+                        : thinkingSeconds < 3.8
+                        ? "🔎 ផ្ទៀងផ្ទាត់ទិន្នន័យផលិតផល ស្តុក និងតម្លៃក្នុងហាង..."
+                        : "✍️ កំពុងរៀបចំចម្លើយយ៉ាងលម្អិតជូនបង..."}
                     </span>
                   </div>
 
                   {/* Animated Wave Bars */}
                   <div className="flex items-center gap-1.5 mt-1">
-                    <div className="h-1.5 w-8 rounded-full bg-indigo-500 animate-pulse" />
-                    <div className="h-1.5 w-14 rounded-full bg-purple-500 animate-pulse [animation-delay:0.2s]" />
-                    <div className="h-1.5 w-20 rounded-full bg-pink-500 animate-pulse [animation-delay:0.4s]" />
+                    <div className="h-1.5 w-8 rounded-full bg-[#8B1A1A] animate-pulse" />
+                    <div className="h-1.5 w-14 rounded-full bg-red-500 animate-pulse [animation-delay:0.2s]" />
+                    <div className="h-1.5 w-20 rounded-full bg-amber-500 animate-pulse [animation-delay:0.4s]" />
                   </div>
                 </div>
               )}
@@ -1010,14 +1010,14 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 style={{ paddingTop: "calc(16px + env(safe-area-inset-top))" }}
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-pink-500 p-[1.5px]">
-                    <div className="w-full h-full bg-white dark:bg-[#12151e] rounded-[10px] flex items-center justify-center text-indigo-500">
-                      <Sparkles size={16} />
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-amber-500 p-[1.5px] shadow-sm">
+                    <div className="w-full h-full bg-white dark:bg-[#12151e] rounded-[10px] flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
+                      <Zap size={15} />
                     </div>
                   </div>
                   <div>
                     <h4 className="font-extrabold text-sm text-gray-900 dark:text-white">
-                      Chat Sessions
+                      S Tech AI Sessions
                     </h4>
                     <span className="text-[11px] text-gray-400">ប្រវត្តិការសន្ទនា ({sessions.length})</span>
                   </div>

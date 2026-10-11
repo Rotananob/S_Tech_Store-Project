@@ -2,79 +2,148 @@
 
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@/i18n/routing";
-import { ShoppingCart, Laptop, Monitor, Cpu, Server, HardDrive, Gamepad2, RotateCcw, Smartphone, Zap, AppWindow, BoxSelect, MonitorPlay, Headphones, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { 
+  ShoppingCart, 
+  Laptop, 
+  Monitor, 
+  Cpu, 
+  Server, 
+  HardDrive, 
+  Gamepad2, 
+  RotateCcw, 
+  Smartphone, 
+  Zap, 
+  AppWindow, 
+  BoxSelect, 
+  MonitorPlay, 
+  Headphones, 
+  Sparkles, 
+  ChevronLeft, 
+  ChevronRight,
+  Flame,
+  Clock,
+  Tag,
+  Copy,
+  Check,
+  Gift,
+  ArrowRight,
+  ShieldCheck
+} from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
+import api from "@/lib/api";
 
-// ─── Tier 2: Grand Seasonal Festival Mega Campaigns (បុណ្យភ្ជំបិណ្ឌ / ចូលឆ្នាំខ្មែរ / បុណ្យអុំទូក) ─────
+// ─── Tier 2: Grand Seasonal Festival Mega Campaigns (ពិធីបុណ្យភ្ជំបិណ្ឌ Poster) ──────
 const GRAND_FESTIVAL_SLIDE = {
-  title: "🎉 មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ 30% OFF",
-  desc: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃរហូតដល់ 30% ប្រើកូដ PCHUMBEN2026 ធានា ៣ ទៅ ៦ ខែ ដឹកជូន ២៥ ខេត្ត-ក្រុង!",
-  image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop",
+  title: "🎉 មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ Up to 40% OFF",
+  desc: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃរហូតដល់ 40% លើ Gaming Laptops, Custom PC Builds, Monitors និង Accessories ធានាត្រឹមត្រូវ ដឹកជូន ២៥ ខេត្ត-ក្រុង!",
+  image: "/images/pchum-ben-promo.jpg",
   alt: "Pchum Ben Festival Mega Sale Poster",
-  badge: "✨ មហាប្រូម៉ូសិន បុណ្យភ្ជំបិណ្ឌ",
+  badge: "🇰🇭 មហាប្រូម៉ូសិន បុណ្យភ្ជំបិណ្ឌ",
   isGrandFestival: true,
-  promoCode: "PCHUMBEN2026"
+  promoCode: "PCHUMBEN2026",
+  link: "/category/all",
+  ctaText: "Shop Festival 40% OFF"
 };
 
-// ─── Tier 1: Regular Store Promotion (Discounts & Promo Codes) ────────────────
-const REGULAR_PROMO_SLIDE = {
-  title: "⚡ Super Tech Deals: Up to 20% OFF",
-  desc: "បញ្ចុះតម្លៃពិសេសលើ Gaming Laptops, Monitors & PC Gear ប្រើកូដ STECH20 ធានា ៣ ទៅ ៦ ខែពេញ!",
-  image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=800&auto=format&fit=crop",
-  alt: "Special Store Promotion",
-  badge: "🔥 Promo 20% OFF",
+// ─── Tier 1: Ultimate Gaming & Custom PC Rig Festival (Gaming Poster) ────────
+const GAMING_RIG_SLIDE = {
+  title: "⚡ Ultimate Gaming & PC Builds 30% OFF",
+  desc: "រៀបចំម៉ាស៊ីន Custom Water-Cooled Gaming Rig, RTX 40-Series & Curved OLED Monitors ជាមួយតម្លៃពិសេសបំផុតប្រចាំឆ្នាំ!",
+  image: "/images/gaming-promo.jpg",
+  alt: "Ultimate Gaming PC Rig Festival",
+  badge: "🔥 Gaming Festival 30% OFF",
   isPromo: true,
-  promoCode: "STECH20"
+  promoCode: "STECH20",
+  link: "/build-pc",
+  ctaText: "រៀបចំ PC ឥឡូវនេះ (Build PC)"
 };
 
 const DEFAULT_HERO_SLIDES = [
+  GRAND_FESTIVAL_SLIDE,
+  GAMING_RIG_SLIDE,
   {
     title: "Next-Gen Laptops & Gear",
     desc: "Top-tier performance, 100% Genuine with Official Warranty.",
     image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop",
     alt: "Premium Laptops",
-    badge: "Official Warranty"
+    badge: "Official Warranty",
+    link: "/category/laptops",
+    ctaText: "Shop Laptops"
   },
   {
     title: "Custom Gaming Desktops",
     desc: "High-FPS gaming rigs & workstations built for performance.",
     image: "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=800&auto=format&fit=crop",
     alt: "Custom Gaming PC",
-    badge: "Custom Build"
+    badge: "Custom Build",
+    link: "/build-pc",
+    ctaText: "Explore Rigs"
   },
   {
     title: "Ultra-Fast PC Components",
     desc: "CPUs, GPUs, RAM & NVMe SSDs from leading global brands.",
     image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=800&auto=format&fit=crop",
     alt: "PC Components",
-    badge: "100% Genuine"
+    badge: "100% Genuine",
+    link: "/category/parts",
+    ctaText: "Shop Components"
   },
   {
     title: "Pro Accessories & Gear",
     desc: "Mechanical keyboards, gaming mice, monitors & headsets.",
     image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?q=80&w=800&auto=format&fit=crop",
     alt: "Pro Gaming Peripherals",
-    badge: "Best Deals"
+    badge: "Best Deals",
+    link: "/category/parts",
+    ctaText: "Shop Gear"
   }
 ];
 
 export function HeroSection() {
   const t = useTranslations("Hero");
   const [slideIndex, setSlideIndex] = useState(0);
-  const [slides, setSlides] = useState([GRAND_FESTIVAL_SLIDE, REGULAR_PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
+  const [slides, setSlides] = useState([GRAND_FESTIVAL_SLIDE, GAMING_RIG_SLIDE, ...DEFAULT_HERO_SLIDES]);
   const [isPaused, setIsPaused] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  // Auto-slide every 3.8 seconds with smooth cross-fade
+  // Dynamic API sync to pull live active promotions from backend
+  useEffect(() => {
+    let mounted = true;
+    api.get("/promotions/active-popup")
+      .then((res) => {
+        if (!mounted) return;
+        const p = res.data?.data || res.data?.promo;
+        if (p && p.name) {
+          const dynamicSlide = {
+            title: p.name,
+            desc: p.description || "ការបញ្ចុះតម្លៃពិសេសពី S Tech Store ធានាគុណភាព ១០០%",
+            image: p.image_url || "/images/pchum-ben-promo.jpg",
+            alt: p.name,
+            badge: `🔥 ${p.code || "PROMO"}`,
+            isGrandFestival: (p.name || "").includes("ភ្ជុំ") || (p.name || "").toLowerCase().includes("pchum"),
+            isPromo: true,
+            promoCode: p.code || "PCHUMBEN2026",
+            link: p.target_url || "/category/all",
+            ctaText: "ទិញឥឡូវនេះ (Shop Now)",
+          };
+          setSlides((prev) => [dynamicSlide, ...prev.filter((s: any) => s.promoCode !== p.code)]);
+        }
+      })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
+
+  // Auto-slide every 4.2 seconds with smooth cross-fade
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
       setSlideIndex((prev) => (prev + 1) % slides.length);
-    }, 3800);
+    }, 4200);
     return () => clearInterval(timer);
   }, [slides.length, isPaused]);
 
@@ -89,7 +158,7 @@ export function HeroSection() {
         <div
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          className="group relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 dark:from-[#141722] dark:via-[#1a1f2c] dark:to-[#12151f] border border-gray-200/80 dark:border-white/10"
+          className="group relative w-full h-[210px] sm:h-[260px] md:h-[300px] lg:h-[360px] xl:h-[410px] 2xl:h-[440px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 dark:from-[#141722] dark:via-[#1a1f2c] dark:to-[#12151f] border border-gray-200/80 dark:border-white/10"
         >
           {/* Fixed S Tech Store Logo & Brand Badge */}
           <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 xl:top-7 xl:left-8 z-30 flex items-center gap-2 bg-white/95 dark:bg-[#151922]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100 dark:border-white/10">
@@ -116,7 +185,7 @@ export function HeroSection() {
           {/* Dynamic Animated Content Container */}
           <div className="absolute inset-0 flex items-center justify-between px-4 sm:px-8 xl:px-12 pt-10 sm:pt-8 z-10">
             {/* Animated Text */}
-            <div className="flex flex-col items-start text-left w-[58%] sm:w-[56%] lg:w-[58%] z-20">
+            <div className="flex flex-col items-start text-left w-[55%] sm:w-[54%] lg:w-[56%] z-20">
               <div className="min-h-[36px] sm:min-h-[46px] md:min-h-[56px] xl:min-h-[68px] mb-1.5 xl:mb-3 flex items-center relative w-full overflow-hidden">
                 <AnimatePresence initial={false} mode="wait">
                   <motion.h1
@@ -147,22 +216,47 @@ export function HeroSection() {
                 </AnimatePresence>
               </div>
 
-              <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Link
-                  href="/category/all"
+                  href={(current as any).link || "/category/all"}
                   className={`${
                     (current as any).isGrandFestival
                       ? "bg-gradient-to-r from-[#8B1A1A] via-[#b91c1c] to-[#dc2626] hover:from-[#701515] hover:to-[#b91c1c] shadow-lg shadow-red-900/20"
                       : "bg-[#8B1A1A] hover:bg-[#6B1010] shadow-md hover:shadow-lg"
-                  } !text-white text-white text-xs sm:text-sm xl:text-base font-bold px-5 sm:px-7 xl:px-8 py-2.5 sm:py-3 xl:py-3.5 rounded-full transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0`}
+                  } !text-white text-white text-xs sm:text-sm xl:text-base font-bold px-4 sm:px-6 xl:px-8 py-2 sm:py-3 xl:py-3.5 rounded-full transition-all no-underline flex items-center gap-2 hover:scale-105 shrink-0`}
                 >
                   <span className="!text-white text-white font-bold">
-                    {(current as any).isGrandFestival ? "Shop Festival 30% OFF" : "Shop Now"}
+                    {(current as any).ctaText || "Shop Now"}
                   </span>
                   <span className="!text-white text-white text-xs sm:text-sm xl:text-base">&rarr;</span>
                 </Link>
+
+                {/* Promo Code Chip with Copy */}
+                {(current as any).promoCode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText((current as any).promoCode);
+                      setCopiedCode(true);
+                      setTimeout(() => setCopiedCode(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-full bg-white/90 dark:bg-black/60 backdrop-blur-md text-[11px] sm:text-xs font-bold text-gray-800 dark:text-gray-200 border border-amber-400/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95 transition-all shrink-0"
+                    title="ចុចដើម្បីចម្លងកូដប្រូម៉ូសិន"
+                  >
+                    <Tag size={12} className="text-amber-500" />
+                    <span className="font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider font-extrabold">
+                      {(current as any).promoCode}
+                    </span>
+                    {copiedCode ? (
+                      <Check size={12} className="text-emerald-500" />
+                    ) : (
+                      <Copy size={12} className="text-gray-400" />
+                    )}
+                  </button>
+                )}
+
                 <span
-                  className={`text-[10px] sm:text-xs xl:text-sm px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border shrink-0 ${
+                  className={`text-[10px] sm:text-xs xl:text-sm px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden md:inline-block border shrink-0 ${
                     (current as any).isGrandFestival
                       ? "bg-gradient-to-r from-amber-400 to-amber-500 text-gray-950 font-black border-amber-300 shadow-xs"
                       : "font-semibold text-gray-500 dark:text-gray-300 bg-white/90 dark:bg-[#151922]/90 border-gray-200 dark:border-white/10"
@@ -173,21 +267,31 @@ export function HeroSection() {
               </div>
             </div>
 
-            {/* Auto Sliding 4 Images with Smooth Crossfade Transition */}
-            <div className="absolute right-2 sm:right-6 lg:right-10 xl:right-12 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[36%] xl:w-[35%] h-[82%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center">
-              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/15 blur-3xl rounded-full pointer-events-none" />
+            {/* Auto Sliding Real Image Poster with High-Tech Glow */}
+            <div className="absolute right-2 sm:right-6 lg:right-8 xl:right-10 top-1/2 -translate-y-1/2 w-[42%] sm:w-[44%] lg:w-[42%] xl:w-[40%] h-[84%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center">
+              <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/20 dark:bg-red-500/15 blur-3xl rounded-full pointer-events-none" />
 
               <AnimatePresence initial={false} mode="wait">
-                <motion.img
+                <motion.div
                   key={slideIndex}
-                  src={current.image}
-                  alt={current.alt}
-                  initial={{ opacity: 0, scale: 0.96 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.02 }}
+                  exit={{ opacity: 0, scale: 1.03 }}
                   transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80 dark:border-white/10 will-change-transform"
-                />
+                  className="relative w-full h-full flex items-center justify-center"
+                >
+                  <img
+                    src={current.image}
+                    alt={current.alt}
+                    className="max-h-full max-w-full object-contain rounded-2xl sm:rounded-3xl shadow-[0_10px_35px_rgba(0,0,0,0.25)] border-2 sm:border-4 border-white/90 dark:border-white/10 will-change-transform group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {(current as any).promoCode && (
+                    <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-amber-400/40 text-[10px] sm:text-xs font-mono font-black text-amber-300 shadow-md hidden sm:flex items-center gap-1">
+                      <Flame size={12} className="text-amber-400 fill-amber-400" />
+                      <span>{(current as any).promoCode}</span>
+                    </div>
+                  )}
+                </motion.div>
               </AnimatePresence>
             </div>
           </div>
@@ -205,6 +309,231 @@ export function HeroSection() {
               />
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Special Promotion Deals Component (Placed between Banner & Categories) ──
+export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
+  const router = useRouter();
+  const addItem = useCartStore((state) => state.addItem);
+  const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState({ days: 7, hours: 14, minutes: 36, seconds: 50 });
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const diff = 7 * 24 * 60 * 60 * 1000 - (now % (7 * 24 * 60 * 60 * 1000));
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter or prioritize discounted products (up to 4 items)
+  const promoProducts = (products && products.length > 0 ? products : []).slice(0, 4);
+
+  const handleCopyCode = () => {
+    navigator.clipboard?.writeText("PCHUMBEN2026");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent, product: any, promoPrice: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!auth.currentUser) {
+      router.push("/login");
+      return;
+    }
+    addItem({
+      id: Number(product.id),
+      name: product.name,
+      price: promoPrice,
+      quantity: 1,
+      image_url: product.image_url || product.image,
+    });
+    setTimeout(() => {
+      useCartStore.getState().setIsOpen(true);
+    }, 300);
+  };
+
+  if (promoProducts.length === 0) return null;
+
+  return (
+    <section className="bg-gradient-to-b from-gray-50/70 via-white to-gray-50/50 dark:from-[#0b0d13] dark:via-[#11141e] dark:to-[#0b0d13] px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-9 w-full overflow-hidden border-b border-gray-100 dark:border-white/5 transition-colors">
+      <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
+        {/* Header Bar */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="flex items-center gap-1 bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[10.5px] font-black px-2.5 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                <Flame size={12} className="fill-amber-300 text-amber-300 animate-pulse" />
+                <span>PCHUM BEN MEGA SALE</span>
+              </span>
+              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/40">
+                បញ្ចុះតម្លៃរហូតដល់ 40%
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span>🎉 មហាប្រូម៉ូសិនពិសេស</span>
+              <span className="text-sm sm:text-base font-bold text-gray-500 dark:text-gray-400 hidden sm:inline">• Festival Flash Deals</span>
+            </h2>
+          </div>
+
+          {/* 7-Day Live Countdown Clock */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3.5 py-2 rounded-2xl shadow-xs">
+              <Clock size={15} className="text-[#8B1A1A] dark:text-red-400 animate-spin [animation-duration:10s]" />
+              <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 mr-1">ផុតកំណត់ក្នុង៖</span>
+              <div className="flex items-center gap-1 font-mono font-black text-xs">
+                <span className="px-1.5 py-0.5 rounded bg-[#8B1A1A] text-white text-[11px]">{timeLeft.days}ថ្ងៃ</span>
+                <span className="text-gray-400">:</span>
+                <span className="px-1.5 py-0.5 rounded bg-gray-900 dark:bg-black text-amber-300 text-[11px]">{String(timeLeft.hours).padStart(2, "0")}</span>
+                <span className="text-gray-400">:</span>
+                <span className="px-1.5 py-0.5 rounded bg-gray-900 dark:bg-black text-amber-300 text-[11px]">{String(timeLeft.minutes).padStart(2, "0")}</span>
+                <span className="text-gray-400">:</span>
+                <span className="px-1.5 py-0.5 rounded bg-gray-900 dark:bg-black text-amber-300 text-[11px]">{String(timeLeft.seconds).padStart(2, "0")}</span>
+              </div>
+            </div>
+
+            <Link
+              href="/promotions"
+              className="text-xs sm:text-sm font-bold text-[#8B1A1A] dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 flex items-center gap-1 no-underline whitespace-nowrap pl-1"
+            >
+              <span>មើលទាំងអស់</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+        </div>
+
+        {/* 4-Item Promotional Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5">
+          {promoProducts.map((product, idx) => {
+            const originalPrice = Number(product.price);
+            // Discount rate: 25%, 30%, 35%, 40% across items
+            const discountPct = [30, 25, 35, 40][idx % 4];
+            const promoPrice = product.sale_price ? Number(product.sale_price) : Math.round(originalPrice * (1 - discountPct / 100));
+
+            return (
+              <motion.div
+                key={product.id || idx}
+                whileHover={{ y: -4 }}
+                className="bg-white dark:bg-[#151922] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-red-500/20 dark:border-red-500/20 hover:border-red-500 flex flex-col h-full group"
+              >
+                {/* Discount Ribbon */}
+                <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                  <span className="bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full shadow-md">
+                    -{discountPct}% OFF
+                  </span>
+                  <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                    Pchum Ben Deal
+                  </span>
+                </div>
+
+                {/* Product Image Frame */}
+                <Link
+                  href={`/products/${product.slug}`}
+                  className="block relative w-full h-[160px] sm:h-[190px] bg-gradient-to-b from-red-50/20 via-gray-50/40 to-gray-100/40 dark:from-red-950/10 dark:via-[#1b212f]/80 dark:to-[#141822]/80 p-4 overflow-hidden flex items-center justify-center no-underline"
+                >
+                  <img
+                    src={product.image_url || product.image || "/logo.jpg"}
+                    alt={product.name}
+                    className="max-h-full max-w-full object-contain group-hover:scale-108 transition-transform duration-300 drop-shadow-sm"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/logo.jpg";
+                    }}
+                  />
+                </Link>
+
+                {/* Card Body */}
+                <div className="p-3.5 sm:p-4 flex flex-col flex-grow bg-white dark:bg-[#151922] border-t border-gray-50 dark:border-white/5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 truncate">
+                    {product.category?.name || "Official Tech"}
+                  </span>
+
+                  <Link href={`/products/${product.slug}`} className="no-underline">
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 min-h-[36px] mb-2 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
+                      {product.name}
+                    </h3>
+                  </Link>
+
+                  {/* Pricing Row */}
+                  <div className="mt-auto pt-2.5 border-t border-gray-100 dark:border-white/10 flex flex-col gap-2">
+                    <div className="flex items-baseline justify-between gap-1.5">
+                      <div>
+                        <div className="text-base sm:text-lg font-black text-red-600 dark:text-red-400 font-mono leading-tight">
+                          {formatUSD(promoPrice)}
+                        </div>
+                        <div className="text-[11px] text-gray-400 line-through font-mono">
+                          {formatUSD(originalPrice)}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full shrink-0">
+                        សន្សំ {formatUSD(originalPrice - promoPrice)}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleAddToCart(e, product, promoPrice)}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all cursor-pointer border-none active:scale-95"
+                    >
+                      <ShoppingCart size={13} strokeWidth={2.3} />
+                      <span>ដាក់ចូលកន្ត្រក</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Festival Bonus Coupon Strip */}
+        <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-950/70 via-[#1a0e12] to-amber-950/70 border border-amber-400/30 text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2.5 text-center sm:text-left">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-[#8B1A1A] flex items-center justify-center text-white shrink-0 shadow-xs">
+              <Gift size={18} />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-bold text-amber-200">
+                🎁 កាដូបន្ថែមពិធីបុណ្យភ្ជំបិណ្ឌ៖ រាល់ការទិញ Laptop ឬ Custom PC ថែមជូន Backpack, Mouse, Pad & Flash Drive ឥតគិតថ្លៃ!
+              </p>
+              <p className="text-[11px] text-gray-300">
+                បញ្ចូលកូដប្រូម៉ូសិននៅពេល Checkout ដើម្បីទទួលបានការបញ្ចុះតម្លៃបន្ថែម ភ្លាមៗ!
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyCode}
+            className={`px-4 py-2 rounded-xl text-xs font-mono font-black flex items-center gap-1.5 transition-all cursor-pointer border-none shrink-0 ${
+              copied
+                ? "bg-emerald-600 text-white scale-105"
+                : "bg-amber-400 hover:bg-amber-300 text-gray-950 active:scale-95"
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check size={14} />
+                <span>បានចម្លងកូដ! ✓</span>
+              </>
+            ) : (
+              <>
+                <Tag size={14} />
+                <span>PCHUMBEN2026 (Copy)</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </section>

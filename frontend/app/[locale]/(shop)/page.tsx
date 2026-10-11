@@ -1,6 +1,6 @@
 import { getCategories, getProducts } from "@/lib/services/product.service";
 import { Category, Product } from "@/types";
-import { HeroSection, FeatureStrip, CategorySection, BestSellers, PromoCTA } from "./home-client";
+import { HeroSection, PromotionDealsSection, FeatureStrip, CategorySection, BestSellers, PromoCTA } from "./home-client";
 import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
 
 import { Metadata } from "next";
@@ -50,6 +50,7 @@ export default async function HomePage() {
     <div>
       <PromotionPopupModal />
       <HeroSection />
+      <PromotionDealsSection products={products} />
       <FeatureStrip />
       <CategorySection categories={categories} />
       <BestSellers products={products} />
