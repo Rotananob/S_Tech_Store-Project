@@ -226,7 +226,7 @@ export default function RegisterPage() {
   // ─── Trigger Real Telegram OAuth (1-Click Popup or Redirect) ───────────────
   const handleTelegramSignIn = async () => {
     setError("");
-    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8899300323";
+    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8929556298";
 
     // 1. If Telegram Widget is ready in window, open official centered confirmation popup
     if (typeof window !== "undefined" && (window as any).Telegram?.Login) {
