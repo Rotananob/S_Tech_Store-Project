@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
       contents,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 250, // Keep short to preserve tokens & speed
+        maxOutputTokens: 1024,
         topP: 0.9,
       },
     };
@@ -244,10 +244,10 @@ export async function POST(req: NextRequest) {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6500); // 6.5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout for Gemini 3.8
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
@@ -262,9 +262,10 @@ export async function POST(req: NextRequest) {
 
       if (res.ok) {
         const data = await res.json();
-        const candidate = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidate) {
-          geminiText = candidate.trim();
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const textPart = parts.find((p: any) => typeof p.text === "string" && p.text.trim().length > 0);
+        if (textPart?.text) {
+          geminiText = textPart.text.trim();
         }
       }
     } catch (apiErr) {
