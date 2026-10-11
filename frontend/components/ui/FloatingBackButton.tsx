@@ -15,8 +15,13 @@ export default function FloatingBackButton() {
     setMounted(true);
   }, []);
 
+  // Hide FloatingBackButton on primary bottom navigation tabs and admin routes to prevent header collisions
   if (
     pathname === "/" || 
+    pathname.startsWith("/category") ||
+    pathname.startsWith("/scan") ||
+    pathname.startsWith("/account") ||
+    pathname.startsWith("/cart") ||
     pathname.startsWith("/admin") || 
     pathname.startsWith("/stech-hq-portal") ||
     pathname.startsWith("/rok-mix-khernh")
@@ -30,12 +35,12 @@ export default function FloatingBackButton() {
   return (
     <button
       onClick={() => router.back()}
-      className="lg:hidden fixed top-[70px] left-3 z-40 flex items-center justify-center gap-2 px-4 py-2.5 bg-white/95 backdrop-blur-xl text-gray-800 border border-gray-200/80 rounded-[14px] shadow-sm hover:shadow-md hover:bg-gray-50 active:scale-95 transition-all duration-300 cursor-pointer"
+      className="lg:hidden fixed bottom-[84px] left-4 z-40 flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white/95 dark:bg-[#151922]/95 backdrop-blur-xl text-gray-800 dark:text-gray-100 border border-gray-200/90 dark:border-white/10 rounded-full shadow-lg hover:shadow-xl hover:bg-gray-50 dark:hover:bg-white/10 active:scale-95 transition-all duration-300 cursor-pointer"
       aria-label={label}
       title={label}
     >
-      <ArrowLeft className="w-5 h-5 text-[#8B1A1A]" strokeWidth={2.5} />
-      <span className="text-[13px] font-bold text-gray-800">{text}</span>
+      <ArrowLeft className="w-4 h-4 text-[#8B1A1A] dark:text-red-400" strokeWidth={2.5} />
+      <span className="text-[12px] font-bold text-gray-800 dark:text-white">{text}</span>
     </button>
   );
 }

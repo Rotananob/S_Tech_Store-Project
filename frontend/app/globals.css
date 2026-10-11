@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Kantumruy+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── Design Tokens ───────────────────────────────────────────────────────── */
 :root {
@@ -362,9 +363,10 @@ html, body {
   transform: scale(0.9);
 }
 
-/* Redesigned Product Card (Light Theme) */
+/* Redesigned Product Card (Light & Dark Theme) */
 .product-card {
-  background: var(--bg-white);
+  background-color: #ffffff;
+  color: #111827;
   border-radius: var(--radius-md);
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   border: 1px solid var(--border);
@@ -376,6 +378,20 @@ html, body {
 }
 .product-card:active {
   transform: scale(0.98);
+}
+.dark .product-card,
+[data-theme="dark"] .product-card {
+  background-color: #141720 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f8f8f8 !important;
+}
+.dark .product-card h3,
+[data-theme="dark"] .product-card h3 {
+  color: #f8f8f8 !important;
+}
+.dark .product-card .bg-gray-50,
+[data-theme="dark"] .product-card .bg-gray-50 {
+  background-color: #1b202c !important;
 }
 
 /* Section Title Mobile */

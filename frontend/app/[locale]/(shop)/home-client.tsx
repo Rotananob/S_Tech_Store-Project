@@ -56,12 +56,12 @@ export function HeroSection() {
   const [slides, setSlides] = useState([PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Auto-slide every 4.5 seconds when not hovered
+  // Auto-slide every 3.8 seconds with smooth cross-fade
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
       setSlideIndex((prev) => (prev + 1) % slides.length);
-    }, 4500);
+    }, 3800);
     return () => clearInterval(timer);
   }, [slides.length, isPaused]);
 
@@ -71,31 +71,31 @@ export function HeroSection() {
   const prevSlide = () => setSlideIndex((prev) => (prev - 1 + slides.length) % slides.length);
 
   return (
-    <section className="bg-white px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden">
+    <section className="bg-white dark:bg-[#0c0e12] px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
         <div
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          className="group relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200"
+          className="group relative w-full h-[190px] sm:h-[240px] md:h-[280px] lg:h-[340px] xl:h-[390px] 2xl:h-[430px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 dark:from-[#141722] dark:via-[#1a1f2c] dark:to-[#12151f] border border-gray-200/80 dark:border-white/10"
         >
           {/* Fixed S Tech Store Logo & Brand Badge */}
-          <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 xl:top-7 xl:left-8 z-30 flex items-center gap-2 bg-white/90 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100">
+          <div className="absolute top-3.5 left-4 sm:top-5 sm:left-6 xl:top-7 xl:left-8 z-30 flex items-center gap-2 bg-white/95 dark:bg-[#151922]/95 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-sm border border-gray-100 dark:border-white/10">
             <img src="/logo.jpg" alt="S Tech Store" className="w-6 h-6 rounded-full object-cover shadow-sm border border-white" />
-            <span className="text-[11px] sm:text-xs font-black text-[#8B1A1A] uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
+            <span className="text-[11px] sm:text-xs font-black text-[#8B1A1A] dark:text-red-400 uppercase tracking-[0.15em] drop-shadow-sm">S Tech Store</span>
           </div>
 
           {/* Prev / Next Chevrons on Hover */}
           <button
             onClick={prevSlide}
             aria-label="Previous slide"
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-md shadow-md text-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-[#151922]/85 hover:bg-white dark:hover:bg-[#1a1f2c] backdrop-blur-md shadow-md text-gray-800 dark:text-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200 dark:border-white/10"
           >
             <ChevronLeft size={18} />
           </button>
           <button
             onClick={nextSlide}
             aria-label="Next slide"
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/80 hover:bg-white backdrop-blur-md shadow-md text-gray-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/85 dark:bg-[#151922]/85 hover:bg-white dark:hover:bg-[#1a1f2c] backdrop-blur-md shadow-md text-gray-800 dark:text-gray-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border border-gray-200 dark:border-white/10"
           >
             <ChevronRight size={18} />
           </button>
@@ -105,14 +105,14 @@ export function HeroSection() {
             {/* Animated Text */}
             <div className="flex flex-col items-start text-left w-[58%] sm:w-[56%] lg:w-[58%] z-20">
               <div className="min-h-[36px] sm:min-h-[46px] md:min-h-[56px] xl:min-h-[68px] mb-1.5 xl:mb-3 flex items-center relative w-full overflow-hidden">
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="wait">
                   <motion.h1
                     key={slideIndex}
-                    initial={{ y: 16, opacity: 0 }}
+                    initial={{ y: 12, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -16, opacity: 0 }}
-                    transition={{ duration: 0.35, ease: "easeOut" }}
-                    className="text-gray-900 text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
+                    exit={{ y: -12, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="text-gray-900 dark:text-white text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black leading-tight drop-shadow-sm absolute w-full pr-2"
                   >
                     {current.title}
                   </motion.h1>
@@ -120,14 +120,14 @@ export function HeroSection() {
               </div>
 
               <div className="min-h-[30px] sm:min-h-[38px] xl:min-h-[46px] mb-3 sm:mb-5 xl:mb-6 relative w-full overflow-hidden">
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="wait">
                   <motion.p
                     key={`desc-${slideIndex}`}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="text-gray-600 text-[10px] sm:text-sm md:text-base xl:text-lg leading-relaxed line-clamp-2 font-medium max-w-xl absolute w-full"
+                    transition={{ duration: 0.28, ease: "easeOut" }}
+                    className="text-gray-600 dark:text-gray-300 text-[10px] sm:text-sm md:text-base xl:text-lg leading-relaxed line-clamp-2 font-medium max-w-xl absolute w-full"
                   >
                     {current.desc}
                   </motion.p>
@@ -142,7 +142,7 @@ export function HeroSection() {
                   <span className="!text-white text-white font-bold">Shop Now</span>
                   <span className="!text-white text-white text-xs sm:text-sm xl:text-base">&rarr;</span>
                 </Link>
-                <span className="text-[10px] sm:text-xs xl:text-sm font-semibold text-gray-500 bg-white/80 px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border border-gray-200 shrink-0">
+                <span className="text-[10px] sm:text-xs xl:text-sm font-semibold text-gray-500 dark:text-gray-300 bg-white/90 dark:bg-[#151922]/90 px-2.5 sm:px-3.5 py-1 sm:py-2 rounded-full hidden sm:inline-block border border-gray-200 dark:border-white/10 shrink-0">
                   {current.badge}
                 </span>
               </div>
@@ -152,16 +152,16 @@ export function HeroSection() {
             <div className="absolute right-2 sm:right-6 lg:right-10 xl:right-12 top-1/2 -translate-y-1/2 w-[38%] sm:w-[38%] lg:w-[36%] xl:w-[35%] h-[82%] sm:h-[88%] xl:h-[90%] z-10 flex items-center justify-center">
               <div className="absolute w-36 h-36 sm:w-48 sm:h-48 xl:w-64 xl:h-64 bg-red-400/15 blur-3xl rounded-full pointer-events-none" />
 
-              <AnimatePresence initial={false}>
+              <AnimatePresence initial={false} mode="wait">
                 <motion.img
                   key={slideIndex}
                   src={current.image}
                   alt={current.alt}
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.02 }}
-                  transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80 will-change-transform"
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  className="absolute max-h-full max-w-full object-cover rounded-2xl sm:rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.18)] border-2 sm:border-4 border-white/80 dark:border-white/10 will-change-transform"
                 />
               </AnimatePresence>
             </div>
@@ -174,7 +174,7 @@ export function HeroSection() {
                 key={idx}
                 onClick={() => setSlideIndex(idx)}
                 className={`h-1.5 rounded-full transition-all duration-300 border-none p-0 cursor-pointer ${
-                  idx === slideIndex ? "w-6 sm:w-8 bg-[#8B1A1A]" : "w-1.5 bg-gray-300 hover:bg-gray-400"
+                  idx === slideIndex ? "w-6 sm:w-8 bg-[#8B1A1A] dark:bg-red-500" : "w-1.5 bg-gray-300 dark:bg-white/20 hover:bg-gray-400"
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
               />

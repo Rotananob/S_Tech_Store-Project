@@ -101,7 +101,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <motion.div
-      className="product-card dark:bg-[#141720] dark:border-white/10 text-gray-900 dark:text-gray-100"
+      className="product-card bg-white dark:bg-[#141720] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-gray-100 rounded-2xl overflow-hidden shadow-xs hover:shadow-md"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       whileHover={{ y: -6, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
@@ -278,7 +278,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Info */}
       <Link href={`/products/${product.slug}`} style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <div className="bg-white dark:bg-[#141720] text-gray-900 dark:text-gray-100" style={{ padding: "14px", flex: 1, display: "flex", flexDirection: "column" }}>
           {/* Brand */}
           {product.brand && (
             <span
@@ -293,7 +293,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Name */}
           <h3
-            className="text-gray-900 dark:text-gray-100 font-bold hover:text-[#8B1A1A] dark:hover:text-red-400 transition-colors"
+            className="text-gray-900 dark:text-white font-bold hover:text-[#8B1A1A] dark:hover:text-red-400 transition-colors"
             style={{
               fontSize: "14px",
               marginTop: "4px",
@@ -363,14 +363,14 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Quick Add To Cart Button for mobile & desktop touch */}
-          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid var(--border-default)" }}>
+          <div className="border-t border-gray-100 dark:border-white/10" style={{ marginTop: "12px", paddingTop: "10px" }}>
             <button
               type="button"
               onClick={handleAddToCart}
-              className="w-full min-h-[42px] py-2 px-3 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer border-none active:scale-[0.98]"
+              className="w-full min-h-[42px] py-2 px-3 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white !text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer border-none active:scale-[0.98]"
             >
-              <ShoppingCart size={15} />
-              <span>{t.addToCart}</span>
+              <ShoppingCart size={15} className="text-white shrink-0" />
+              <span className="text-white !text-white font-bold">{t.addToCart}</span>
             </button>
           </div>
         </div>

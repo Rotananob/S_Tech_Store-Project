@@ -693,6 +693,54 @@ export default function UserProfilePage() {
               </button>
             ))}
           </div>
+
+          {/* Quick Theme Switcher Bar for Mobile & Desktop */}
+          <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
+                <Sun size={13} className="text-amber-400" />
+                <span>ពន្លឺអេក្រង់ / Theme Mode:</span>
+              </span>
+            </div>
+            <div className="flex items-center bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
+                  theme === "light"
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : "text-gray-300 hover:text-white"
+                }`}
+              >
+                <Sun size={13} />
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
+                  theme === "dark"
+                    ? "bg-[#8B1A1A] text-white shadow-sm"
+                    : "text-gray-300 hover:text-white"
+                }`}
+              >
+                <Moon size={13} />
+                <span>Dark</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("system")}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
+                  theme === "system"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-300 hover:text-white"
+                }`}
+              >
+                <Monitor size={13} />
+                <span>Auto</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ── 2. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
