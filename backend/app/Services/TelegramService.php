@@ -308,24 +308,136 @@ class TelegramService
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
         $botUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
 
-        // 1. Handle Inline Keyboard Callback Queries (e.g. Retry Setup button)
+        // 1. Handle Inline Keyboard Callback Queries (Interactive Bot Menu Navigation)
         if (isset($up['callback_query'])) {
             $callbackQuery = $up['callback_query'];
             $callbackData = $callbackQuery['data'] ?? '';
             $chatId = $callbackQuery['message']['chat']['id'] ?? null;
+            $messageId = $callbackQuery['message']['message_id'] ?? null;
             $callbackId = $callbackQuery['id'] ?? null;
 
             if ($callbackData === 'setup_topics' && $chatId) {
                 self::setupTopics($chatId);
-                if ($token && !str_contains($token, 'Placeholder')) {
-                    try {
-                        Http::timeout(5)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
-                            'callback_query_id' => $callbackId,
-                            'text' => 'កំពុងរៀបចំ Forum Topics...',
-                        ]);
-                    } catch (\Throwable $e) {}
-                }
+                self::answerCallbackQuery($callbackId, 'កំពុងរៀបចំ Forum Topics...');
+                return;
             }
+
+            if ($callbackData === 'btn_chat_start' && $chatId) {
+                $chatStartText = "💬 <b>ផ្នែកបម្រើអតិថិជន & AI Smart Assistant</b>\n\n"
+                    . "សូមស្វាគមន៍មកកាន់ប្រព័ន្ធជំនួយការឆ្លាតវៃ <b>S Tech Store</b>!\n\n"
+                    . "✨ <b>សេវាកម្ម និងជំនួយដែលអ្នកអាចទទួលបាន៖</b>\n"
+                    . "• 💻 ពិគ្រោះយោបល់ និងសាកសួរតម្លៃ Laptops, PC, Gaming Gears\n"
+                    . "• 📦 តាមដានស្ថានភាពនៃការបញ្ជាទិញ (Track Order Status)\n"
+                    . "• 🔧 ព័ត៌មានការធានា (Warranty 3-6 ខែ / 1 ឆ្នាំ) និងសេវាជួសជុល\n"
+                    . "• 💬 ឆាតផ្ទាល់ជាមួយក្រុមការងារ Support Real-time នៅលើគេហទំព័រ\n\n"
+                    . "📞 <b>Hotline ទំនាក់ទំនងផ្ទាល់:</b> <code>012 345 678</code> | <code>098 765 432</code>\n"
+                    . "🌐 <b>គេហទំព័រផ្លូវការ:</b> <a href=\"https://www.s-tech-store.tech\">https://www.s-tech-store.tech</a>";
+
+                $chatKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '📱 បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                            ['text' => '🌐 ចូលគេហទំព័រហាង', 'url' => 'https://www.s-tech-store.tech'],
+                        ],
+                        [
+                            ['text' => '🔙 ត្រឡប់ទៅមឺនុយមេ (Main Menu)', 'callback_data' => 'btn_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $chatStartText, $chatKb);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $chatStartText, $chatKb);
+                }
+                self::answerCallbackQuery($callbackId, 'សេវាអតិថិជន S Tech Store');
+                return;
+            }
+
+            if ($callbackData === 'btn_how_to_connect' && $chatId) {
+                $howToConnectText = "🛡️ <b>ស្ថាបត្យកម្មសុវត្ថិភាពខ្ពស់បំផុត (Zero-Trust Bot Pairing Architecture)</b>\n\n"
+                    . "⚠️ <b>សេចក្ដីប្រកាសសុវត្ថិភាពតឹងរ៉ឹង (Security Notice):</b>\n"
+                    . "ដើម្បីការពារទិន្នន័យហាង និងទប់ស្កាត់ការវាយប្រហារ Hack / Phishing ប្រព័ន្ធ Bot ផ្លូវការរបស់យើង <b>ដាច់ខាតមិនផ្ដល់ Link ឬ Token ភ្ជាប់សម្ងាត់នៅក្នុងការឆាតផ្ទាល់ខ្លួន (Personal Chat)</b> នេះឡើយ!\n\n"
+                    . "🔐 <b>គោលការណ៍ផ្ទៀងផ្ទាត់ «Admin ពិត ១០០%»:</b>\n"
+                    . "លុះត្រាតែ Admin ឬបុគ្គលិកដែលមានសិទ្ធិស្របច្បាប់ ធ្វើការ Login ចូលទៅកាន់ <b>Admin Dashboard ផ្លូវការ</b> នៅលើ Website រួចចុចប៊ូតុងភ្ជាប់ Telegram (Connect Direct / 1-Click Pairing) ចេញពីក្នុងប្រព័ន្ធផ្ទាល់ ទើប Bot ជឿជាក់ និងអនុញ្ញាត ១០០% ថាជា <b>«Admin ពិត ១០០%»</b>!\n\n"
+                    . "📌 <b>ឧទាហរណ៍ទីតាំងកំណត់ប្រព័ន្ធ (Example URL Only):</b>\n"
+                    . "<code>https://www.s-tech-store.tech/rok-mix-khernh/settings</code>\n"
+                    . "<i>(សម្គាល់៖ នេះគ្រាន់តែជា Example URL សម្រាប់ជាគំរូទូទៅប៉ុណ្ណោះ អ្នកត្រូវតែមានគណនី Admin និង Login ដោយជោគជ័យជាមុនសិន)</i>\n\n"
+                    . "✨ <b>ជំហានភ្ជាប់សម្រាប់ Admin ផ្លូវការ៖</b>\n"
+                    . "1️⃣ ចូលទៅកាន់ Admin Portal ផ្លូវការរបស់ហាង S Tech Store\n"
+                    . "2️⃣ ចូលទៅកាន់មឺនុយ Settings ➡️ Telegram Integration\n"
+                    . "3️⃣ ចុចប៊ូតុង <b>Connect Group</b> ដើម្បីភ្ជាប់គ្រុបផ្លូវការ\n"
+                    . "4️⃣ Bot នឹងផ្ទៀងផ្ទាត់ Cryptographic Handshake និងបង្កើត Forum Topics ស្វ័យប្រវត្តិ!";
+
+                $howKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '🌐 ចូលទៅកាន់គេហទំព័រហាង', 'url' => 'https://www.s-tech-store.tech'],
+                        ],
+                        [
+                            ['text' => '🔙 ត្រឡប់ទៅមឺនុយមេ (Main Menu)', 'callback_data' => 'btn_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $howToConnectText, $howKb);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $howToConnectText, $howKb);
+                }
+                self::answerCallbackQuery($callbackId, 'របៀបភ្ជាប់ប្រព័ន្ធសុវត្ថិភាព');
+                return;
+            }
+
+            if ($callbackData === 'btn_about_store' && $chatId) {
+                $aboutStoreText = "🏪 <b>អំពី S Tech Store Cambodia</b>\n\n"
+                    . "🌟 <b>មជ្ឈមណ្ឌលចែកចាយ និងផ្គត់ផ្គង់ឧបករណ៍បច្ចេកវិទ្យាទំនើបឈានមុខគេ៖</b>\n"
+                    . "• 💻 Laptops ម៉ាកល្បីៗ (ASUS ROG, Apple MacBook, Dell, Lenovo, Acer, MSI)\n"
+                    . "• 📱 Smartphones, Tablets & Accessories សុទ្ធ ១០០%\n"
+                    . "• 🎮 Gaming Gear & PC Components កម្លាំងខ្លាំង\n"
+                    . "• 🔧 សេវាកម្មជួសជុល ថែទាំកុំព្យូទ័រ និងដំឡើងប្រព័ន្ធដោយជាងជំនាញ\n"
+                    . "• 🛡️ ការធានាផ្លូវការ ៣ ទៅ ៦ ខែ / ១ ឆ្នាំពេញ ទំនុកចិត្ត ១០០%\n"
+                    . "• 🚀 សេវាដឹកជញ្ជូនរហ័សទូទាំង ២៥ ខេត្ត-ក្រុង\n\n"
+                    . "🌐 <b>គេហទំព័រផ្លូវការ:</b> <a href=\"https://www.s-tech-store.tech\">https://www.s-tech-store.tech</a>\n"
+                    . "📍 <b>ទីតាំងហាង:</b> រាជធានីភ្នំពេញ, ប្រទេសកម្ពុជា\n"
+                    . "📞 <b>Hotline:</b> <code>012 345 678</code> | <code>098 765 432</code>";
+
+                $aboutKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '📱 បើក Mini App ក្នុង Telegram', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                            ['text' => '🌐 បើកគេហទំព័រផ្លូវការ', 'url' => 'https://www.s-tech-store.tech'],
+                        ],
+                        [
+                            ['text' => '🔙 ត្រឡប់ទៅមឺនុយមេ (Main Menu)', 'callback_data' => 'btn_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $aboutStoreText, $aboutKb);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $aboutStoreText, $aboutKb);
+                }
+                self::answerCallbackQuery($callbackId, 'អំពី S Tech Store');
+                return;
+            }
+
+            if ($callbackData === 'btn_main_menu' && $chatId) {
+                $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                    . "🤖 <b>គណនី Bot ផ្លូវការ:</b> @{$botUsername}\n"
+                    . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                    . "សូមចុចជ្រើសរើសមុខងារដែលអ្នកត្រូវការខាងក្រោម៖";
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $welcome, self::getBotMainMenuKeyboard());
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $welcome, self::getBotMainMenuKeyboard());
+                }
+                self::answerCallbackQuery($callbackId, 'មឺនុយមេ');
+                return;
+            }
+
             return;
         }
 
@@ -441,6 +553,16 @@ class TelegramService
                 return;
             }
 
+            // In Private Chat: Send full interactive menu with Mini App & Zero-Trust security guides
+            if ($chatType === 'private') {
+                $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                    . "🤖 <b>គណនី Bot ផ្លូវការ:</b> @{$botUsername}\n"
+                    . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                    . "សូមចុចជ្រើសរើសមុខងារដែលអ្នកត្រូវការខាងក្រោម៖";
+                self::sendMessageWithKeyboard($chatId, $welcome, self::getBotMainMenuKeyboard());
+                return;
+            }
+
             $isConnected = !empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId;
             $currentChat = $settings['chat_title'] ?? $chatTitle;
             $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Notification Bot!</b>\n\n"
@@ -476,13 +598,14 @@ class TelegramService
             return;
         }
 
-        // In private chat: reply politely so user knows the bot is alive
+        // In private chat: When any visitor or customer searches or chats with bot, present interactive menu
         if ($chatType === 'private') {
-            $privateReply = "🤖 <b>S Tech Store Official Assistant</b>\n\n"
-                . "ខ្ញុំជាប្រព័ន្ធស្វ័យប្រវត្តិសម្រាប់ផ្ញើការជូនដំណឹងទំនិញ និងការបញ្ជាទិញ។\n\n"
-                . "🌐 គេហទំព័រហាង: <a href=\"https://www.s-tech-store.tech\">S Tech Store</a>\n"
-                . "⚡ ប្រើបញ្ជា <code>/start</code> ដើម្បីមើលព័ត៌មានបន្ថែម។";
-            self::sendMessage($chatId, $privateReply);
+            $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                . "🤖 <b>គណនី Bot ផ្លូវការ:</b> @{$botUsername}\n"
+                . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                . "សូមចុចជ្រើសរើសមុខងារដែលអ្នកត្រូវការខាងក្រោម៖";
+            self::sendMessageWithKeyboard($chatId, $welcome, self::getBotMainMenuKeyboard());
+            return;
         }
     }
 
@@ -892,6 +1015,84 @@ class TelegramService
             Log::error("Failed to send Telegram message with keyboard: " . $e->getMessage());
             return ['ok' => false, 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Standard Bot Main Menu Keyboard with 3 action buttons + Mini App + Website
+     */
+    public static function getBotMainMenuKeyboard(): array
+    {
+        return [
+            'inline_keyboard' => [
+                [
+                    ['text' => '💬 ចាប់ផ្ដើមឆាត / Start Chat', 'callback_data' => 'btn_chat_start'],
+                ],
+                [
+                    ['text' => '📖 របៀបភ្ជាប់ប្រព័ន្ធ (Setup Guide)', 'callback_data' => 'btn_how_to_connect'],
+                    ['text' => '🏪 អំពី S Tech Store', 'callback_data' => 'btn_about_store'],
+                ],
+                [
+                    ['text' => '📱 បើក Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                    ['text' => '🌐 បើកគេហទំព័រ (Open Website)', 'url' => 'https://www.s-tech-store.tech'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Edit message text and inline keyboard (seamless single-chat menu navigation)
+     */
+    public static function editMessageText($chatId, int $messageId, string $text, ?array $replyMarkup = null, string $parseMode = 'HTML'): array
+    {
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return ['ok' => true, 'mock' => true];
+        }
+
+        try {
+            $payload = [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'text' => $text,
+                'parse_mode' => $parseMode,
+                'disable_web_page_preview' => false,
+            ];
+            if ($replyMarkup !== null) {
+                $payload['reply_markup'] = json_encode($replyMarkup);
+            }
+
+            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/editMessageText", $payload);
+            $json = $response->json();
+            return $json ?? ['ok' => $response->successful()];
+        } catch (\Throwable $e) {
+            Log::error("Failed to edit Telegram message: " . $e->getMessage());
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Answer Telegram callback query to dismiss button loading spinners
+     */
+    public static function answerCallbackQuery(?string $callbackId, string $text = ''): void
+    {
+        if (empty($callbackId)) {
+            return;
+        }
+
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return;
+        }
+
+        try {
+            Http::timeout(5)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+                'callback_query_id' => $callbackId,
+                'text' => $text,
+            ]);
+        } catch (\Throwable $e) {}
     }
 
     /**

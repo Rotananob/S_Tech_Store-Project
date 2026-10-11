@@ -13,6 +13,7 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showTelegramNotice, setShowTelegramNotice] = useState(false);
 
   const handleLogin = async (e?: React.FormEvent, customEmail?: string, customPass?: string) => {
     if (e) e.preventDefault();
@@ -178,6 +179,20 @@ export default function AdminLoginPage() {
                 </>
               )}
             </button>
+
+            {/* Telegram Authenticator Direct Action */}
+            <div className="pt-1.5">
+              <button
+                type="button"
+                onClick={() => setShowTelegramNotice(true)}
+                className="w-full py-2.5 px-3 bg-[#229ED9]/15 hover:bg-[#229ED9]/25 border border-[#229ED9]/40 text-[#5bc0ee] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24-.03.4z" />
+                </svg>
+                <span>ចូលតាម Telegram Authenticator • Zero-Trust Pair</span>
+              </button>
+            </div>
           </form>
 
           {/* Quick Access Badges (For instant 1-click test) */}
@@ -237,6 +252,72 @@ export default function AdminLoginPage() {
           </a>
         </div>
       </div>
+
+      {/* Telegram Security Pairing Directive Modal */}
+      {showTelegramNotice && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setShowTelegramNotice(false)}
+        >
+          <div
+            className="bg-[#151518] border border-white/15 rounded-2xl p-6 max-w-md w-full shadow-2xl relative text-left"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#229ED9]/20 border border-[#229ED9]/40 flex items-center justify-center text-[#229ED9]">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24-.03.4z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  Zero-Trust Telegram Security
+                </h3>
+                <p className="text-xs text-gray-400">
+                  គោលការណ៍ផ្ទៀងផ្ទាត់ «Admin ពិត ១០០%»
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs text-gray-300 bg-white/5 p-4 rounded-xl border border-white/10 mb-5">
+              <div className="flex items-start gap-2">
+                <span className="text-[#229ED9] font-bold">1.</span>
+                <span>
+                  Bot ផ្លូវការ <b>@s_tech_storeBot</b> ដាច់ខាតមិនបោះ URL ឬ Token ភ្ជាប់សម្ងាត់ក្នុង Personal Chat ឡើយ ដើម្បីការពារការក្លែងបន្លំ (Phishing)។
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-[#229ED9] font-bold">2.</span>
+                <span>
+                  លុះត្រាតែ Admin ចូលទៅក្នុង Website ផ្លូវការ (Admin Portal) រួចចុចភ្ជាប់ចេញពីក្នុង <b>Settings</b> ផ្ទាល់ ទើប Bot ជឿជាក់ ១០០% ថាជា <b>«Admin ពិត ១០០%»</b>។
+                </span>
+              </div>
+              <div className="p-2.5 bg-black/40 rounded-lg border border-white/10 font-mono text-[11px] text-gray-400">
+                <span className="text-gray-500 block text-[10px] uppercase font-sans">ឧទាហរណ៍ទីតាំងកំណត់ (Example URL Only):</span>
+                https://www.s-tech-store.tech/rok-mix-khernh/settings
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <a
+                href="https://t.me/s_tech_storeBot"
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-2.5 px-3 bg-[#229ED9] hover:bg-[#1b87ba] text-white font-semibold rounded-xl text-xs text-center transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span>បើកមើល Bot (@s_tech_storeBot)</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowTelegramNotice(false)}
+                className="py-2.5 px-4 bg-white/10 hover:bg-white/15 text-gray-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                យល់ព្រម (Close)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
