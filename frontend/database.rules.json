@@ -1,0 +1,77 @@
+{
+  "rules": {
+    // ─── Public read for unauthenticated users (read-only, no write) ───────
+    ".read": false,
+    ".write": false,
+
+    "chats": {
+      // Admins can read ALL chat sessions (enforced via custom claims or separate admin SDK)
+      // Customers can only read/write their OWN chat room
+      "$chatId": {
+        // Read: authenticated owner OR any visitor whose chatId matches
+        ".read": "auth != null && auth.uid === $chatId || root.child('chats').child($chatId).child('meta').child('visitorId').val() === $chatId",
+
+        "meta": {
+          // Only the chat owner or system can write metadata
+          ".write": "auth != null && auth.uid === $chatId",
+          ".validate": "newData.hasChildren(['lastMessage', 'lastTimestamp', 'status'])"
+        },
+
+        "messages": {
+          // Allow authenticated users to read their own messages
+          ".read": "auth != null && auth.uid === $chatId",
+
+          "$messageId": {
+            // ─── Write Rules ──────────────────────────────────────────────
+            // Only authenticated users can send messages
+            ".write": "auth != null && auth.uid === $chatId",
+
+            // ─── Message Validation ───────────────────────────────────────
+            ".validate": "newData.hasChildren(['sender', 'senderName', 'text', 'timestamp'])
+              && newData.child('text').isString()
+              && newData.child('text').val().length >= 1
+              && newData.child('text').val().length <= 1000
+              && newData.child('sender').isString()
+              && newData.child('senderName').isString()
+              && newData.child('timestamp').isNumber()
+              && newData.child('timestamp').val() >= now - 30000
+              && newData.child('timestamp').val() <= now + 5000"
+          }
+        }
+      }
+    },
+
+    // ─── Rate Limiting Buckets ─────────────────────────────────────────────
+    // Client writes here to track message counts per time window
+    // Server (RTDB rules) validates the counts stay within limits
+    "rate_limits": {
+      "$uid": {
+        // Only the user themselves can read/write their rate limit data
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+
+        // Per-minute bucket: key = minute timestamp (floor to minute), value = count
+        "minute": {
+          "$minute_bucket": {
+            ".validate": "newData.isNumber() && newData.val() <= 5"
+          }
+        },
+
+        // Per-hour bucket: key = hour timestamp (floor to hour), value = count
+        "hour": {
+          "$hour_bucket": {
+            ".validate": "newData.isNumber() && newData.val() <= 150"
+          }
+        }
+      }
+    },
+
+    // ─── Admin sessions (read-all for admin panel) ─────────────────────────
+    // NOTE: Admin access to all chats is done via Firebase Admin SDK server-side
+    // or via admin custom claims. This path is for admin panel metadata only.
+    "admin_sessions": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
