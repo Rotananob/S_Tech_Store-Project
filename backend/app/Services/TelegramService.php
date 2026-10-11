@@ -537,9 +537,27 @@ class TelegramService
             if (!is_array($createdTopics)) {
                 $createdTopics = [];
             }
-            $topicsChatId = (string)($settings['topics_chat_id'] ?? $settings['chat_id'] ?? '');
+            $connectedChatId = (string)($settings['chat_id'] ?? '');
+            $topicsChatId = (string)($settings['topics_chat_id'] ?? $connectedChatId);
 
-            // STRICT DEDUPLICATION: If this chat already has all topics configured, NEVER re-create!
+            // Normalize chat IDs for robust comparison
+            $cleanChatId = ltrim($chatIdStr, '-');
+            $cleanTopicsChatId = ltrim($topicsChatId, '-');
+            $cleanConnectedChatId = ltrim($connectedChatId, '-');
+
+            $isSameChat = !empty($chatIdStr) && (
+                $cleanChatId === $cleanTopicsChatId || 
+                $cleanChatId === $cleanConnectedChatId || 
+                str_ends_with($cleanChatId, $cleanConnectedChatId) ||
+                str_ends_with($cleanConnectedChatId, $cleanChatId)
+            );
+
+            // Only clear topics if connected to a genuinely different Telegram chat
+            if (!$isSameChat && !empty($connectedChatId)) {
+                $createdTopics = [];
+            }
+
+            // STRICT DEDUPLICATION: Check if all topics already exist
             $allAlreadyExist = true;
             foreach ($topicsToCreate as $key => $topicData) {
                 if (empty($createdTopics[$key])) {
@@ -548,18 +566,17 @@ class TelegramService
                 }
             }
 
-            if ($allAlreadyExist && $topicsChatId === $chatIdStr) {
+            if ($allAlreadyExist && ($isSameChat || empty($connectedChatId))) {
+                if (empty($settings['topics_chat_id']) || $settings['topics_chat_id'] !== $chatIdStr) {
+                    $settings['topics_chat_id'] = $chatIdStr;
+                    self::saveSettings($settings);
+                }
                 return [
                     'ok' => true,
                     'already_exists' => true,
                     'topics' => $createdTopics,
-                    'message' => 'ប្រធានបទ Topics ទាំងអស់ត្រូវបានបង្កើតរួចរាល់ហើយក្នុងគ្រុប (All topics already exist).',
+                    'message' => 'ប្រធានបទ Topics ទាំងអស់ត្រូវបានបង្កើតរួចរាល់ហើយក្នុងគ្រុប (All topics already exist, no duplicates created).',
                 ];
-            }
-
-            // If switching to a new chat, reset createdTopics for that new chat
-            if ($topicsChatId !== $chatIdStr) {
-                $createdTopics = [];
             }
 
             if (!$token || str_contains($token, 'Placeholder')) {
