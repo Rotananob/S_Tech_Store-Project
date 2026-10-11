@@ -1,13 +1,14 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
-import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2, Mail, Send } from "lucide-react";
 
 type Ticket = {
   id: number;
   ticket_code: string;
   customer: string;
   phone: string;
+  customer_email?: string;
   device: string;
   issue: string;
   dateIn: string;
@@ -39,9 +40,12 @@ export default function RepairManagementPage() {
   const [editForm, setEditForm] = useState<Ticket | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
   const [newForm, setNewForm] = useState({
     customer_name: "",
     customer_phone: "",
+    customer_email: "",
+    send_email: true,
     device_name: "",
     issue_description: "",
     technician_name: "Unassigned",
@@ -64,6 +68,7 @@ export default function RepairManagementPage() {
         ticket_code: r.ticket_code || `#REP-${r.id}`,
         customer: r.customer_name || "Unknown Customer",
         phone: r.customer_phone || "-",
+        customer_email: r.customer_email || "",
         device: r.device_name || "Device",
         issue: r.issue_description || "N/A",
         dateIn: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently",
@@ -77,6 +82,24 @@ export default function RepairManagementPage() {
       showToast("Failed to load repair tickets from database", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendEmail = async (ticket: Ticket) => {
+    try {
+      setSendingEmailId(ticket.id);
+      const res = await api.post(`/admin/repairs/${ticket.id}/send-email`, {
+        email: ticket.customer_email || undefined,
+      });
+      if (res.data?.success) {
+        showToast(`📧 បានផ្ញើ Email ជូនដំណឹង Ticket ទៅកាន់ ${res.data.email || 'អតិថិជន'} ជោគជ័យ!`);
+      } else {
+        showToast(res.data?.message || "បានកត់ត្រាការផ្ញើ Email រួចរាល់");
+      }
+    } catch (e: any) {
+      showToast(e?.response?.data?.message || "បរាជ័យក្នុងការផ្ញើ Email ជូនដំណឹង Ticket", "error");
+    } finally {
+      setSendingEmailId(null);
     }
   };
 
@@ -127,6 +150,8 @@ export default function RepairManagementPage() {
       setNewForm({
         customer_name: "",
         customer_phone: "",
+        customer_email: "",
+        send_email: true,
         device_name: "",
         issue_description: "",
         technician_name: "Unassigned",
@@ -205,6 +230,32 @@ export default function RepairManagementPage() {
                   onChange={e => setNewForm({ ...newForm, customer_phone: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  អ៊ីមែលអតិថិជន • Customer Email (សម្រាប់ Push Email Notification)
+                </label>
+                <input 
+                  type="email"
+                  placeholder="customer@example.com"
+                  value={newForm.customer_email}
+                  onChange={e => setNewForm({ ...newForm, customer_email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
+                <input
+                  type="checkbox"
+                  id="send_email_ticket"
+                  checked={newForm.send_email}
+                  onChange={e => setNewForm({ ...newForm, send_email: e.target.checked })}
+                  className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] cursor-pointer"
+                />
+                <label htmlFor="send_email_ticket" className="text-xs font-semibold cursor-pointer">
+                  📧 ផ្ញើ Email ជូនដំណឹងប័ណ្ណ Ticket ទៅកាន់ User ភ្លាមៗ (Instant Push Email)
+                </label>
               </div>
 
               <div>
@@ -312,6 +363,7 @@ export default function RepairManagementPage() {
               {[
                 ["Customer", viewTicket.customer], 
                 ["Phone", viewTicket.phone], 
+                ["Email", viewTicket.customer_email || "N/A"], 
                 ["Device", viewTicket.device], 
                 ["Date In", viewTicket.dateIn], 
                 ["Est. Cost", `$${viewTicket.estCost}`], 
@@ -348,12 +400,27 @@ export default function RepairManagementPage() {
               </button>
             </div>
             
-            <button 
-              onClick={() => setViewTicket(null)} 
-              className="mt-8 w-full py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-            >
-              Close
-            </button>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                disabled={sendingEmailId === viewTicket.id}
+                onClick={() => handleSendEmail(viewTicket)}
+                className="flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {sendingEmailId === viewTicket.id ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Mail size={16} />
+                )}
+                <span>📧 Push Email ទៅកាន់ User</span>
+              </button>
+              <button 
+                onClick={() => setViewTicket(null)} 
+                className="px-6 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                បិទ • Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -501,6 +568,11 @@ export default function RepairManagementPage() {
                     <td className="p-4">
                       <div className="text-sm font-bold text-gray-900 mb-0.5">{ticket.customer}</div>
                       <div className="text-xs text-gray-500">{ticket.phone}</div>
+                      {ticket.customer_email && (
+                        <div className="text-[11px] text-gray-400 font-mono truncate max-w-[140px]" title={ticket.customer_email}>
+                          {ticket.customer_email}
+                        </div>
+                      )}
                     </td>
                     <td className="p-4">
                       <div className="text-sm font-semibold text-gray-900 mb-0.5">{ticket.device}</div>
@@ -522,6 +594,18 @@ export default function RepairManagementPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleSendEmail(ticket)} 
+                          disabled={sendingEmailId === ticket.id}
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50" 
+                          title="Push Ticket Details to Customer Email"
+                        >
+                          {sendingEmailId === ticket.id ? (
+                            <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Mail size={16} />
+                          )}
+                        </button>
                         <button 
                           onClick={() => setViewTicket(ticket)} 
                           className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer" 

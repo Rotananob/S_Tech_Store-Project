@@ -320,6 +320,20 @@ class UserController extends Controller
             ]
         );
 
+        if ($profile->wasRecentlyCreated) {
+            try {
+                \App\Services\TelegramService::sendNewUserRegistrationNotification([
+                    'id' => $profile->id,
+                    'name' => $profile->display_name ?: 'អតិថិជនថ្មី',
+                    'email' => $profile->email ?: 'N/A',
+                    'phone' => $profile->phone ?: 'N/A',
+                    'role' => 'Customer',
+                ]);
+            } catch (\Throwable $t) {
+                Log::warning("Telegram registration notification failed: " . $t->getMessage());
+            }
+        }
+
         // Count real stats
         $orderCount = Order::where('user_id', $uid)->count();
         $wishlistCount = Wishlist::where('firebase_uid', $uid)->count();

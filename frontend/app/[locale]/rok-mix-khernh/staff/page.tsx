@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, CheckCircle2, AlertCircle, X, Crown } from "lucide-react";
 
 type StaffMember = {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "staff" | "manager";
+  role: "super_admin" | "admin" | "staff" | "manager";
   branch?: string;
   shift?: string;
   phone?: string;
@@ -27,7 +27,7 @@ export default function AdminStaffPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"staff" | "admin" | "manager">("staff");
+  const [role, setRole] = useState<"super_admin" | "admin" | "staff" | "manager">("staff");
   const [branch, setBranch] = useState("Phnom Penh Main Branch");
   const [shift, setShift] = useState("Morning Shift");
   const [phone, setPhone] = useState("");
@@ -238,13 +238,27 @@ export default function AdminStaffPage() {
                   <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-xs ${s.role === 'admin' ? 'bg-[#8B1A1A]' : 'bg-blue-600'}`}>
-                          {s.name.charAt(0).toUpperCase()}
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
+                          s.role === 'super_admin'
+                            ? 'bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-amber-950 ring-2 ring-yellow-300 shadow-amber-400/30'
+                            : s.role === 'admin' 
+                              ? 'bg-[#8B1A1A] text-white' 
+                              : 'bg-blue-600 text-white'
+                        }`}>
+                          {s.role === 'super_admin' ? (
+                            <Crown size={18} className="text-amber-950 fill-amber-950" />
+                          ) : (
+                            s.name.charAt(0).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div className="font-bold text-gray-900 flex items-center gap-1.5">
                             <span>{s.name}</span>
-                            {s.role === 'admin' && <Shield size={12} className="text-[#8B1A1A]" />}
+                            {s.role === 'super_admin' ? (
+                              <Crown size={13} className="text-amber-500 fill-amber-500" />
+                            ) : s.role === 'admin' ? (
+                              <Shield size={12} className="text-[#8B1A1A]" />
+                            ) : null}
                           </div>
                           <div className="text-xs text-gray-500 flex items-center gap-2">
                             <span>{s.email}</span>
@@ -255,12 +269,23 @@ export default function AdminStaffPage() {
                     </td>
 
                     <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                        s.role === 'admin' 
-                          ? 'bg-red-50 text-red-700 border border-red-200' 
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                        s.role === 'super_admin'
+                          ? 'bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-300 shadow-2xs font-extrabold'
+                          : s.role === 'admin' 
+                            ? 'bg-red-50 text-red-700 border border-red-200' 
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
                       }`}>
-                        {s.role === 'admin' ? 'Super Admin' : 'Store Staff'}
+                        {s.role === 'super_admin' ? (
+                          <>
+                            <Crown size={13} className="text-amber-800 fill-amber-800" />
+                            <span>មហាសិទ្ធិ (Owner)</span>
+                          </>
+                        ) : s.role === 'admin' ? (
+                          'Admin'
+                        ) : (
+                          'Store Staff'
+                        )}
                       </span>
                     </td>
 
@@ -298,13 +323,19 @@ export default function AdminStaffPage() {
                         >
                           <Edit size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(s.id, s.name)}
-                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="លុបចេញ • Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {s.role === 'super_admin' || s.email === 'nobrothana180703@gmail.com' ? (
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200" title="គណនីមហាសិទ្ធិត្រូវបានការពារ">
+                            🔒 ការពារ
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleDelete(s.id, s.name)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="លុបចេញ • Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -360,8 +391,9 @@ export default function AdminStaffPage() {
                     onChange={(e) => setRole(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white font-medium"
                   >
+                    <option value="super_admin">👑 មហាសិទ្ធិ • System Owner (Ultimate Privilege)</option>
+                    <option value="admin">Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ</option>
                     <option value="staff">Store Staff • បុគ្គលិកលក់ និងរៀបចំទំនិញ</option>
-                    <option value="admin">Super Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ</option>
                     <option value="manager">Store Manager • ប្រធានសាខា</option>
                   </select>
                 </div>

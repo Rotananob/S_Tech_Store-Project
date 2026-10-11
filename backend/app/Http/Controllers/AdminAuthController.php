@@ -78,7 +78,7 @@ class AdminAuthController extends Controller
                 'shift' => $user->shift,
                 'phone' => $user->phone,
                 'status' => $user->status,
-                'permissions' => $user->permissions ?? ($user->role === 'admin' ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
+                'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
             ],
         ]);
     }
@@ -128,7 +128,7 @@ class AdminAuthController extends Controller
     public function staffList(Request $request)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
             return response()->json(['message' => 'Forbidden: Only administrators can view staff accounts.'], 403);
         }
 
@@ -145,7 +145,7 @@ class AdminAuthController extends Controller
     public function createStaff(Request $request)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
             return response()->json(['message' => 'Forbidden: Only administrators can create staff accounts.'], 403);
         }
 
@@ -153,13 +153,17 @@ class AdminAuthController extends Controller
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
-            'role' => 'required|string|in:admin,staff,manager',
+            'role' => 'required|string|in:super_admin,admin,staff,manager',
             'branch' => 'nullable|string|max:150',
             'shift' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:30',
         ]);
 
-        $defaultPermissions = $validated['role'] === 'admin' 
+        if ($validated['role'] === 'super_admin' && ($currentUser->role ?? '') !== 'super_admin') {
+            return response()->json(['message' => 'Forbidden: Only Super-Admin / System Owner can create another Super-Admin.'], 403);
+        }
+
+        $defaultPermissions = in_array($validated['role'], ['admin', 'super_admin'])
             ? ['*'] 
             : ['manage_products', 'manage_orders', 'view_inventory', 'customer_service'];
 
@@ -207,22 +211,31 @@ class AdminAuthController extends Controller
     public function updateStaff(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
             return response()->json(['message' => 'Forbidden: Only administrators can update staff accounts.'], 403);
         }
 
         $user = User::findOrFail($id);
 
+        // Protected: normal admin cannot edit super_admin
+        if ($user->role === 'super_admin' && ($currentUser->role ?? '') !== 'super_admin') {
+            return response()->json(['message' => 'Forbidden: You cannot modify the Super-Admin / System Owner account.'], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:users,email,' . $id,
             'password' => 'nullable|string|min:6',
-            'role' => 'sometimes|string|in:admin,staff,manager',
+            'role' => 'sometimes|string|in:super_admin,admin,staff,manager',
             'branch' => 'nullable|string|max:150',
             'shift' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:30',
             'status' => 'sometimes|string|in:active,inactive',
         ]);
+
+        if (isset($validated['role']) && $validated['role'] === 'super_admin' && ($currentUser->role ?? '') !== 'super_admin') {
+            return response()->json(['message' => 'Forbidden: Only Super-Admin can promote to Super-Admin.'], 403);
+        }
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password'], ['rounds' => 12]);
@@ -244,7 +257,7 @@ class AdminAuthController extends Controller
     public function deleteStaff(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
             return response()->json(['message' => 'Forbidden: Only administrators can delete staff.'], 403);
         }
 
@@ -253,6 +266,12 @@ class AdminAuthController extends Controller
         }
 
         $user = User::findOrFail($id);
+
+        // Strictly protect super_admin / owner from deletion
+        if ($user->role === 'super_admin' || $user->email === 'nobrothana180703@gmail.com') {
+            return response()->json(['message' => 'Forbidden: Super-Admin (គណនីមហាសិទ្ធិ) cannot be deleted.'], 403);
+        }
+
         $user->delete();
 
         return response()->json(['message' => 'Staff account deleted successfully']);

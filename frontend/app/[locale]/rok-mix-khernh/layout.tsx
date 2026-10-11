@@ -29,7 +29,7 @@ type AdminUser = {
   id: number;
   name: string;
   email: string;
-  role: "admin" | "staff" | "manager";
+  role: "super_admin" | "admin" | "staff" | "manager";
   branch?: string;
   shift?: string;
   phone?: string;
@@ -100,7 +100,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const isAdmin = user?.role === "admin";
+  const isSuperAdmin = user?.role === "super_admin";
+  const isAdmin = user?.role === "admin" || isSuperAdmin;
 
   const NAV_LINKS = [
     { 
@@ -219,32 +220,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Current User Pill in Sidebar */}
         <div className={`p-3.5 mx-3 my-3 border rounded-2xl transition-all ${
-          isAdmin 
-            ? "bg-gradient-to-br from-amber-950/40 via-[#1c1212] to-black/70 border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.15)]" 
-            : "bg-gradient-to-br from-blue-950/40 via-[#0f1422] to-black/70 border-blue-500/30 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
+          isSuperAdmin
+            ? "bg-gradient-to-br from-amber-950 via-[#2a1705] to-black border-amber-400/80 shadow-[0_4px_25px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/50"
+            : isAdmin 
+              ? "bg-gradient-to-br from-amber-950/40 via-[#1c1212] to-black/70 border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.15)]" 
+              : "bg-gradient-to-br from-blue-950/40 via-[#0f1422] to-black/70 border-blue-500/30 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
         }`}>
           <div className="flex items-center gap-3">
             <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
-              isAdmin 
-                ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-amber-100 ring-2 ring-amber-400/50" 
-                : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-700 text-cyan-100 ring-2 ring-cyan-400/50"
+              isSuperAdmin
+                ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-amber-950 ring-2 ring-yellow-300 shadow-amber-400/50"
+                : isAdmin 
+                  ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-amber-100 ring-2 ring-amber-400/50" 
+                  : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-700 text-cyan-100 ring-2 ring-cyan-400/50"
             }`}>
-              {isAdmin ? (
+              {isSuperAdmin ? (
+                <Crown size={22} className="text-amber-950 fill-amber-950 drop-shadow" />
+              ) : isAdmin ? (
                 <Crown size={20} className="text-amber-200 drop-shadow" />
               ) : (
                 <ShieldCheck size={20} className="text-cyan-200 drop-shadow" />
               )}
-              <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0f0f12] ${isAdmin ? 'bg-amber-400' : 'bg-cyan-400'}`} />
+              <span className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0f0f12] ${isSuperAdmin ? 'bg-yellow-300 animate-pulse' : isAdmin ? 'bg-amber-400' : 'bg-cyan-400'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black text-white truncate">{user?.name || "Logged In User"}</span>
                 <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full border shrink-0 ${
-                  isAdmin 
-                    ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
-                    : "bg-blue-500/20 text-blue-300 border-blue-400/40"
+                  isSuperAdmin
+                    ? "bg-yellow-400/30 text-yellow-300 border-yellow-300 shadow-sm"
+                    : isAdmin 
+                      ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
+                      : "bg-blue-500/20 text-blue-300 border-blue-400/40"
                 }`}>
-                  {isAdmin ? "👑 ADMIN" : "🛡️ STAFF"}
+                  {isSuperAdmin ? "👑 មហាសិទ្ធិ" : isAdmin ? "👑 ADMIN" : "🛡️ STAFF"}
                 </span>
               </div>
               <div className="text-[10px] text-gray-400 truncate">{user?.email}</div>
@@ -253,12 +262,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           
           <div className="mt-2.5 pt-2 border-t border-white/10 flex flex-col gap-1 text-[10px] text-gray-400">
             <div className="flex items-center gap-1.5 truncate">
-              <Store size={11} className={isAdmin ? "text-amber-400 flex-shrink-0" : "text-blue-400 flex-shrink-0"} />
-              <span className="truncate">{user?.branch || "Phnom Penh Main Branch"}</span>
+              <Store size={11} className={isSuperAdmin ? "text-yellow-400 flex-shrink-0" : isAdmin ? "text-amber-400 flex-shrink-0" : "text-blue-400 flex-shrink-0"} />
+              <span className="truncate">{user?.branch || "Headquarters"}</span>
             </div>
             <div className="flex items-center gap-1.5 truncate">
-              <Clock size={11} className={isAdmin ? "text-rose-400 flex-shrink-0" : "text-cyan-400 flex-shrink-0"} />
-              <span className="truncate">{user?.shift || "Standard Shift"}</span>
+              <Clock size={11} className={isSuperAdmin ? "text-amber-300 flex-shrink-0" : isAdmin ? "text-rose-400 flex-shrink-0" : "text-cyan-400 flex-shrink-0"} />
+              <span className="truncate">{user?.shift || "Full Time Management"}</span>
             </div>
           </div>
         </div>
@@ -378,27 +387,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* User Profile Pill & Logout */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2.5 pl-2 py-1 pr-2 bg-gray-50/80 rounded-2xl border border-gray-200/80 shadow-2xs">
+              <div className={`flex items-center gap-2.5 pl-2 py-1 pr-2 rounded-2xl border shadow-2xs ${
+                isSuperAdmin 
+                  ? "bg-gradient-to-r from-amber-50 to-yellow-50/60 border-amber-300 ring-1 ring-amber-300/40"
+                  : "bg-gray-50/80 border-gray-200/80"
+              }`}>
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
-                  isAdmin
-                    ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-white ring-1 ring-amber-400/60 shadow-amber-500/20"
-                    : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white ring-1 ring-blue-400/60 shadow-blue-500/20"
+                  isSuperAdmin
+                    ? "bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-500 text-amber-950 ring-2 ring-yellow-300 shadow-amber-400/30"
+                    : isAdmin
+                      ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-white ring-1 ring-amber-400/60 shadow-amber-500/20"
+                      : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white ring-1 ring-blue-400/60 shadow-blue-500/20"
                 }`}>
-                  {isAdmin ? <Crown size={15} className="text-amber-100" /> : <ShieldCheck size={15} className="text-cyan-100" />}
+                  {isSuperAdmin ? (
+                    <Crown size={16} className="text-amber-950 fill-amber-950 drop-shadow-xs" />
+                  ) : isAdmin ? (
+                    <Crown size={15} className="text-amber-100" />
+                  ) : (
+                    <ShieldCheck size={15} className="text-cyan-100" />
+                  )}
                 </div>
                 <div className="text-left hidden sm:block pr-1">
                   <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                     <span>{user?.name || "Admin"}</span>
                     <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded-full border ${
-                      isAdmin 
-                        ? "bg-amber-100 text-amber-900 border-amber-300" 
-                        : "bg-blue-100 text-blue-900 border-blue-300"
+                      isSuperAdmin
+                        ? "bg-amber-300 text-amber-950 border-amber-400 font-extrabold shadow-2xs"
+                        : isAdmin 
+                          ? "bg-amber-100 text-amber-900 border-amber-300" 
+                          : "bg-blue-100 text-blue-900 border-blue-300"
                     }`}>
-                      {isAdmin ? "👑 Admin" : "🛡️ Staff"}
+                      {isSuperAdmin ? "👑 មហាសិទ្ធិ (Owner)" : isAdmin ? "👑 Admin" : "🛡️ Staff"}
                     </span>
                   </div>
                   <div className="text-[10px] text-gray-500">
-                    {isAdmin ? (isKm ? "អ្នកគ្រប់គ្រងជាន់ខ្ពស់" : "Super Administrator") : (isKm ? "បុគ្គលិកហាង" : "Store Staff Member")}
+                    {isSuperAdmin ? (isKm ? "ម្ចាស់ប្រព័ន្ធ / Ultimate Privilege" : "System Owner (Supreme Privileges)") : isAdmin ? (isKm ? "អ្នកគ្រប់គ្រងជាន់ខ្ពស់" : "Super Administrator") : (isKm ? "បុគ្គលិកហាង" : "Store Staff Member")}
                   </div>
                 </div>
               </div>

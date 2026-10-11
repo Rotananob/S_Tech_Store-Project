@@ -53,6 +53,31 @@ Route::post('/chat/request-agent', function (Request $request) {
 // Customer Direct Magic Login & Password Reset (Public)
 Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 
+// Real-time Traffic & Registration Tracking to Telegram (Public)
+Route::post('/analytics/track-visit', function (Request $request) {
+    $data = [
+        'ip' => $request->ip(),
+        'page' => $request->input('page', '/'),
+        'referrer' => $request->input('referrer', 'Direct Visit'),
+        'device' => $request->input('device', 'Web Browser'),
+        'country' => $request->input('country', 'Cambodia 🇰🇭'),
+    ];
+    $sent = \App\Services\TelegramService::sendWebsiteTrafficAlert($data);
+    return response()->json(['success' => true, 'notified' => $sent]);
+});
+
+Route::post('/analytics/track-register', function (Request $request) {
+    $data = $request->validate([
+        'id' => 'nullable',
+        'name' => 'nullable|string|max:150',
+        'email' => 'nullable|string|max:150',
+        'phone' => 'nullable|string|max:50',
+        'role' => 'nullable|string|max:50',
+    ]);
+    $sent = \App\Services\TelegramService::sendNewUserRegistrationNotification($data);
+    return response()->json(['success' => true, 'notified' => $sent]);
+});
+
 // Real-time Active Promotion Popup & Banner (Public)
 Route::get('/promotions/active-popup', [\App\Http\Controllers\PromoCodeController::class, 'activePopup']);
 Route::post('/promo-codes/validate', [\App\Http\Controllers\PromoCodeController::class, 'validatePromo']);
@@ -187,6 +212,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::get('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'index']);
     Route::post('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'store']);
     Route::put('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'update']);
+    Route::post('/admin/repairs/{id}/send-email', [\App\Http\Controllers\RepairController::class, 'sendEmail']);
     Route::delete('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'destroy']);
 
     // Customer Users Management (គ្រប់គ្រងអតិថិជន)

@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 import CookieConsent from "@/components/ui/CookieConsent";
 import AppUpdatePrompt from "@/components/ui/AppUpdatePrompt";
+import TrafficTracker from "@/components/ui/TrafficTracker";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const khmerFont = Battambang({ 
@@ -106,6 +107,7 @@ export default async function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider messages={messages}>
             <SplashScreen />
+            <TrafficTracker />
             {children}
             <FloatingBackButton />
             <ScrollToTopButton />

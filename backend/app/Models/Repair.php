@@ -10,6 +10,7 @@ class Repair extends Model
         'ticket_code',
         'customer_name',
         'customer_phone',
+        'customer_email',
         'device_name',
         'issue_description',
         'technician_name',

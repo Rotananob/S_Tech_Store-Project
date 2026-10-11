@@ -519,6 +519,14 @@ class TelegramService
                     'name' => '🛒 ការបញ្ជាទិញថ្មី',
                     'icon_color' => 7322096, // Light Blue
                 ],
+                'traffic' => [
+                    'name' => '🌐 អ្នកចូលទស្សនាវេបសាយ',
+                    'icon_color' => 9367192, // Green
+                ],
+                'users' => [
+                    'name' => '👤 អតិថិជនចុះឈ្មោះថ្មី',
+                    'icon_color' => 16766590, // Gold / Yellow
+                ],
                 'repairs' => [
                     'name' => '🛠️ សេវាជួសជុល',
                     'icon_color' => 16749490, // Orange
@@ -583,9 +591,11 @@ class TelegramService
                 // Mock mode for local testing
                 $mockTopics = [
                     'orders' => 101,
-                    'repairs' => 102,
-                    'stock' => 103,
-                    'chat' => 104,
+                    'traffic' => 102,
+                    'users' => 103,
+                    'repairs' => 104,
+                    'stock' => 105,
+                    'chat' => 106,
                 ];
                 $settings['topics'] = $mockTopics;
                 $settings['topics_chat_id'] = $chatIdStr;
@@ -594,9 +604,11 @@ class TelegramService
                 $mockNotice = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
                     . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
                     . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី</b> — ទទួលការជូនដំណឹងរាល់ពេលមាន Order\n"
-                    . "2️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
-                    . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
-                    . "4️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនាទូទៅក្នុងក្រុម\n\n"
+                    . "2️⃣ 🌐 <b>អ្នកចូលទស្សនាវេបសាយ</b> — តាមដាន Traffic & Visitors Real-time\n"
+                    . "3️⃣ 👤 <b>អតិថិជនចុះឈ្មោះថ្មី</b> — ជូនដំណឹងរាល់ពេលមាន User Signup ថ្មី\n"
+                    . "4️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+                    . "5️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+                    . "6️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនាទូទៅក្នុងក្រុម\n\n"
                     . "✅ <i>ប្រព័ន្ធភ្ជាប់រៀបចំរួចរាល់ ១០០% ហើយ ដំណើរការ ២៤/៧!</i>";
                 self::sendMessage($chatId, $mockNotice);
 
@@ -688,9 +700,11 @@ class TelegramService
                 $topicsOverview = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
                     . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
                     . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី</b> — ទទួលការជូនដំណឹងវិក្កយបត្រថ្មីភ្លាមៗ\n"
-                    . "2️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
-                    . "3️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
-                    . "4️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
+                    . "2️⃣ 🌐 <b>អ្នកចូលទស្សនាវេបសាយ</b> — តាមដាន Traffic & Visitors Real-time\n"
+                    . "3️⃣ 👤 <b>អតិថិជនចុះឈ្មោះថ្មី</b> — ជូនដំណឹងរាល់ពេលមាន User Signup ថ្មី\n"
+                    . "4️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
+                    . "5️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
+                    . "6️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
                     . "✅ <i>ប្រព័ន្ធ Notification ដំណើរការពេញលេញ ២៤/៧!</i>";
 
                 self::sendMessage($chatId, $topicsOverview);
@@ -953,5 +967,113 @@ class TelegramService
 
         return self::sendMessageWithKeyboard($targetChat, $text, $keyboard, 'HTML', $directChatId ? null : $chatTopicId);
     }
+
+    /**
+     * Send instant notification to Telegram repairs forum topic when a repair/ticket is created or updated
+     */
+    public static function sendTicketAlert($repair): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id']) || empty($settings['notify_repairs'])) {
+            return false;
+        }
+
+        $code = htmlspecialchars($repair->ticket_code ?? ('#TKT-' . ($repair->id ?? 'NEW')));
+        $customer = htmlspecialchars($repair->customer_name ?? 'N/A');
+        $phone = htmlspecialchars($repair->customer_phone ?? 'N/A');
+        $email = htmlspecialchars($repair->customer_email ?? 'N/A');
+        $device = htmlspecialchars($repair->device_name ?? 'Device');
+        $issue = htmlspecialchars($repair->issue_description ?? 'N/A');
+        $status = htmlspecialchars($repair->status ?? 'Pending Assessment');
+        $technician = htmlspecialchars($repair->technician_name ?? 'Unassigned');
+        $cost = number_format((float)($repair->estimated_cost ?? 0), 2);
+
+        $repairsTopicId = $settings['topics']['repairs'] ?? null;
+
+        $msg = "🛠️ <b>បណ្ណជួសជុល / TICKET សេវាកម្មថ្មី!</b>\n\n"
+            . "🎫 <b>កូដ Ticket:</b> <code>{$code}</code>\n"
+            . "👤 <b>អតិថិជន:</b> <b>{$customer}</b>\n"
+            . "📱 <b>ទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "📧 <b>អ៊ីមែល:</b> {$email}\n"
+            . "💻 <b>ឧបករណ៍:</b> <b>{$device}</b>\n"
+            . "⚠️ <b>បញ្ហាជួបប្រទះ:</b> <i>\"{$issue}\"</i>\n"
+            . "⚡ <b>ស្ថានភាព:</b> <code>{$status}</code>\n"
+            . "👨‍🔧 <b>ជាងទទួលបន្ទុក:</b> {$technician}\n"
+            . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$cost} USD\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/repairs\">ចូលទៅកាន់ Repair Center ដើម្បីចាត់ចែង</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $repairsTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send notification to Telegram users topic when a new customer registers on the website
+     */
+    public static function sendNewUserRegistrationNotification(array $userData): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $name = htmlspecialchars($userData['name'] ?? $userData['display_name'] ?? 'អតិថិជនថ្មី');
+        $email = htmlspecialchars($userData['email'] ?? 'N/A');
+        $phone = htmlspecialchars($userData['phone'] ?? 'N/A');
+        $uid = htmlspecialchars((string)($userData['id'] ?? 'NEW'));
+        $role = htmlspecialchars($userData['role'] ?? 'customer');
+
+        $usersTopicId = $settings['topics']['users'] ?? null;
+
+        $msg = "👤 <b>ការចុះឈ្មោះអតិថិជនថ្មី (NEW USER REGISTERED)!</b>\n\n"
+            . "🆔 <b>User ID:</b> <code>#{$uid}</code>\n"
+            . "🏷️ <b>ឈ្មោះ:</b> <b>{$name}</b>\n"
+            . "📧 <b>អ៊ីមែល:</b> <code>{$email}</code>\n"
+            . "📱 <b>ទូរស័ព្ទ:</b> {$phone}\n"
+            . "🔰 <b>ប្រភេទគណនី:</b> <code>{$role}</code>\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <a href=\"https://s-tech-store.vercel.app/rok-mix-khernh/users\">ពិនិត្យមើល Customer Profiles ក្នុង Admin</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $usersTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send smart rate-limited website visitor & traffic alert to Telegram traffic topic
+     */
+    public static function sendWebsiteTrafficAlert(array $data): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $ip = $data['ip'] ?? request()->ip() ?? '127.0.0.1';
+        $page = htmlspecialchars($data['page'] ?? '/');
+        $referrer = htmlspecialchars($data['referrer'] ?? 'Direct Visit');
+        $device = htmlspecialchars($data['device'] ?? 'Web Browser');
+        $country = htmlspecialchars($data['country'] ?? 'Cambodia 🇰🇭');
+
+        // Throttle per IP + Page to prevent flood: max 1 notification per 10 minutes per IP
+        $throttleKey = 'tg_traffic_' . md5($ip . '_' . $page);
+        if (Cache::has($throttleKey)) {
+            return false;
+        }
+        Cache::put($throttleKey, true, 600);
+
+        $trafficTopicId = $settings['topics']['traffic'] ?? null;
+
+        $msg = "🌐 <b>អ្នកចូលទស្សនាគេហទំព័រថ្មី (WEBSITE VISITOR)!</b>\n\n"
+            . "📄 <b>ទំព័រដែលបានចូល:</b> <code>{$page}</code>\n"
+            . "🌍 <b>ប្រភពចូល (Referrer):</b> {$referrer}\n"
+            . "📱 <b>ឧបករណ៍:</b> {$device}\n"
+            . "📍 <b>ទីតាំង / IP:</b> {$country} (<code>" . substr($ip, 0, 8) . "***</code>)\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⚡ <i>ប្រព័ន្ធតាមដាន Real-time Traffic ស្វ័យប្រវត្ត</i>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $trafficTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
 }
+
 
