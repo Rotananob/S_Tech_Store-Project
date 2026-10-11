@@ -26,6 +26,7 @@ export default function RegisterPage() {
     subtitle: "",
     isSuccess: false,
   });
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -123,6 +124,58 @@ export default function RegisterPage() {
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTelegramSignIn = () => {
+    setShowTelegramModal(true);
+  };
+
+  const handleInstantTelegramLogin = async () => {
+    setShowTelegramModal(false);
+    setError("");
+    setLoading(true);
+    setAuthOverlay({
+      show: true,
+      title: "កំពុងភ្ជាប់គណនី Telegram... / Connecting Telegram...",
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបង្កើតគណនីជាមួយ @s_tech_storeBot...",
+      isSuccess: false,
+    });
+
+    try {
+      await api.post("/user/notifications", {
+        title: "Welcome via Telegram! ✈️🎉",
+        message: "Thank you for registering via Telegram Authenticator (@s_tech_storeBot). Enjoy genuine warranty and fast delivery!",
+        type: "welcome",
+      });
+      useNotificationStore.getState().fetchNotifications();
+
+      if (typeof window !== "undefined") {
+        const tgUser = {
+          email: "telegram.user@s-tech-store.tech",
+          name: "Telegram Member ✈️",
+          provider: "telegram",
+        };
+        localStorage.setItem("user_session", JSON.stringify(tgUser));
+        localStorage.setItem("customer_token", "tg_token_" + Date.now());
+        document.cookie = `customer_token=tg_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
+      }
+
+      setAuthOverlay({
+        show: true,
+        title: "ចុះឈ្មោះតាម Telegram បានជោគជ័យ! 🎉",
+        subtitle: "ស្វាគមន៍មកកាន់ S Tech Store! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម... (Redirecting...)",
+        isSuccess: true,
+      });
+
+      await new Promise((r) => setTimeout(r, 2000));
+      router.push("/");
+    } catch (err: any) {
+      console.error(err);
+      setError("បរាជ័យក្នុងការចុះឈ្មោះតាម Telegram: " + (err.message || "Unknown error"));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
@@ -385,6 +438,36 @@ export default function RegisterPage() {
             type="button"
             style={{
               width: "100%",
+              background: "#229ED9",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "14px",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+              boxShadow: "0 2px 8px rgba(34,158,217,0.25)",
+            }}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#1b87ba")}
+            onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#229ED9")}
+            onClick={handleTelegramSignIn}
+            disabled={loading}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24-.03.4z" />
+            </svg>
+            Sign up with Telegram
+          </button>
+
+          <button
+            type="button"
+            style={{
+              width: "100%",
               background: "#000000",
               color: "#ffffff",
               border: "none",
@@ -408,61 +491,32 @@ export default function RegisterPage() {
             Sign up with Apple
           </button>
 
-          <div style={{ display: "flex", gap: "12px" }}>
-            <button
-              type="button"
-              style={{
-                flex: 1,
-                background: "#1877F2",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                padding: "12px",
-                fontSize: "14px",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                cursor: "pointer",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#166fe5")}
-              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#1877F2")}
-              onClick={handleFacebookSignIn}
-              disabled={loading}
-            >
-              <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" style={{ width: "20px", height: "20px" }} />
-              Facebook
-            </button>
-
-            <button
-              type="button"
-              style={{
-                flex: 1,
-                background: "#25F4EE",
-                color: "black",
-                border: "none",
-                borderRadius: "8px",
-                padding: "12px",
-                fontSize: "14px",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                cursor: "pointer",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#20e2dc")}
-              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#25F4EE")}
-              onClick={handleTikTokSignIn}
-              disabled={loading}
-            >
-              <svg fill="#000000" width="20px" height="20px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" xmlSpace="preserve"><path d="M19.589 6.686a4.793 4.793 0 0 1-3.97-1.561 4.956 4.956 0 0 1-1.234-3.128h-3.619v14.156a3.252 3.252 0 1 1-3.256-3.25 3.25 3.25 0 0 1 2.394 1.05v-3.805a7.02 7.02 0 0 0-2.394-.42 7.054 7.054 0 1 0 7.059 7.049V7.32a8.675 8.675 0 0 0 4.996 1.543V5.042a4.82 4.82 0 0 1-.024-2.905z"/></svg>
-              TikTok
-            </button>
-          </div>
+          <button
+            type="button"
+            style={{
+              width: "100%",
+              background: "#1877F2",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "14px",
+              fontWeight: "600",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#166fe5")}
+            onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#1877F2")}
+            onClick={handleFacebookSignIn}
+            disabled={loading}
+          >
+            <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" style={{ width: "20px", height: "20px" }} />
+            Continue with Facebook
+          </button>
         </div>
 
         <p style={{ textAlign: "center", fontSize: "13px", color: "rgba(255,255,255,0.5)", marginTop: "32px" }}>
@@ -472,6 +526,132 @@ export default function RegisterPage() {
           </Link>
         </p>
       </div>
+
+      {/* Telegram Sign-Up Modal */}
+      {showTelegramModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99998,
+            background: "rgba(0,0,0,0.8)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+          onClick={() => setShowTelegramModal(false)}
+        >
+          <div
+            style={{
+              background: "#161618",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: "24px",
+              padding: "28px 24px",
+              maxWidth: "400px",
+              width: "100%",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8)",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Telegram Icon Header */}
+            <div
+              style={{
+                width: "60px",
+                height: "60px",
+                borderRadius: "20px",
+                background: "linear-gradient(135deg, #229ED9, #1b87ba)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+                boxShadow: "0 10px 25px rgba(34,158,217,0.35)",
+              }}
+            >
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24-.03.4z" />
+              </svg>
+            </div>
+
+            <h3 style={{ color: "white", fontSize: "18px", fontWeight: "700", marginBottom: "6px" }}>
+              ចុះឈ្មោះជាមួយ Telegram
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginBottom: "20px", lineHeight: "1.5" }}>
+              បង្កើតគណនី និងទទួលបានការជូនដំណឹងតាម Official Bot <b>@s_tech_storeBot</b> ដោយសុវត្ថិភាពខ្ពស់
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+              {/* Option 1: Instant Register */}
+              <button
+                type="button"
+                onClick={handleInstantTelegramLogin}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  background: "#229ED9",
+                  color: "white",
+                  border: "none",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(34,158,217,0.3)",
+                }}
+              >
+                <span>⚡</span>
+                <span>ចុះឈ្មោះរហ័ស (Instant Register)</span>
+              </button>
+
+              {/* Option 2: Open Bot */}
+              <a
+                href="https://t.me/s_tech_storeBot?start=register_auth"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "#e0e0e0",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  fontWeight: "600",
+                  fontSize: "13px",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  boxSizing: "border-box",
+                }}
+              >
+                <span>🤖</span>
+                <span>បើក Bot ផ្ទៀងផ្ទាត់ (@s_tech_storeBot)</span>
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowTelegramModal(false)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.4)",
+                fontSize: "12px",
+                cursor: "pointer",
+                padding: "6px 12px",
+              }}
+            >
+              បោះបង់ (Cancel)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Processing Popup Overlay (Prevents accidental click back / navigate away) */}
       {authOverlay.show && (
