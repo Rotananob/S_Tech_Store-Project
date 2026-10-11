@@ -345,10 +345,11 @@ class TelegramService
                     . "✨ <b>សូមស្វាគមន៍អតិថិជនជាទីស្រឡាញ់!</b>\n"
                     . "លោកអ្នកអាចចុចបើក <b>Telegram Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ កុម្ម៉ង់ទិញ និងពិនិត្យប្រូម៉ូសិនភ្លាមៗ ឬជ្រើសរើសមុខងារផ្សេងៗ៖";
 
+                $menuKb = self::getCustomerMainMenuKeyboard($chatId);
                 if ($messageId) {
-                    self::editMessageText($chatId, $messageId, $welcome, self::getCustomerMainMenuKeyboard(), 'HTML', $activeToken);
+                    self::editMessageText($chatId, $messageId, $welcome, $menuKb, 'HTML', $activeToken);
                 } else {
-                    self::sendMessageWithKeyboard($chatId, $welcome, self::getCustomerMainMenuKeyboard(), 'HTML', null, $activeToken);
+                    self::sendMessageWithKeyboard($chatId, $welcome, $menuKb, 'HTML', null, $activeToken);
                 }
                 self::answerCallbackQuery($callbackId, 'មឺនុយមេ', $activeToken);
                 return;
@@ -414,56 +415,206 @@ class TelegramService
                 return;
             }
 
-            // Customer Track Order
-            if ($callbackData === 'cust_track' && $chatId) {
-                $trackText = "📦 <b>ការតាមដានស្ថានភាពការបញ្ជាទិញ (Track Order):</b>\n\n"
-                    . "លោកអ្នកអាចតាមដានកញ្ចប់ទំនិញបានយ៉ាងងាយស្រួលតាម ២ របៀប៖\n\n"
-                    . "1️⃣ <b>តាមដានក្នុង Mini App:</b>\n"
-                    . "• បើក Mini App ចូលទៅកាន់ <b>Profile ➡️ My Orders</b> ដើម្បីមើលស្ថានភាព Real-time (Pending, Processing, Delivering, Completed)\n\n"
-                    . "2️⃣ <b>សាកសួរផ្ទាល់ក្នុង Chat នេះ:</b>\n"
-                    . "• គ្រាន់តែវាយលេខកូដវិក្កយបត្រ (Order ID) របស់អ្នកផ្ញើមកកាន់ Bot (ឧទាហរណ៍៖ <code>ST-10023</code>)\n"
-                    . "• ប្រព័ន្ធនឹងស្វែងរក និងរាយការណ៍ជូនលោកអ្នកភ្លាមៗ!";
+            // Customer My Orders & Track Order (Real Data Query)
+            if (in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) && $chatId) {
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
+                    $q->where('user_id', 'tg_' . $chatId);
+                    if ($user && !empty($user->phone)) {
+                        $q->orWhere('customer_phone', $user->phone);
+                    }
+                })->with('items.product')->latest()->take(5)->get();
 
-                $trackKb = [
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+
+                if ($orders->isEmpty()) {
+                    $ordersText = "📦 <b>ការបញ្ជាទិញរបស់អ្នក (My Orders):</b>\n\n"
+                        . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+                        . "បច្ចុប្បន្ន លោកអ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅក្នុងប្រព័ន្ធនៅឡើយទេ។\n\n"
+                        . "👉 លោកអ្នកអាចចុចបើក <b>Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ និងទទួលបានការបញ្ចុះតម្លៃពិសេសភ្លាមៗ!";
+
+                    $ordersKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $ordersAppUrl]]],
+                            [
+                                ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
+                        ],
+                    ];
+                } else {
+                    $ordersCount = $orders->count();
+                    $ordersText = "📦 <b>បញ្ជីការបញ្ជាទិញរបស់អ្នក ({$ordersCount} កញ្ចប់ចុងក្រោយ):</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n\n";
+
+                    foreach ($orders as $ord) {
+                        $statusBadge = match(strtolower($ord->status ?? 'pending')) {
+                            'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+                            'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
+                            'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
+                            'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
+                            'cancelled' => '❌ បានលុបចោល (Cancelled)',
+                            default => ucfirst($ord->status),
+                        };
+
+                        $itemsList = [];
+                        if ($ord->items) {
+                            foreach ($ord->items->take(2) as $it) {
+                                $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
+                            }
+                        }
+                        $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
+                        if ($ord->items && $ord->items->count() > 2) {
+                            $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
+                        }
+
+                        $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
+                            . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+                            . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
+                            . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
+                            . "🚚 <b>សេវាដឹក:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
+                            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
+                            . "────────────────────\n\n";
+                    }
+
+                    $ordersText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានការដឹកជញ្ជូនក្នុង Mini App!</i>";
+
+                    $ordersKb = [
+                        'inline_keyboard' => [
+                            [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                            [
+                                ['text' => '🔄 ពិនិត្យឡើងវិញ (Refresh)', 'callback_data' => 'cust_my_orders'],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
+                        ],
+                    ];
+                }
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $ordersText, $ordersKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'បញ្ជីការបញ្ជាទិញ', $activeToken);
+                return;
+            }
+
+            // Customer My Points & VIP Rewards (Real Data Query)
+            if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                $points = (int)($user->points ?? 0);
+                $dollarVal = number_format($points * 0.01, 2);
+
+                $vipTier = match(true) {
+                    $points >= 5000 => '💎 Diamond VIP Member',
+                    $points >= 2000 => '🥇 Gold Member',
+                    $points >= 500 => '🥈 Silver Member',
+                    default => '🥉 Bronze Member',
+                };
+
+                $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)
+                    ->whereIn('status', ['completed', 'delivered'])
+                    ->count();
+
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
+                $pointsText = "🪙 <b>កាបូបពិន្ទុ & កម្រិតសមាជិក (S-Coins & VIP Rewards):</b>\n\n"
+                    . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                    . "🎖️ <b>កម្រិតសមាជិកភាព:</b> <b>{$vipTier}</b>\n"
+                    . "🪙 <b>ពិន្ទុ S-Coins បច្ចុប្បន្ន:</b> <b>{$points} Coins</b>\n"
+                    . "💵 <b>តម្លៃទឹកប្រាក់បញ្ចុះ:</b> <b>\${$dollarVal} USD</b>\n"
+                    . "📦 <b>ការកុម្ម៉ង់សម្រេចជោគជ័យ:</b> <b>{$completedOrders} ដង</b>\n\n"
+                    . "💡 <b>អត្ថប្រយោជន៍នៃ S-Coins:</b>\n"
+                    . "• រាល់ការទិញទំនិញ $10 ទទួលបាន 10 Coins\n"
+                    . "• អាចប្រើ Coins ដើម្បីកាត់បន្ថយថ្លៃទំនិញភ្លាមៗនៅពេល Checkout\n"
+                    . "• ទទួលបានការបញ្ចុះតម្លៃបន្ថែមសម្រាប់សមាជិកកម្រិតខ្ពស់ (Gold / Diamond)\n\n"
+                    . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញ និងប្រើប្រាស់ពិន្ទុរបស់អ្នក!</b>";
+
+                $pointsKb = [
                     'inline_keyboard' => [
-                        [['text' => '📦 ពិនិត្យមើល Orders ក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ ប្រើប្រាស់ Points ទិញក្នុង Mini App', 'web_app' => ['url' => $pointsAppUrl]]],
                         [
-                            ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
+                            ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
                         ],
                     ],
                 ];
 
                 if ($messageId) {
-                    self::editMessageText($chatId, $messageId, $trackText, $trackKb, 'HTML', $activeToken);
+                    self::editMessageText($chatId, $messageId, $pointsText, $pointsKb, 'HTML', $activeToken);
                 } else {
-                    self::sendMessageWithKeyboard($chatId, $trackText, $trackKb, 'HTML', null, $activeToken);
+                    self::sendMessageWithKeyboard($chatId, $pointsText, $pointsKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'តាមដានការកុម្ម៉ង់', $activeToken);
+                self::answerCallbackQuery($callbackId, 'ពិន្ទុ & VIP', $activeToken);
                 return;
             }
 
-            // Customer Repair Service
-            if ($callbackData === 'cust_repair' && $chatId) {
-                $repairText = "🔧 <b>សេវាកម្មជួសជុល & ថែទាំកុំព្យូទ័រ S Tech Store:</b>\n\n"
-                    . "យើងខ្ញុំមានជាងជំនាញបទពិសោធន៍យូរឆ្នាំ ទទួលជួសជុល និងដោះស្រាយបញ្ហាគ្រប់ប្រភេទ៖\n\n"
-                    . "🛠️ <b>សេវាកម្មចម្បងៗ៖</b>\n"
-                    . "• ជួសជុល Laptops & PC គ្រប់ម៉ាក (ផ្លាស់ប្តូរអេក្រង់, ថ្ម, ក្តារចុច, សាកមិនចូល, Mainboard)\n"
-                    . "• Upgrade SSD NVMe ល្បឿនលឿន, បង្កើន RAM, ដំឡើង Graphics Card\n"
-                    . "• លាងសម្អាតធូលី, ប្តូរ Thermal Paste កាត់បន្ថយកម្ដៅកុំព្យូទ័រ\n"
-                    . "• ដំឡើង Genuine Windows 11, Drivers និងកម្មវិធីការិយាល័យ Office, Graphic, Video Editing\n"
-                    . "• ជួយសង្គ្រោះទិន្នន័យ (Data Recovery) និងកម្ចាត់មេរោគ\n\n"
-                    . "🛡️ <b>ការធានា:</b> រាល់ការជួសជុលមានការធានាពី 30 ថ្ងៃ ទៅ 3 ខែ!";
+            // Customer My Repairs & Warranty Service (Real Data Query)
+            if (in_array($callbackData, ['cust_my_repairs', 'btn_my_repairs', 'cust_repair']) && $chatId) {
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                $repairs = \App\Models\Repair::where(function ($q) use ($user) {
+                    if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
+                    if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
+                })->latest()->take(3)->get();
 
-                $repairKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🔧 បើកសេវាជួសជុលក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                        [
-                            ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
-                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+
+                if ($repairs->isEmpty()) {
+                    $repairText = "🔧 <b>សេវាកម្មជួសជុល & សំបុត្រជួសជុល (Repair Tickets):</b>\n\n"
+                        . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+                        . "បច្ចុប្បន្ន លោកអ្នកមិនមានសំបុត្រជួសជុលឧបករណ៍ដែលកំពុងដំណើរការនោះទេ។\n\n"
+                        . "🛠️ <b>សេវាកម្មជួសជុល & Upgrade របស់ហាង៖</b>\n"
+                        . "• ជួសជុល Laptop, PC គ្រប់ម៉ាក (ផ្លាស់ប្តូរអេក្រង់, ថ្ម, ក្តារចុច, សាកមិនចូល, Mainboard)\n"
+                        . "• Upgrade SSD NVMe ល្បឿនលឿន, បង្កើន RAM, ដំឡើង Graphics Card\n"
+                        . "• លាងសម្អាតកម្ដៅ & ប្តូរ Thermal Paste\n"
+                        . "• ដំឡើង Genuine Windows 11, Drivers & កម្មវិធីការិយាល័យ Office\n\n"
+                        . "👉 ចុចប៊ូតុងខាងក្រោមដើម្បីស្នើសុំសេវាកម្មជួសជុល ឬពិនិត្យក្នុង Mini App!";
+
+                    $repairKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🔧 បើកសេវាជួសជុលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                            [
+                                ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
                         ],
-                    ],
-                ];
+                    ];
+                } else {
+                    $repairText = "🔧 <b>សំបុត្រជួសជុលរបស់អ្នក (My Repair Tickets):</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n\n";
+
+                    foreach ($repairs as $r) {
+                        $repBadge = match($r->status) {
+                            'Ready' => '✅ រួចរាល់អាចមកយកបាន (Ready)',
+                            'In Progress' => '🔄 កំពុងជួសជុល (In Progress)',
+                            'Completed' => '🎉 បានប្រគល់ជូនរួចរាល់ (Completed)',
+                            default => '⏳ កំពុងពិនិត្យរោគសញ្ញា (Pending)',
+                        };
+
+                        $repairText .= "🎫 <b>Ticket #{$r->ticket_code}</b>\n"
+                            . "💻 <b>ឧបករណ៍:</b> {$r->device_name}\n"
+                            . "⚡ <b>ស្ថានភាព:</b> <b>{$repBadge}</b>\n"
+                            . "👨‍🔧 <b>ជាងទទួលខុសត្រូវ:</b> {$r->technician_name}\n"
+                            . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$r->estimated_cost} USD\n"
+                            . "📝 <b>បញ្ហា:</b> " . \Illuminate\Support\Str::limit($r->issue_description, 80) . "\n"
+                            . "────────────────────\n\n";
+                    }
+
+                    $repairText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិតក្នុង Mini App!</i>";
+
+                    $repairKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🔧 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                            [
+                                ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
+                        ],
+                    ];
+                }
 
                 if ($messageId) {
                     self::editMessageText($chatId, $messageId, $repairText, $repairKb, 'HTML', $activeToken);
@@ -836,24 +987,7 @@ class TelegramService
                 . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
                 . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
 
-            $customerKb = [
-                'inline_keyboard' => [
-                    [
-                        ['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $directUrl]],
-                    ],
-                    [
-                        ['text' => '🌐 ចូលគេហទំព័រ (1-Click Web Login)', 'url' => $directUrl],
-                    ],
-                    [
-                        ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
-                        ['text' => '📦 តាមដាន Order', 'callback_data' => 'cust_track'],
-                    ],
-                    [
-                        ['text' => '💬 ទាក់ទងបុគ្គលិកឆាត', 'callback_data' => 'cust_support'],
-                    ]
-                ]
-            ];
-
+            $customerKb = self::getCustomerMainMenuKeyboard($chatId);
             self::sendMessageWithKeyboard($chatId, $welcome, $customerKb, 'HTML', null, $activeToken);
             return;
         }
@@ -906,50 +1040,204 @@ class TelegramService
             return;
         }
 
-        // Customer /track or /order
-        if (preg_match('/^\/(?:track|order)(?:@\w+)?/i', $text)) {
-            $trackText = "📦 <b>ការតាមដានស្ថានភាពការបញ្ជាទិញ (Track Order):</b>\n\n"
-                . "លោកអ្នកអាចតាមដានកញ្ចប់ទំនិញបានយ៉ាងងាយស្រួលតាម ២ របៀប៖\n\n"
-                . "1️⃣ <b>តាមដានក្នុង Mini App:</b>\n"
-                . "• បើក Mini App ចូលទៅកាន់ <b>Profile ➡️ My Orders</b> ដើម្បីមើលស្ថានភាព Real-time (Pending, Processing, Delivering, Completed)\n\n"
-                . "2️⃣ <b>សាកសួរផ្ទាល់ក្នុង Chat នេះ:</b>\n"
-                . "• គ្រាន់តែវាយលេខកូដវិក្កយបត្រ (Order ID) របស់អ្នកផ្ញើមកកាន់ Bot (ឧទាហរណ៍៖ <code>ST-10023</code>)\n"
-                . "• ប្រព័ន្ធនឹងស្វែងរក និងរាយការណ៍ជូនលោកអ្នកភ្លាមៗ!";
+        // Customer /orders, /order, or /track (Real Orders Lookup)
+        if (preg_match('/^\/(?:orders|order|track)(?:@\w+)?(?:\s+([A-Za-z0-9_-]+))?/i', $text, $orderMatches)) {
+            $argOrderId = !empty($orderMatches[1]) ? trim($orderMatches[1]) : null;
 
-            $trackKb = [
-                'inline_keyboard' => [
-                    [['text' => '📦 ពិនិត្យមើល Orders ក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                    [
-                        ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
-                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+            if ($argOrderId) {
+                self::handleCustomerTextInquiry($chatId, $argOrderId, $from, $activeToken, $activeBotUsername);
+                return;
+            }
+
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
+                $q->where('user_id', 'tg_' . $chatId);
+                if ($user && !empty($user->phone)) {
+                    $q->orWhere('customer_phone', $user->phone);
+                }
+            })->with('items.product')->latest()->take(5)->get();
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+
+            if ($orders->isEmpty()) {
+                $ordersText = "📦 <b>ការបញ្ជាទិញរបស់អ្នក (My Orders):</b>\n\n"
+                    . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+                    . "បច្ចុប្បន្ន លោកអ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅក្នុងប្រព័ន្ធនៅឡើយទេ។\n\n"
+                    . "👉 លោកអ្នកអាចចុចបើក <b>Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ និងទទួលបានការបញ្ចុះតម្លៃពិសេសភ្លាមៗ!";
+
+                $ordersKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $ordersAppUrl]]],
+                        [
+                            ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
                     ],
-                ],
-            ];
-            self::sendMessageWithKeyboard($chatId, $trackText, $trackKb, 'HTML', null, $activeToken);
+                ];
+            } else {
+                $ordersCount = $orders->count();
+                $ordersText = "📦 <b>បញ្ជីការបញ្ជាទិញរបស់អ្នក ({$ordersCount} កញ្ចប់ចុងក្រោយ):</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n";
+
+                foreach ($orders as $ord) {
+                    $statusBadge = match(strtolower($ord->status ?? 'pending')) {
+                        'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+                        'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
+                        'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
+                        'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
+                        'cancelled' => '❌ បានលុបចោល (Cancelled)',
+                        default => ucfirst($ord->status),
+                    };
+
+                    $itemsList = [];
+                    if ($ord->items) {
+                        foreach ($ord->items->take(2) as $it) {
+                            $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
+                        }
+                    }
+                    $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
+                    if ($ord->items && $ord->items->count() > 2) {
+                        $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
+                    }
+
+                    $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
+                        . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+                        . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
+                        . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
+                        . "🚚 <b>សេវាដឹក:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
+                        . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
+                        . "────────────────────\n\n";
+                }
+
+                $ordersText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានការដឹកជញ្ជូនក្នុង Mini App!</i>";
+
+                $ordersKb = [
+                    'inline_keyboard' => [
+                        [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                        [
+                            ['text' => '🔄 ពិនិត្យឡើងវិញ (Refresh)', 'callback_data' => 'cust_my_orders'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+            }
+
+            self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
             return;
         }
 
-        // Customer /repair or /services
-        if (preg_match('/^\/(?:repair|services)(?:@\w+)?/i', $text)) {
-            $repairText = "🔧 <b>សេវាកម្មជួសជុល & ថែទាំកុំព្យូទ័រ S Tech Store:</b>\n\n"
-                . "យើងខ្ញុំមានជាងជំនាញបទពិសោធន៍យូរឆ្នាំ ទទួលជួសជុល និងដោះស្រាយបញ្ហាគ្រប់ប្រភេទ៖\n\n"
-                . "🛠️ <b>សេវាកម្មចម្បងៗ៖</b>\n"
-                . "• ជួសជុល Laptops & PC គ្រប់ម៉ាក (ផ្លាស់ប្តូរអេក្រង់, ថ្ម, ក្តារចុច, សាកមិនចូល, Mainboard)\n"
-                . "• Upgrade SSD NVMe ល្បឿនលឿន, បង្កើន RAM, ដំឡើង Graphics Card\n"
-                . "• លាងសម្អាតធូលី, ប្តូរ Thermal Paste កាត់បន្ថយកម្ដៅកុំព្យូទ័រ\n"
-                . "• ដំឡើង Genuine Windows 11, Drivers និងកម្មវិធីការិយាល័យ Office, Graphic, Video Editing\n"
-                . "• ជួយសង្គ្រោះទិន្នន័យ (Data Recovery) និងកម្ចាត់មេរោគ\n\n"
-                . "🛡️ <b>ការធានា:</b> រាល់ការជួសជុលមានការធានាពី 30 ថ្ងៃ ទៅ 3 ខែ!";
+        // Customer /points or /coins
+        if (preg_match('/^\/(?:points|coins|rewards)(?:@\w+)?/i', $text)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $points = (int)($user->points ?? 0);
+            $dollarVal = number_format($points * 0.01, 2);
 
-            $repairKb = [
+            $vipTier = match(true) {
+                $points >= 5000 => '💎 Diamond VIP Member',
+                $points >= 2000 => '🥇 Gold Member',
+                $points >= 500 => '🥈 Silver Member',
+                default => '🥉 Bronze Member',
+            };
+
+            $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)
+                ->whereIn('status', ['completed', 'delivered'])
+                ->count();
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
+            $pointsText = "🪙 <b>កាបូបពិន្ទុ & កម្រិតសមាជិក (S-Coins & VIP Rewards):</b>\n\n"
+                . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                . "🎖️ <b>កម្រិតសមាជិកភាព:</b> <b>{$vipTier}</b>\n"
+                . "🪙 <b>ពិន្ទុ S-Coins បច្ចុប្បន្ន:</b> <b>{$points} Coins</b>\n"
+                . "💵 <b>តម្លៃទឹកប្រាក់បញ្ចុះ:</b> <b>\${$dollarVal} USD</b>\n"
+                . "📦 <b>ការកុម្ម៉ង់សម្រេចជោគជ័យ:</b> <b>{$completedOrders} ដង</b>\n\n"
+                . "💡 <b>អត្ថប្រយោជន៍នៃ S-Coins:</b>\n"
+                . "• រាល់ការទិញទំនិញ $10 ទទួលបាន 10 Coins\n"
+                . "• អាចប្រើ Coins ដើម្បីកាត់បន្ថយថ្លៃទំនិញភ្លាមៗនៅពេល Checkout\n"
+                . "• ទទួលបានការបញ្ចុះតម្លៃបន្ថែមសម្រាប់សមាជិកកម្រិតខ្ពស់ (Gold / Diamond)\n\n"
+                . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញ និងប្រើប្រាស់ពិន្ទុរបស់អ្នក!</b>";
+
+            $pointsKb = [
                 'inline_keyboard' => [
-                    [['text' => '🔧 បើកសេវាជួសជុលក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                    [['text' => '🛍️ ប្រើប្រាស់ Points ទិញក្នុង Mini App', 'web_app' => ['url' => $pointsAppUrl]]],
                     [
-                        ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                        ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
                         ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
                     ],
                 ],
             ];
+
+            self::sendMessageWithKeyboard($chatId, $pointsText, $pointsKb, 'HTML', null, $activeToken);
+            return;
+        }
+
+        // Customer /repair or /repairs
+        if (preg_match('/^\/(?:repair|repairs|services)(?:@\w+)?/i', $text)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $repairs = \App\Models\Repair::where(function ($q) use ($user) {
+                if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
+                if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
+            })->latest()->take(3)->get();
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+
+            if ($repairs->isEmpty()) {
+                $repairText = "🔧 <b>សេវាកម្មជួសជុល & សំបុត្រជួសជុល (Repair Tickets):</b>\n\n"
+                    . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+                    . "បច្ចុប្បន្ន លោកអ្នកមិនមានសំបុត្រជួសជុលឧបករណ៍ដែលកំពុងដំណើរការនោះទេ។\n\n"
+                    . "🛠️ <b>សេវាកម្មជួសជុល & Upgrade របស់ហាង៖</b>\n"
+                    . "• ជួសជុល Laptop, PC គ្រប់ម៉ាក (ផ្លាស់ប្តូរអេក្រង់, ថ្ម, ក្តារចុច, សាកមិនចូល, Mainboard)\n"
+                    . "• Upgrade SSD NVMe ល្បឿនលឿន, បង្កើន RAM, ដំឡើង Graphics Card\n"
+                    . "• លាងសម្អាតកម្ដៅ & ប្តូរ Thermal Paste\n"
+                    . "• ដំឡើង Genuine Windows 11, Drivers & កម្មវិធីការិយាល័យ Office\n\n"
+                    . "👉 ចុចប៊ូតុងខាងក្រោមដើម្បីស្នើសុំសេវាកម្មជួសជុល ឬពិនិត្យក្នុង Mini App!";
+
+                $repairKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🔧 បើកសេវាជួសជុលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                        [
+                            ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+            } else {
+                $repairText = "🔧 <b>សំបុត្រជួសជុលរបស់អ្នក (My Repair Tickets):</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n";
+
+                foreach ($repairs as $r) {
+                    $repBadge = match($r->status) {
+                        'Ready' => '✅ រួចរាល់អាចមកយកបាន (Ready)',
+                        'In Progress' => '🔄 កំពុងជួសជុល (In Progress)',
+                        'Completed' => '🎉 បានប្រគល់ជូនរួចរាល់ (Completed)',
+                        default => '⏳ កំពុងពិនិត្យរោគសញ្ញា (Pending)',
+                    };
+
+                    $repairText .= "🎫 <b>Ticket #{$r->ticket_code}</b>\n"
+                        . "💻 <b>ឧបករណ៍:</b> {$r->device_name}\n"
+                        . "⚡ <b>ស្ថានភាព:</b> <b>{$repBadge}</b>\n"
+                        . "👨‍🔧 <b>ជាងទទួលខុសត្រូវ:</b> {$r->technician_name}\n"
+                        . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$r->estimated_cost} USD\n"
+                        . "📝 <b>បញ្ហា:</b> " . \Illuminate\Support\Str::limit($r->issue_description, 80) . "\n"
+                        . "────────────────────\n\n";
+                }
+
+                $repairText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិតក្នុង Mini App!</i>";
+
+                $repairKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🔧 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                        [
+                            ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+            }
+
             self::sendMessageWithKeyboard($chatId, $repairText, $repairKb, 'HTML', null, $activeToken);
             return;
         }
@@ -1031,6 +1319,7 @@ class TelegramService
             try {
                 $order = \App\Models\Order::where('order_id', $rawOrderId)
                     ->orWhere('order_id', str_replace(['-', '_'], '', $rawOrderId))
+                    ->with('items.product')
                     ->first();
             } catch (\Throwable $e) {}
 
@@ -1044,21 +1333,83 @@ class TelegramService
                     default => ucfirst($order->status),
                 };
 
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+
+                $itemsList = [];
+                if ($order->items) {
+                    foreach ($order->items as $it) {
+                        $itemsList[] = "  • " . ($it->product ? $it->product->name : 'ទំនិញ') . " x{$it->quantity} (\${$it->unit_price})";
+                    }
+                }
+                $itemsText = !empty($itemsList) ? implode("\n", $itemsList) : "  • ព័ត៌មានទំនិញក្នុង Admin";
+
                 $orderMsg = "📦 <b>ព័ត៌មានការបញ្ជាទិញ #{$order->order_id}:</b>\n\n"
                     . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name ?? 'N/A') . "\n"
                     . "⚡ <b>ស្ថានភាព:</b> <b>{$statusKh}</b>\n"
                     . "💰 <b>តម្លៃសរុប:</b> <b>\${$order->total_amount} USD</b>\n"
                     . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> " . htmlspecialchars($order->payment_method ?? 'Bakong KHQR') . " (" . ($order->payment_status ?: 'unpaid') . ")\n"
+                    . "🚚 <b>សេវាដឹក:</b> " . htmlspecialchars($order->delivery_type ?? 'Standard') . "\n"
+                    . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($order->shipping_address ?? 'N/A') . "\n\n"
+                    . "🛍️ <b>មុខទំនិញ:</b>\n{$itemsText}\n\n"
                     . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($order->created_at ? $order->created_at->format('d-m-Y H:i') : date('d-m-Y')) . "\n\n"
                     . "👉 លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមនៅក្នុង Mini App!";
 
                 $orderKb = [
                     'inline_keyboard' => [
-                        [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
                         [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ],
                 ];
                 self::sendMessageWithKeyboard($chatId, $orderMsg, $orderKb, 'HTML', null, $activeToken);
+                return;
+            }
+        }
+
+        // A.1 Natural Khmer Order Inquiries ("order របស់ខ្ញុំ", "ឥវ៉ាន់ខ្ញុំដល់ណា", "តាមដាន order", "my orders")
+        if (preg_match('/(order|orders|កញ្ចប់|ឥវ៉ាន់|ការកុម្ម៉ង់|កុម្ម៉ង់|បញ្ជាទិញ|ទំនិញខ្ញុំ|អីវ៉ាន់)/u', $textLower)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
+                $q->where('user_id', 'tg_' . $chatId);
+                if ($user && !empty($user->phone)) {
+                    $q->orWhere('customer_phone', $user->phone);
+                }
+            })->with('items.product')->latest()->take(3)->get();
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+
+            if ($orders->isNotEmpty()) {
+                $ordersText = "📦 <b>ស្ថានភាពការបញ្ជាទិញរបស់អ្នក (Recent Orders):</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n";
+
+                foreach ($orders as $ord) {
+                    $statusBadge = match(strtolower($ord->status ?? 'pending')) {
+                        'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+                        'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
+                        'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
+                        'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
+                        'cancelled' => '❌ បានលុបចោល (Cancelled)',
+                        default => ucfirst($ord->status),
+                    };
+
+                    $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
+                        . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+                        . "💵 <b>តម្លៃ:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
+                        . "🚚 <b>ដឹកជញ្ជូន:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
+                        . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
+                        . "────────────────────\n\n";
+                }
+
+                $ordersText .= "👉 <i>ចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានដំណើរការដឹកក្នុង Mini App!</i>";
+
+                $ordersKb = [
+                    'inline_keyboard' => [
+                        [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ],
+                ];
+                self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
                 return;
             }
         }
@@ -1674,28 +2025,36 @@ class TelegramService
     /**
      * Customer Main Menu Keyboard with Mini App button right at the top
      */
-    public static function getCustomerMainMenuKeyboard(): array
+    public static function getCustomerMainMenuKeyboard(?string $chatId = null): array
     {
+        $appUrl = 'https://www.s-tech-store.tech';
+        $webUrl = 'https://www.s-tech-store.tech';
+        if ($chatId) {
+            $sessToken = self::generateCustomerSessionToken((string)$chatId);
+            $appUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
+            $webUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
+        }
+
         return [
             'inline_keyboard' => [
                 [
-                    ['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                    ['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => $appUrl]],
                 ],
                 [
-                    ['text' => '💻 ផលិតផល (Shop Products)', 'callback_data' => 'cust_shop'],
+                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ (My Orders)', 'callback_data' => 'cust_my_orders'],
+                    ['text' => '🪙 ពិន្ទុ & VIP (My Points)', 'callback_data' => 'cust_my_points'],
+                ],
+                [
+                    ['text' => '🔧 សំបុត្រជួសជុល (Repairs)', 'callback_data' => 'cust_my_repairs'],
                     ['text' => '🔥 ប្រូម៉ូសិន (Hot Promo)', 'callback_data' => 'cust_promo'],
                 ],
                 [
-                    ['text' => '📦 តាមដានការកុម្ម៉ង់ (Track Order)', 'callback_data' => 'cust_track'],
-                    ['text' => '🔧 សេវាជួសជុល (Repairs)', 'callback_data' => 'cust_repair'],
+                    ['text' => '💻 ផលិតផល (Shop Products)', 'callback_data' => 'cust_shop'],
+                    ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
                 ],
                 [
-                    ['text' => '📞 ទំនាក់ទំនង & ទីតាំង (Contact)', 'callback_data' => 'cust_contact'],
-                    ['text' => '❓ ជំនួយ (FAQ & Help)', 'callback_data' => 'cust_help'],
-                ],
-                [
-                    ['text' => '🌐 គេហទំព័រផ្លូវការ (Website)', 'url' => 'https://www.s-tech-store.tech'],
-                    ['text' => '💬 ជជែកជាមួយបុគ្គលិក (Live Chat)', 'callback_data' => 'cust_support'],
+                    ['text' => '🌐 គេហទំព័រផ្លូវការ (Website)', 'url' => $webUrl],
+                    ['text' => '💬 ជជែកជាមួយបុគ្គលិក (Support)', 'callback_data' => 'cust_support'],
                 ],
             ],
         ];
@@ -1704,9 +2063,359 @@ class TelegramService
     /**
      * Backward-compatible alias for Customer Main Menu
      */
-    public static function getBotMainMenuKeyboard(): array
+    public static function getBotMainMenuKeyboard(?string $chatId = null): array
     {
-        return self::getCustomerMainMenuKeyboard();
+        return self::getCustomerMainMenuKeyboard($chatId);
+    }
+
+    /**
+     * Resolve Customer Telegram Chat ID from Order, UserProfile, or UID
+     */
+    public static function resolveCustomerChatId($orderOrUser, ?string $fallbackPhone = null, ?string $fallbackEmail = null): ?string
+    {
+        if (is_numeric($orderOrUser)) {
+            return (string)$orderOrUser;
+        }
+
+        if (is_string($orderOrUser)) {
+            if (str_starts_with($orderOrUser, 'tg_')) {
+                $raw = substr($orderOrUser, 3);
+                if (is_numeric($raw)) return $raw;
+            }
+            if (is_numeric($orderOrUser)) return $orderOrUser;
+        }
+
+        if ($orderOrUser instanceof \App\Models\UserProfile) {
+            if (!empty($orderOrUser->firebase_uid) && str_starts_with($orderOrUser->firebase_uid, 'tg_')) {
+                $raw = substr($orderOrUser->firebase_uid, 3);
+                if (is_numeric($raw)) return $raw;
+            }
+            return null;
+        }
+
+        if ($orderOrUser instanceof \App\Models\Order) {
+            $uid = $orderOrUser->user_id;
+            if (!empty($uid) && str_starts_with($uid, 'tg_')) {
+                $raw = substr($uid, 3);
+                if (is_numeric($raw)) return $raw;
+            }
+
+            // Look up UserProfile by phone
+            $phone = $orderOrUser->customer_phone ?: $fallbackPhone;
+            if ($phone) {
+                $u = \App\Models\UserProfile::where('phone', $phone)->where('firebase_uid', 'like', 'tg_%')->first();
+                if ($u && !empty($u->firebase_uid)) {
+                    $raw = str_replace('tg_', '', $u->firebase_uid);
+                    if (is_numeric($raw)) return $raw;
+                }
+            }
+
+            // Look up UserProfile by customer_name
+            if (!empty($orderOrUser->customer_name)) {
+                $u = \App\Models\UserProfile::where('display_name', $orderOrUser->customer_name)->where('firebase_uid', 'like', 'tg_%')->first();
+                if ($u && !empty($u->firebase_uid)) {
+                    $raw = str_replace('tg_', '', $u->firebase_uid);
+                    if (is_numeric($raw)) return $raw;
+                }
+            }
+        }
+
+        if ($orderOrUser instanceof \App\Models\Repair) {
+            $phone = $orderOrUser->customer_phone ?: $fallbackPhone;
+            if ($phone) {
+                $u = \App\Models\UserProfile::where('phone', $phone)->where('firebase_uid', 'like', 'tg_%')->first();
+                if ($u && !empty($u->firebase_uid)) {
+                    $raw = str_replace('tg_', '', $u->firebase_uid);
+                    if (is_numeric($raw)) return $raw;
+                }
+            }
+            $email = $orderOrUser->customer_email ?: $fallbackEmail;
+            if ($email) {
+                $u = \App\Models\UserProfile::where('email', $email)->where('firebase_uid', 'like', 'tg_%')->first();
+                if ($u && !empty($u->firebase_uid)) {
+                    $raw = str_replace('tg_', '', $u->firebase_uid);
+                    if (is_numeric($raw)) return $raw;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate 1-Click login session token for customer companion bot
+     */
+    public static function generateCustomerSessionToken(string $chatId, ?string $name = null): string
+    {
+        $cleanId = preg_replace('/\D/', '', $chatId);
+        if (empty($cleanId)) {
+            $cleanId = $chatId;
+        }
+
+        $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $cleanId]);
+        if (!empty($name) && (empty($user->display_name) || str_starts_with($user->display_name, 'Telegram User'))) {
+            $user->display_name = $name;
+        }
+        if (empty($user->email)) {
+            $user->email = "tg_{$cleanId}@s-tech-store.tech";
+        }
+        $user->is_active = true;
+        $user->status = 'active';
+        $user->save();
+
+        $token = 'tg_sess_' . \Illuminate\Support\Str::random(50);
+        \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+        return $token;
+    }
+
+    /**
+     * Send Real-Time Personalized Order Alert directly to Customer 1-on-1 Chat via Bot 2
+     */
+    public static function sendCustomerDirectOrderAlert($order, string $event = 'created'): array
+    {
+        $chatId = self::resolveCustomerChatId($order);
+        if (!$chatId) {
+            return ['ok' => false, 'error' => 'No linked Telegram chat for customer'];
+        }
+
+        $sessionToken = self::generateCustomerSessionToken($chatId, $order->customer_name ?? null);
+        $directUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+
+        $orderId = $order->order_id ?: ('#ORD-' . $order->id);
+        $customerName = htmlspecialchars($order->customer_name ?? 'អតិថិជន');
+        $total = number_format((float)($order->total_amount ?? 0), 2);
+        $paymentMethod = strtoupper($order->payment_method ?? 'Cash on Delivery (COD)');
+        $paymentStatus = ucfirst($order->payment_status ?? 'unpaid');
+        $delivery = htmlspecialchars($order->delivery_type ?? 'Standard Delivery');
+        $address = htmlspecialchars($order->shipping_address ?? 'Phnom Penh');
+        $date = $order->created_at ? $order->created_at->format('d/m/Y H:i') : date('d/m/Y H:i');
+
+        $itemsText = "";
+        if (!empty($order->items)) {
+            foreach ($order->items as $idx => $item) {
+                $pName = htmlspecialchars($item->product->name ?? ('Product #' . ($item->product_id ?? ($idx + 1))));
+                $qty = $item->quantity ?? 1;
+                $price = number_format((float)($item->unit_price ?? 0), 2);
+                $itemsText .= "  • <b>{$pName}</b> x{$qty} (\${$price})\n";
+            }
+        } else {
+            $itemsText = "  • <i>ទំនិញ S Tech Store</i>\n";
+        }
+
+        if ($event === 'created') {
+            $msg = "🎉 <b>ការបញ្ជាទិញទទួលបានជោគជ័យ! (ORDER CONFIRMED)</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "ជម្រាបសួរ <b>{$customerName}</b>! សូមអរគុណសម្រាប់ការបញ្ជាទិញនៅ S Tech Store។\n\n"
+                . "🧾 <b>លេខវិក្កយបត្រ (Order ID):</b> <code>#{$orderId}</code>\n"
+                . "⚡ <b>ស្ថានភាព:</b> ⏳ <b>កំពុងរង់ចាំរៀបចំ (Pending)</b>\n"
+                . "💰 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
+                . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> {$paymentMethod} ({$paymentStatus})\n"
+                . "🚚 <b>ការដឹកជញ្ជូន:</b> {$delivery}\n"
+                . "📍 <b>អាសយដ្ឋានដឹក:</b> {$address}\n\n"
+                . "📦 <b>មុខទំនិញក្នុងកញ្ចប់:</b>\n"
+                . $itemsText . "\n"
+                . "⏰ <b>កាលបរិច្ឆេទ:</b> {$date}\n\n"
+                . "👉 <i>លោកអ្នកអាចតាមដានដំណាក់កាលវេចខ្ចប់ និងដំណើរការដឹកជញ្ជូន Real-time តាមរយៈប៊ូតុងខាងក្រោម!</i>";
+
+            $kb = [
+                'inline_keyboard' => [
+                    [['text' => '📱 តាមដាន Order ក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
+                    [
+                        ['text' => '🌐 បើកលើ Browser', 'url' => $directUrl],
+                        ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
+                    ],
+                ],
+            ];
+        } elseif ($event === 'paid') {
+            $msg = "💳 <b>ការទូទាត់ប្រាក់ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "ជម្រាបសួរ <b>{$customerName}</b>!\n\n"
+                . "វិក្កយបត្រ <code>#{$orderId}</code> ចំនួន <b>\${$total} USD</b> ត្រូវបានផ្ទៀងផ្ទាត់ការទូទាត់ជោគជ័យតាមរយៈ <b>{$paymentMethod}</b>។\n\n"
+                . "🔄 <b>ស្ថានភាពឥឡូវនេះ:</b> <b>កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)</b>\n"
+                . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+                . "👉 <i>ក្រុមការងារយើងខ្ញុំកំពុងរៀបចំកញ្ចប់ទំនិញយ៉ាងម៉ត់ចត់ដើម្បីប្រគល់ជូនផ្នែកដឹកជញ្ជូន!</i>";
+
+            $kb = [
+                'inline_keyboard' => [
+                    [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
+                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                ],
+            ];
+        } else {
+            // Status updated (processing, shipped, delivered, cancelled)
+            $statusKey = strtolower($order->status ?? 'pending');
+            $statusBadge = match($statusKey) {
+                'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+                'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
+                'shipped', 'delivering' => '🚚 កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូន (Shipped)',
+                'completed', 'delivered' => '✅ បានដឹកជញ្ជូនដល់ដៃជោគជ័យ (Delivered)',
+                'cancelled' => '❌ ការបញ្ជាទិញត្រូវបានបោះបង់ (Cancelled)',
+                default => ucfirst($order->status),
+            };
+
+            $statusNote = match($statusKey) {
+                'processing' => '📦 ហាងកំពុងរៀបចំវេចខ្ចប់ទំនិញយ៉ាងយកចិត្តទុកដាក់ និងត្រៀមប្រគល់ជូនអ្នកដឹក។',
+                'shipped', 'delivering' => '🚚 ទំនិញរបស់អ្នកកំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក។ សូមត្រៀមទទួលទូរស័ព្ទពីអ្នកដឹកជញ្ជូន!',
+                'completed', 'delivered' => '🎉 ទំនិញត្រូវបានប្រគល់ជូនរួចរាល់។ សូមអរគុណយ៉ាងជ្រាលជ្រៅសម្រាប់ការគាំទ្រ S Tech Store!',
+                'cancelled' => '⚠️ ការបញ្ជាទិញនេះត្រូវបានលុបចោល។ សូមទាក់ទងមកកាន់យើងខ្ញុំប្រសិនបើមានសំណួរ។',
+                default => '⚡ ស្ថានភាពកញ្ចប់ទំនិញរបស់អ្នកត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
+            };
+
+            $msg = "🔔 <b>បច្ចុប្បន្នភាពនៃការបញ្ជាទិញ (ORDER STATUS UPDATE)!</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "ជម្រាបសួរ <b>{$customerName}</b>!\n\n"
+                . "🧾 <b>លេខវិក្កយបត្រ:</b> <code>#{$orderId}</code>\n"
+                . "⚡ <b>ស្ថានភាពថ្មី:</b> <b>{$statusBadge}</b>\n\n"
+                . "ℹ️ <i>{$statusNote}</i>\n\n"
+                . "💰 <b>តម្លៃសរុប:</b> <b>\${$total} USD</b> ({$paymentMethod} - {$paymentStatus})\n"
+                . "⏰ <b>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង:</b> " . date('d/m/Y H:i') . "\n\n"
+                . "👉 <i>លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមតាមរយៈប៊ូតុងខាងក្រោម!</i>";
+
+            $kb = [
+                'inline_keyboard' => [
+                    [['text' => '📱 ពិនិត្យមើល Order ក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
+                    [
+                        ['text' => '💬 សាកសួរក្រុមការងារ', 'callback_data' => 'cust_support'],
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+        }
+
+        return self::sendMessageWithKeyboard($chatId, $msg, $kb, 'HTML', null, self::getCustomerBotToken());
+    }
+
+    /**
+     * Send direct admin notice / alert to customer 1-on-1 Telegram chat via Bot 2
+     */
+    public static function sendCustomerDirectNotification($userProfile, string $title, string $message, ?string $link = null): array
+    {
+        $chatId = self::resolveCustomerChatId($userProfile);
+        if (!$chatId) {
+            return ['ok' => false, 'error' => 'No linked Telegram chat for user'];
+        }
+
+        $sessionToken = self::generateCustomerSessionToken($chatId, $userProfile->display_name ?? null);
+        $targetLink = $link 
+            ? "https://www.s-tech-store.tech" . (str_starts_with($link, '/') ? $link : '/' . $link) . (str_contains($link, '?') ? "&tg_token={$sessionToken}" : "?tg_token={$sessionToken}")
+            : "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
+        $cleanTitle = htmlspecialchars($title);
+        $cleanMsg = htmlspecialchars($message);
+        $name = htmlspecialchars($userProfile->display_name ?? 'អតិថិជន');
+
+        $text = "📢 <b>ដំណឹងពី S TECH STORE</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n\n"
+            . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
+            . "📌 <b>{$cleanTitle}</b>\n\n"
+            . "{$cleanMsg}\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "👉 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យមើលក្នុងគេហទំព័រ ឬ Mini App!</i>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [['text' => '📱 បើកពិនិត្យក្នុង Mini App', 'web_app' => ['url' => $targetLink]]],
+                [
+                    ['text' => '🌐 បើកលើ Browser', 'url' => $targetLink],
+                    ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
+                ],
+            ],
+        ];
+
+        return self::sendMessageWithKeyboard($chatId, $text, $kb, 'HTML', null, self::getCustomerBotToken());
+    }
+
+    /**
+     * Send direct repair ticket alert to customer 1-on-1 Telegram chat via Bot 2
+     */
+    public static function sendCustomerDirectRepairAlert($repair, string $event = 'status_updated'): array
+    {
+        $chatId = self::resolveCustomerChatId($repair);
+        if (!$chatId) {
+            return ['ok' => false, 'error' => 'No linked Telegram chat for repair customer'];
+        }
+
+        $sessionToken = self::generateCustomerSessionToken($chatId, $repair->customer_name ?? null);
+        $directUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+
+        $ticketCode = htmlspecialchars($repair->ticket_code ?? ('#REP-' . $repair->id));
+        $name = htmlspecialchars($repair->customer_name ?? 'អតិថិជន');
+        $device = htmlspecialchars($repair->device_name ?? 'ឧបករណ៍');
+        $status = htmlspecialchars($repair->status ?? 'Pending Assessment');
+        $tech = htmlspecialchars($repair->technician_name ?? 'ជាងជំនាញ');
+        $cost = number_format((float)($repair->estimated_cost ?? 0), 2);
+
+        $statusBadge = match($status) {
+            'Ready' => '✅ រួចរាល់អាចមកទទួលយកបាន (Ready)',
+            'In Progress' => '🔄 កំពុងជួសជុល (In Progress)',
+            'Completed' => '🎉 បានប្រគល់ជូនរួចរាល់ (Completed)',
+            default => '⏳ កំពុងពិនិត្យរោគសញ្ញា (Pending)',
+        };
+
+        $title = ($event === 'created') ? 'សំបុត្រជួសជុលថ្មីត្រូវបានបង្កើត!' : 'បច្ចុប្បន្នភាពសំបុត្រជួសជុល!';
+
+        $msg = "🔧 <b>[REPAIR CENTER] {$title}</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n\n"
+            . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
+            . "🎫 <b>លេខ Ticket:</b> <code>{$ticketCode}</code>\n"
+            . "💻 <b>ឧបករណ៍:</b> <b>{$device}</b>\n"
+            . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+            . "👨‍🔧 <b>ជាងទទួលបន្ទុក:</b> {$tech}\n"
+            . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$cost} USD\n"
+            . (!empty($repair->notes) ? "📝 <b>កំណត់សម្គាល់:</b> <i>" . htmlspecialchars($repair->notes) . "</i>\n" : "")
+            . "⏰ <b>ធ្វើបច្ចុប្បន្នភាព:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "👉 <i>លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិត ឬទាក់ទងជាងបច្ចេកទេសតាមប៊ូតុងខាងក្រោម!</i>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [['text' => '🔧 មើលការជួសជុលក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
+                [
+                    ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
+                    ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        return self::sendMessageWithKeyboard($chatId, $msg, $kb, 'HTML', null, self::getCustomerBotToken());
+    }
+
+    /**
+     * Send direct Welcome & Companion Hub activation to customer 1-on-1 Telegram chat via Bot 2
+     */
+    public static function sendCustomerDirectWelcomeHub($user, string $tgId): array
+    {
+        $token = self::generateCustomerSessionToken($tgId, $user->display_name ?? null);
+        $directUrl = "https://www.s-tech-store.tech/?tg_token={$token}";
+        $ordersUrl = "https://www.s-tech-store.tech/orders?tg_token={$token}";
+        $name = htmlspecialchars($user->display_name ?? 'អតិថិជន');
+
+        $welcome = "🎉 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Customer Hub!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n\n"
+            . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
+            . "✨ គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
+            . "🤖 <b>តួនាទីរបស់ Bot នេះសម្រាប់អ្នក (Personal Companion Bot):</b>\n"
+            . "• 📦 <b>តាមដានការបញ្ជាទិញ:</b> ទទួលដំណឹង Real-time ភ្លាមៗរាល់ពេលកុម្ម៉ង់ ឬកញ្ចប់ទំនិញធ្វើដំណើរ\n"
+            . "• 🪙 <b>ពិន្ទុ & VIP Rewards:</b> ពិនិត្យមើល S-Coins និងកម្រិតសមាជិក VIP\n"
+            . "• 🔧 <b>សំបុត្រជួសជុល:</b> តាមដានស្ថានភាពជួសជុល ឬ Upgrade កុំព្យូទ័រ\n"
+            . "• 📢 <b>ដំណឹងពី Admin:</b> ទទួលសារ និងការឆ្លើយតបផ្ទាល់ពីហាង\n\n"
+            . "👉 <b>លោកអ្នកអាចចុចបើក Mini App ខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់ Login ម្តងទៀតឡើយ!</b>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $directUrl]]],
+                [
+                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                    ['text' => '🪙 ពិន្ទុ & VIP', 'callback_data' => 'cust_my_points'],
+                ],
+                [
+                    ['text' => '🌐 ចូលគេហទំព័រ (1-Click)', 'url' => $directUrl],
+                    ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
+                ],
+            ],
+        ];
+
+        return self::sendMessageWithKeyboard($tgId, $welcome, $kb, 'HTML', null, self::getCustomerBotToken());
     }
 
     /**

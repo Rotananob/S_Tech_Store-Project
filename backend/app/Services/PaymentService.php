@@ -366,6 +366,13 @@ class PaymentService
             Log::error("Failed to notify Telegram of payment: " . $e->getMessage());
         }
 
+        // Customer direct notification to Telegram Bot 2
+        try {
+            TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'paid');
+        } catch (\Throwable $e) {
+            Log::warning("Customer direct telegram payment alert failed: " . $e->getMessage());
+        }
+
         return $order;
     }
 

@@ -66,6 +66,13 @@ class RepairController extends Controller
             Log::warning("Telegram ticket alert failed: " . $t->getMessage());
         }
 
+        // Auto alert customer 1-on-1 Telegram Bot 2 Companion
+        try {
+            TelegramService::sendCustomerDirectRepairAlert($repair, 'created');
+        } catch (\Throwable $t) {
+            Log::warning("Customer direct telegram ticket alert failed: " . $t->getMessage());
+        }
+
         return response()->json([
             'message' => 'Repair ticket created successfully' . ($emailSent ? ' & email sent to user' : ''),
             'email_sent' => $emailSent,
@@ -98,6 +105,15 @@ class RepairController extends Controller
             $targetEmail = $repair->customer_email ?: UserProfile::where('phone', $repair->customer_phone)->value('email');
             if ($targetEmail) {
                 $emailSent = self::sendTicketEmail($repair, $targetEmail);
+            }
+        }
+
+        // Auto alert customer 1-on-1 Telegram Bot 2 Companion if status changed
+        if ($oldStatus !== $repair->status) {
+            try {
+                TelegramService::sendCustomerDirectRepairAlert($repair, 'status_updated');
+            } catch (\Throwable $t) {
+                Log::warning("Customer direct telegram ticket status alert failed: " . $t->getMessage());
             }
         }
 

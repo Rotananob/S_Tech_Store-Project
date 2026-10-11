@@ -279,6 +279,11 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         'details' => "អតិថិជនបាន Login តាមរយៈ Real Telegram OAuth Handshake ជោគជ័យ។ ឈ្មោះពិត: {$user->display_name}, Username: {$user->telegram}, Telegram ID: {$tgId}។",
     ]);
 
+    // 5. Send Welcome & Companion Hub activation to customer Telegram (Bot 2)
+    try {
+        \App\Services\TelegramService::sendCustomerDirectWelcomeHub($user, $tgId);
+    } catch (\Throwable $t) {}
+
     return response()->json([
         'success' => true,
         'token' => $token,
@@ -406,6 +411,14 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
 
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+    // Send Welcome & Companion Hub activation once
+    if (!\Illuminate\Support\Facades\Cache::has("welcomed_tg_{$tgId}")) {
+        \Illuminate\Support\Facades\Cache::put("welcomed_tg_{$tgId}", true, 86400 * 30);
+        try {
+            \App\Services\TelegramService::sendCustomerDirectWelcomeHub($user, $tgId);
+        } catch (\Throwable $t) {}
+    }
 
     return response()->json([
         'success' => true,

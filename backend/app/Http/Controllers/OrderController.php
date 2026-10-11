@@ -151,6 +151,13 @@ class OrderController extends Controller
                 \Illuminate\Support\Facades\Log::error("Telegram order notification failed: " . $t->getMessage());
             }
 
+            // Dispatch instant personalized alert directly to Customer Telegram (Bot 2 Companion)
+            try {
+                \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'created');
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert failed: " . $t->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Order placed successfully',
                 'order' => $order->load('items')
@@ -210,6 +217,15 @@ class OrderController extends Controller
             ]);
         }
 
+        // Dispatch instant personalized status update directly to Customer Telegram (Bot 2 Companion)
+        if ($oldStatus !== $validated['status']) {
+            try {
+                \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'status_updated');
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Customer direct telegram order status alert failed: " . $t->getMessage());
+            }
+        }
+
         return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
     }
 
@@ -231,14 +247,30 @@ class OrderController extends Controller
 
         $notification = null;
         if ($uid) {
+            $notificationTitle = $validated['title'] ?: "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}";
             $notification = \App\Models\UserNotification::create([
                 'firebase_uid' => $uid,
-                'title' => $validated['title'] ?: "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}",
+                'title' => $notificationTitle,
                 'message' => $validated['message'],
                 'type' => 'order',
                 'link' => '/orders',
                 'read' => false,
             ]);
+
+            // Dispatch instant direct notification to customer Telegram (Bot 2 Companion)
+            try {
+                $userProf = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+                if ($userProf) {
+                    \App\Services\TelegramService::sendCustomerDirectNotification(
+                        $userProf,
+                        $notificationTitle,
+                        $validated['message'],
+                        '/orders'
+                    );
+                }
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
+            }
         }
 
         return response()->json([
