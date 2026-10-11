@@ -1718,7 +1718,7 @@ export default function UserProfilePage() {
                     Official Hardware Warranty & RMA Hub
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Track your registered tech hardware, serial numbers, and 1-year official S Tech Store warranty.
+                    Track your registered tech hardware, serial numbers, and official 3 to 6-month S Tech Store warranty.
                   </p>
                 </div>
                 <button

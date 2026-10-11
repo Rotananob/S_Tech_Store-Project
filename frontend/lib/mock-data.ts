@@ -979,7 +979,7 @@ export const mockProducts = [
 
 export const features = [
   { icon: "✓", label: "Genuine Products" },
-  { icon: "🛡", label: "1-Year Warranty" },
+  { icon: "🛡", label: "3 to 6-Month Warranty" },
   { icon: "💳", label: "Local Payments" },
   { icon: "🚚", label: "Same-Day Delivery" },
 ];

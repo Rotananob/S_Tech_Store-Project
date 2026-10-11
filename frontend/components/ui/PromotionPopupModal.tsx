@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Sparkles, Copy, Check, ArrowRight, Tag, Flame } from "lucide-react";
+import { X, Sparkles, Copy, Check, ArrowRight, Tag, Flame, Clock, Gift, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "@/i18n/routing";
 import api from "@/lib/api";
@@ -15,38 +15,103 @@ type ActivePromotion = {
   description?: string | null;
   image_url?: string | null;
   target_url?: string | null;
+  endDate?: string | Date;
+};
+
+// Grand Pchum Ben Festival Promotion (ពិធីបុណ្យភ្ជំបិណ្ឌ) 7-day default campaign
+const DEFAULT_PCHUM_BEN_PROMO: ActivePromotion = {
+  id: "pchum-ben-2026",
+  name: "មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ",
+  code: "PCHUMBEN2026",
+  type: "percentage",
+  value: "30",
+  description: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃពិសេសរហូតដល់ 30% លើ Laptops, Custom PC Builds, Gaming Gear និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ ធានា ៣ ទៅ ៦ ខែ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង!",
+  image_url: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop",
+  target_url: "/category/all",
 };
 
 export default function PromotionPopupModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [promo, setPromo] = useState<ActivePromotion | null>(null);
+  const [promo, setPromo] = useState<ActivePromotion>(DEFAULT_PCHUM_BEN_PROMO);
   const [copied, setCopied] = useState(false);
+
+  // 7-day Countdown Timer
+  const [timeLeft, setTimeLeft] = useState({
+    days: 7,
+    hours: 14,
+    minutes: 36,
+    seconds: 50,
+  });
+
+  useEffect(() => {
+    // 7-day countdown logic
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      // Calculate end time as 7 days from now or fixed target
+      const targetTime = new Date();
+      targetTime.setDate(targetTime.getDate() + 7);
+
+      const diff = 7 * 24 * 60 * 60 * 1000 - ((now % (7 * 24 * 60 * 60 * 1000)));
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    calculateTimeLeft();
+    const countdownInterval = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(countdownInterval);
+  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
 
     const checkAndFetchPromo = async () => {
+      // Check query parameter for instant preview (e.g. ?promo=preview or ?test_promo=true)
+      const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const isTestPreview = urlParams?.has("promo") || urlParams?.has("test_promo");
+
+      if (isTestPreview) {
+        setIsOpen(true);
+        return;
+      }
+
+      // Check if dismissed previously in this session
       try {
         const dismissed = sessionStorage.getItem("stech_promo_popup_dismissed");
         if (dismissed) return;
+      } catch {}
 
+      try {
         const res = await api.get("/promotions/active-popup");
         if (res.data?.success && res.data?.promo) {
           setPromo(res.data.promo);
-          // 1 second delay after entering
-          timer = setTimeout(() => {
-            setIsOpen(true);
-          }, 1000);
+        } else {
+          setPromo(DEFAULT_PCHUM_BEN_PROMO);
         }
       } catch (err) {
-        // Silently ignore network/unconfigured promo
+        setPromo(DEFAULT_PCHUM_BEN_PROMO);
       }
+
+      // 1.2s smooth entrance delay
+      timer = setTimeout(() => {
+        setIsOpen(true);
+      }, 1200);
     };
 
     checkAndFetchPromo();
 
+    // Listen for custom trigger event (e.g. from Admin Dashboard or Header preview button)
+    const handleTriggerPromo = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener("stech:trigger-promo", handleTriggerPromo);
+
     return () => {
       if (timer) clearTimeout(timer);
+      window.removeEventListener("stech:trigger-promo", handleTriggerPromo);
     };
   }, []);
 
@@ -54,130 +119,179 @@ export default function PromotionPopupModal() {
     setIsOpen(false);
     try {
       sessionStorage.setItem("stech_promo_popup_dismissed", "true");
-    } catch (e) {}
+    } catch {}
   };
 
-  const promoCode = promo?.code || "STECH25";
+  const promoCode = promo.code || "PCHUMBEN2026";
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(promoCode);
+    navigator.clipboard?.writeText(promoCode);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 2500);
   };
 
-  if (!isOpen || !promo) return null;
+  if (!isOpen) return null;
 
   const isFixed = (promo.type || "").toLowerCase().includes("fix");
   const discountLabel = isFixed ? `$${promo.value} OFF` : `${promo.value}% OFF`;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md">
         <motion.div
-          initial={{ opacity: 0, scale: 0.88, y: 30 }}
+          initial={{ opacity: 0, scale: 0.86, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.88, y: 30 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-lg bg-gradient-to-b from-[#1a0f0f] via-[#121318] to-[#0c0d12] text-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(239,68,68,0.3)] border border-red-500/30 overflow-hidden"
+          exit={{ opacity: 0, scale: 0.86, y: 30 }}
+          transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+          className="relative w-full max-w-lg bg-gradient-to-b from-[#1c1212] via-[#14151e] to-[#0c0d12] text-white rounded-3xl shadow-[0_25px_70px_-15px_rgba(220,38,38,0.4)] border border-red-500/30 overflow-hidden"
         >
-          {/* Ambient Lighting Accents */}
-          <div className="absolute -top-24 -left-24 w-60 h-60 bg-red-600/25 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -right-24 w-60 h-60 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+          {/* Ambient Lighting Orbs */}
+          <div className="absolute -top-24 -left-24 w-64 h-64 bg-red-600/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-amber-500/25 rounded-full blur-3xl pointer-events-none" />
 
           {/* Close button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10 active:scale-95"
+            className="absolute top-4 right-4 z-30 w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/15 active:scale-95 shadow-md"
             aria-label="Close Promotion Modal"
           >
             <X size={18} />
           </button>
 
-          {/* Optional Promo Poster Image Header */}
-          {promo.image_url && (
-            <div className="relative w-full h-44 sm:h-52 bg-black/40 overflow-hidden">
+          {/* Festival Banner Header with Lotus & Pchum Ben Aesthetics */}
+          <div className="relative w-full h-44 sm:h-52 bg-gradient-to-br from-[#8B1A1A] via-[#b82a2a] to-[#d97706] overflow-hidden flex items-center justify-center">
+            {/* Background graphic */}
+            {promo.image_url && (
               <img
                 src={promo.image_url}
                 alt={promo.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover mix-blend-overlay opacity-60"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1a0f0f] via-transparent to-black/30" />
-            </div>
-          )}
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1c1212] via-black/20 to-transparent" />
 
-          {/* Banner Graphic Header */}
-          <div className={`relative p-6 sm:p-8 ${promo.image_url ? 'pt-4 sm:pt-5' : 'pt-8 sm:pt-10'} flex flex-col items-center text-center`}>
-            {/* Animated Pulsing Flame Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600/30 to-amber-600/30 border border-red-500/40 text-amber-300 text-xs font-black uppercase tracking-wider mb-4 shadow-sm">
-              <Flame size={14} className="text-red-400 animate-pulse" />
-              <span>ប្រូម៉ូសិនពិសេស • LIMITED TIME PROMO</span>
-              <Sparkles size={14} className="text-amber-300" />
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-              {promo.name}{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
-                {discountLabel}
+            {/* Festival Badge */}
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-amber-400/30 shadow-md">
+              <span className="text-base">🇰🇭</span>
+              <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">
+                បុណ្យភ្ជំបិណ្ឌ • PCHUM BEN FESTIVAL
               </span>
+            </div>
+
+            {/* Grand Discount Callout in Center */}
+            <div className="relative z-10 text-center px-4">
+              <div className="text-4xl sm:text-5xl font-black text-white tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.6)] flex items-center justify-center gap-2">
+                <Flame size={32} className="text-amber-400 fill-amber-400 animate-pulse" />
+                <span>{discountLabel}</span>
+              </div>
+              <p className="text-xs sm:text-sm font-bold text-amber-200 drop-shadow-sm mt-1">
+                បញ្ចុះតម្លៃពិសេសលើម៉ាស៊ីន និងគ្រឿងបន្លាស់ទាំងអស់
+              </p>
+            </div>
+          </div>
+
+          {/* Modal Body */}
+          <div className="relative p-5 sm:p-7 pt-4 flex flex-col items-center text-center">
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-md">
+              {promo.name}
             </h2>
-            <p className="text-xs sm:text-sm text-gray-300 mt-2 max-w-sm leading-relaxed">
-              {promo.description ||
-                "រីករាយជាមួយការបញ្ចុះតម្លៃលើ Laptops, Custom PC Builds និងគ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់នៅ S Tech Store Cambodia!"}
+            <p className="text-xs sm:text-sm text-gray-300 mt-2 max-w-md leading-relaxed font-khmer">
+              {promo.description}
             </p>
 
-            {/* Promo Voucher Card */}
-            {promo.code && (
-              <div className="w-full mt-6 p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md">
-                    <Tag size={20} />
+            {/* 7-Day Live Countdown Clock */}
+            <div className="w-full mt-4 p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2 shadow-inner">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-300 shrink-0">
+                <Clock size={16} className="animate-spin text-amber-400" style={{ animationDuration: "8s" }} />
+                <span>ផុតកំណត់ក្នុង៖</span>
+              </div>
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-mono font-black">
+                <div className="px-2 py-1 rounded-lg bg-black/50 text-white border border-white/10">
+                  <span className="text-amber-300">{timeLeft.days}</span> <span className="text-[10px] text-gray-400">ថ្ងៃ</span>
+                </div>
+                <span>:</span>
+                <div className="px-2 py-1 rounded-lg bg-black/50 text-white border border-white/10">
+                  <span className="text-amber-300">{String(timeLeft.hours).padStart(2, '0')}</span> <span className="text-[10px] text-gray-400">ម៉ោង</span>
+                </div>
+                <span>:</span>
+                <div className="px-2 py-1 rounded-lg bg-black/50 text-white border border-white/10">
+                  <span className="text-amber-300">{String(timeLeft.minutes).padStart(2, '0')}</span> <span className="text-[10px] text-gray-400">នាទី</span>
+                </div>
+                <span>:</span>
+                <div className="px-2 py-1 rounded-lg bg-black/50 text-white border border-white/10">
+                  <span className="text-amber-300">{String(timeLeft.seconds).padStart(2, '0')}</span> <span className="text-[10px] text-gray-400">វិ</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Promo Voucher Box */}
+            <div className="w-full mt-4 p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-black/40 to-amber-950/60 border border-red-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#8B1A1A] to-amber-600 flex items-center justify-center text-white shadow-md shrink-0">
+                  <Tag size={20} />
+                </div>
+                <div className="text-left">
+                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    កូដប្រូម៉ូសិន • PROMO CODE
                   </div>
-                  <div className="text-left">
-                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Coupon Code</div>
-                    <div className="text-xl font-black text-white font-mono tracking-wider">{promo.code}</div>
+                  <div className="text-xl font-black text-amber-300 font-mono tracking-widest">
+                    {promoCode}
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleCopyCode}
-                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-sm ${
-                    copied
-                      ? "bg-emerald-600 text-white"
-                      : "bg-white hover:bg-gray-100 text-gray-900 active:scale-95"
-                  }`}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} />
-                      <span>បានចម្លងរួចរាល់! ✓</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} />
-                      <span>Copy Code</span>
-                    </>
-                  )}
-                </button>
               </div>
-            )}
 
-            {/* Call To Action Buttons */}
-            <div className="w-full mt-6 flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                className={`w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-sm ${
+                  copied
+                    ? "bg-emerald-600 text-white scale-105"
+                    : "bg-white hover:bg-gray-100 text-gray-900 active:scale-95"
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <Check size={15} />
+                    <span>បានចម្លងកូដរួចរាល់! ✓</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={15} />
+                    <span>ចម្លងកូដ (Copy)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Perks Strip */}
+            <div className="w-full mt-3 flex items-center justify-around text-[11px] text-gray-400 border-t border-white/5 pt-3">
+              <span className="flex items-center gap-1">
+                <ShieldCheck size={13} className="text-emerald-400" /> ធានា ៣ ទៅ ៦ ខែ
+              </span>
+              <span className="flex items-center gap-1">
+                <Gift size={13} className="text-amber-400" /> កាដូបន្ថែមច្រើនមុខ
+              </span>
+              <span className="flex items-center gap-1">
+                <Sparkles size={13} className="text-blue-400" /> ដឹក ២៥ ខេត្ត-ក្រុង
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="w-full mt-5 flex flex-col sm:flex-row items-center gap-3">
               <Link
                 href={promo.target_url || "/category/all"}
                 onClick={handleClose}
-                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d63031] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-900/30 hover:shadow-xl transition-all no-underline active:scale-98"
+                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#c0392b] hover:from-[#a62222] hover:to-[#d63031] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-900/40 hover:shadow-xl transition-all no-underline active:scale-98"
               >
-                <span>ទិញទំនិញឥឡូវនេះ (Shop Now)</span>
+                <span>ចូលទិញទំនិញឥឡូវនេះ (Shop Now)</span>
                 <ArrowRight size={16} />
               </Link>
 
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold text-xs transition-colors cursor-pointer border border-white/5"
+                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold text-xs transition-colors cursor-pointer border border-white/10"
               >
                 ទុកពេលក្រោយ (Skip)
               </button>

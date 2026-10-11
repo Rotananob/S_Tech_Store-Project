@@ -3,6 +3,7 @@ import Footer from "@/components/layout/Footer";
 import BottomNav from "@/components/layout/BottomNav";
 import PWAUpdatePrompt from "@/components/ui/PWAUpdatePrompt";
 import FlyToCartOverlay from "@/components/cart/FlyToCartOverlay";
+import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
 
 export default function ShopLayout({
   children,
@@ -19,6 +20,7 @@ export default function ShopLayout({
       <BottomNav />
       <PWAUpdatePrompt />
       <FlyToCartOverlay />
+      <PromotionPopupModal />
     </div>
   );
 }

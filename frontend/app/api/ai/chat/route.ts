@@ -153,11 +153,12 @@ export async function POST(req: NextRequest) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event_type: "AI Chat Flood / Token Drain Attack",
-            ip_address: clientIp,
-            user_agent: req.headers.get("user-agent") || "Unknown",
-            details: `Detected flood of ${last30sCount + 1} requests in 30 seconds. Temporarily blocked IP for 10 minutes.`,
-            status: "BLOCKED",
+            type: "AI Chat Flood / Token Drain Attack",
+            ip: clientIp,
+            device: req.headers.get("user-agent") || "Web Client",
+            user: "Suspicious Attacker / Bot",
+            action: "BLOCKED (10-min IP Ban)",
+            details: `Detected rapid flood of ${last30sCount + 1} requests in 30s. Rate limiter activated and IP banned for 10 minutes.`,
           }),
         }).catch(() => {});
       } catch {}

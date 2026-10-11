@@ -9,11 +9,11 @@ const MOCK_WARRANTY: Record<string, { product: string; purchased: string; expire
 
 const WARRANTY_TERMS = [
   {
-    icon: "🖥️", title: "Laptops & Desktops", period: "1 Year",
-    items: ["Hardware defects covered", "Free repair or replacement", "On-site technician visit (Phnom Penh)", "Battery covered for 6 months"],
+    icon: "🖥️", title: "Laptops & Desktops", period: "3 ទៅ 6 ខែ (3–6 Months)",
+    items: ["Hardware defects covered", "Free repair or replacement", "On-site technician visit (Phnom Penh)", "Battery covered for 3 months"],
   },
   {
-    icon: "⚙️", title: "PC Components (CPU, GPU, RAM)", period: "1 Year",
+    icon: "⚙️", title: "PC Components (CPU, GPU, RAM)", period: "3 ទៅ 6 ខែ (3–6 Months)",
     items: ["DOA replacement within 7 days", "Manufacturer defects covered", "No coverage for physical damage", "Requires original invoice"],
   },
   {
