@@ -62,3 +62,5 @@ next-env.d.ts
 *.orig
 *.rej
 .turbo/
+public/sw.js
+public/sw.js.map

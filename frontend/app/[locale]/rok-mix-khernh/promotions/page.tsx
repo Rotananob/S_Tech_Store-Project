@@ -15,6 +15,10 @@ type Promotion = {
   usage_max?: number | null;
   status: string;
   auto_applied?: boolean;
+  image_url?: string | null;
+  show_popup?: boolean;
+  description?: string | null;
+  target_url?: string | null;
 };
 
 export default function PromotionManagementPage() {
@@ -37,6 +41,10 @@ export default function PromotionManagementPage() {
     usage_max: "",
     status: "active",
     auto_applied: false,
+    image_url: "",
+    show_popup: false,
+    description: "",
+    target_url: "",
   });
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -94,6 +102,10 @@ export default function PromotionManagementPage() {
         usage_max: newPromo.usage_max ? parseInt(newPromo.usage_max) : null,
         status: newPromo.status,
         auto_applied: Boolean(newPromo.auto_applied),
+        image_url: newPromo.image_url || null,
+        show_popup: Boolean(newPromo.show_popup),
+        description: newPromo.description || null,
+        target_url: newPromo.target_url || null,
       });
 
       await fetchPromos();
@@ -108,6 +120,10 @@ export default function PromotionManagementPage() {
         usage_max: "",
         status: "active",
         auto_applied: false,
+        image_url: "",
+        show_popup: false,
+        description: "",
+        target_url: "",
       });
       showToast("បានបង្កើតប្រូម៉ូសិនថ្មីដោយជោគជ័យ! • Promotion created!");
     } catch (e: any) {
@@ -115,6 +131,17 @@ export default function PromotionManagementPage() {
       showToast(err, "error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleTogglePopup = async (promo: Promotion) => {
+    try {
+      const nextVal = !promo.show_popup;
+      await api.put(`/promo-codes/${promo.id}`, { show_popup: nextVal });
+      setPromos(prev => prev.map(p => p.id === promo.id ? { ...p, show_popup: nextVal } : p));
+      showToast(nextVal ? "បានបើកបង្ហាញ Popup នៅលើ Website! • Popup enabled" : "បានបិទ Popup នៅលើ Website! • Popup disabled");
+    } catch (e) {
+      showToast("បរាជ័យក្នុងការប្តូរស្ថានភាព Popup", "error");
     }
   };
 
@@ -273,6 +300,60 @@ export default function PromotionManagementPage() {
                 </select>
               </div>
               
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  រូបភាព Banner / Poster URL • Image URL
+                </label>
+                <input 
+                  type="text"
+                  value={newPromo.image_url} 
+                  onChange={e => setNewPromo({ ...newPromo, image_url: e.target.value })} 
+                  placeholder="https://... ឬ /images/banner.jpg" 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  ពិពណ៌នាសង្ខេប / Slogan • Description
+                </label>
+                <input 
+                  type="text"
+                  value={newPromo.description} 
+                  onChange={e => setNewPromo({ ...newPromo, description: e.target.value })} 
+                  placeholder="បញ្ចុះតម្លៃពិសេសសម្រាប់រដូវបុណ្យភ្ជុំបិណ្ឌ!" 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Target Link • Shop URL
+                </label>
+                <input 
+                  type="text"
+                  value={newPromo.target_url} 
+                  onChange={e => setNewPromo({ ...newPromo, target_url: e.target.value })} 
+                  placeholder="/category/all" 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A]" 
+                />
+              </div>
+
+              <div className="p-3 bg-red-50/70 rounded-xl border border-red-200/60">
+                <label className="flex items-center gap-2.5 text-sm font-bold text-red-950 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={newPromo.show_popup} 
+                    onChange={e => setNewPromo({ ...newPromo, show_popup: e.target.checked })} 
+                    className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500" 
+                  />
+                  <span>✨ បង្ហាញជា Popup លើ Website Real-time • Live Homepage Popup</span>
+                </label>
+                <p className="text-[11px] text-red-700 mt-1 pl-6">
+                  នៅពេលបើក ផ្ទាំងនេះនឹងលោត Pop up នៅលើ Home page នៃ Website ជូនអតិថិជន Real-time ភ្លាមៗ!
+                </p>
+              </div>
+              
               <div className="pt-1">
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                   <input 
@@ -405,20 +486,21 @@ export default function PromotionManagementPage() {
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">VALIDITY PERIOD</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">USAGE</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">STATUS</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">LIVE POPUP</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-gray-500">
+                  <td colSpan={7} className="p-12 text-center text-gray-500">
                     <div className="w-8 h-8 border-2 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     កំពុងទាញទិន្នន័យពី Database...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-gray-500">No promotions found in database.</td>
+                  <td colSpan={7} className="p-12 text-center text-gray-500">No promotions found in database.</td>
                 </tr>
               ) : filtered.map((promo) => {
                 const isFixed = (promo.type || "").toLowerCase().includes("fix");
@@ -431,9 +513,24 @@ export default function PromotionManagementPage() {
                 return (
                   <tr key={promo.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-4">
-                      <div className="text-sm font-bold text-gray-900 mb-1">{promo.name}</div>
-                      <div className={`text-xs ${promo.auto_applied ? 'text-gray-500' : 'text-gray-600'}`}>
-                        {promo.auto_applied ? "Auto-applied" : <>Code: <span className="font-mono bg-gray-100 px-1 py-0.5 rounded">{promo.code || "N/A"}</span></>}
+                      <div className="flex items-center gap-3">
+                        {promo.image_url ? (
+                          <img 
+                            src={promo.image_url} 
+                            alt={promo.name} 
+                            className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0" 
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                          />
+                        ) : null}
+                        <div>
+                          <div className="text-sm font-bold text-gray-900 mb-0.5">{promo.name}</div>
+                          {promo.description && (
+                            <div className="text-[11px] text-gray-500 mb-1 max-w-xs truncate">{promo.description}</div>
+                          )}
+                          <div className={`text-xs ${promo.auto_applied ? 'text-gray-500' : 'text-gray-600'}`}>
+                            {promo.auto_applied ? "Auto-applied" : <>Code: <span className="font-mono bg-gray-100 px-1 py-0.5 rounded font-bold">{promo.code || "N/A"}</span></>}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="p-4">
@@ -466,14 +563,29 @@ export default function PromotionManagementPage() {
                     </td>
                     <td className="p-4">
                       {isActive ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span> Active
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Active
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold capitalize">
                           <Clock size={12} /> {promo.status}
                         </span>
                       )}
+                    </td>
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePopup(promo)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          promo.show_popup
+                            ? "bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 shadow-sm"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-500 border border-transparent"
+                        }`}
+                        title="ចុចដើម្បីបើក/បិទ Popup លើទំព័រដើម website"
+                      >
+                        <span className={`w-2 h-2 rounded-full ${promo.show_popup ? "bg-amber-500 animate-pulse" : "bg-gray-400"}`} />
+                        {promo.show_popup ? "Popup ON" : "Off"}
+                      </button>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">

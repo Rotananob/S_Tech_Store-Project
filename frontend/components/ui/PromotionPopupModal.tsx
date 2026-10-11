@@ -4,25 +4,50 @@ import React, { useState, useEffect } from "react";
 import { X, Sparkles, Copy, Check, ArrowRight, Tag, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "@/i18n/routing";
+import api from "@/lib/api";
+
+type ActivePromotion = {
+  id: number | string;
+  name: string;
+  code?: string | null;
+  type: string;
+  value: string | number;
+  description?: string | null;
+  image_url?: string | null;
+  target_url?: string | null;
+};
 
 export default function PromotionPopupModal() {
   const [isOpen, setIsOpen] = useState(false);
+  const [promo, setPromo] = useState<ActivePromotion | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // Show popup 1 second after entering the page
-    const timer = setTimeout(() => {
+    let timer: NodeJS.Timeout;
+
+    const checkAndFetchPromo = async () => {
       try {
         const dismissed = sessionStorage.getItem("stech_promo_popup_dismissed");
-        if (!dismissed) {
-          setIsOpen(true);
-        }
-      } catch (e) {
-        setIsOpen(true);
-      }
-    }, 1000);
+        if (dismissed) return;
 
-    return () => clearTimeout(timer);
+        const res = await api.get("/promotions/active-popup");
+        if (res.data?.success && res.data?.promo) {
+          setPromo(res.data.promo);
+          // 1 second delay after entering
+          timer = setTimeout(() => {
+            setIsOpen(true);
+          }, 1000);
+        }
+      } catch (err) {
+        // Silently ignore network/unconfigured promo
+      }
+    };
+
+    checkAndFetchPromo();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const handleClose = () => {
@@ -32,13 +57,18 @@ export default function PromotionPopupModal() {
     } catch (e) {}
   };
 
+  const promoCode = promo?.code || "STECH25";
+
   const handleCopyCode = () => {
-    navigator.clipboard.writeText("STECH25");
+    navigator.clipboard.writeText(promoCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !promo) return null;
+
+  const isFixed = (promo.type || "").toLowerCase().includes("fix");
+  const discountLabel = isFixed ? `$${promo.value} OFF` : `${promo.value}% OFF`;
 
   return (
     <AnimatePresence>
@@ -63,8 +93,21 @@ export default function PromotionPopupModal() {
             <X size={18} />
           </button>
 
+          {/* Optional Promo Poster Image Header */}
+          {promo.image_url && (
+            <div className="relative w-full h-44 sm:h-52 bg-black/40 overflow-hidden">
+              <img
+                src={promo.image_url}
+                alt={promo.name}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1a0f0f] via-transparent to-black/30" />
+            </div>
+          )}
+
           {/* Banner Graphic Header */}
-          <div className="relative p-6 sm:p-8 pt-8 sm:pt-10 flex flex-col items-center text-center">
+          <div className={`relative p-6 sm:p-8 ${promo.image_url ? 'pt-4 sm:pt-5' : 'pt-8 sm:pt-10'} flex flex-col items-center text-center`}>
             {/* Animated Pulsing Flame Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600/30 to-amber-600/30 border border-red-500/40 text-amber-300 text-xs font-black uppercase tracking-wider mb-4 shadow-sm">
               <Flame size={14} className="text-red-400 animate-pulse" />
@@ -73,51 +116,57 @@ export default function PromotionPopupModal() {
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-              បញ្ចុះតម្លៃរហូតដល់ <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">២៥% OFF</span>
+              {promo.name}{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-300">
+                {discountLabel}
+              </span>
             </h2>
             <p className="text-xs sm:text-sm text-gray-300 mt-2 max-w-sm leading-relaxed">
-              រីករាយជាមួយការបញ្ចុះតម្លៃលើ Laptops, Custom PC Builds និងគ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់នៅ S Tech Store Cambodia!
+              {promo.description ||
+                "រីករាយជាមួយការបញ្ចុះតម្លៃលើ Laptops, Custom PC Builds និងគ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់នៅ S Tech Store Cambodia!"}
             </p>
 
             {/* Promo Voucher Card */}
-            <div className="w-full mt-6 p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md">
-                  <Tag size={20} />
+            {promo.code && (
+              <div className="w-full mt-6 p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-inner">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md">
+                    <Tag size={20} />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Coupon Code</div>
+                    <div className="text-xl font-black text-white font-mono tracking-wider">{promo.code}</div>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Coupon Code</div>
-                  <div className="text-xl font-black text-white font-mono tracking-wider">STECH25</div>
-                </div>
-              </div>
 
-              <button
-                type="button"
-                onClick={handleCopyCode}
-                className={`w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-sm ${
-                  copied
-                    ? "bg-emerald-600 text-white"
-                    : "bg-white hover:bg-gray-100 text-gray-900 active:scale-95"
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <Check size={14} />
-                    <span>បានចម្លងរួចរាល់! ✓</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={14} />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-sm ${
+                    copied
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white hover:bg-gray-100 text-gray-900 active:scale-95"
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} />
+                      <span>បានចម្លងរួចរាល់! ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copy Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* Call To Action Buttons */}
             <div className="w-full mt-6 flex flex-col sm:flex-row items-center gap-3">
               <Link
-                href="/category/all"
+                href={promo.target_url || "/category/all"}
                 onClick={handleClose}
                 className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d63031] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-900/30 hover:shadow-xl transition-all no-underline active:scale-98"
               >

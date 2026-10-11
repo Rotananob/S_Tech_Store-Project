@@ -53,6 +53,9 @@ Route::post('/chat/request-agent', function (Request $request) {
 // Customer Direct Magic Login & Password Reset (Public)
 Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 
+// Real-time Active Promotion Popup & Banner (Public)
+Route::get('/promotions/active-popup', [\App\Http\Controllers\PromoCodeController::class, 'activePopup']);
+
 // Real Payment Gateways (Bakong KHQR, ABA PayWay, Deeplinks, Visa/Mastercard)
 Route::post('/payment/session', [\App\Http\Controllers\PaymentController::class, 'createSession']);
 Route::post('/payment/card', [\App\Http\Controllers\PaymentController::class, 'processCard']);
@@ -191,6 +194,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/users/{id}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword']);
     Route::post('/admin/users/{id}/magic-link', [\App\Http\Controllers\UserController::class, 'generateMagicLink']);
     Route::post('/admin/users/{id}/send-magic-link-telegram', [\App\Http\Controllers\UserController::class, 'sendMagicLinkViaTelegram']);
+    Route::post('/admin/users/{id}/adjust-points', [\App\Http\Controllers\UserController::class, 'adjustPoints']);
+    Route::get('/admin/users/{id}/orders', [\App\Http\Controllers\UserController::class, 'getUserOrdersForAdmin']);
     Route::delete('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
 
     // Telegram Bot Integration (ABA Merchant Style)

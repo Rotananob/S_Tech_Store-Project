@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
+import { invalidateProductCache } from "@/lib/services/product.service";
 import { 
   Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, 
   ArrowLeft, CheckCircle2, Sparkles, Send, LayoutDashboard 
@@ -159,6 +160,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       setSavingStep(3);
       setSavedProduct(updatedData);
+      invalidateProductCache();
       setModalState("success");
     } catch (e: any) {
       const errorMsg = e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែទំនិញ";

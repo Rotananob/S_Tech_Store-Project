@@ -5,6 +5,7 @@ import { X, Send, Bot, User, Headphones, CheckCircle2, Phone, Mail, MessageSquar
 import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "@/lib/firebase";
 import api from "@/lib/api";
+import { getOrCreateVisitorId, sendChatMessage, subscribeToMessages } from "@/lib/services/chat.service";
 
 interface ChatBotProps {
   onClose: () => void;
@@ -17,7 +18,8 @@ interface ChatBotProps {
 }
 
 export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
-  const [messages, setMessages] = useState<Array<{ sender: "bot" | "user" | "system"; text: string; time?: string }>>([
+  const [chatId, setChatId] = useState<string>("");
+  const [messages, setMessages] = useState<Array<{ sender: "bot" | "user" | "system" | "staff"; text: string; senderName?: string; time?: string }>>([
     {
       sender: "bot",
       text: "សួស្តី! Welcome to S Tech Store Cambodia! 🇰🇭 How can we assist you today?",
@@ -40,8 +42,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   const endRef = useRef<HTMLDivElement>(null);
 
-  // Auto pre-populate user info if logged in
+  // Auto pre-populate user info if logged in and init RTDB chatId
   useEffect(() => {
+    const id = auth.currentUser?.uid || getOrCreateVisitorId();
+    setChatId(id);
+
     const user = auth.currentUser;
     if (user) {
       setAgentForm((prev) => ({
@@ -66,6 +71,33 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     }
   }, []);
 
+  // Subscribe to real-time chat messages from Firebase RTDB
+  useEffect(() => {
+    if (!chatId) return;
+
+    const unsub = subscribeToMessages(chatId, (firebaseMsgs) => {
+      if (firebaseMsgs && firebaseMsgs.length > 0) {
+        setMessages(
+          firebaseMsgs.map((m) => ({
+            sender:
+              m.sender === "admin" || m.sender === "staff"
+                ? "staff"
+                : m.sender === "user"
+                ? "user"
+                : "system",
+            text: m.text,
+            senderName: m.senderName,
+            time: m.timestamp
+              ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+              : "",
+          }))
+        );
+      }
+    });
+
+    return () => unsub();
+  }, [chatId]);
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -74,6 +106,31 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     if (!input.trim()) return;
     const userText = input.trim();
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    // Send to Firebase Realtime Database
+    if (chatId) {
+      sendChatMessage(
+        chatId,
+        {
+          sender: "user",
+          senderName: agentForm.name || auth.currentUser?.displayName || "Visitor",
+          text: userText,
+          productInfo: productInfo
+            ? {
+                name: productInfo.name,
+                price: productInfo.price,
+                image: productInfo.image,
+                slug: productInfo.slug,
+              }
+            : null,
+        },
+        {
+          userName: agentForm.name || auth.currentUser?.displayName || "Visitor",
+          userEmail: agentForm.email || auth.currentUser?.email || undefined,
+          userPhone: agentForm.phone || undefined,
+        }
+      ).catch(() => {});
+    }
 
     setMessages((prev) => [...prev, { sender: "user", text: userText, time: timeStr }]);
     setInput("");
@@ -113,6 +170,22 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
     setIsSendingAgentReq(true);
     try {
+      if (chatId) {
+        sendChatMessage(
+          chatId,
+          {
+            sender: "system",
+            senderName: "Alert",
+            text: `🚨 Live Agent Request: ${agentForm.name || "Customer"} (${agentForm.phone || agentForm.email || "No contact"}). Inquiry: "${agentForm.message || input}"`,
+          },
+          {
+            userName: agentForm.name || "Customer",
+            userEmail: agentForm.email || auth.currentUser?.email || undefined,
+            userPhone: agentForm.phone || undefined,
+          }
+        ).catch(() => {});
+      }
+
       await api.post("/chat/request-agent", {
         name: agentForm.name || auth.currentUser?.displayName || "Website Visitor",
         email: agentForm.email || auth.currentUser?.email || "N/A",
@@ -131,7 +204,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ...prev,
         {
           sender: "system",
-          text: `🔔 Alert Sent! Our support staff in Telegram have been notified. An agent will respond to you shortly!`,
+          text: `🔔 Alert Sent! Our support staff in Telegram & Live Dashboard have been notified. An agent will respond to you shortly!`,
           time: timeStr,
         },
       ]);
@@ -216,6 +289,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             {msg.sender === "system" ? (
               <div className="max-w-[85%] bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs rounded-xl px-3.5 py-2 text-center font-medium shadow-sm">
                 {msg.text}
+              </div>
+            ) : msg.sender === "staff" ? (
+              <div className="flex flex-col items-start gap-1 max-w-[82%] sm:max-w-[70%]">
+                <span className="text-[10.5px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-200/60 shadow-xs">
+                  🛡️ {msg.senderName || "S Tech Staff"}
+                </span>
+                <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-gray-100 rounded-tl-sm border-2 border-red-500/20 dark:border-red-500/30">
+                  <div>{msg.text}</div>
+                  {msg.time && (
+                    <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
+                      {msg.time}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div 

@@ -790,4 +790,64 @@ class UserController extends Controller
 
         return response()->json($orders);
     }
+
+    /**
+     * POST /api/admin/users/{id}/adjust-points
+     * Allows Admin/Staff to adjust customer loyalty coins/points with reason.
+     */
+    public function adjustPoints(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'points' => 'required|integer',
+            'reason' => 'nullable|string|max:255',
+        ]);
+
+        $user = UserProfile::findOrFail($id);
+        $user->points = max(0, ((int)($user->points ?? 0)) + $validated['points']);
+        $user->save();
+
+        try {
+            UserNotification::create([
+                'user_id' => $user->firebase_uid ?? (string)$user->id,
+                'title' => 'កាក់ភក្តីភាព / Loyalty Points Updated',
+                'message' => ($validated['points'] >= 0 ? '+' : '') . $validated['points'] . ' points. ' . ($validated['reason'] ?? 'Point adjustment by store admin.'),
+                'type' => 'points',
+                'is_read' => false,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning("Could not create UserNotification for points adjustment: " . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានកែសម្រួលពិន្ទុអតិថិជនដោយជោគជ័យ',
+            'points' => $user->points,
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * GET /api/admin/users/{id}/orders
+     * Fetch all order history for a specific customer.
+     */
+    public function getUserOrdersForAdmin($id)
+    {
+        $user = UserProfile::findOrFail($id);
+        $orders = Order::where(function ($q) use ($user) {
+            if (!empty($user->firebase_uid)) {
+                $q->where('user_id', $user->firebase_uid);
+            }
+            if (!empty($user->phone)) {
+                $q->orWhere('customer_phone', $user->phone);
+            }
+        })
+        ->with('items')
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+        return response()->json([
+            'success' => true,
+            'orders' => $orders,
+        ]);
+    }
 }
