@@ -194,8 +194,13 @@ export async function POST(req: NextRequest) {
     const history = Array.isArray(body.history) ? body.history : [];
     const productInfo = body.productInfo || null;
 
-    if (!message) {
-      return NextResponse.json({ error: "Message is required" }, { status: 400 });
+    // If Admin/Staff has taken over this chat and paused AI, do not auto-reply!
+    if (body.aiPaused) {
+      return NextResponse.json({
+        success: true,
+        reply: null,
+        aiPaused: true,
+      });
     }
 
     const apiKey =
@@ -247,34 +252,48 @@ export async function POST(req: NextRequest) {
     let geminiText: string | null = null;
     let suggestAgent = false;
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout for Gemini 3.8
+    // Resilient candidate models — tries ultra-fast available models first
+    const CANDIDATE_MODELS = [
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash",
+      "gemini-flash-latest",
+    ];
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify(geminiPayload),
-          signal: controller.signal,
-        }
-      );
-      clearTimeout(timeoutId);
+    if (apiKey) {
+      for (const model of CANDIDATE_MODELS) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s per candidate
 
-      if (res.ok) {
-        const data = await res.json();
-        const parts = data?.candidates?.[0]?.content?.parts || [];
-        const textPart = parts.find((p: any) => typeof p.text === "string" && p.text.trim().length > 0);
-        if (textPart?.text) {
-          geminiText = textPart.text.trim();
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey,
+              },
+              body: JSON.stringify(geminiPayload),
+              signal: controller.signal,
+            }
+          );
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const data = await res.json();
+            const parts = data?.candidates?.[0]?.content?.parts || [];
+            const textPart = parts.find((p: any) => typeof p.text === "string" && p.text.trim().length > 0);
+            if (textPart?.text) {
+              geminiText = textPart.text.trim();
+              break; // Success! Break out of candidate loop
+            }
+          }
+        } catch (apiErr) {
+          // Model timeout or error — continue to next candidate
         }
       }
-    } catch (apiErr) {
-      // Silent error handling — will fallback seamlessly
     }
 
     // If Gemini was not available or timed out, use Smart Local Fallback

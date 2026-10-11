@@ -28,7 +28,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
 import api from "@/lib/api";
-import { getOrCreateVisitorId, sendChatMessage, subscribeToMessages } from "@/lib/services/chat.service";
+import { 
+  getOrCreateVisitorId, 
+  sendChatMessage, 
+  subscribeToMessages, 
+  subscribeToChatMeta 
+} from "@/lib/services/chat.service";
 import { useRouter } from "next/navigation";
 
 // ─── Rate limiting constants ─────────────────────────────────────────────────
@@ -87,9 +92,15 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [input, setInput] = useState("");
   const [isAiThinking, setIsAiThinking] = useState(false);
 
+  // ─── Human Takeover / AI Paused State (Meta / Instagram Direct Inbox Style) ─
+  const [isAiPaused, setIsAiPaused] = useState(false);
+  const [pausedByStaff, setPausedByStaff] = useState<string>("");
+
   // ─── Multi-Session State (Gemini App Style) ────────────────────────────────
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const sessionsRef = useRef<ChatSessionItem[]>([]);
+  sessionsRef.current = sessions;
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");
 
@@ -183,7 +194,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       const data = localStorage.getItem(getSessionsStorageKey(uid)) || localStorage.getItem(`stech_gemini_sessions_${uid || "guest"}`);
       if (data) {
         const parsed = JSON.parse(data);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Clean up any historical leaks: deduplicate messages by sender & text
+          return parsed.map((s: ChatSessionItem) => {
+            if (!Array.isArray(s.messages)) return s;
+            const seen = new Set<string>();
+            const uniqueMsgs = s.messages.filter((m) => {
+              const k = `${m.sender}_${m.text}_${m.time || ""}`;
+              if (seen.has(k)) return false;
+              seen.add(k);
+              return true;
+            });
+            return { ...s, messages: uniqueMsgs };
+          });
+        }
       }
 
       // Backward compatibility: Migrate legacy single-thread history
@@ -399,9 +423,27 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     showToast("🗑️ បានលុបការសន្ទនារួចរាល់!", "info");
   };
 
-  // ─── Subscribe to real-time messages from Firebase RTDB ───────────────────
+  // ─── Subscribe to real-time chat meta (AI Takeover / Paused status) ─────────
   useEffect(() => {
     if (!chatId) return;
+    const unsub = subscribeToChatMeta(chatId, (meta) => {
+      if (meta) {
+        setIsAiPaused(!!meta.ai_paused);
+        setPausedByStaff(meta.paused_by || "S Tech Staff");
+      } else {
+        setIsAiPaused(false);
+        setPausedByStaff("");
+      }
+    });
+    return () => unsub();
+  }, [chatId]);
+
+  // ─── Subscribe to real-time messages from Firebase RTDB (Session Isolated) ───
+  useEffect(() => {
+    if (!chatId || !activeSessionId) return;
+
+    const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId);
+    const sessionCreatedAt = currentSession?.createdAt || Date.now();
 
     const unsub = subscribeToMessages(chatId, (firebaseMsgs) => {
       if (firebaseMsgs && firebaseMsgs.length > 0) {
@@ -411,16 +453,25 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           const newStaffMsgs: ChatItem[] = [];
 
           for (const m of firebaseMsgs) {
-            if ((m.sender === "admin" || m.sender === "staff") && !existingIds.has(m.id || m.text)) {
-              newStaffMsgs.push({
-                id: m.id,
-                sender: "staff",
-                senderName: m.senderName || "S Tech Support",
-                text: m.text,
-                time: m.timestamp
-                  ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                  : "",
-              });
+            if (m.sender === "admin" || m.sender === "staff") {
+              // Isolation check:
+              // 1. If message has a sessionId, it MUST match the active session!
+              // 2. If no sessionId (legacy message), it MUST have been sent AFTER this session was created!
+              const isForThisSession = m.sessionId
+                ? m.sessionId === activeSessionId
+                : (m.timestamp && m.timestamp >= (sessionCreatedAt - 15000));
+
+              if (isForThisSession && !existingIds.has(m.id || m.text)) {
+                newStaffMsgs.push({
+                  id: m.id,
+                  sender: "staff",
+                  senderName: m.senderName || "S Tech Support",
+                  text: m.text,
+                  time: m.timestamp
+                    ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : "",
+                });
+              }
             }
           }
 
@@ -433,7 +484,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     });
 
     return () => unsub();
-  }, [chatId]);
+  }, [chatId, activeSessionId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -484,9 +535,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     // Update UI immediately
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setIsAiThinking(true);
 
-    // 1. Sync message into Firebase Realtime Database
+    // 1. Sync message into Firebase Realtime Database with active sessionId
     if (chatId) {
       sendChatMessage(
         chatId,
@@ -494,12 +544,14 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           sender: "user",
           senderName: userName || "អតិថិជន",
           text: textToSend,
+          sessionId: activeSessionId,
           productInfo: productInfo || null,
         },
         {
           userName: userName || "អតិថិជន",
           userEmail: agentForm.email || currentUser?.email || undefined,
           userPhone: agentForm.phone || undefined,
+          sessionId: activeSessionId,
         }
       ).catch(() => {});
     }
@@ -507,7 +559,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     // 2. Alert Telegram so staff know customer is chatting
     triggerTelegramAlert(textToSend);
 
-    // 3. Call Gemini AI via Server-side Next.js route
+    // 3. Human Takeover Check (Meta/Instagram Direct style)
+    // If Admin/Staff has taken over this chat and paused AI, do NOT invoke Gemini AI!
+    if (isAiPaused) {
+      showToast("✓ សារត្រូវបានបញ្ជូនទៅកាន់បុគ្គលិកផ្ទាល់", "success");
+      return;
+    }
+
+    setIsAiThinking(true);
+
+    // 4. Call Gemini AI via Server-side Next.js route
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -517,6 +578,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           userName: userName,
           history: messages.slice(-6),
           productInfo: productInfo || null,
+          aiPaused: isAiPaused,
         }),
       });
 
@@ -536,7 +598,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
       setMessages((prev) => [...prev, aiMsg]);
 
-      // Also record AI reply into Firebase RTDB
+      // Also record AI reply into Firebase RTDB with sessionId
       if (chatId) {
         sendChatMessage(
           chatId,
@@ -544,9 +606,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             sender: "system",
             senderName: "S Tech AI",
             text: aiReplyText,
+            sessionId: activeSessionId,
           },
           {
             userName: userName,
+            sessionId: activeSessionId,
           }
         ).catch(() => {});
       }
@@ -745,6 +809,19 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           </button>
         </div>
       </div>
+
+      {/* ── Human Takeover Live Banner (Meta/Instagram Direct Style) ────────── */}
+      {isAiPaused && (
+        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-1 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
+            <span>👤 {pausedByStaff || "ក្រុមការងារ S Tech"} កំពុងឆ្លើយតបផ្ទាល់ (AI ត្រូវបានផ្អាកបណ្តោះអាសន្ន)</span>
+          </div>
+          <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold">
+            Live Staff Active
+          </span>
+        </div>
+      )}
 
       {/* ── Product Banner (if opened from product details) ─────────────────── */}
       {productInfo?.name && (
@@ -969,13 +1046,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-          placeholder="សួរសំណួរ ឬតម្លៃ Laptop, PC, សេវាកម្ម..."
+          placeholder={
+            isAiPaused
+              ? `វាយសារទៅកាន់ ${pausedByStaff || "បុគ្គលិកផ្ទាល់"}... (AI ត្រូវបានផ្អាក)`
+              : "សួរសំណួរ ឬតម្លៃ Laptop, PC, សេវាកម្ម..."
+          }
           className="flex-1 bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/10 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900/50 text-[14px] text-gray-900 dark:text-white"
         />
 
         <button
           onClick={() => handleSend()}
-          disabled={!input.trim() || isAiThinking}
+          disabled={!input.trim() || (isAiThinking && !isAiPaused)}
           title="ផ្ញើសារ"
           className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 shadow-sm cursor-pointer hover:shadow-md transition-all"
         >

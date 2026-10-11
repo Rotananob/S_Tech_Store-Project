@@ -26,6 +26,8 @@ import {
   subscribeToMessages, 
   sendChatMessage, 
   markChatReadByAdmin,
+  setChatAiStatus,
+  subscribeToChatMeta,
   ChatSession, 
   ChatMessage 
 } from "@/lib/services/chat.service";
@@ -47,6 +49,8 @@ export default function AdminRealtimeChatPage() {
   const [replyInput, setReplyInput] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [sending, setSending] = useState(false);
+  const [togglingAi, setTogglingAi] = useState(false);
+  const [activeChatMeta, setActiveChatMeta] = useState<{ ai_paused?: boolean; paused_by?: string } | null>(null);
   const [bypassNotice, setBypassNotice] = useState<string | null>(null);
   const [currentStaff, setCurrentStaff] = useState<{ name: string; role: string }>({
     name: "S Tech Support",
@@ -132,7 +136,14 @@ export default function AdminRealtimeChatPage() {
       setMessages(incomingMsgs);
     });
 
-    return () => unsub();
+    const unsubMeta = subscribeToChatMeta(selectedChatId, (meta) => {
+      setActiveChatMeta(meta);
+    });
+
+    return () => {
+      unsub();
+      unsubMeta();
+    };
   }, [selectedChatId]);
 
   // Auto scroll to latest message
@@ -141,6 +152,32 @@ export default function AdminRealtimeChatPage() {
   }, [messages]);
 
   const activeChat = chats.find((c) => c.id === selectedChatId) || null;
+
+  // Handle Staff Take Over Chat (Pause AI)
+  const handleTakeoverChat = async () => {
+    if (!selectedChatId || togglingAi) return;
+    setTogglingAi(true);
+    try {
+      await setChatAiStatus(selectedChatId, true, currentStaff.name);
+    } catch (err) {
+      console.error("Failed to pause AI:", err);
+    } finally {
+      setTogglingAi(false);
+    }
+  };
+
+  // Handle Staff Leave Chat (Resume AI)
+  const handleResumeAi = async () => {
+    if (!selectedChatId || togglingAi) return;
+    setTogglingAi(true);
+    try {
+      await setChatAiStatus(selectedChatId, false, currentStaff.name);
+    } catch (err) {
+      console.error("Failed to resume AI:", err);
+    } finally {
+      setTogglingAi(false);
+    }
+  };
 
   const filteredChats = chats.filter((c) => {
     const matchSearch =
@@ -161,6 +198,11 @@ export default function AdminRealtimeChatPage() {
 
     setSending(true);
     try {
+      // Auto-pause AI if not already paused when staff sends a message to prevent simultaneous replies
+      if (!activeChatMeta?.ai_paused) {
+        setChatAiStatus(selectedChatId, true, currentStaff.name).catch(() => {});
+      }
+
       await sendChatMessage(
         selectedChatId,
         {
@@ -350,21 +392,28 @@ export default function AdminRealtimeChatPage() {
                         {chat.lastMessage || "(សារថ្មី)"}
                       </p>
 
-                      {/* Contact Badges */}
-                      {(chat.userPhone || chat.userEmail) && (
-                        <div className="mt-1 flex items-center gap-1.5 text-[10px] text-gray-400 truncate">
-                          {chat.userPhone && (
-                            <span className="flex items-center gap-0.5">
-                              <Phone size={9} /> {chat.userPhone}
-                            </span>
-                          )}
-                          {chat.userEmail && !chat.userPhone && (
-                            <span className="flex items-center gap-0.5 truncate">
-                              <Mail size={9} /> {chat.userEmail}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {/* Contact Badges & AI Status */}
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[10px]">
+                        {chat.ai_paused && (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[9px] flex items-center gap-0.5">
+                            👤 Staff Takeover
+                          </span>
+                        )}
+                        {(chat.userPhone || chat.userEmail) && (
+                          <span className="text-gray-400 flex items-center gap-1.5 truncate">
+                            {chat.userPhone && (
+                              <span className="flex items-center gap-0.5">
+                                <Phone size={9} /> {chat.userPhone}
+                              </span>
+                            )}
+                            {chat.userEmail && !chat.userPhone && (
+                              <span className="flex items-center gap-0.5 truncate">
+                                <Mail size={9} /> {chat.userEmail}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Unread Indicator */}
@@ -413,7 +462,44 @@ export default function AdminRealtimeChatPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-gray-400 hidden sm:inline font-mono">
+                  {/* AI Status & Takeover Toggle (Facebook / Instagram Style) */}
+                  {activeChatMeta?.ai_paused ? (
+                    <div className="flex items-center gap-2">
+                      <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        AI ត្រូវបានផ្អាក ({activeChatMeta.paused_by || "Staff"} កំពុងឆ្លើយ)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResumeAi}
+                        disabled={togglingAi}
+                        title="ចាកចេញពីឆាត និងបើកដំណើរការ AI ឡើងវិញ"
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles size={14} />
+                        <span>ចាកចេញ & បើក AI វិញ (Resume AI)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold">
+                        <Sparkles size={12} className="text-blue-600" />
+                        AI កំពុងឆ្លើយតប
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleTakeoverChat}
+                        disabled={togglingAi}
+                        title="ចូលឆ្លើយផ្ទាល់ និងបិទសិទ្ធិ AI កុំឱ្យឆ្លើយជាន់"
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:opacity-95 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <Zap size={14} />
+                        <span>ចូលឆ្លើយផ្ទាល់ (Take Over / Pause AI)</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <span className="text-[10px] text-gray-400 hidden lg:inline font-mono">
                     ID: {activeChat.id.substring(0, 10)}...
                   </span>
                 </div>

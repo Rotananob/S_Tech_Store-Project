@@ -7,6 +7,7 @@ export interface ChatMessage {
   senderName: string;
   text: string;
   timestamp: number;
+  sessionId?: string | null;
   productInfo?: {
     name?: string;
     price?: number | string;
@@ -25,6 +26,8 @@ export interface ChatSession {
   unreadAdminCount: number;
   unreadUserCount: number;
   status: "active" | "resolved" | "closed";
+  ai_paused?: boolean;
+  paused_by?: string;
 }
 
 /**
@@ -50,12 +53,14 @@ export async function sendChatMessage(
     sender: "user" | "admin" | "staff" | "system";
     senderName: string;
     text: string;
+    sessionId?: string | null;
     productInfo?: ChatMessage["productInfo"];
   },
   meta?: {
     userName?: string;
     userEmail?: string;
     userPhone?: string;
+    sessionId?: string;
   }
 ): Promise<void> {
   if (!rtdb) {
@@ -71,6 +76,7 @@ export async function sendChatMessage(
     senderName: message.senderName,
     text: message.text,
     timestamp: now,
+    sessionId: message.sessionId || meta?.sessionId || null,
     productInfo: message.productInfo || null,
   };
 
@@ -88,6 +94,7 @@ export async function sendChatMessage(
   if (meta?.userName) updates.userName = meta.userName;
   if (meta?.userEmail) updates.userEmail = meta.userEmail;
   if (meta?.userPhone) updates.userPhone = meta.userPhone;
+  if (meta?.sessionId) updates.activeSessionId = meta.sessionId;
 
   if (message.sender === "user") {
     // Increment admin unread count
@@ -98,6 +105,62 @@ export async function sendChatMessage(
   }
 
   await update(sessionRef, updates);
+}
+
+/**
+ * Set AI paused/active status for a chat (Admin Takeover / Leave)
+ */
+export async function setChatAiStatus(
+  chatId: string,
+  paused: boolean,
+  staffName?: string
+): Promise<void> {
+  if (!rtdb) return;
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  const now = Date.now();
+  await update(sessionRef, {
+    ai_paused: paused,
+    paused_by: paused ? (staffName || "S Tech Staff") : null,
+    paused_at: paused ? now : null,
+  });
+
+  // Push audit system message into message thread
+  const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
+  const newMsgRef = push(messagesRef);
+  await set(newMsgRef, {
+    sender: "system",
+    senderName: "System Notice",
+    text: paused
+      ? `👤 ${staffName || "បុគ្គលិក"} បានចូលឆ្លើយតបផ្ទាល់ (AI ផ្អាកបណ្តោះអាសន្ន)`
+      : `🤖 AI Assistant ត្រូវបានបើកដំណើរការឡើងវិញ`,
+    timestamp: now,
+  });
+}
+
+/**
+ * Subscribe to chat meta (AI paused status, etc.) in real time
+ */
+export function subscribeToChatMeta(
+  chatId: string,
+  callback: (meta: { ai_paused?: boolean; paused_by?: string; status?: string } | null) => void
+): () => void {
+  if (!rtdb) {
+    callback(null);
+    return () => {};
+  }
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  const unsubscribe = onValue(
+    sessionRef,
+    (snapshot) => {
+      const val = snapshot.val();
+      callback(val || null);
+    },
+    (err) => {
+      console.warn("RTDB meta subscription notice:", err.message);
+      callback(null);
+    }
+  );
+  return unsubscribe;
 }
 
 /**
@@ -173,6 +236,8 @@ export function subscribeToAllChats(
           unreadAdminCount: meta.unreadAdminCount || 0,
           unreadUserCount: meta.unreadUserCount || 0,
           status: meta.status || "active",
+          ai_paused: !!meta.ai_paused,
+          paused_by: meta.paused_by || "",
         };
       });
 
