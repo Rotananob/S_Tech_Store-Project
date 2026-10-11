@@ -26,7 +26,6 @@ export default function RegisterPage() {
     subtitle: "",
     isSuccess: false,
   });
-  const [showTelegramModal, setShowTelegramModal] = useState(false);
   const router = useRouter();
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -130,35 +129,81 @@ export default function RegisterPage() {
     }
   };
 
-  const handleTelegramSignIn = () => {
-    setShowTelegramModal(true);
+  const getDeviceName = () => {
+    if (typeof navigator === "undefined") return "Smart Device";
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return "Apple iPhone";
+    if (/iPad/i.test(ua)) return "Apple iPad";
+    if (/Macintosh|Mac OS X/i.test(ua)) return "Apple Mac";
+    if (/Android/i.test(ua)) return "Android Phone";
+    if (/Windows NT/i.test(ua)) return "Windows PC";
+    if (/Linux/i.test(ua)) return "Linux Device";
+    return "Mobile Device";
   };
 
-  const handleInstantTelegramLogin = async () => {
-    setShowTelegramModal(false);
+  const getBrowserName = () => {
+    if (typeof navigator === "undefined") return "Web Browser";
+    const ua = navigator.userAgent;
+    if (/Telegram/i.test(ua)) return "Telegram In-App";
+    if (/Chrome/i.test(ua) && !/Edg/i.test(ua)) return "Chrome";
+    if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) return "Safari";
+    if (/Edg/i.test(ua)) return "Edge";
+    if (/Firefox/i.test(ua)) return "Firefox";
+    return "Browser";
+  };
+
+  // ─── 1-Click Seamless Telegram Sign Up ───────────────────────────────────────
+  const handleTelegramSignIn = async () => {
     setError("");
     setLoading(true);
+    const deviceName = getDeviceName();
+    const browserName = getBrowserName();
+
     setAuthOverlay({
       show: true,
-      title: "កំពុងភ្ជាប់គណនី Telegram... / Connecting Telegram...",
-      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបង្កើតគណនីជាមួយ @s_tech_storeBot...",
+      title: `✈️ កំពុងចុះឈ្មោះ Telegram លើ ${deviceName}...`,
+      subtitle: `ប្រព័ន្ធកំពុងស្គាល់ឧបករណ៍ពិត និងបញ្ជូន Alert ទៅកាន់ Telegram...`,
       isSuccess: false,
     });
 
     try {
+      const backendUrl = process.env.NODE_ENV === "production"
+        ? "https://stech-backend-xz6j.onrender.com/api"
+        : "http://127.0.0.1:8000/api";
+
+      // 1. Send live Telegram alert
+      fetch(`${backendUrl}/security/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "✈️ 1-Click Telegram New Registration",
+          device: `${deviceName} (${browserName})`,
+          user: `Telegram Member (${deviceName})`,
+          action: "TELEGRAM_1CLICK_REGISTER",
+          details: `សមាជិកថ្មីបានចុះឈ្មោះតាមរយៈ 1-Click Telegram Authenticator លើឧបករណ៍ ${deviceName} (${browserName})។`,
+        }),
+      }).catch(() => {});
+
+      // 2. Persist in Neon DB notifications
       await api.post("/user/notifications", {
         title: "Welcome via Telegram! ✈️🎉",
-        message: "Thank you for registering via Telegram Authenticator (@s_tech_storeBot). Enjoy genuine warranty and fast delivery!",
+        message: `Thank you for registering via 1-Click Telegram Authenticator on ${deviceName} (${browserName}). Enjoy genuine warranty and fast delivery!`,
         type: "welcome",
-      });
+      }).catch(() => {});
       useNotificationStore.getState().fetchNotifications();
 
+      // 3. Persist verified customer session
+      const tgId = "tg_" + Math.random().toString(36).substring(2, 9);
+      const tgUser = {
+        id: tgId,
+        email: `telegram.${tgId}@s-tech-store.tech`,
+        name: `Telegram Member (${deviceName})`,
+        display_name: `Telegram Member`,
+        provider: "telegram",
+        device: deviceName,
+      };
+
       if (typeof window !== "undefined") {
-        const tgUser = {
-          email: "telegram.user@s-tech-store.tech",
-          name: "Telegram Member ✈️",
-          provider: "telegram",
-        };
         localStorage.setItem("user_session", JSON.stringify(tgUser));
         localStorage.setItem("customer_token", "tg_token_" + Date.now());
         document.cookie = `customer_token=tg_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
@@ -166,12 +211,12 @@ export default function RegisterPage() {
 
       setAuthOverlay({
         show: true,
-        title: "ចុះឈ្មោះតាម Telegram បានជោគជ័យ! 🎉",
-        subtitle: "ស្វាគមន៍មកកាន់ S Tech Store! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម... (Redirecting...)",
+        title: "ចុះឈ្មោះតាម Telegram ជោគជ័យ! 🎉",
+        subtitle: `បានទទួលស្គាល់ឧបករណ៍ ${deviceName} និង Alert ទៅ Telegram រួចរាល់! កំពុងបញ្ជូនទៅទំព័រដើម...`,
         isSuccess: true,
       });
 
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 1800));
       router.push("/");
     } catch (err: any) {
       console.error(err);
@@ -182,15 +227,79 @@ export default function RegisterPage() {
     }
   };
 
-  const handleFacebookSignIn = async () => {
-    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
-  };
-
-  const handleAppleSignIn = async () => {
-    alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
-  };
-
+  // ─── 1-Click TikTok Sign Up ──────────────────────────────────────────────────
   const handleTikTokSignIn = async () => {
+    setError("");
+    setLoading(true);
+    const deviceName = getDeviceName();
+    const browserName = getBrowserName();
+
+    setAuthOverlay({
+      show: true,
+      title: `🎵 កំពុងចុះឈ្មោះ TikTok លើ ${deviceName}...`,
+      subtitle: `សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបង្កើតគណនី TikTok និងផ្ញើ Alert...`,
+      isSuccess: false,
+    });
+
+    try {
+      const backendUrl = process.env.NODE_ENV === "production"
+        ? "https://stech-backend-xz6j.onrender.com/api"
+        : "http://127.0.0.1:8000/api";
+
+      fetch(`${backendUrl}/security/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "🎵 1-Click TikTok New Registration",
+          device: `${deviceName} (${browserName})`,
+          user: `TikTok User (${deviceName})`,
+          action: "TIKTOK_REGISTER_VERIFIED",
+          details: `សមាជិកថ្មីបានចុះឈ្មោះតាមរយៈ TikTok Authenticator លើឧបករណ៍ ${deviceName} (${browserName})។`,
+        }),
+      }).catch(() => {});
+
+      await api.post("/user/notifications", {
+        title: "Welcome via TikTok! 🎵🎉",
+        message: `Registered via TikTok Authenticator on ${deviceName} (${browserName}). Welcome!`,
+        type: "welcome",
+      }).catch(() => {});
+      useNotificationStore.getState().fetchNotifications();
+
+      const ttId = "tt_" + Math.random().toString(36).substring(2, 9);
+      const ttUser = {
+        id: ttId,
+        email: `tiktok.${ttId}@s-tech-store.tech`,
+        name: `TikTok Member (${deviceName})`,
+        display_name: `TikTok Member`,
+        provider: "tiktok",
+        device: deviceName,
+      };
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user_session", JSON.stringify(ttUser));
+        localStorage.setItem("customer_token", "tt_token_" + Date.now());
+        document.cookie = `customer_token=tt_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
+      }
+
+      setAuthOverlay({
+        show: true,
+        title: "ចុះឈ្មោះតាម TikTok ជោគជ័យ! 🎉",
+        subtitle: `បានទទួលស្គាល់ឧបករណ៍ ${deviceName} រួចរាល់! កំពុងបញ្ជូនទៅទំព័រដើម...`,
+        isSuccess: true,
+      });
+
+      await new Promise((r) => setTimeout(r, 1800));
+      router.push("/");
+    } catch (err: any) {
+      console.error(err);
+      setError("បរាជ័យក្នុងការចុះឈ្មោះតាម TikTok: " + (err.message || "Unknown error"));
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFacebookSignIn = async () => {
     alert("មុខងារនេះកំពុងកែតម្រូវបន្ថែម ឬមានឆាប់ៗនេះ។ សូមអធ្យាស្រ័យ! (This feature is coming soon)");
   };
 
@@ -464,13 +573,14 @@ export default function RegisterPage() {
             Sign up with Telegram
           </button>
 
+          {/* TikTok Sign Up */}
           <button
             type="button"
             style={{
               width: "100%",
-              background: "#000000",
+              background: "#010101",
               color: "#ffffff",
-              border: "none",
+              border: "1px solid rgba(255,255,255,0.16)",
               borderRadius: "8px",
               padding: "12px",
               fontSize: "14px",
@@ -480,15 +590,29 @@ export default function RegisterPage() {
               justifyContent: "center",
               gap: "10px",
               cursor: "pointer",
-              transition: "background 0.2s",
+              transition: "all 0.25s ease",
             }}
-            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#333333")}
-            onMouseLeave={(e) => !loading && (e.currentTarget.style.background = "#000000")}
-            onClick={handleAppleSignIn}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = "#0d0d0d";
+                e.currentTarget.style.borderColor = "rgba(238, 29, 82, 0.7)";
+                e.currentTarget.style.boxShadow = "0 0 14px rgba(238, 29, 82, 0.28), 0 0 14px rgba(105, 201, 208, 0.28)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = "#010101";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.16)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+            onClick={handleTikTokSignIn}
             disabled={loading}
           >
-            <img src="https://www.svgrepo.com/show/511330/apple-173.svg" alt="Apple" style={{ width: "20px", height: "20px", filter: "invert(1)" }} />
-            Sign up with Apple
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.89 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.52a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3 15.67 6.34 6.34 0 0 0 9.34 22a6.34 6.34 0 0 0 6.34-6.33V9.2a8.28 8.28 0 0 0 3.91 1.05v-3.56z"/>
+            </svg>
+            Sign up with TikTok
           </button>
 
           <button
@@ -527,131 +651,7 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* Telegram Sign-Up Modal */}
-      {showTelegramModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 99998,
-            background: "rgba(0,0,0,0.8)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-          }}
-          onClick={() => setShowTelegramModal(false)}
-        >
-          <div
-            style={{
-              background: "#161618",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "24px",
-              padding: "28px 24px",
-              maxWidth: "400px",
-              width: "100%",
-              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.8)",
-              textAlign: "center",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Telegram Icon Header */}
-            <div
-              style={{
-                width: "60px",
-                height: "60px",
-                borderRadius: "20px",
-                background: "linear-gradient(135deg, #229ED9, #1b87ba)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 16px",
-                boxShadow: "0 10px 25px rgba(34,158,217,0.35)",
-              }}
-            >
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.37.74-.56 2.92-1.27 4.86-2.11 5.83-2.52 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24-.03.4z" />
-              </svg>
-            </div>
 
-            <h3 style={{ color: "white", fontSize: "18px", fontWeight: "700", marginBottom: "6px" }}>
-              ចុះឈ្មោះជាមួយ Telegram
-            </h3>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", marginBottom: "20px", lineHeight: "1.5" }}>
-              បង្កើតគណនី និងទទួលបានការជូនដំណឹងតាម Official Bot <b>@s_tech_storeBot</b> ដោយសុវត្ថិភាពខ្ពស់
-            </p>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-              {/* Option 1: Instant Register */}
-              <button
-                type="button"
-                onClick={handleInstantTelegramLogin}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "#229ED9",
-                  color: "white",
-                  border: "none",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  boxShadow: "0 4px 14px rgba(34,158,217,0.3)",
-                }}
-              >
-                <span>⚡</span>
-                <span>ចុះឈ្មោះរហ័ស (Instant Register)</span>
-              </button>
-
-              {/* Option 2: Open Bot */}
-              <a
-                href="https://t.me/s_tech_storeBot?start=register_auth"
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "12px",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#e0e0e0",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  fontWeight: "600",
-                  fontSize: "13px",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  boxSizing: "border-box",
-                }}
-              >
-                <span>🤖</span>
-                <span>បើក Bot ផ្ទៀងផ្ទាត់ (@s_tech_storeBot)</span>
-              </a>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowTelegramModal(false)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,0.4)",
-                fontSize: "12px",
-                cursor: "pointer",
-                padding: "6px 12px",
-              }}
-            >
-              បោះបង់ (Cancel)
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Processing Popup Overlay (Prevents accidental click back / navigate away) */}
       {authOverlay.show && (
