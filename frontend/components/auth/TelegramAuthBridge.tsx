@@ -1,0 +1,113 @@
+"use client";
+
+import { useEffect } from "react";
+import api from "@/lib/api";
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: {
+        ready: () => void;
+        expand: () => void;
+        close: () => void;
+        initData: string;
+        initDataUnsafe?: {
+          user?: {
+            id: number;
+            first_name?: string;
+            last_name?: string;
+            username?: string;
+            photo_url?: string;
+            language_code?: string;
+          };
+        };
+      };
+    };
+  }
+}
+
+/**
+ * TelegramAuthBridge
+ * Handles seamless 1-Click Telegram Authentication:
+ * 1. Auto-detects ?tg_token=... from Telegram Bot 1-click links, logs user in silently without page reload.
+ * 2. Auto-detects Telegram Mini App environment and auto-authenticates user profile from Telegram WebApp SDK,
+ *    eradicating the "Please Sign In" popup inside Telegram!
+ */
+export default function TelegramAuthBridge() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // A. Check for 1-Click tg_token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tgToken = urlParams.get("tg_token");
+
+    if (tgToken) {
+      api.get(`/auth/telegram/token-login?token=${encodeURIComponent(tgToken)}`)
+        .then((res) => {
+          if (res.data?.success && res.data?.user) {
+            localStorage.setItem("user_session", JSON.stringify(res.data.user));
+            localStorage.setItem("customer_token", res.data.token);
+            document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+            window.dispatchEvent(new Event("user_session_updated"));
+
+            // Clean URL query params without reloading
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // B. Check for Telegram Mini App environment
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      try {
+        tg.ready();
+        tg.expand();
+      } catch (e) {}
+
+      const tgUser = tg.initDataUnsafe?.user;
+      const existingSession = localStorage.getItem("user_session");
+
+      if (tgUser && !existingSession) {
+        const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") 
+          || tgUser.username 
+          || `Telegram User #${tgUser.id}`;
+
+        const sessionPayload = {
+          id: `tg_${tgUser.id}`,
+          uid: `tg_${tgUser.id}`,
+          telegram_id: tgUser.id,
+          name: displayName,
+          display_name: displayName,
+          username: tgUser.username ? `@${tgUser.username}` : null,
+          telegram: tgUser.username ? `@${tgUser.username}` : null,
+          photo_url: tgUser.photo_url || null,
+          avatar: tgUser.photo_url || null,
+          provider: "telegram",
+        };
+
+        const clientToken = `tg_miniapp_${tgUser.id}_${Date.now()}`;
+        localStorage.setItem("user_session", JSON.stringify(sessionPayload));
+        localStorage.setItem("customer_token", clientToken);
+        document.cookie = `customer_token=${clientToken}; path=/; max-age=2592000; SameSite=Lax`;
+        window.dispatchEvent(new Event("user_session_updated"));
+
+        // Sync with backend asynchronously
+        api.post("/auth/telegram/miniapp-sync", {
+          telegram_user: tgUser,
+          init_data: tg.initData,
+        })
+          .then((res) => {
+            if (res.data?.success && res.data?.token) {
+              localStorage.setItem("customer_token", res.data.token);
+              document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+            }
+          })
+          .catch(() => {});
+      }
+    }
+  }, []);
+
+  return null;
+}

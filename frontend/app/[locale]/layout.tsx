@@ -10,6 +10,7 @@ import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 import CookieConsent from "@/components/ui/CookieConsent";
 import AppUpdatePrompt from "@/components/ui/AppUpdatePrompt";
 import TrafficTracker from "@/components/ui/TrafficTracker";
+import TelegramAuthBridge from "@/components/auth/TelegramAuthBridge";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const khmerFont = Battambang({ 
@@ -181,12 +182,14 @@ export default async function RootLayout({
             `,
           }}
         />
+        <script src="https://telegram.org/js/telegram-web-app.js" async />
       </head>
       <body suppressHydrationWarning className={`${inter.variable} ${khmerFont.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider messages={messages}>
             <SplashScreen />
             <TrafficTracker />
+            <TelegramAuthBridge />
             {children}
             <FloatingBackButton />
             <ScrollToTopButton />

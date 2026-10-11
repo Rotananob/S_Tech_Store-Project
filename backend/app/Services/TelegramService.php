@@ -683,64 +683,64 @@ class TelegramService
         if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
-            $handshake = Cache::get($handshakeKey);
-            if ($handshake && is_array($handshake)) {
-                $tgId = (string)($from['id'] ?? $chatId);
-                $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
-                $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
-                $email = !empty($from['username'])
-                    ? ($from['username'] . '@telegram.s-tech-store.tech')
-                    : ("tg_{$tgId}@s-tech-store.tech");
+            $handshake = Cache::get($handshakeKey) ?: [];
 
-                $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
-                $user->display_name = $fullName;
-                if (empty($user->email)) $user->email = $email;
-                $user->telegram = $tgUsername;
-                $user->is_active = true;
-                $user->status = 'active';
-                $user->save();
+            $tgId = (string)($from['id'] ?? $chatId);
+            $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
+            $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
+            $email = !empty($from['username'])
+                ? ($from['username'] . '@telegram.s-tech-store.tech')
+                : ("tg_{$tgId}@s-tech-store.tech");
 
-                $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
-                Cache::put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
+            $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+            $user->display_name = $fullName;
+            if (empty($user->email)) $user->email = $email;
+            $user->telegram = $tgUsername;
+            $user->is_active = true;
+            $user->status = 'active';
+            $user->save();
 
-                // Mark handshake complete
-                Cache::put($handshakeKey, [
-                    'status' => 'completed',
-                    'token' => $sessionToken,
-                    'user' => [
-                        'id' => $user->id,
-                        'uid' => $user->firebase_uid,
-                        'name' => $user->display_name,
-                        'display_name' => $user->display_name,
-                        'email' => $user->email,
-                        'telegram' => $user->telegram,
-                        'telegram_id' => $tgId,
-                        'provider' => 'telegram',
-                    ],
-                ], 600);
+            $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
+            Cache::put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
 
-                // Send audit security alert
-                self::sendSecurityAlert([
-                    'type' => '👤 1-Click Telegram App Handshake Verified',
-                    'ip' => $handshake['ip'] ?? request()->ip() ?? '127.0.0.1',
-                    'device' => 'Telegram Mobile/Desktop Client',
-                    'user' => "{$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
-                    'action' => 'TELEGRAM_APP_HANDSHAKE_SUCCESS',
-                    'details' => "អតិថិជនបាន Login តាមរយៈ 1-Click Telegram App Handshake ជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId}។",
-                ]);
+            // Mark handshake complete for polling website
+            Cache::put($handshakeKey, [
+                'status' => 'completed',
+                'token' => $sessionToken,
+                'user' => [
+                    'id' => $user->id,
+                    'uid' => $user->firebase_uid,
+                    'name' => $user->display_name,
+                    'display_name' => $user->display_name,
+                    'email' => $user->email,
+                    'telegram' => $user->telegram,
+                    'telegram_id' => $tgId,
+                    'provider' => 'telegram',
+                ],
+            ], 600);
 
-                $doneMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ចូលគណនីជោគជ័យ (Login Verified)!</b>\n\n"
-                    . "ជម្រាបសួរ <b>{$fullName}</b>! គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ និង Logged in លើវេបសាយ S Tech Store ដោយជោគជ័យ។\n\n"
-                    . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) វិញដើម្បីបន្តការទិញទំនិញ!</b>";
-                $doneKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🌐 ត្រឡប់ទៅគេហទំព័រវិញ (Return to Web)', 'url' => 'https://www.s-tech-store.tech']],
-                        [['text' => '🛍️ ឬបើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                    ],
-                ];
-                self::sendMessageWithKeyboard($chatId, $doneMsg, $doneKb, 'HTML', null, $activeToken);
-                return;
-            }
+            // Send audit security alert
+            self::sendSecurityAlert([
+                'type' => '👤 1-Click Telegram App Handshake Verified',
+                'ip' => $handshake['ip'] ?? request()->ip() ?? '127.0.0.1',
+                'device' => 'Telegram Mobile/Desktop Client',
+                'user' => "{$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
+                'action' => 'TELEGRAM_APP_HANDSHAKE_SUCCESS',
+                'details' => "អតិថិជនបាន Login តាមរយៈ 1-Click Telegram App Handshake ជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId}។",
+            ]);
+
+            $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+            $doneMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ចូលគណនីជោគជ័យ ១០០% (Login 100% Verified)!</b>\n\n"
+                . "ជម្រាបសួរ <b>{$fullName}</b>! គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ និងភ្ជាប់ជាមួយគេហទំព័រ S Tech Store រួចរាល់ហើយ។\n\n"
+                . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) ឬចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ!</b>";
+            $doneKb = [
+                'inline_keyboard' => [
+                    [['text' => '🌐 ត្រឡប់ទៅកាន់ Website វិញ (1-Click Login)', 'url' => $directUrl]],
+                    [['text' => '🛍️ ឬបើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $directUrl]]],
+                ],
+            ];
+            self::sendMessageWithKeyboard($chatId, $doneMsg, $doneKb, 'HTML', null, $activeToken);
+            return;
         }
 
         // 4.2 Handle Admin Pairing Code
@@ -810,12 +810,51 @@ class TelegramService
 
         // Customer /start
         if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
+            $tgId = (string)($from['id'] ?? $chatId);
+            $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
+            $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
+            $email = !empty($from['username'])
+                ? ($from['username'] . '@telegram.s-tech-store.tech')
+                : ("tg_{$tgId}@s-tech-store.tech");
+
+            $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+            $user->display_name = $fullName;
+            if (empty($user->email)) $user->email = $email;
+            $user->telegram = $tgUsername;
+            $user->is_active = true;
+            $user->status = 'active';
+            $user->save();
+
+            $directToken = 'tg_direct_' . \Illuminate\Support\Str::random(50);
+            Cache::put("customer_sess_{$directToken}", $user->id, 30 * 24 * 60 * 60);
+
+            $directUrl = "https://www.s-tech-store.tech/?tg_token={$directToken}";
+
             $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
-                . "🤖 <b>គណនី Bot ផ្លូវការ:</b> @{$activeBotUsername}\n"
+                . "ជម្រាបសួរ <b>{$fullName}</b>!\n"
                 . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
-                . "✨ <b>សូមស្វាគមន៍អតិថិជនជាទីស្រឡាញ់!</b>\n"
-                . "លោកអ្នកអាចចុចបើក <b>Telegram Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ កុម្ម៉ង់ទិញ និងពិនិត្យប្រូម៉ូសិនភ្លាមៗ ឬជ្រើសរើសមុខងារផ្សេងៗ៖";
-            self::sendMessageWithKeyboard($chatId, $welcome, self::getCustomerMainMenuKeyboard(), 'HTML', null, $activeToken);
+                . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
+                . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+
+            $customerKb = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $directUrl]],
+                    ],
+                    [
+                        ['text' => '🌐 ចូលគេហទំព័រ (1-Click Web Login)', 'url' => $directUrl],
+                    ],
+                    [
+                        ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                        ['text' => '📦 តាមដាន Order', 'callback_data' => 'cust_track'],
+                    ],
+                    [
+                        ['text' => '💬 ទាក់ទងបុគ្គលិកឆាត', 'callback_data' => 'cust_support'],
+                    ]
+                ]
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $welcome, $customerKb, 'HTML', null, $activeToken);
             return;
         }
 

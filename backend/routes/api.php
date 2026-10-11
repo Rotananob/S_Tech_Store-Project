@@ -344,6 +344,87 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
     ]);
 });
 
+// Instant 1-Click Telegram Token Login (from Bot Web links & Mini App)
+Route::get('/auth/telegram/token-login', function (Request $request) {
+    $token = trim((string)$request->query('token', ''));
+    if (!$token) {
+        return response()->json(['success' => false, 'error' => 'Token required'], 400);
+    }
+
+    $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+    if (!$userId) {
+        return response()->json(['success' => false, 'error' => 'Token expired or invalid'], 401);
+    }
+
+    $user = \App\Models\UserProfile::find($userId);
+    if (!$user) {
+        return response()->json(['success' => false, 'error' => 'User not found'], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'uid' => $user->firebase_uid,
+            'name' => $user->display_name,
+            'display_name' => $user->display_name,
+            'email' => $user->email,
+            'telegram' => $user->telegram,
+            'photo_url' => $user->photo_url,
+            'avatar' => $user->photo_url,
+            'provider' => 'telegram',
+        ],
+    ]);
+});
+
+// Telegram Mini App Instant Sync & Auto-Login
+Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
+    $tgUser = $request->input('telegram_user') ?? [];
+    $tgId = (string)($tgUser['id'] ?? '');
+    if (!$tgId) {
+        return response()->json(['success' => false, 'error' => 'Invalid telegram user data'], 400);
+    }
+
+    $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
+    $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
+    $email = !empty($tgUser['username'])
+        ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
+        : ("tg_{$tgId}@s-tech-store.tech");
+
+    $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+    $user->display_name = $fullName;
+    if (empty($user->email)) $user->email = $email;
+    $user->telegram = $tgUsername;
+    if (!empty($tgUser['photo_url'])) {
+        $user->photo_url = $tgUser['photo_url'];
+        $user->avatar_url = $tgUser['photo_url'];
+    }
+    $user->is_active = true;
+    $user->status = 'active';
+    $user->save();
+
+    $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
+    \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+    return response()->json([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'uid' => $user->firebase_uid,
+            'name' => $user->display_name,
+            'display_name' => $user->display_name,
+            'email' => $user->email,
+            'telegram' => $user->telegram,
+            'telegram_id' => $tgId,
+            'photo_url' => $user->photo_url,
+            'avatar' => $user->photo_url,
+            'provider' => 'telegram',
+        ],
+    ]);
+});
+
 // Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)
 Route::get('/auth/tiktok/redirect', function (Request $request) {
     $clientKey = env('TIKTOK_CLIENT_KEY', '');

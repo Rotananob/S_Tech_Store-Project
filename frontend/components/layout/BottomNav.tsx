@@ -20,24 +20,47 @@ export default function BottomNav() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
+    const checkAuth = () => {
+      if (typeof window !== "undefined") {
+        // Inside Telegram Mini App
+        if ((window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
+          setIsLoggedIn(true);
+          return;
+        }
+
+        const sessionStr = localStorage.getItem("user_session") || localStorage.getItem("stech_user_session");
+        const token = localStorage.getItem("customer_token") || localStorage.getItem("token");
+        if (sessionStr || token) {
+          setIsLoggedIn(true);
+          return;
+        }
+      }
+
+      if (auth.currentUser) {
+        setIsLoggedIn(true);
+        return;
+      }
+      setIsLoggedIn(false);
+    };
+
+    checkAuth();
+
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u) {
         setIsLoggedIn(true);
       } else {
-        const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
-        if (sessionStr) {
-          try {
-            const sUser = JSON.parse(sessionStr);
-            if (sUser?.firebase_uid) {
-              setIsLoggedIn(true);
-              return;
-            }
-          } catch (e) {}
-        }
-        setIsLoggedIn(false);
+        checkAuth();
       }
     });
-    return () => unsub();
+
+    window.addEventListener("user_session_updated", checkAuth);
+    window.addEventListener("storage", checkAuth);
+
+    return () => {
+      unsub();
+      window.removeEventListener("user_session_updated", checkAuth);
+      window.removeEventListener("storage", checkAuth);
+    };
   }, []);
 
   const isActive = (path: string) => {
