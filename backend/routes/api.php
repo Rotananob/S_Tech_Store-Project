@@ -156,6 +156,117 @@ Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $i
     ]);
 });
 
+// Real Telegram OAuth Signature Handshake & Automatic Account Login (Public)
+Route::post('/auth/telegram/verify', function (Request $request) {
+    $data = $request->validate([
+        'id' => 'required',
+        'first_name' => 'required|string|max:150',
+        'last_name' => 'nullable|string|max:150',
+        'username' => 'nullable|string|max:150',
+        'photo_url' => 'nullable|string|max:500',
+        'auth_date' => 'required',
+        'hash' => 'required|string',
+    ]);
+
+    $botToken = env('TELEGRAM_AUTH_BOT_TOKEN') ?: env('TELEGRAM_BOT_TOKEN', '');
+    if (empty($botToken)) {
+        return response()->json([
+            'success' => false,
+            'error' => 'Telegram Bot Token is not configured on the server.',
+        ], 500);
+    }
+
+    // 1. Verify Telegram Cryptographic Signature (HMAC-SHA256 Handshake)
+    $checkHash = $data['hash'];
+    $checkData = [
+        'auth_date' => $data['auth_date'],
+        'first_name' => $data['first_name'],
+        'id' => $data['id'],
+    ];
+    if (!empty($data['last_name'])) $checkData['last_name'] = $data['last_name'];
+    if (!empty($data['photo_url'])) $checkData['photo_url'] = $data['photo_url'];
+    if (!empty($data['username'])) $checkData['username'] = $data['username'];
+
+    ksort($checkData);
+    $dataCheckArr = [];
+    foreach ($checkData as $k => $v) {
+        $dataCheckArr[] = "{$k}={$v}";
+    }
+    $dataCheckString = implode("\n", $dataCheckArr);
+
+    $secretKey = hash('sha256', $botToken, true);
+    $calculatedHash = hash_hmac('sha256', $dataCheckString, $secretKey);
+
+    if (strcmp($calculatedHash, $checkHash) !== 0) {
+        return response()->json([
+            'success' => false,
+            'error' => 'ការផ្ទៀងផ្ទាត់ Telegram Hash Handshake មិនត្រឹមត្រូវ (Signature mismatch)។',
+        ], 403);
+    }
+
+    // Expiration check (24 hours)
+    if ((time() - (int)$data['auth_date']) > 86400) {
+        return response()->json([
+            'success' => false,
+            'error' => 'ការផ្ទៀងផ្ទាត់បានផុតកំណត់សុពលភាព (Telegram Auth expired)។ សូមព្យាយាមម្តងទៀត។',
+        ], 410);
+    }
+
+    // 2. Find or Create User Profile in Neon DB
+    $tgId = (string)$data['id'];
+    $firebaseUid = 'tg_' . $tgId;
+    $fullName = trim($data['first_name'] . ' ' . ($data['last_name'] ?? ''));
+    $tgUsername = !empty($data['username']) ? '@' . ltrim($data['username'], '@') : null;
+    $email = !empty($data['username'])
+        ? ($data['username'] . '@telegram.s-tech-store.tech')
+        : ("tg_{$tgId}@s-tech-store.tech");
+
+    $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => $firebaseUid]);
+    $user->display_name = $fullName ?: ("Telegram User #{$tgId}");
+    if (empty($user->email)) {
+        $user->email = $email;
+    }
+    $user->telegram = $tgUsername;
+    if (!empty($data['photo_url'])) {
+        $user->photo_url = $data['photo_url'];
+        $user->avatar_url = $data['photo_url'];
+    }
+    $user->is_active = true;
+    $user->status = 'active';
+    $user->save();
+
+    // 3. Issue Session Token
+    $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
+    \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+    // 4. Send Audit Security Alert to Telegram
+    \App\Services\TelegramService::sendSecurityAlert([
+        'type' => '👤 Real Telegram OAuth Login Verified',
+        'ip' => $request->ip() ?? '127.0.0.1',
+        'device' => $request->header('User-Agent') ?? 'Telegram Client',
+        'user' => "{$user->display_name} (" . ($user->telegram ?: "ID: {$tgId}") . ")",
+        'action' => 'TELEGRAM_OAUTH_SUCCESS',
+        'details' => "អតិថិជនបាន Login តាមរយៈ Real Telegram OAuth Handshake ជោគជ័យ។ ឈ្មោះពិត: {$user->display_name}, Username: {$user->telegram}, Telegram ID: {$tgId}។",
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'uid' => $user->firebase_uid,
+            'name' => $user->display_name,
+            'display_name' => $user->display_name,
+            'email' => $user->email,
+            'telegram' => $user->telegram,
+            'telegram_id' => $tgId,
+            'photo_url' => $user->photo_url,
+            'avatar' => $user->photo_url,
+            'provider' => 'telegram',
+        ]
+    ]);
+});
+
 // Customer Direct Magic Login & Password Reset (Public)
 Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 

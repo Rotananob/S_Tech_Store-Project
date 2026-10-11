@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
+import { useSearchParams } from "next/navigation";
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
@@ -27,6 +28,36 @@ export default function RegisterPage() {
     isSuccess: false,
   });
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Load official Telegram Login Widget SDK dynamically
+  useEffect(() => {
+    if (typeof window !== "undefined" && !document.getElementById("telegram-widget-sdk")) {
+      const script = document.createElement("script");
+      script.id = "telegram-widget-sdk";
+      script.src = "https://telegram.org/js/telegram-widget.js?22";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  // Intercept Telegram OAuth redirect return if query params contain hash & id
+  useEffect(() => {
+    const tgHash = searchParams?.get("hash");
+    const tgId = searchParams?.get("id");
+    if (tgHash && tgId) {
+      const payload = {
+        id: tgId,
+        first_name: searchParams.get("first_name") || "",
+        last_name: searchParams.get("last_name") || "",
+        username: searchParams.get("username") || "",
+        photo_url: searchParams.get("photo_url") || "",
+        auth_date: searchParams.get("auth_date") || "",
+        hash: tgHash,
+      };
+      handleTelegramVerification(payload);
+    }
+  }, [searchParams]);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,78 +183,76 @@ export default function RegisterPage() {
     return "Browser";
   };
 
-  // ─── 1-Click Seamless Telegram Sign Up ───────────────────────────────────────
-  const handleTelegramSignIn = async () => {
+  // ─── Real Telegram Cryptographic Handshake Verification ────────────────────
+  const handleTelegramVerification = async (tgData: any) => {
     setError("");
     setLoading(true);
-    const deviceName = getDeviceName();
-    const browserName = getBrowserName();
-
     setAuthOverlay({
       show: true,
-      title: `✈️ កំពុងចុះឈ្មោះ Telegram លើ ${deviceName}...`,
-      subtitle: `ប្រព័ន្ធកំពុងស្គាល់ឧបករណ៍ពិត និងបញ្ជូន Alert ទៅកាន់ Telegram...`,
+      title: "🔐 កំពុងផ្ទៀងផ្ទាត់ Telegram Handshake...",
+      subtitle: `កំពុងផ្ទៀងផ្ទាត់ហត្ថលេខា Real Account (${tgData.first_name || "User"})...`,
       isSuccess: false,
     });
 
     try {
-      const backendUrl = process.env.NODE_ENV === "production"
-        ? "https://stech-backend-xz6j.onrender.com/api"
-        : "http://127.0.0.1:8000/api";
+      const res = await api.post("/auth/telegram/verify", tgData);
+      if (res.data?.success && res.data?.user) {
+        // Persist genuine customer session
+        localStorage.setItem("user_session", JSON.stringify(res.data.user));
+        localStorage.setItem("customer_token", res.data.token);
+        document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
 
-      // 1. Send live Telegram alert
-      fetch(`${backendUrl}/security/alert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "✈️ 1-Click Telegram New Registration",
-          device: `${deviceName} (${browserName})`,
-          user: `Telegram Member (${deviceName})`,
-          action: "TELEGRAM_1CLICK_REGISTER",
-          details: `សមាជិកថ្មីបានចុះឈ្មោះតាមរយៈ 1-Click Telegram Authenticator លើឧបករណ៍ ${deviceName} (${browserName})។`,
-        }),
-      }).catch(() => {});
+        setAuthOverlay({
+          show: true,
+          title: `ស្វាគមន៍ ${res.data.user.name || res.data.user.display_name}! 🎉`,
+          subtitle: "ចុះឈ្មោះ និងចូលគណនីជាមួយ Telegram ពិតប្រាកដជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
+          isSuccess: true,
+        });
 
-      // 2. Persist in Neon DB notifications
-      await api.post("/user/notifications", {
-        title: "Welcome via Telegram! ✈️🎉",
-        message: `Thank you for registering via 1-Click Telegram Authenticator on ${deviceName} (${browserName}). Enjoy genuine warranty and fast delivery!`,
-        type: "welcome",
-      }).catch(() => {});
-      useNotificationStore.getState().fetchNotifications();
-
-      // 3. Persist verified customer session
-      const tgId = "tg_" + Math.random().toString(36).substring(2, 9);
-      const tgUser = {
-        id: tgId,
-        email: `telegram.${tgId}@s-tech-store.tech`,
-        name: `Telegram Member (${deviceName})`,
-        display_name: `Telegram Member`,
-        provider: "telegram",
-        device: deviceName,
-      };
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user_session", JSON.stringify(tgUser));
-        localStorage.setItem("customer_token", "tg_token_" + Date.now());
-        document.cookie = `customer_token=tg_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
+        await new Promise((r) => setTimeout(r, 1600));
+        router.push("/");
+      } else {
+        throw new Error(res.data?.error || "ការផ្ទៀងផ្ទាត់ Telegram បរាជ័យ");
       }
-
-      setAuthOverlay({
-        show: true,
-        title: "ចុះឈ្មោះតាម Telegram ជោគជ័យ! 🎉",
-        subtitle: `បានទទួលស្គាល់ឧបករណ៍ ${deviceName} និង Alert ទៅ Telegram រួចរាល់! កំពុងបញ្ជូនទៅទំព័រដើម...`,
-        isSuccess: true,
-      });
-
-      await new Promise((r) => setTimeout(r, 1800));
-      router.push("/");
     } catch (err: any) {
       console.error(err);
-      setError("បរាជ័យក្នុងការចុះឈ្មោះតាម Telegram: " + (err.message || "Unknown error"));
+      setError(err.response?.data?.error || err.message || "បរាជ័យក្នុងការចុះឈ្មោះតាម Telegram");
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── Trigger Real Telegram OAuth (1-Click Popup or Redirect) ───────────────
+  const handleTelegramSignIn = async () => {
+    setError("");
+    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8899300323";
+
+    // 1. If Telegram Widget is ready in window, open official centered confirmation popup
+    if (typeof window !== "undefined" && (window as any).Telegram?.Login) {
+      setAuthOverlay({
+        show: true,
+        title: "✈️ កំពុងភ្ជាប់ Telegram OAuth...",
+        subtitle: "សូមចុច Confirm លើផ្ទាំង Telegram ដើម្បីចុះឈ្មោះភ្លាមៗ...",
+        isSuccess: false,
+      });
+
+      (window as any).Telegram.Login.auth(
+        { bot_id: botId, request_access: true },
+        async (data: any) => {
+          if (!data || !data.hash) {
+            // User closed the confirmation popup
+            setAuthOverlay({ show: false, title: "", subtitle: "" });
+            return;
+          }
+          await handleTelegramVerification(data);
+        }
+      );
+    } else {
+      // 2. Direct Redirect Fallback: Navigate to official Telegram OAuth gateway
+      const callbackUrl = window.location.origin + window.location.pathname;
+      const oauthUrl = `https://oauth.telegram.org/auth?bot_id=${botId}&origin=${encodeURIComponent(window.location.origin)}&embed=0&request_access=write&return_to=${encodeURIComponent(callbackUrl)}`;
+      window.location.href = oauthUrl;
     }
   };
 
