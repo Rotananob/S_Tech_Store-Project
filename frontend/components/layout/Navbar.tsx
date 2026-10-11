@@ -27,6 +27,11 @@ import NotificationPopupModal from "@/components/ui/NotificationPopupModal";
 export default function Navbar() {
   const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
   const [search, setSearch] = useState("");
+  const [liveResults, setLiveResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showLiveDropdown, setShowLiveDropdown] = useState(false);
+  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const [langOpen, setLangOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -114,13 +119,141 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  // ─── Live Predictive Search Debounce ───────────────────────────────────────
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setLiveResults([]);
+      setShowLiveDropdown(false);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setShowLiveDropdown(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const { getProducts } = await import("@/lib/services/product.service");
+        const res = await getProducts({ search: q });
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        setLiveResults(list.slice(0, 5));
+      } catch (err) {
+        setLiveResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Close live dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        (!desktopSearchRef.current || !desktopSearchRef.current.contains(target)) &&
+        (!mobileSearchRef.current || !mobileSearchRef.current.contains(target))
+      ) {
+        setShowLiveDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const q = search.trim();
     if (q) {
+      setShowLiveDropdown(false);
       router.push(`/search?q=${encodeURIComponent(q)}`);
-      setSearch("");
     }
+  };
+
+  const renderLiveDropdown = () => {
+    if (!showLiveDropdown || search.trim().length < 2) return null;
+
+    return (
+      <div className="absolute top-[calc(100%+8px)] left-0 right-0 z-[100] bg-white dark:bg-[#151922] rounded-2xl shadow-2xl border border-gray-200/90 dark:border-white/10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="p-3 bg-gray-50/90 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex items-center justify-between text-xs">
+          <span className="font-bold text-gray-600 dark:text-gray-300">
+            {isSearching ? "🔎 កំពុងស្វែងរកទំនិញ..." : `លទ្ធផលស្វែងរក (${liveResults.length})`}
+          </span>
+          {isSearching && (
+            <div className="w-3.5 h-3.5 border-2 border-[#8B1A1A] dark:border-red-500 border-t-transparent rounded-full animate-spin" />
+          )}
+        </div>
+
+        {liveResults.length > 0 ? (
+          <div className="divide-y divide-gray-100 dark:divide-white/5 max-h-[380px] overflow-y-auto">
+            {liveResults.map((p) => {
+              const displayPrice = p.sale_price ? Number(p.sale_price) : Number(p.price);
+              const originalPrice = Number(p.price);
+
+              return (
+                <Link
+                  key={p.id}
+                  href={`/products/${p.slug}`}
+                  onClick={() => {
+                    setShowLiveDropdown(false);
+                  }}
+                  className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors no-underline group"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 p-1 shrink-0 flex items-center justify-center overflow-hidden border border-gray-100 dark:border-white/5">
+                    <img
+                      src={p.image_url || p.image || "/logo.jpg"}
+                      alt={p.name}
+                      className="max-h-full max-w-full object-contain group-hover:scale-105 transition-transform"
+                      onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">
+                      {typeof p.category === "object" ? p.category?.name : (p.category || "Official Tech")}
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-gray-100 truncate group-hover:text-[#8B1A1A] dark:group-hover:text-red-400">
+                      {p.name}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs sm:text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                        ${displayPrice.toFixed(2)}
+                      </span>
+                      {p.sale_price && (
+                        <span className="text-[10px] text-gray-400 line-through font-mono">
+                          ${originalPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : !isSearching ? (
+          <div className="p-6 text-center text-xs text-gray-500">
+            <p className="font-bold text-gray-800 dark:text-gray-200">
+              រកមិនឃើញទំនិញ &quot;{search}&quot; ឡើយ
+            </p>
+            <p className="text-[11px] text-gray-400 mt-1">
+              សូមសាកល្បងពាក្យគន្លឹះ: Laptop, PC, RTX, Monitor, RAM...
+            </p>
+          </div>
+        ) : null}
+
+        {/* View All Matches Footer */}
+        <div className="p-2.5 bg-gray-50/80 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 text-center">
+          <button
+            type="button"
+            onClick={(e) => handleSearch(e)}
+            className="text-xs font-bold text-[#8B1A1A] dark:text-red-400 hover:underline cursor-pointer border-none bg-transparent"
+          >
+            មើលលទ្ធផលទាំងអស់សម្រាប់ &quot;{search}&quot; &rarr;
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const getNotifIcon = (type: string) => {
@@ -191,7 +324,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Search Bar (Visible on lg and larger) */}
-          <div className="hidden lg:flex flex-1 max-w-md xl:max-w-xl 2xl:max-w-2xl mx-4 xl:mx-6">
+          <div className="hidden lg:flex flex-1 max-w-md xl:max-w-xl 2xl:max-w-2xl mx-4 xl:mx-6 relative" ref={desktopSearchRef}>
             <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
@@ -199,6 +332,7 @@ export default function Navbar() {
                 placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => { if (search.trim().length >= 2) setShowLiveDropdown(true); }}
               />
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -220,6 +354,7 @@ export default function Navbar() {
                 </button>
               </div>
             </form>
+            {renderLiveDropdown()}
           </div>
 
           {/* Right Action Icons */}
@@ -455,7 +590,7 @@ export default function Navbar() {
       </header>
 
       {/* ── 4. Persistent Mobile Search Bar (Below Header on < lg) ── */}
-      <div className="lg:hidden sticky top-[56px] z-30 bg-white dark:bg-[#12151e] px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-white/10 shadow-sm transition-colors">
+      <div className="lg:hidden sticky top-[56px] z-30 bg-white dark:bg-[#12151e] px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-white/10 shadow-sm transition-colors relative" ref={mobileSearchRef}>
         <form onSubmit={handleSearch} className="relative w-full flex items-center">
           <input
             type="search"
@@ -463,6 +598,7 @@ export default function Navbar() {
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => { if (search.trim().length >= 2) setShowLiveDropdown(true); }}
           />
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           
@@ -488,6 +624,7 @@ export default function Navbar() {
             </button>
           </div>
         </form>
+        {renderLiveDropdown()}
       </div>
 
       <SlideOverCart />

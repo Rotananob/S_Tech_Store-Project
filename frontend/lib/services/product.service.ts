@@ -132,34 +132,44 @@ export async function getProducts(params?: Record<string, any>): Promise<Product
     if (res.ok) {
       const data = await res.json();
       const list = Array.isArray(data) ? data : (data?.data || []);
-      if (list && list.length > 0) {
-        const normalized = list.map(normalizeProduct);
-        cachedProducts = normalized;
-        lastProductFetchTime = Date.now();
-        return normalized;
+      const normalized = list.map(normalizeProduct);
+
+      // Only update global catalog cache when fetching all products without search params
+      if (!params || Object.keys(params).length === 0) {
+        if (normalized.length > 0) {
+          cachedProducts = normalized;
+          lastProductFetchTime = Date.now();
+        }
       }
+      return normalized;
     }
   } catch (error) {
     console.warn("getProducts network notice (using resilient cache):", (error as Error)?.message || error);
   }
 
-  // Resilient fallback — filter cached products if params were provided
+  // Resilient fallback — only reached when network/fetch throws an error
+  if (!params || Object.keys(params).length === 0) {
+    return cachedProducts;
+  }
+
   let filtered = [...cachedProducts];
-  if (params?.category) {
+  if (params.category) {
     const cat = String(params.category).toLowerCase();
     filtered = filtered.filter((p) => {
       const c = typeof p.category === "object" ? p.category?.slug : p.category;
       return String(c || "").toLowerCase().includes(cat);
     });
   }
-  if (params?.search) {
-    const s = String(params.search).toLowerCase();
+  if (params.search) {
+    const s = String(params.search).toLowerCase().trim();
     filtered = filtered.filter((p) =>
-      p.name.toLowerCase().includes(s) || (p.description || "").toLowerCase().includes(s)
+      p.name.toLowerCase().includes(s) ||
+      (p.description || "").toLowerCase().includes(s) ||
+      (p.brand || "").toLowerCase().includes(s)
     );
   }
 
-  return filtered.length > 0 ? filtered : cachedProducts;
+  return filtered;
 }
 
 export async function getProduct(id: string | number): Promise<Product | ApiResponse<Product> | null> {

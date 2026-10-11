@@ -1,21 +1,20 @@
 // ─── Firebase Config ─────────────────────────────────────────────────────────
-// Replace these values with your Firebase project credentials
-// You can find them at: https://console.firebase.google.com → Project Settings
-
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 import { getDatabase } from "firebase/database";
 
+const DEFAULT_RTDB_URL = "https://fir-tech-store-default-rtdb.asia-southeast1.firebasedatabase.app";
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBojf0zvKV8Wt8vaDS0H4K7DXSgF4D8BRc",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "www.s-tech-store.tech",
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || DEFAULT_RTDB_URL,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "fir-tech-store",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "fir-tech-store.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "461793268934",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:461793268934:web:a271722e22a9061cfcb3c7",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-PD4CY284NZ",
 };
 
 // Initialize Firebase (prevent duplicate initialization in Next.js dev mode)
@@ -23,5 +22,17 @@ const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const rtdb = getDatabase(app);
+
+// Safe RTDB initialization: guarantee valid URL and prevent uncaught fatal crashes in production
+let rtdbInstance: any = null;
+try {
+  const dbUrl = (firebaseConfig.databaseURL && firebaseConfig.databaseURL.startsWith("http"))
+    ? firebaseConfig.databaseURL
+    : DEFAULT_RTDB_URL;
+  rtdbInstance = getDatabase(app, dbUrl);
+} catch (err) {
+  console.warn("RTDB initialization bypassed (safe fallback):", err);
+}
+
+export const rtdb = rtdbInstance;
 export default app;

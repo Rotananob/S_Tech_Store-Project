@@ -58,6 +58,10 @@ export async function sendChatMessage(
     userPhone?: string;
   }
 ): Promise<void> {
+  if (!rtdb) {
+    console.warn("RTDB unavailable, skipping live message send");
+    return;
+  }
   const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
   const newMsgRef = push(messagesRef);
   const now = Date.now();
@@ -103,6 +107,10 @@ export function subscribeToMessages(
   chatId: string,
   callback: (messages: ChatMessage[]) => void
 ): () => void {
+  if (!rtdb) {
+    callback([]);
+    return () => {};
+  }
   const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
 
   const unsubscribe = onValue(
@@ -137,6 +145,10 @@ export function subscribeToMessages(
 export function subscribeToAllChats(
   callback: (chats: ChatSession[]) => void
 ): () => void {
+  if (!rtdb) {
+    callback([]);
+    return () => {};
+  }
   const chatsRef = ref(rtdb, "chats");
 
   const unsubscribe = onValue(
@@ -181,6 +193,7 @@ export function subscribeToAllChats(
  * Mark chat messages read by Admin
  */
 export async function markChatReadByAdmin(chatId: string): Promise<void> {
+  if (!rtdb) return;
   const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
   await update(sessionRef, { unreadAdminCount: 0 });
 }

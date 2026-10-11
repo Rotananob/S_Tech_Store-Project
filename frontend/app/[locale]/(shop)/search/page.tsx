@@ -37,35 +37,59 @@ function SearchContent() {
   }, [q]);
 
   return (
-    <div className="container" style={{ padding: "40px 16px", minHeight: "60vh" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: "#111" }}>
-        Search Results for: <span style={{ color: "#1a4fa0" }}>&quot;{q}&quot;</span>
-      </h1>
+    <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 min-h-[65vh]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100 dark:border-white/10">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+            លទ្ធផលស្វែងរក: <span className="text-[#8B1A1A] dark:text-red-400">&quot;{q}&quot;</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {!loading && (products.length > 0 ? `រកឃើញចំនួន ${products.length} មុខ` : "រកមិនឃើញទំនិញដែលត្រូវគ្នាឡើយ")}
+          </p>
+        </div>
+
+        {/* Quick Filter Tags */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-gray-400 font-semibold mr-1">ពេញនិយម:</span>
+          {["Laptop", "Gaming PC", "RTX", "Monitor", "RAM"].map((tag) => (
+            <Link
+              key={tag}
+              href={`/search?q=${encodeURIComponent(tag)}`}
+              className="px-2.5 py-1 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-700 dark:text-gray-300 hover:text-[#8B1A1A] dark:hover:text-red-400 font-medium transition-colors no-underline"
+            >
+              {tag}
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {loading ? (
-        <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: "50%",
-            border: "3px solid #f3f3f3", borderTop: "3px solid #1a4fa0",
-            animation: "spin 1s linear infinite"
-          }} />
+        <div className="flex flex-col items-center justify-center py-24 gap-3">
+          <div className="w-10 h-10 rounded-full border-3 border-gray-200 dark:border-white/10 border-t-[#8B1A1A] dark:border-t-red-500 animate-spin" />
+          <span className="text-xs text-gray-400 font-semibold animate-pulse">កំពុងទាញយកលទ្ធផលស្វែងរក...</span>
         </div>
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6">
-          {products.map(product => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-5">
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       ) : (
-        <div style={{ textAlign: "center", padding: "60px 0", background: "#f9f9f9", borderRadius: 12 }}>
-          <h2 style={{ fontSize: 18, color: "#555", marginBottom: 12 }}>No products found</h2>
-          <p style={{ color: "#888", marginBottom: 24 }}>We couldn&#39;t find any items matching your search.</p>
-          <Link href="/" style={{
-            display: "inline-block", padding: "10px 24px",
-            background: "#1a4fa0", color: "#fff", borderRadius: 6, fontWeight: 600,
-            textDecoration: "none"
-          }}>
-            Back to Home
+        <div className="text-center py-16 px-4 bg-gray-50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto mb-3 text-2xl shadow-sm">
+            🔎
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+            រកមិនឃើញទំនិញ &quot;{q}&quot; ឡើយ
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+            សូមពិនិត្យអក្ខរាវិរុទ្ធ ឬសាកល្បងស្វែងរកដោយប្រើពាក្យគន្លឹះទូទៅដូចជា៖ Laptop, PC, Monitor, RTX, SSD...
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-[#8B1A1A] hover:bg-[#6b1010] text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all no-underline"
+          >
+            ត្រឡប់ទៅទំព័រដើម (Home)
           </Link>
         </div>
       )}
