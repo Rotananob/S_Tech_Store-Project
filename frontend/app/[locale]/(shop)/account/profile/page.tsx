@@ -28,6 +28,8 @@ import { ThemeDropdown } from "@/components/ui/ThemeDropdown";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 
 interface ProfileData {
+  firebase_uid?: string;
+  provider?: string;
   display_name: string;
   email: string;
   phone: string;
@@ -242,45 +244,67 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     setMounted(true);
+
+    const syncProfileSession = () => {
+      const sessionStr = typeof window !== "undefined"
+        ? (localStorage.getItem("stech_user_session") || localStorage.getItem("user_session"))
+        : null;
+      if (sessionStr) {
+        try {
+          const sUser = JSON.parse(sessionStr);
+          const uid = sUser?.firebase_uid || sUser?.uid || (sUser?.id ? `tg_${sUser.id}` : null);
+          if (uid) {
+            const pseudoUser = {
+              uid: uid,
+              displayName: sUser.display_name || sUser.name || "S Tech VIP Member",
+              email: sUser.email,
+              photoURL: sUser.photo_url || sUser.avatar,
+            } as any;
+            setUser(pseudoUser);
+            setProfile((prev) => ({
+              ...prev,
+              firebase_uid: uid,
+              provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : prev.provider),
+              display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech VIP Member",
+              email: sUser.email || prev.email,
+              phone: sUser.phone || prev.phone,
+              telegram: sUser.telegram || prev.telegram,
+              telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || prev.telegram_chat_id,
+            }));
+            loadProfile(pseudoUser);
+            loadOrders();
+            return true;
+          }
+        } catch (e) {}
+      }
+      return false;
+    };
+
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
         setProfile((prev) => ({
           ...prev,
+          firebase_uid: u.uid,
           display_name: u.displayName || prev.display_name || "S Tech VIP Member",
           email: u.email || prev.email,
         }));
         loadProfile(u);
         loadOrders();
       } else {
-        const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
-        if (sessionStr) {
-          try {
-            const sUser = JSON.parse(sessionStr);
-            if (sUser?.firebase_uid) {
-              const pseudoUser = {
-                uid: sUser.firebase_uid,
-                displayName: sUser.display_name,
-                email: sUser.email,
-                photoURL: sUser.photo_url,
-              } as any;
-              setUser(pseudoUser);
-              setProfile((prev) => ({
-                ...prev,
-                display_name: sUser.display_name || prev.display_name || "S Tech VIP Member",
-                email: sUser.email || prev.email,
-                phone: sUser.phone || prev.phone,
-              }));
-              loadProfile(pseudoUser);
-              loadOrders();
-              return;
-            }
-          } catch (e) {}
+        const found = syncProfileSession();
+        if (!found) {
+          router.push("/login");
         }
-        router.push("/login");
       }
     });
-    return () => unsub();
+
+    window.addEventListener("user_session_updated", syncProfileSession);
+
+    return () => {
+      unsub();
+      window.removeEventListener("user_session_updated", syncProfileSession);
+    };
   }, []);
 
   const loadProfile = async (currentUser?: FirebaseUser) => {
@@ -324,6 +348,21 @@ export default function UserProfilePage() {
       setOrdersLoading(false);
     }
   };
+
+  const isTelegramAuthUser = Boolean(
+    profile.provider === "telegram" ||
+    profile.firebase_uid?.startsWith("tg_") ||
+    user?.uid?.startsWith("tg_") ||
+    (typeof window !== "undefined" && (
+      (() => {
+        try {
+          const s1 = JSON.parse(localStorage.getItem("user_session") || "{}");
+          const s2 = JSON.parse(localStorage.getItem("stech_user_session") || "{}");
+          return s1?.provider === "telegram" || s2?.provider === "telegram" || Boolean(s1?.telegram_id || s2?.telegram_id);
+        } catch { return false; }
+      })()
+    ))
+  );
 
   // Load persisted font preference
   useEffect(() => {
@@ -1293,10 +1332,10 @@ export default function UserProfilePage() {
                       <Send size={14} className="text-[#0088cc]" />
                       <span>Telegram Username (@username for shipping)</span>
                     </label>
-                    {profile.telegram_chat_id ? (
+                    {(profile.telegram_chat_id || isTelegramAuthUser) ? (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                         <CheckCircle2 size={11} />
-                        <span>Bot Linked</span>
+                        <span>{isTelegramAuthUser ? "Auto-Connected (Telegram)" : "Bot Linked"}</span>
                       </span>
                     ) : (
                       <button
@@ -1628,7 +1667,12 @@ export default function UserProfilePage() {
                         <h4 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">
                           Telegram Companion Bot (@Stech_store_LoginBot)
                         </h4>
-                        {profile.telegram_chat_id || profile.telegram ? (
+                        {isTelegramAuthUser ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            <span>Auto-Connected (ចូលតាម Telegram)</span>
+                          </span>
+                        ) : (profile.telegram_chat_id || profile.telegram) ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
                             <CheckCircle2 size={12} />
                             <span>បានភ្ជាប់ជោគជ័យ (Linked)</span>
@@ -1641,22 +1685,24 @@ export default function UserProfilePage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
-                        សម្រាប់អតិថិជនទាំងអស់ (Google Gmail, Email/Password): ភ្ជាប់ Telegram ផ្ទាល់ខ្លួន ដើម្បីទទួលវិក្កយបត្រអេឡិចត្រូនិច (Digital Invoices/Receipts), តាមដានការដឹកជញ្ជូន និងដំណឹងផ្ទាល់ខ្លួនក្នុង Private Chat ដោយសុវត្ថិភាពខ្ពស់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ។
+                        {isTelegramAuthUser
+                          ? "គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយ S Tech Store ដោយស្វ័យប្រវត្តិតាំងពីដំបូងពេល Sign-in។ រាល់វិក្កយបត្រ (Digital Invoices/Receipts) និងដំណឹងការកុម្ម៉ង់ ត្រូវបានបញ្ជូនចូល Bot ផ្ទាល់ខ្លួនរបស់អ្នកដោយស្វ័យប្រវត្តិ!"
+                          : "សម្រាប់អតិថិជនទាំងអស់ (Google Gmail, Email/Password): ភ្ជាប់ Telegram ផ្ទាល់ខ្លួន ដើម្បីទទួលវិក្កយបត្រអេឡិចត្រូនិច (Digital Invoices/Receipts), តាមដានការដឹកជញ្ជូន និងដំណឹងផ្ទាល់ខ្លួនក្នុង Private Chat ដោយសុវត្ថិភាពខ្ពស់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ។"}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Status & Details */}
-                {profile.telegram_chat_id || profile.telegram ? (
+                {(profile.telegram_chat_id || profile.telegram || isTelegramAuthUser) ? (
                   <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-sky-500/20 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                         <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
-                        <span>គណនី Telegram: <strong className="text-sky-600 dark:text-sky-400">{profile.telegram || "Connected"}</strong> {profile.telegram_chat_id && <code className="text-[10px] bg-sky-100 dark:bg-sky-950/60 px-1.5 py-0.5 rounded text-sky-700 dark:text-sky-300">ID: {profile.telegram_chat_id}</code>}</span>
+                        <span>គណនី Telegram: <strong className="text-sky-600 dark:text-sky-400">{profile.telegram || "Connected via Telegram"}</strong> {profile.telegram_chat_id && <code className="text-[10px] bg-sky-100 dark:bg-sky-950/60 px-1.5 py-0.5 rounded text-sky-700 dark:text-sky-300">ID: {profile.telegram_chat_id}</code>}</span>
                       </div>
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                        🔒 Private & Encrypted (វិក្កយបត្រ Receipts ផ្ញើចូលឆាតនេះផ្តាច់មុខ)
+                        🔒 {isTelegramAuthUser ? "Auto-Connected from Sign-in" : "Private & Encrypted"} (វិក្កយបត្រ Receipts ផ្ញើចូលឆាតនេះផ្តាច់មុខ)
                       </span>
                     </div>
 
@@ -1672,15 +1718,17 @@ export default function UserProfilePage() {
                         <ExternalLink size={12} />
                       </a>
 
-                      <button
-                        type="button"
-                        onClick={handleUnlinkTelegram}
-                        disabled={telegramUnlinking}
-                        className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all border border-red-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {telegramUnlinking ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
-                        <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ការភ្ជាប់ (Unlink)"}</span>
-                      </button>
+                      {!isTelegramAuthUser && (
+                        <button
+                          type="button"
+                          onClick={handleUnlinkTelegram}
+                          disabled={telegramUnlinking}
+                          className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all border border-red-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {telegramUnlinking ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
+                          <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ការភ្ជាប់ (Unlink)"}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1814,7 +1862,11 @@ export default function UserProfilePage() {
                         <span className="text-xs font-bold text-gray-900 dark:text-white block">
                           Telegram Bot Dispatch Alerts & E-Invoices
                         </span>
-                        {profile.telegram_chat_id || profile.telegram ? (
+                        {isTelegramAuthUser ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                            Auto-Connected ({profile.telegram || "Telegram"})
+                          </span>
+                        ) : (profile.telegram_chat_id || profile.telegram) ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
                             Linked ({profile.telegram || "Bot Active"})
                           </span>
@@ -1827,7 +1879,7 @@ export default function UserProfilePage() {
                       <span className="text-[11px] text-gray-400 block">
                         Send digital invoice & driver contact directly to your private Telegram chat (@Stech_store_LoginBot).
                       </span>
-                      {!profile.telegram_chat_id && (
+                      {(!profile.telegram_chat_id && !isTelegramAuthUser) && (
                         <button
                           type="button"
                           onClick={handleConnectTelegram}
@@ -2297,9 +2349,13 @@ export default function UserProfilePage() {
                   type="button"
                   onClick={() => {
                     localStorage.removeItem("stech_user_session");
+                    localStorage.removeItem("user_session");
+                    localStorage.removeItem("customer_token");
+                    document.cookie = "customer_token=; path=/; max-age=0;";
                     signOut(auth);
                     setUser(null);
                     setShowLogoutModal(false);
+                    window.dispatchEvent(new Event("user_session_updated"));
                     router.push("/login");
                   }}
                   className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-[#8B1A1A] hover:from-red-700 hover:to-[#6b1111] text-white font-extrabold text-sm transition-all shadow-xl shadow-red-900/30 flex items-center justify-center gap-2 cursor-pointer border-none"

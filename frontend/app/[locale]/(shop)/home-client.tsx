@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "@/i18n/routing";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { 
   ShoppingCart, 
   Laptop, 
@@ -34,8 +35,38 @@ import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+
+// ─── Luxury High-Tech Motion Variants (Apple Keynote & Studio Product Drop) ──
+const dropContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const dropCardVariants: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: -30, 
+    scale: 0.96,
+    filter: "blur(4px)"
+  },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { 
+      duration: 0.65, 
+      ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
+    } 
+  },
+};
 
 // ─── Tier 2: Grand Seasonal Festival Mega Campaigns (ពិធីបុណ្យភ្ជំបិណ្ឌ Poster) ──────
 const GRAND_FESTIVAL_SLIDE = {
@@ -155,7 +186,10 @@ export function HeroSection() {
   return (
     <section className="bg-white dark:bg-[#0c0e12] px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: -24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
           className="group relative w-full h-[210px] sm:h-[260px] md:h-[300px] lg:h-[360px] xl:h-[410px] 2xl:h-[440px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 dark:from-[#141722] dark:via-[#1a1f2c] dark:to-[#12151f] border border-gray-200/80 dark:border-white/10"
@@ -309,7 +343,7 @@ export function HeroSection() {
               />
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -415,7 +449,13 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
         </div>
 
         {/* 4-Item Promotional Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5">
+        <motion.div
+          variants={dropContainerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-5"
+        >
           {promoProducts.map((product, idx) => {
             const originalPrice = Number(product.price);
             // Discount rate: 25%, 30%, 35%, 40% across items
@@ -425,7 +465,8 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
             return (
               <motion.div
                 key={product.id || idx}
-                whileHover={{ y: -4 }}
+                variants={dropCardVariants}
+                whileHover={{ y: -6 }}
                 className="bg-white dark:bg-[#151922] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-red-500/20 dark:border-red-500/20 hover:border-red-500 flex flex-col h-full group"
               >
                 {/* Discount Ribbon */}
@@ -495,7 +536,7 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Festival Bonus Coupon Strip */}
         <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-950/70 via-[#1a0e12] to-amber-950/70 border border-amber-400/30 text-white flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md">
@@ -742,32 +783,44 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
         </div>
 
         {/* Exactly 6 Categories in 1 balanced row on Desktop & 2 rows on Phone */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
+        <motion.div
+          variants={dropContainerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5"
+        >
           {displayCategories.map((cat) => (
-            <Link
+            <motion.div
               key={cat.slug}
-              href={`/category/${cat.slug}`}
-              className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 dark:bg-[#151922] hover:bg-white dark:hover:bg-[#1c2230] border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 hover:shadow-xl transition-all duration-300 group no-underline relative text-center"
+              variants={dropCardVariants}
+              whileHover={{ y: -6 }}
+              className="h-full"
             >
-              {cat.badge && (
-                <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white dark:border-zinc-900 uppercase tracking-wider">
-                  {cat.badge}
-                </span>
-              )}
-              <div className={`w-[56px] h-[56px] sm:w-[64px] sm:h-[64px] rounded-[20px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-lg ${cat.glow || 'shadow-red-900/20'} group-hover:scale-110 group-hover:rotate-2 transition-all duration-300 mb-3 border border-white/20`}>
-                <div className="transition-transform group-hover:scale-105 duration-300">
-                  {getIcon(cat.slug)}
+              <Link
+                href={`/category/${cat.slug}`}
+                className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 dark:bg-[#151922] hover:bg-white dark:hover:bg-[#1c2230] border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 hover:shadow-xl transition-all duration-300 group no-underline relative text-center h-full"
+              >
+                {cat.badge && (
+                  <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white dark:border-zinc-900 uppercase tracking-wider">
+                    {cat.badge}
+                  </span>
+                )}
+                <div className={`w-[56px] h-[56px] sm:w-[64px] sm:h-[64px] rounded-[20px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-lg ${cat.glow || 'shadow-red-900/20'} group-hover:scale-110 group-hover:rotate-2 transition-all duration-300 mb-3 border border-white/20`}>
+                  <div className="transition-transform group-hover:scale-105 duration-300">
+                    {getIcon(cat.slug)}
+                  </div>
                 </div>
-              </div>
-              <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors leading-tight">
-                {cat.name}
-              </span>
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium">
-                {cat.desc || "Explore More"}
-              </span>
-            </Link>
+                <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors leading-tight">
+                  {cat.name}
+                </span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium">
+                  {cat.desc || "Explore More"}
+                </span>
+              </Link>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -813,7 +866,8 @@ export function ProductCard({ product }: { product: any }) {
   return (
     <>
       <motion.div 
-        whileHover={{ y: -4 }}
+        variants={dropCardVariants}
+        whileHover={{ y: -6 }}
         className="bg-white dark:bg-[#151922] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-gray-100 dark:border-white/10 hover:border-red-200 dark:hover:border-red-500/30 flex flex-col h-full group"
       >
         {/* Hot / Featured Badge */}
@@ -968,11 +1022,17 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
         </div>
 
         {/* Clean responsive grid: 5 on large 2xl desktop, 4 on standard desktop, 3 on tablet, 2 on mobile */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6 xl:gap-7">
+        <motion.div
+          variants={dropContainerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-40px" }}
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6 xl:gap-7"
+        >
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

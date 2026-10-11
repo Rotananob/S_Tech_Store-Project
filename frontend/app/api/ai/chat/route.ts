@@ -153,19 +153,21 @@ export async function POST(req: NextRequest) {
 
       // Dispatch security alert to Laravel Telegram topic in background
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
-        fetch(`${backendUrl}/security/alert`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "AI Chat Flood / Token Drain Attack",
-            ip: clientIp,
-            device: req.headers.get("user-agent") || "Web Client",
-            user: "Suspicious Attacker / Bot",
-            action: "BLOCKED (10-min IP Ban)",
-            details: `Detected rapid flood of ${last30sCount + 1} requests in 30s. Rate limiter activated and IP banned for 10 minutes.`,
-          }),
-        }).catch(() => {});
+        let backendUrl = process.env.BACKEND_URL || (process.env.NODE_ENV === "production" ? "https://stech-backend-xz6j.onrender.com/api" : "http://127.0.0.1:8000/api");
+        if (backendUrl && backendUrl.startsWith("http")) {
+          fetch(`${backendUrl.replace(/\/$/, "")}/security/alert`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "AI Chat Flood / Token Drain Attack",
+              ip: clientIp,
+              device: req.headers.get("user-agent") || "Web Client",
+              user: "Suspicious Attacker / Bot",
+              action: "BLOCKED (10-min IP Ban)",
+              details: `Detected rapid flood of ${last30sCount + 1} requests in 30s. Rate limiter activated and IP banned for 10 minutes.`,
+            }),
+          }).catch(() => {});
+        }
       } catch {}
 
       return NextResponse.json({
@@ -203,10 +205,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const apiKey =
-      process.env.GEMINI_API_KEY ||
-      process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-      "";
+    const keyPool = Array.from(
+      new Set(
+        [
+          process.env.GEMINI_API_KEY,
+          process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+          process.env.GOOGLE_API_KEY,
+          process.env.GOOGLE_GENAI_API_KEY,
+        ].filter((k): k is string => Boolean(k && k.trim().length > 10))
+      )
+    );
 
     // Build context with product info if applicable
     let contextualMessage = message;
@@ -252,28 +260,26 @@ export async function POST(req: NextRequest) {
     let geminiText: string | null = null;
     let suggestAgent = false;
 
-    // Resilient candidate models — tries ultra-fast available models first
+    // Resilient candidate models — prioritize rock-solid gemini-3.5-flash (no 503 capacity issues)
     const CANDIDATE_MODELS = [
       "gemini-3.5-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-3.7-flash",
       "gemini-3.8-flash",
       "gemini-flash-latest",
     ];
 
-    if (apiKey) {
+    keyLoop: for (const activeKey of keyPool) {
       for (const model of CANDIDATE_MODELS) {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s per candidate
 
           const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`,
             {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "x-goog-api-key": apiKey,
+                "x-goog-api-key": activeKey,
               },
               body: JSON.stringify(geminiPayload),
               signal: controller.signal,
@@ -287,11 +293,11 @@ export async function POST(req: NextRequest) {
             const textPart = parts.find((p: any) => typeof p.text === "string" && p.text.trim().length > 0);
             if (textPart?.text) {
               geminiText = textPart.text.trim();
-              break; // Success! Break out of candidate loop
+              break keyLoop; // Success! Break out of all loops
             }
           }
         } catch (apiErr) {
-          // Model timeout or error — continue to next candidate
+          // Model timeout or network error — continue to next candidate
         }
       }
     }

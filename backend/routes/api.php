@@ -269,9 +269,9 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
 
-    // 4. Send Audit Security Alert to Telegram
-    \App\Services\TelegramService::sendSecurityAlert([
-        'type' => '👤 Real Telegram OAuth Login Verified',
+    // 4. Send Customer Login Activity Notification (Topic: Users)
+    \App\Services\TelegramService::sendCustomerLoginAlert([
+        'method' => '👤 Telegram OAuth Login (ចូលតាមគេហទំព័រ)',
         'ip' => $request->ip() ?? '127.0.0.1',
         'device' => $request->header('User-Agent') ?? 'Telegram Client',
         'user' => "{$user->display_name} (" . ($user->telegram ?: "ID: {$tgId}") . ")",
@@ -483,10 +483,14 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
         'user' => [
             'id' => $user->id,
             'uid' => $user->firebase_uid,
+            'firebase_uid' => $user->firebase_uid,
             'name' => $user->display_name,
             'display_name' => $user->display_name,
             'email' => $user->email,
             'telegram' => $user->telegram,
+            'telegram_chat_id' => $user->telegram_chat_id,
+            'telegram_id' => $user->telegram_chat_id,
+            'phone' => $user->phone,
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
             'provider' => 'telegram',
@@ -709,16 +713,8 @@ Route::post('/analytics/track-visit', function (Request $request) {
     $sent = \App\Services\TelegramService::sendWebsiteTrafficAlert($data);
 
     $today = date('Y-m-d');
-    $dbStat = null;
-    try {
-        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'daily_stats_' . $today)->first();
-        if ($row && !empty($row->value)) {
-            $dbStat = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
-        }
-    } catch (\Throwable $e) {}
-
-    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, $dbStat['hits'] ?? 1);
-    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, $dbStat['ips'] ?? []));
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 1);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
     if ($hitsToday < $uniqueCount) $hitsToday = $uniqueCount;
     if ($hitsToday < 1) $hitsToday = 1;
 
@@ -733,16 +729,8 @@ Route::post('/analytics/track-visit', function (Request $request) {
 
 Route::get('/analytics/today', function () {
     $today = date('Y-m-d');
-    $dbStat = null;
-    try {
-        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'daily_stats_' . $today)->first();
-        if ($row && !empty($row->value)) {
-            $dbStat = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
-        }
-    } catch (\Throwable $e) {}
-
-    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, $dbStat['hits'] ?? 1);
-    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, $dbStat['ips'] ?? []));
+    $hitsToday = (int)\Illuminate\Support\Facades\Cache::get('site_daily_pageviews_' . $today, 1);
+    $uniqueCount = count(\Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $today, []));
     if ($hitsToday < $uniqueCount) $hitsToday = $uniqueCount;
     if ($hitsToday < 1) $hitsToday = 1;
 

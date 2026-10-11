@@ -45,7 +45,16 @@ export default function TelegramAuthBridge() {
       api.get(`/auth/telegram/token-login?token=${encodeURIComponent(tgToken)}`)
         .then((res) => {
           if (res.data?.success && res.data?.user) {
-            localStorage.setItem("user_session", JSON.stringify(res.data.user));
+            const rawUser = res.data.user;
+            const userObj = {
+              ...rawUser,
+              firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+              uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+              display_name: rawUser.display_name || rawUser.name,
+              provider: "telegram",
+            };
+            localStorage.setItem("user_session", JSON.stringify(userObj));
+            localStorage.setItem("stech_user_session", JSON.stringify(userObj));
             localStorage.setItem("customer_token", res.data.token);
             document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
             window.dispatchEvent(new Event("user_session_updated"));
@@ -67,7 +76,7 @@ export default function TelegramAuthBridge() {
       } catch (e) {}
 
       const tgUser = tg.initDataUnsafe?.user;
-      const existingSession = localStorage.getItem("user_session");
+      const existingSession = localStorage.getItem("user_session") || localStorage.getItem("stech_user_session");
 
       if (tgUser && !existingSession) {
         const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") 
@@ -77,6 +86,7 @@ export default function TelegramAuthBridge() {
         const sessionPayload = {
           id: `tg_${tgUser.id}`,
           uid: `tg_${tgUser.id}`,
+          firebase_uid: `tg_${tgUser.id}`,
           telegram_id: tgUser.id,
           name: displayName,
           display_name: displayName,
@@ -89,6 +99,7 @@ export default function TelegramAuthBridge() {
 
         const clientToken = `tg_miniapp_${tgUser.id}_${Date.now()}`;
         localStorage.setItem("user_session", JSON.stringify(sessionPayload));
+        localStorage.setItem("stech_user_session", JSON.stringify(sessionPayload));
         localStorage.setItem("customer_token", clientToken);
         document.cookie = `customer_token=${clientToken}; path=/; max-age=2592000; SameSite=Lax`;
         window.dispatchEvent(new Event("user_session_updated"));

@@ -22,6 +22,7 @@ export default function FloatingBackButton() {
     pathname.startsWith("/scan") ||
     pathname.startsWith("/account") ||
     pathname.startsWith("/cart") ||
+    pathname.startsWith("/promotions") ||
     pathname.startsWith("/admin") || 
     pathname.startsWith("/stech-hq-portal") ||
     pathname.startsWith("/rok-mix-khernh")

@@ -213,18 +213,28 @@ export default function RegisterPage() {
       const res = await api.post("/auth/telegram/verify", tgData);
       if (res.data?.success && res.data?.user) {
         // Persist genuine customer session
-        localStorage.setItem("user_session", JSON.stringify(res.data.user));
+        const rawUser = res.data.user;
+        const userObj = {
+          ...rawUser,
+          firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+          uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+          display_name: rawUser.display_name || rawUser.name,
+          provider: "telegram",
+        };
+        localStorage.setItem("user_session", JSON.stringify(userObj));
+        localStorage.setItem("stech_user_session", JSON.stringify(userObj));
         localStorage.setItem("customer_token", res.data.token);
         document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+        window.dispatchEvent(new Event("user_session_updated"));
 
         setAuthOverlay({
           show: true,
-          title: `ស្វាគមន៍ ${res.data.user.name || res.data.user.display_name}! 🎉`,
+          title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
           subtitle: "ចុះឈ្មោះ និងចូលគណនីជាមួយ Telegram ពិតប្រាកដជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
           isSuccess: true,
         });
 
-        await new Promise((r) => setTimeout(r, 1600));
+        await new Promise((r) => setTimeout(r, 1200));
         router.push("/");
       } else {
         throw new Error(res.data?.error || "ការផ្ទៀងផ្ទាត់ Telegram បរាជ័យ");
@@ -289,18 +299,28 @@ export default function RegisterPage() {
             if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
               clearInterval(pollInterval);
 
-              localStorage.setItem("user_session", JSON.stringify(checkRes.data.user));
+              const rawUser = checkRes.data.user;
+              const userObj = {
+                ...rawUser,
+                firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+                uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+                display_name: rawUser.display_name || rawUser.name,
+                provider: "telegram",
+              };
+              localStorage.setItem("user_session", JSON.stringify(userObj));
+              localStorage.setItem("stech_user_session", JSON.stringify(userObj));
               localStorage.setItem("customer_token", checkRes.data.token);
               document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+              window.dispatchEvent(new Event("user_session_updated"));
 
               setAuthOverlay({
                 show: true,
-                title: `ស្វាគមន៍ ${checkRes.data.user.name || checkRes.data.user.display_name}! 🎉`,
+                title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
                 subtitle: "ចុះឈ្មោះជាមួយ Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
                 isSuccess: true,
               });
 
-              await new Promise((r) => setTimeout(r, 1600));
+              await new Promise((r) => setTimeout(r, 1200));
               router.push("/");
             }
           } catch (e) {}

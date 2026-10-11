@@ -625,6 +625,46 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ).catch(() => {});
       }
     } catch (err) {
+      // Direct client fallback to Gemini API if Next.js internal route was unreachable
+      try {
+        const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+        const fallbackKeys = [primaryKey].filter((k): k is string => Boolean(k && k.trim().length > 10));
+        const fallbackModels = ["gemini-3.5-flash", "gemini-3.8-flash"];
+
+        clientFallback: for (const keyToUse of fallbackKeys) {
+          for (const modelToUse of fallbackModels) {
+            try {
+              const directRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    contents: [{ role: "user", parts: [{ text: textToSend }] }],
+                  }),
+                }
+              );
+              if (directRes.ok) {
+                const directData = await directRes.json();
+                const fallbackText = directData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (fallbackText) {
+                  const aiMsg: ChatItem = {
+                    sender: "bot",
+                    senderName: "S Tech AI",
+                    text: fallbackText.trim(),
+                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  };
+                  setMessages((prev) => [...prev, aiMsg]);
+                  return;
+                }
+              }
+            } catch {}
+          }
+        }
+      } catch (directErr) {
+        // Continue to friendly fallback
+      }
+
       // Graceful fallback — Never show technical error!
       const fallbackMsg: ChatItem = {
         sender: "bot",
