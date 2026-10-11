@@ -13,8 +13,8 @@ class TelegramController extends Controller
      */
     public function status()
     {
-        TelegramService::pollPendingUpdates();
-
+        // Read directly from settings storage without invoking external polling.
+        // The background daemon (artisan telegram:poll) handles continuous polling smoothly.
         $settings = TelegramService::getSettings();
         
         return response()->json([
