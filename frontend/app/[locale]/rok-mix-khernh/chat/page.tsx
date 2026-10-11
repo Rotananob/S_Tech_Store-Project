@@ -59,20 +59,24 @@ export default function AdminRealtimeChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Check for Direct Bypass Token from Telegram
+  // Check for Direct 1-Click Access Token from Telegram
   useEffect(() => {
-    const bypassToken = searchParams?.get("bypass_token");
+    const directToken = searchParams?.get("token") || searchParams?.get("bypass_token");
     const targetChatId = searchParams?.get("chat_id");
 
-    if (bypassToken) {
-      api.post("/admin/verify-bypass-token", { bypass_token: bypassToken })
+    if (directToken) {
+      api.post("/admin/verify-bypass-token", { bypass_token: directToken, token: directToken })
         .then((res) => {
           if (res.data?.success) {
             const data = res.data;
-            if (data.admin_token) {
-              localStorage.setItem("stech_admin_token", data.admin_token);
+            const authToken = data.token || data.admin_token;
+            if (authToken) {
+              localStorage.setItem("stech_admin_token", authToken);
+              localStorage.setItem("token", authToken);
               localStorage.setItem("stech_admin_user", JSON.stringify(data.admin_user));
-              document.cookie = `stech_admin_token=${data.admin_token}; path=/; max-age=3600`;
+              document.cookie = `stech_admin_token=${authToken}; path=/; max-age=86400`;
+              api.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
+              window.dispatchEvent(new Event("stech_admin_auth_updated"));
             }
             if (data.admin_user) {
               setCurrentStaff({
@@ -83,12 +87,12 @@ export default function AdminRealtimeChatPage() {
             if (targetChatId || data.chat_id) {
               setSelectedChatId(targetChatId || data.chat_id);
             }
-            setBypassNotice(`⚡ បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ Direct Bypass Token (សល់ ${data.uses_remaining} ដង)!`);
+            setBypassNotice(`⚡ បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ 1-Click Direct Token (សល់ ${data.uses_remaining} ដង)!`);
             setTimeout(() => setBypassNotice(null), 8000);
           }
         })
         .catch((err) => {
-          const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Bypass មិនត្រឹមត្រូវ ឬផុតកំណត់";
+          const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Token មិនត្រឹមត្រូវ ឬផុតកំណត់";
           setBypassNotice(`⚠️ ${errMsg}`);
           setTimeout(() => setBypassNotice(null), 8000);
         });

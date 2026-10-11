@@ -1872,16 +1872,34 @@ class TelegramService
         $bypassToken = $data['bypass_token'] ?? null;
         $chatId = $data['chat_id'] ?? null;
 
-        if ($bypassToken) {
-            $directLink = "https://www.s-tech-store.tech/rok-mix-khernh/chat?bypass_token={$bypassToken}&chat_id=" . urlencode($chatId ?? '');
-            $text .= "⚡ <b>ចូលឆ្លើយតបបន្ទាន់ (Direct Bypass Link - ប្រើបាន ២ ដង):</b>\n"
-                . "👉 <a href=\"{$directLink}\">ចុចទីនេះដើម្បីបើកផ្ទាំងឆាតផ្ទាល់ភ្លាមៗ (Bypass Login)</a>\n\n"
-                . "<i>💡 តំណភ្ជាប់នេះមានសុវត្ថិភាពខ្ពស់ អាចចុចចូលឆ្លើយតបភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ!</i>";
+        if (empty($bypassToken)) {
+            $bypassToken = \Illuminate\Support\Str::random(40);
+            $effectiveChatId = $chatId ?: ('visitor_' . time());
+            \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
+                'chat_id' => $effectiveChatId,
+                'user_name' => $name,
+                'uses' => 3, // Allow up to 3 uses
+                'created_at' => now()->toIso8601String(),
+            ], 120 * 60); // 2 hours validity
         } else {
-            $text .= "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/chat\">ចូលទៅកាន់ Admin Chat Portal ដើម្បីឆ្លើយតប</a>";
+            $effectiveChatId = $chatId;
         }
 
-        return self::sendMessage($settings['chat_id'], $text, 'HTML', $chatTopicId);
+        $directLink = "https://www.s-tech-store.tech/km/rok-mix-khernh/chat?token={$bypassToken}" . ($effectiveChatId ? "&chat_id=" . urlencode($effectiveChatId) : "");
+
+        $text .= "⚡ <b>ចូលឆ្លើយតបឆាតបន្ទាន់ (1-Click Direct Access):</b>\n"
+            . "👉 <a href=\"{$directLink}\">ចុចទីនេះដើម្បីបើកផ្ទាំងឆាតផ្ទាល់ភ្លាមៗ (Bypass Login)</a>\n\n"
+            . "<i>💡 Admin & Staff គ្រាន់តែចុចលើប៊ូតុងខាងក្រោម នឹងចូលដល់ផ្ទាំងឆាតផ្ទាល់ភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ!</i>";
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '💬 ឆ្លើយតបឆាតផ្ទាល់ (1-Click Login)', 'url' => $directLink]
+                ]
+            ]
+        ];
+
+        return self::sendMessageWithKeyboard($settings['chat_id'], $text, $replyMarkup, 'HTML', $chatTopicId);
     }
 
     /**

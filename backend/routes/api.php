@@ -31,7 +31,7 @@ Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewContro
 Route::get('/branches', [BranchController::class, 'index']);
 Route::get('/shifts', [ShiftController::class, 'index']);
 
-// Customer Live Chat Support Alert to Telegram (with 2-use Admin Direct Bypass Link)
+// Customer Live Chat Support Alert to Telegram (with Admin Direct 1-Click Access Link)
 Route::post('/chat/request-agent', function (Request $request) {
     $validated = $request->validate([
         'name' => 'nullable|string|max:150',
@@ -40,18 +40,20 @@ Route::post('/chat/request-agent', function (Request $request) {
         'telegram' => 'nullable|string|max:100',
         'message' => 'nullable|string|max:2000',
         'product_name' => 'nullable|string|max:255',
+        'product_url' => 'nullable|string|max:500',
+        'chat_id' => 'nullable|string|max:100',
     ]);
 
-    // Generate secure 2-use bypass token for Admin One-Click Direct Chat Access
+    // Generate secure 1-click token for Admin/Staff Direct Chat Access
     $bypassToken = \Illuminate\Support\Str::random(40);
-    $chatId = $request->input('chat_id') ?? $request->input('email') ?? ('visitor_' . time());
+    $chatId = $request->input('chat_id') ?: ($request->input('email') ?: ('visitor_' . time()));
 
     \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
         'chat_id' => $chatId,
         'user_name' => $validated['name'] ?? 'Website Customer',
-        'uses' => 2, // Max 2 uses
+        'uses' => 3, // Max 3 uses
         'created_at' => now()->toIso8601String(),
-    ], 45 * 60); // 45 minutes expiration
+    ], 120 * 60); // 2 hours expiration
 
     $validated['bypass_token'] = $bypassToken;
     $validated['chat_id'] = $chatId;
@@ -61,13 +63,14 @@ Route::post('/chat/request-agent', function (Request $request) {
         'success' => true,
         'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
         'bypass_token' => $bypassToken,
+        'chat_id' => $chatId,
         'telegram_result' => $res,
     ]);
 });
 
-// Admin Verify & Consume Live Chat Bypass Token (One-Click Telegram Redirect - Max 2 Uses)
+// Admin Verify & Consume Live Chat Bypass Token (One-Click Telegram Redirect - Max 3 Uses)
 Route::post('/admin/verify-bypass-token', function (Request $request) {
-    $token = trim($request->input('bypass_token', ''));
+    $token = trim((string)($request->input('bypass_token') ?: $request->input('token') ?: ''));
     if (!$token) {
         return response()->json(['success' => false, 'error' => 'Token is required'], 400);
     }
@@ -87,7 +90,7 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         \Illuminate\Support\Facades\Cache::forget($cacheKey);
         return response()->json([
             'success' => false,
-            'error' => 'តំណភ្ជាប់នេះត្រូវបានប្រើប្រាស់គ្រប់ចំនួនកំណត់ ២ ដងរួចហើយ (Max uses exceeded)! សូម Login តាមទម្រង់ធម្មតា។',
+            'error' => 'តំណភ្ជាប់នេះត្រូវបានប្រើប្រាស់គ្រប់ចំនួនកំណត់ ៣ ដងរួចហើយ (Max uses exceeded)! សូម Login តាមទម្រង់ធម្មតា។',
         ], 403);
     }
 
@@ -97,7 +100,40 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         \Illuminate\Support\Facades\Cache::forget($cacheKey);
     } else {
         $data['uses'] = $usesLeft;
-        \Illuminate\Support\Facades\Cache::put($cacheKey, $data, 45 * 60);
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $data, 120 * 60);
+    }
+
+    // Authenticate as active admin/staff user or fallback
+    $adminUser = \App\Models\User::whereIn('role', ['admin', 'super_admin', 'staff'])
+        ->where('status', 'active')
+        ->first();
+
+    if ($adminUser) {
+        $apiToken = bin2hex(random_bytes(32));
+        $adminUser->api_token = $apiToken;
+        $adminUser->last_login_at = now();
+        $adminUser->save();
+
+        $userData = [
+            'id' => $adminUser->id,
+            'name' => $adminUser->name,
+            'email' => $adminUser->email,
+            'role' => $adminUser->role,
+            'branch' => $adminUser->branch ?? 'Headquarters',
+            'shift' => $adminUser->shift ?? 'Live Chat On-Duty',
+            'permissions' => $adminUser->permissions ?? ['*'],
+        ];
+    } else {
+        $apiToken = 'admin_bypass_' . md5($token . time());
+        $userData = [
+            'id' => 999,
+            'name' => 'Live Support Agent',
+            'email' => 'support@s-tech-store.tech',
+            'role' => 'admin',
+            'branch' => 'Headquarters',
+            'shift' => 'Live Chat On-Duty',
+            'permissions' => ['*'],
+        ];
     }
 
     return response()->json([
@@ -105,15 +141,9 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         'chat_id' => $data['chat_id'] ?? null,
         'user_name' => $data['user_name'] ?? 'Customer',
         'uses_remaining' => $usesLeft,
-        'admin_token' => 'admin_bypass_' . md5($token . time()),
-        'admin_user' => [
-            'id' => 999,
-            'name' => 'Live Support Agent',
-            'email' => 'support@s-tech-store.tech',
-            'role' => 'admin',
-            'branch' => 'Headquarters',
-            'shift' => 'Live Chat On-Duty',
-        ],
+        'token' => $apiToken,
+        'admin_token' => $apiToken,
+        'admin_user' => $userData,
     ]);
 });
 
@@ -604,25 +634,7 @@ Route::get('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, '
 Route::post('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'store']);
 Route::delete('/user/pc-builds/{id}', [\App\Http\Controllers\PcBuildController::class, 'destroy']);
 
-// Customer Live Chat Request to Telegram
-Route::post('/chat/request-agent', function (\Illuminate\Http\Request $request) {
-    $data = $request->validate([
-        'name' => 'nullable|string|max:100',
-        'email' => 'nullable|string|max:100',
-        'phone' => 'nullable|string|max:50',
-        'telegram' => 'nullable|string|max:100',
-        'message' => 'required|string|max:1000',
-        'product_name' => 'nullable|string|max:200',
-        'product_url' => 'nullable|string|max:500',
-    ]);
 
-    $result = \App\Services\TelegramService::sendCustomerChatAlert($data);
-    return response()->json([
-        'success' => true,
-        'message' => 'Live chat request transmitted to Telegram on-duty staff',
-        'telegram_result' => $result,
-    ]);
-});
 
 // Admin & Staff Protected Routes (Guarded by AdminMiddleware)
 Route::middleware(AdminMiddleware::class)->group(function () {

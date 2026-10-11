@@ -505,6 +505,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       if (hasNotifiedTelegram) return;
       try {
         await api.post("/chat/request-agent", {
+          chat_id: chatId || undefined,
           name: agentForm.name || userName || "Website Customer",
           email: agentForm.email || currentUser?.email || "N/A",
           phone: agentForm.phone || "N/A",
@@ -518,7 +519,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         // Silent
       }
     },
-    [agentForm, userName, currentUser, productInfo, hasNotifiedTelegram]
+    [agentForm, userName, currentUser, productInfo, hasNotifiedTelegram, chatId]
   );
 
   // ─── Send Message Handler ─────────────────────────────────────────────────
@@ -650,11 +651,12 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     try {
       // Send Telegram alert
       await api.post("/chat/request-agent", {
+        chat_id: chatId || undefined,
         name: agentForm.name || userName || "Website Visitor",
         email: agentForm.email || currentUser?.email || "N/A",
         phone: agentForm.phone || "N/A",
         telegram: agentForm.telegram || "N/A",
-        message: agentForm.message || input || "អតិថិជនស្នើសុំជួប Human Agent លើ Telegram",
+        message: agentForm.message || input || "អតិថិជនស្នើសុំជជែកផ្ទាល់ជាមួយក្រុមការងារ",
         product_name: productInfo?.name || null,
         product_url: typeof window !== "undefined" ? window.location.href : "https://www.s-tech-store.tech",
       });

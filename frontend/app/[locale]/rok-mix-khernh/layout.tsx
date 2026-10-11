@@ -58,8 +58,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("stech_admin_token");
       const userStr = localStorage.getItem("stech_admin_user");
+      const hasDirectToken = (
+        window.location.search.includes("token=") || 
+        window.location.search.includes("bypass_token=")
+      );
 
-      if (!token) {
+      if (!token && !hasDirectToken) {
         // Not authenticated — redirect to admin login
         router.push("/rok-mix-khernh/login");
         return;
@@ -75,6 +79,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       setCheckingAuth(false);
     }
   }, [pathname, isLoginPage, router]);
+
+  // Listen for dynamic auth updates from 1-click token verification
+  useEffect(() => {
+    const handleAuthUpdate = () => {
+      try {
+        const userStr = localStorage.getItem("stech_admin_user");
+        if (userStr) {
+          setUser(JSON.parse(userStr));
+          setCheckingAuth(false);
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener("stech_admin_auth_updated", handleAuthUpdate);
+    window.addEventListener("storage", handleAuthUpdate);
+    return () => {
+      window.removeEventListener("stech_admin_auth_updated", handleAuthUpdate);
+      window.removeEventListener("storage", handleAuthUpdate);
+    };
+  }, []);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
