@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 2. Add dynamic products from backend database
   try {
     const apiUrl = process.env.INTERNAL_API_URL 
-      || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/api` : 'http://127.0.0.1:8000/api');
+      || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/api` : 'https://www.s-tech-store.tech/api');
       
     const res = await fetch(`${apiUrl}/products`, {
       next: { revalidate: 3600 },
