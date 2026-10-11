@@ -826,7 +826,7 @@ class TelegramService
             $extractedCode = $matches[1];
         } elseif (preg_match('/start(?:group)?=([A-Za-z0-9_-]+)/i', $text, $matches)) {
             $extractedCode = $matches[1];
-        } elseif (preg_match('/\b(ST[A-Za-z0-9]{4,12}|tgauth_[A-Za-z0-9_-]+)\b/i', $text, $matches)) {
+        } elseif (preg_match('/\b(ST[A-Za-z0-9]{4,12}|tgauth_[A-Za-z0-9_-]+|tglink_[A-Za-z0-9_-]+)\b/i', $text, $matches)) {
             $extractedCode = $matches[1];
         }
 
@@ -847,6 +847,7 @@ class TelegramService
             $user->display_name = $fullName;
             if (empty($user->email)) $user->email = $email;
             $user->telegram = $tgUsername;
+            $user->telegram_chat_id = $tgId;
             $user->is_active = true;
             $user->status = 'active';
             $user->save();
@@ -894,7 +895,77 @@ class TelegramService
             return;
         }
 
-        // 4.2 Handle Admin Pairing Code
+        // 4.2 Handle Profile Setting Private Account Linkage Handshake (tglink_...)
+        if ($extractedCode && (str_starts_with($extractedCode, 'tglink_') || str_starts_with($extractedCode, 'TGLINK_'))) {
+            $cleanToken = strtolower(trim($extractedCode));
+            $linkKey = "tg_link_{$cleanToken}";
+            $linkData = Cache::get($linkKey) ?: [];
+
+            $tgId = (string)($from['id'] ?? $chatId);
+            $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
+            $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
+
+            $userId = $linkData['user_id'] ?? null;
+            $user = null;
+            if ($userId) {
+                $user = \App\Models\UserProfile::find($userId);
+            }
+            if (!$user && !empty($linkData['firebase_uid'])) {
+                $user = \App\Models\UserProfile::where('firebase_uid', $linkData['firebase_uid'])->first();
+            }
+
+            if ($user) {
+                $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+                $user->telegram_chat_id = $tgId;
+                $user->notif_telegram = true;
+                $user->save();
+
+                Cache::put($linkKey, [
+                    'status' => 'completed',
+                    'user_id' => $user->id,
+                    'telegram_id' => $tgId,
+                    'telegram_username' => $tgUsername ?: $fullName,
+                    'display_name' => $user->display_name,
+                ], 600);
+
+                // Send audit security alert
+                self::sendSecurityAlert([
+                    'type' => '🔗 Telegram Account Linked to Profile',
+                    'ip' => request()->ip() ?? '127.0.0.1',
+                    'device' => 'Telegram Mobile/Desktop Client',
+                    'user' => "{$user->display_name} ({$user->email}) -> {$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
+                    'action' => 'TELEGRAM_PROFILE_LINK_SUCCESS',
+                    'details' => "អតិថិជនបានភ្ជាប់គណនី Telegram ផ្ទាល់ខ្លួនជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId} ជាមួយ User: {$user->display_name}។",
+                ]);
+
+                $profileUrl = "https://www.s-tech-store.tech/account/profile";
+                $linkedMsg = "🎉 <b>ភ្ជាប់គណនី S Tech Store ជោគជ័យ ១០០%!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "សួស្តី <b>{$fullName}</b>! គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគណនី <b>{$user->display_name}</b> ({$user->email}) ដោយជោគជ័យ។\n\n"
+                    . "🔒 <b>អត្ថប្រយោជន៍គណនី Private របស់អ្នក៖</b>\n"
+                    . "  🧾 <b>វិក្កយបត្រ (Invoices/Receipts):</b> ផ្ញើចូលឆាតនេះស្វ័យប្រវត្តរាល់ពេលទូទាត់ប្រាក់\n"
+                    . "  📦 <b>តាមដាន Order:</b> ដំណឹងទំនិញចេញដឹក (PassApp / Courier) ផ្ទាល់ខ្លួន\n"
+                    . "  🎁 <b>ពិន្ទុ & VIP Rewards:</b> ពិនិត្យ S-Coins និង Flash Sale ផ្តាច់មុខ\n\n"
+                    . "👉 <i>ឆាតនេះជាលក្ខណៈ Private ផ្ទាល់ខ្លួនរបស់លោកអ្នកតែម្នាក់គត់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ!</i>";
+
+                $linkedKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ត្រឡប់ទៅកាន់ Profile វិញ', 'url' => $profileUrl]],
+                        [['text' => '📦 ពិនិត្យការបញ្ជាទិញរបស់ខ្ញុំ', 'callback_data' => 'cust_my_orders']],
+                    ],
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $linkedMsg, $linkedKb, 'HTML', null, self::getCustomerBotToken());
+                return;
+            } else {
+                $errLinkMsg = "⚠️ <b>តំណភ្ជាប់ផុតកំណត់ ឬមិនត្រឹមត្រូវ (Link Expired)</b>\n\n"
+                    . "សូមចូលទៅកាន់ទំព័រ Profile Setting លើគេហទំព័រ S Tech Store ដើម្បីបង្កើតតំណភ្ជាប់ថ្មីម្តងទៀត។";
+                self::sendMessage($chatId, $errLinkMsg, 'HTML', null, self::getCustomerBotToken());
+                return;
+            }
+        }
+
+        // 4.3 Handle Admin Pairing Code
         if ($extractedCode) {
             $cleanCode = strtoupper(trim($extractedCode));
             if (preg_match('/^(ST[A-Za-z0-9]{4,8})/i', $cleanCode, $mCode)) {
@@ -2086,6 +2157,9 @@ class TelegramService
         }
 
         if ($orderOrUser instanceof \App\Models\UserProfile) {
+            if (!empty($orderOrUser->telegram_chat_id)) {
+                return (string)$orderOrUser->telegram_chat_id;
+            }
             if (!empty($orderOrUser->firebase_uid) && str_starts_with($orderOrUser->firebase_uid, 'tg_')) {
                 $raw = substr($orderOrUser->firebase_uid, 3);
                 if (is_numeric($raw)) return $raw;
@@ -2095,27 +2169,44 @@ class TelegramService
 
         if ($orderOrUser instanceof \App\Models\Order) {
             $uid = $orderOrUser->user_id;
-            if (!empty($uid) && str_starts_with($uid, 'tg_')) {
-                $raw = substr($uid, 3);
-                if (is_numeric($raw)) return $raw;
+            if (!empty($uid)) {
+                $u = \App\Models\UserProfile::where('firebase_uid', $uid)->orWhere('id', $uid)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
+                }
+                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
+                    $raw = substr($u->firebase_uid, 3);
+                    if (is_numeric($raw)) return $raw;
+                }
             }
 
             // Look up UserProfile by phone
             $phone = $orderOrUser->customer_phone ?: $fallbackPhone;
             if ($phone) {
-                $u = \App\Models\UserProfile::where('phone', $phone)->where('firebase_uid', 'like', 'tg_%')->first();
-                if ($u && !empty($u->firebase_uid)) {
+                $u = \App\Models\UserProfile::where('phone', $phone)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
+                }
+                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
                     $raw = str_replace('tg_', '', $u->firebase_uid);
                     if (is_numeric($raw)) return $raw;
                 }
             }
 
+            // Look up UserProfile by customer_email
+            $email = $orderOrUser->customer_email ?: $fallbackEmail;
+            if ($email) {
+                $u = \App\Models\UserProfile::where('email', $email)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
+                }
+            }
+
             // Look up UserProfile by customer_name
             if (!empty($orderOrUser->customer_name)) {
-                $u = \App\Models\UserProfile::where('display_name', $orderOrUser->customer_name)->where('firebase_uid', 'like', 'tg_%')->first();
-                if ($u && !empty($u->firebase_uid)) {
-                    $raw = str_replace('tg_', '', $u->firebase_uid);
-                    if (is_numeric($raw)) return $raw;
+                $u = \App\Models\UserProfile::where('display_name', $orderOrUser->customer_name)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
                 }
             }
         }
@@ -2123,16 +2214,22 @@ class TelegramService
         if ($orderOrUser instanceof \App\Models\Repair) {
             $phone = $orderOrUser->customer_phone ?: $fallbackPhone;
             if ($phone) {
-                $u = \App\Models\UserProfile::where('phone', $phone)->where('firebase_uid', 'like', 'tg_%')->first();
-                if ($u && !empty($u->firebase_uid)) {
+                $u = \App\Models\UserProfile::where('phone', $phone)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
+                }
+                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
                     $raw = str_replace('tg_', '', $u->firebase_uid);
                     if (is_numeric($raw)) return $raw;
                 }
             }
             $email = $orderOrUser->customer_email ?: $fallbackEmail;
             if ($email) {
-                $u = \App\Models\UserProfile::where('email', $email)->where('firebase_uid', 'like', 'tg_%')->first();
-                if ($u && !empty($u->firebase_uid)) {
+                $u = \App\Models\UserProfile::where('email', $email)->first();
+                if ($u && !empty($u->telegram_chat_id)) {
+                    return (string)$u->telegram_chat_id;
+                }
+                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
                     $raw = str_replace('tg_', '', $u->firebase_uid);
                     if (is_numeric($raw)) return $raw;
                 }

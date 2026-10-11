@@ -304,7 +304,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
 
 // Telegram 1-Click App Handshake Login (Bypasses Bot Domain Invalid & Web Widget completely)
 Route::post('/auth/telegram/handshake-init', function (Request $request) {
-    $token = 'tgauth_' . \Illuminate\Support\Str::random(24);
+    $token = 'tgauth_' . strtolower(\Illuminate\Support\Str::random(24));
     $botUsername = env('TELEGRAM_AUTH_BOT_USERNAME', 'Stech_store_LoginBot');
 
     \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", [
@@ -347,6 +347,117 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
         'completed' => false,
         'status' => 'pending',
     ]);
+});
+
+// Customer Private Telegram Companion Bot Linking (For Gmail, Email, and all users)
+Route::post('/user/telegram/link-init', function (Request $request) {
+    $uid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid');
+    $email = $request->header('X-Firebase-Email') ?: $request->input('email');
+    $token = $request->header('X-Customer-Token') ?: $request->input('customer_token');
+
+    $user = null;
+    if ($uid) {
+        $user = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+    }
+    if (!$user && $token) {
+        $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+        if ($userId) $user = \App\Models\UserProfile::find($userId);
+    }
+    if (!$user && $email) {
+        $user = \App\Models\UserProfile::where('email', $email)->first();
+    }
+
+    if (!$user) {
+        $user = \App\Models\UserProfile::firstOrCreate(
+            ['firebase_uid' => $uid ?: ('usr_' . \Illuminate\Support\Str::random(16))],
+            [
+                'display_name' => $request->header('X-Firebase-Name') ?: $request->input('name', 'Valued Customer'),
+                'email' => $email ?: 'user@s-tech-store.tech',
+                'is_active' => true,
+                'status' => 'active',
+            ]
+        );
+    }
+
+    $linkToken = 'tglink_' . strtolower(\Illuminate\Support\Str::random(24));
+    \Illuminate\Support\Facades\Cache::put("tg_link_{$linkToken}", [
+        'user_id' => $user->id,
+        'firebase_uid' => $user->firebase_uid,
+        'status' => 'pending',
+        'created_at' => time(),
+    ], 600); // 10 minutes
+
+    $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
+    $deepLink = "https://t.me/{$botUsername}?start={$linkToken}";
+    $appLink = "tg://resolve?domain={$botUsername}&start={$linkToken}";
+
+    return response()->json([
+        'success' => true,
+        'link_token' => $linkToken,
+        'bot_username' => $botUsername,
+        'deep_link' => $deepLink,
+        'app_link' => $appLink,
+    ]);
+});
+
+Route::get('/user/telegram/link-check', function (Request $request) {
+    $token = strtolower(trim((string)$request->query('token', '')));
+    if (!$token) {
+        return response()->json(['success' => false, 'error' => 'Token required'], 400);
+    }
+
+    $data = \Illuminate\Support\Facades\Cache::get("tg_link_{$token}");
+    if (!$data || !is_array($data)) {
+        return response()->json(['success' => false, 'error' => 'Link session expired or invalid'], 404);
+    }
+
+    if (($data['status'] ?? '') === 'completed') {
+        return response()->json([
+            'success' => true,
+            'completed' => true,
+            'telegram' => $data['telegram_username'] ?? null,
+            'telegram_id' => $data['telegram_id'] ?? null,
+            'display_name' => $data['display_name'] ?? null,
+        ]);
+    }
+
+    return response()->json([
+        'success' => true,
+        'completed' => false,
+        'status' => 'pending',
+    ]);
+});
+
+Route::post('/user/telegram/unlink', function (Request $request) {
+    $uid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid');
+    $email = $request->header('X-Firebase-Email') ?: $request->input('email');
+    $token = $request->header('X-Customer-Token') ?: $request->input('customer_token');
+
+    $user = null;
+    if ($uid) {
+        $user = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+    }
+    if (!$user && $token) {
+        $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+        if ($userId) $user = \App\Models\UserProfile::find($userId);
+    }
+    if (!$user && $email) {
+        $user = \App\Models\UserProfile::where('email', $email)->first();
+    }
+
+    if ($user) {
+        $user->telegram = null;
+        $user->telegram_chat_id = null;
+        $user->notif_telegram = false;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Telegram companion unlinked successfully',
+        ]);
+    }
+
+    return response()->json(['success' => false, 'error' => 'User not found'], 404);
 });
 
 // Instant 1-Click Telegram Token Login (from Bot Web links & Mini App)

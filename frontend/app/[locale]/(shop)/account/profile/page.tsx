@@ -35,6 +35,7 @@ interface ProfileData {
   city: string;
   khan?: string;
   telegram?: string;
+  telegram_chat_id?: string;
   profession?: string;
   gender?: string;
   birthday?: string;
@@ -136,6 +137,15 @@ export default function UserProfilePage() {
   const [showPassAppModal, setShowPassAppModal] = useState(false);
   const [trackedOrder, setTrackedOrder] = useState<any>(null);
 
+  // Telegram Companion Bot Linking State
+  const [telegramLinking, setTelegramLinking] = useState(false);
+  const [telegramModalOpen, setTelegramModalOpen] = useState(false);
+  const [telegramDeepLink, setTelegramDeepLink] = useState<string | null>(null);
+  const [telegramToken, setTelegramToken] = useState<string | null>(null);
+  const [telegramPolling, setTelegramPolling] = useState(false);
+  const [telegramSuccess, setTelegramSuccess] = useState(false);
+  const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -197,6 +207,7 @@ export default function UserProfilePage() {
     city: "Phnom Penh",
     khan: "",
     telegram: "",
+    telegram_chat_id: undefined,
     profession: "",
     gender: "",
     birthday: "",
@@ -506,6 +517,84 @@ export default function UserProfilePage() {
     try {
       await api.put("/user/profile", { two_fa_enabled: newVal });
     } catch (e) {}
+  };
+
+  const handleConnectTelegram = async () => {
+    try {
+      setTelegramLinking(true);
+      const res = await api.post("/user/telegram/link-init");
+      if (res.data?.success && res.data?.deep_link) {
+        setTelegramDeepLink(res.data.deep_link);
+        setTelegramToken(res.data.link_token);
+        setTelegramModalOpen(true);
+        window.open(res.data.deep_link, "_blank");
+        startTelegramPolling(res.data.link_token);
+      }
+    } catch (err: any) {
+      console.error("Failed to init telegram link:", err);
+      alert(err?.response?.data?.error || "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ សូមព្យាយាមម្តងទៀត");
+    } finally {
+      setTelegramLinking(false);
+    }
+  };
+
+  const startTelegramPolling = (token: string) => {
+    setTelegramPolling(true);
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > 120) {
+        clearInterval(interval);
+        setTelegramPolling(false);
+        return;
+      }
+      try {
+        const res = await api.get(`/user/telegram/link-check?token=${encodeURIComponent(token)}`);
+        if (res.data?.completed) {
+          clearInterval(interval);
+          setTelegramPolling(false);
+          setTelegramSuccess(true);
+          setProfile((prev) => ({
+            ...prev,
+            telegram: res.data.telegram || prev.telegram,
+            telegram_chat_id: res.data.telegram_id || prev.telegram_chat_id,
+            notif_telegram: true,
+          }));
+          setTimeout(() => {
+            setTelegramModalOpen(false);
+            setTelegramSuccess(false);
+          }, 3000);
+        }
+      } catch (e) {
+        // Polling retry
+      }
+    }, 2500);
+  };
+
+  const handleUnlinkTelegram = async () => {
+    if (!confirm("តើអ្នកពិតជាចង់ផ្តាច់ការភ្ជាប់គណនី Telegram នេះមែនទេ? លោកអ្នកនឹងមិនទទួលបានវិក្កយបត្រអេឡិចត្រូនិច ឬដំណឹងបញ្ជាទិញក្នុងឆាត Telegram ទៀតឡើយ។")) {
+      return;
+    }
+    try {
+      setTelegramUnlinking(true);
+      await api.post("/user/telegram/unlink");
+      setProfile((prev) => ({
+        ...prev,
+        telegram: "",
+        telegram_chat_id: undefined,
+        notif_telegram: false,
+      }));
+      setSaveModal({
+        show: true,
+        success: true,
+        title: "ផ្តាច់ការភ្ជាប់ជោគជ័យ ✅",
+        message: "គណនី Telegram ត្រូវបានផ្តាច់ចេញពីគណនីរបស់អ្នកដោយជោគជ័យ។",
+      });
+    } catch (e: any) {
+      alert("មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
+    } finally {
+      setTelegramUnlinking(false);
+    }
   };
 
   const handleManualCheckUpdates = async () => {
@@ -1199,10 +1288,28 @@ export default function UserProfilePage() {
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    <Send size={14} className="text-blue-500" />
-                    <span>Telegram Username (@username for shipping)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <Send size={14} className="text-[#0088cc]" />
+                      <span>Telegram Username (@username for shipping)</span>
+                    </label>
+                    {profile.telegram_chat_id ? (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 size={11} />
+                        <span>Bot Linked</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleConnectTelegram}
+                        disabled={telegramLinking}
+                        className="text-[10px] text-[#0088cc] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                      >
+                        <Zap size={11} />
+                        <span>{telegramLinking ? "Connecting..." : "1-Click Link Bot"}</span>
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={profile.telegram || ""}
@@ -1210,6 +1317,9 @@ export default function UserProfilePage() {
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all"
                     placeholder="@stech_user"
                   />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    ភ្ជាប់ជាមួយ Bot ដើម្បីទទួលវិក្កយបត្រ (Receipts/Invoices) និងតាមដានការដឹកជញ្ជូន។
+                  </p>
                 </div>
 
                 <div>
@@ -1505,6 +1615,97 @@ export default function UserProfilePage() {
                   </div>
                 </div>
               </div>
+
+              {/* ── Telegram Customer Companion Bot (Private Account Link) ── */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-sky-500/10 via-blue-500/5 to-transparent border border-sky-500/20 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-sky-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/20">
+                      <Send size={22} className="rotate-[-20deg]" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">
+                          Telegram Companion Bot (@Stech_store_LoginBot)
+                        </h4>
+                        {profile.telegram_chat_id || profile.telegram ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 size={12} />
+                            <span>បានភ្ជាប់ជោគជ័យ (Linked)</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
+                            <AlertTriangle size={12} />
+                            <span>មិនទាន់ភ្ជាប់ (Not Connected)</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
+                        សម្រាប់អតិថិជនទាំងអស់ (Google Gmail, Email/Password): ភ្ជាប់ Telegram ផ្ទាល់ខ្លួន ដើម្បីទទួលវិក្កយបត្រអេឡិចត្រូនិច (Digital Invoices/Receipts), តាមដានការដឹកជញ្ជូន និងដំណឹងផ្ទាល់ខ្លួនក្នុង Private Chat ដោយសុវត្ថិភាពខ្ពស់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ។
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status & Details */}
+                {profile.telegram_chat_id || profile.telegram ? (
+                  <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-sky-500/20 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                        <span>គណនី Telegram: <strong className="text-sky-600 dark:text-sky-400">{profile.telegram || "Connected"}</strong> {profile.telegram_chat_id && <code className="text-[10px] bg-sky-100 dark:bg-sky-950/60 px-1.5 py-0.5 rounded text-sky-700 dark:text-sky-300">ID: {profile.telegram_chat_id}</code>}</span>
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        🔒 Private & Encrypted (វិក្កយបត្រ Receipts ផ្ញើចូលឆាតនេះផ្តាច់មុខ)
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 dark:border-white/5">
+                      <a
+                        href="https://t.me/Stech_store_LoginBot"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-bold transition-all no-underline flex items-center gap-2 shadow-xs cursor-pointer"
+                      >
+                        <Send size={13} />
+                        <span>បើកឆាត Telegram Bot (@Stech_store_LoginBot)</span>
+                        <ExternalLink size={12} />
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={handleUnlinkTelegram}
+                        disabled={telegramUnlinking}
+                        className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all border border-red-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {telegramUnlinking ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
+                        <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ការភ្ជាប់ (Unlink)"}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                        <span>⚡ ភ្ជាប់ត្រឹមតែ ១-Click ប៉ុណ្ណោះ គ្មានការពិបាកឡើយ!</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        ចុចប៊ូតុងខាងក្រោម នោះប្រព័ន្ធនឹងបើក Telegram Bot ស្វ័យប្រវត្តិ។ ចុច <strong>START</strong> ក្នុង Telegram ដើម្បីភ្ជាប់ភ្លាមៗ។
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleConnectTelegram}
+                      disabled={telegramLinking}
+                      className="px-5 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-black transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-sky-500/20 shrink-0 disabled:opacity-50"
+                    >
+                      {telegramLinking ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                      <span>{telegramLinking ? "កំពុងរៀបចំ..." : "✈️ ភ្ជាប់ Telegram Bot ឥឡូវនេះ"}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1607,14 +1808,36 @@ export default function UserProfilePage() {
                     />
                   </div>
 
-                  <div className="p-4 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-gray-900 dark:text-white block">
-                        Telegram Bot Dispatch Alerts
-                      </span>
+                  <div className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white block">
+                          Telegram Bot Dispatch Alerts & E-Invoices
+                        </span>
+                        {profile.telegram_chat_id || profile.telegram ? (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                            Linked ({profile.telegram || "Bot Active"})
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
+                            Not Linked
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-gray-400 block">
-                        Send digital invoice & driver contact directly to your Telegram chat.
+                        Send digital invoice & driver contact directly to your private Telegram chat (@Stech_store_LoginBot).
                       </span>
+                      {!profile.telegram_chat_id && (
+                        <button
+                          type="button"
+                          onClick={handleConnectTelegram}
+                          disabled={telegramLinking}
+                          className="mt-1 text-xs text-[#0088cc] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                        >
+                          <Send size={11} />
+                          <span>{telegramLinking ? "Connecting..." : "✈️ ភ្ជាប់គណនី Telegram ឥឡូវនេះ (Connect Telegram Bot)"}</span>
+                        </button>
+                      )}
                     </div>
                     <Toggle
                       value={profile.notif_telegram}
@@ -2479,6 +2702,90 @@ export default function UserProfilePage() {
               >
                 Done
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Telegram Companion Bot Linking Modal ───────────────────── */}
+      <AnimatePresence>
+        {telegramModalOpen && (
+          <div className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="w-full max-w-md bg-white dark:bg-[#181a20] rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 dark:border-white/10 text-center relative overflow-hidden"
+            >
+              <button
+                type="button"
+                onClick={() => { setTelegramModalOpen(false); setTelegramPolling(false); }}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-all cursor-pointer border-none bg-transparent"
+              >
+                <X size={18} />
+              </button>
+
+              {telegramSuccess ? (
+                <div className="py-4 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-500 flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle2 size={36} />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      ភ្ជាប់គណនី Telegram ជោគជ័យ ១០០%!
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed px-2">
+                      គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយ <strong className="text-emerald-600 dark:text-emerald-400">{profile.display_name}</strong> រួចរាល់។ រាល់វិក្កយបត្រ Receipts និងការតាមដានទំនិញនឹងត្រូវផ្ញើចូលឆាតនេះដោយស្វ័យប្រវត្តិ។
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setTelegramModalOpen(false); setTelegramSuccess(false); }}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold transition-all shadow-md cursor-pointer border-none"
+                  >
+                    រួចរាល់ (Done)
+                  </button>
+                </div>
+              ) : (
+                <div className="py-2 space-y-4">
+                  <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#0088cc] to-sky-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-sky-500/30">
+                    <Send size={28} className="rotate-[-20deg]" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
+                      ភ្ជាប់ Telegram Companion Bot
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Bot ក្នុងកម្មវិធី Telegram រួចចុច <strong>START</strong>
+                    </p>
+                  </div>
+
+                  {telegramDeepLink && (
+                    <div className="space-y-3 pt-2">
+                      <a
+                        href={telegramDeepLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-3.5 px-4 rounded-2xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-extrabold transition-all no-underline flex items-center justify-center gap-2 shadow-lg shadow-sky-500/25 cursor-pointer"
+                      >
+                        <Send size={16} />
+                        <span>បើកកម្មវិធី Telegram (@Stech_store_LoginBot)</span>
+                        <ExternalLink size={14} />
+                      </a>
+
+                      <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping"></span>
+                        <span>កំពុងរង់ចាំលោកអ្នកចុច Start ក្នុង Telegram...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-gray-100 dark:border-white/10 text-[11px] text-gray-400">
+                    🔒 ប្រព័ន្ធភ្ជាប់ដោយសុវត្ថិភាពខ្ពស់ ឆាតឯកជនមួយទល់នឹងមួយ (Private 1-on-1 Bot)
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

@@ -19,7 +19,20 @@ class UserController extends Controller
      */
     private function getUid(Request $request): ?string
     {
-        return $request->header('X-Firebase-UID');
+        $uid = $request->header('X-Firebase-UID');
+        if (!empty($uid)) return $uid;
+
+        $token = $request->header('X-Customer-Token') ?: $request->bearerToken();
+        if (!empty($token)) {
+            $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+            if ($userId) {
+                $user = UserProfile::find($userId);
+                if ($user && !empty($user->firebase_uid)) {
+                    return $user->firebase_uid;
+                }
+            }
+        }
+        return null;
     }
 
     public function index()
@@ -376,6 +389,8 @@ class UserController extends Controller
             'notif_orders' => 'nullable|boolean',
             'notif_promos' => 'nullable|boolean',
             'notif_builds' => 'nullable|boolean',
+            'notif_telegram' => 'nullable|boolean',
+            'telegram_chat_id' => 'nullable|string|max:100',
         ]);
 
         $profile = UserProfile::firstOrCreate(['firebase_uid' => $uid]);

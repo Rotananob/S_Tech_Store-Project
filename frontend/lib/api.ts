@@ -69,15 +69,20 @@ api.interceptors.request.use(
           config.headers["X-Firebase-Name"] = user.displayName || "";
           config.headers["X-Firebase-Photo"] = user.photoURL || "";
         } else {
-          const sessionUserStr = localStorage.getItem("stech_user_session");
+          const sessionUserStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
           if (sessionUserStr) {
             const sessionUser = JSON.parse(sessionUserStr);
-            if (sessionUser?.firebase_uid) {
-              config.headers["X-Firebase-UID"] = sessionUser.firebase_uid;
+            const uid = sessionUser?.firebase_uid || sessionUser?.uid || sessionUser?.id;
+            if (uid) {
+              config.headers["X-Firebase-UID"] = String(uid);
               config.headers["X-Firebase-Email"] = sessionUser.email || "";
-              config.headers["X-Firebase-Name"] = sessionUser.display_name || "";
+              config.headers["X-Firebase-Name"] = sessionUser.display_name || sessionUser.name || "";
               config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
             }
+          }
+          const customerToken = localStorage.getItem("stech_user_token") || localStorage.getItem("customer_token");
+          if (customerToken) {
+            config.headers["X-Customer-Token"] = customerToken;
           }
         }
       } catch (e) {
