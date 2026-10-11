@@ -230,7 +230,7 @@ export default function AdminDashboardOverview() {
           {/* Quick Refresh */}
           <button
             type="button"
-            onClick={fetchData}
+            onClick={() => { fetchData(); }}
             className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
             title="ទាញទិន្នន័យថ្មី • Refresh"
           >
