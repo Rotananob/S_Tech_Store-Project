@@ -42,6 +42,15 @@ const RATE_LIMIT_PER_HOUR = 150; // max 150 messages per 3600 seconds
 const ONE_MINUTE_MS = 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
 
+export const STATIC_SYSTEM_PROMPTS = [
+  { label: "🚚 សេវាដឹកជញ្ជូន", text: "តើហាង S Tech Store មានសេវាដឹកជញ្ជូន និងសាខានៅឯណាខ្លះ?" },
+  { label: "🛡️ ការធានា (Warranty)", text: "តើហាងមានការធានាលើកុំព្យូទ័រ និងគ្រឿងបន្លាស់រយៈពេលប៉ុន្មាន?" },
+  { label: "💻 ដំឡើង Custom PC", text: "ខ្ញុំចង់ដំឡើង PC សម្រាប់ Gaming និងកាត់ត តើហាងអាចជួយរៀបគ្រឿងបានទេ?" },
+  { label: "🎁 ប្រូម៉ូសិនពិសេស", text: "តើបច្ចុប្បន្នហាងមាន Promotion ឬការបញ្ចុះតម្លៃពិសេសអ្វីខ្លះ?" },
+  { label: "💳 ការទូទាត់ KHQR / COD", text: "តើហាងទទួលការទូទាត់តាមវិធីណាខ្លះ (KHQR/ABA/COD)?" },
+  { label: "📞 ជជែកផ្ទាល់ជាមួយក្រុមការងារ", isAgent: true, text: "" },
+];
+
 export interface ChatSessionItem {
   id: string;
   title: string;
@@ -677,13 +686,13 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ...prev,
         {
           sender: "system",
-          text: `🔔 បានបញ្ជូន Alert ទៅកាន់ Telegram របស់ក្រុមការងាររួចរាល់ហើយ! បុគ្គលិកផ្នែកបម្រើអតិថិជននឹងឆ្លើយតបមកបងក្នុងពេលឆាប់ៗនេះ។`,
+          text: `🔔 បានបញ្ជូនសំណើសុំជជែកផ្ទាល់ទៅកាន់ក្រុមការងារកាន់ផ្នែកឆាតរួចរាល់ហើយ! បុគ្គលិកផ្នែកបម្រើអតិថិជននឹងឆ្លើយតបមកបងក្នុងពេលឆាប់ៗនេះ។`,
           time: timeStr,
         },
       ]);
-      showToast("✅ បានបញ្ជូន Alert ទៅ Telegram ក្រុមការងាររួចរាល់!", "success");
+      showToast("✅ បានបញ្ជូនសំណើសុំជជែកផ្ទាល់ទៅកាន់ក្រុមការងាររួចរាល់!", "success");
     } catch (err) {
-      showToast("បានបញ្ជូនសំណើទៅកាន់ Backup Queue រួចរាល់!", "info");
+      showToast("បានបញ្ជូនសំណើទៅកាន់ប្រព័ន្ធរួចរាល់!", "info");
       setShowAgentModal(false);
     } finally {
       setIsSendingAgentReq(false);
@@ -797,7 +806,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 text-[#8B1A1A] dark:text-red-400 text-xs font-bold hover:bg-[#8B1A1A] hover:text-white transition-all cursor-pointer shadow-sm"
           >
             <Headphones size={13} />
-            <span className="hidden xs:inline">Live Agent</span>
+            <span className="hidden xs:inline">ទាក់ទងបុគ្គលិក</span>
           </button>
 
           {/* Close Modal Button */}
@@ -932,7 +941,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-xs font-bold shadow-sm hover:opacity-95 transition-all cursor-pointer"
                       >
                         <Headphones size={13} />
-                        <span>ទាក់ទងផ្ទាល់ជាមួយមនុស្ស (Live Agent)</span>
+                        <span>ទាក់ទងទៅក្រុមការងារកាន់ផ្នែកឆាតភ្លាមៗ</span>
                       </button>
 
                       <button
@@ -956,7 +965,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                         className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
                       >
                         <Headphones size={14} />
-                        <span>Alert ទៅ Telegram ក្រុមការងារឥឡូវនេះ</span>
+                        <span>ស្នើសុំជជែកផ្ទាល់ជាមួយក្រុមការងារភ្លាមៗ</span>
                       </button>
                     </div>
                   )}
@@ -1024,6 +1033,30 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         )}
 
         <div ref={endRef} />
+      </div>
+
+      {/* ── Static Quick System Prompts Bar ──────────────────────────────────── */}
+      <div className="bg-gray-50/95 dark:bg-[#10131c] px-3 py-2 border-t border-gray-100 dark:border-white/5 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-shrink-0">
+        <span className="text-[10px] font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-wider shrink-0 pl-1 flex items-center gap-1">
+          <Sparkles size={11} className="text-[#8B1A1A] dark:text-red-400" />
+          <span>សំណួរពេញនិយម:</span>
+        </span>
+        {STATIC_SYSTEM_PROMPTS.map((item, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => {
+              if (item.isAgent) {
+                setShowAgentModal(true);
+              } else if (item.text) {
+                handleSend(item.text);
+              }
+            }}
+            className="px-2.5 py-1 rounded-full bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 hover:text-[#8B1A1A] dark:hover:text-red-400 text-[11px] font-bold border border-gray-200/60 dark:border-white/10 shadow-xs shrink-0 transition-all cursor-pointer whitespace-nowrap active:scale-95"
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {/* ── Input Area ───────────────────────────────────────────────────────── */}
@@ -1243,10 +1276,10 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
-                    ទាក់ទងក្រុមការងារ (Live Agent Alert)
+                    ទាក់ទងទៅក្រុមការងារកាន់ផ្នែកឆាតភ្លាមៗ
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    សារ Alert នឹងលោតចូល Telegram របស់បុគ្គលិក S Tech Store ភ្លាមៗ
+                    សំណើរបស់បងនឹងត្រូវបញ្ជូនទៅកាន់ក្រុមការងារបម្រើអតិថិជនរបស់ S Tech Store ដើម្បីឆ្លើយតបភ្លាមៗ
                   </p>
                 </div>
               </div>
@@ -1332,11 +1365,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-xs font-bold hover:shadow-lg disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
                   >
                     {isSendingAgentReq ? (
-                      <span>កំពុង Alert ទៅ Telegram...</span>
+                      <span>កំពុងបញ្ជូនសំណើ...</span>
                     ) : (
                       <>
                         <Send size={14} />
-                        <span>បញ្ជូន Alert ទៅ Telegram ក្រុមការងារ</span>
+                        <span>ស្នើសុំជជែកផ្ទាល់ជាមួយក្រុមការងារ</span>
                       </>
                     )}
                   </button>

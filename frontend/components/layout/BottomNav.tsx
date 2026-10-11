@@ -1,7 +1,10 @@
 "use client";
 
-import { Link, usePathname } from '@/i18n/routing';
-import { Home, Layers, Camera, MessageSquare, User } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Link, usePathname, useRouter } from '@/i18n/routing';
+import { Home, Layers, Camera, MessageSquare, User, LogIn, X, Sparkles } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { useCartStore } from '@/store/cartStore';
 import { useVisualSearchStore } from '@/store/visualSearchStore';
 import { useChatStore } from '@/store/chatStore';
@@ -10,8 +13,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
   const { isOpen: isChatOpen, closeChat, openChat, productInfo } = useChatStore();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setIsLoggedIn(true);
+      } else {
+        const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
+        if (sessionStr) {
+          try {
+            const sUser = JSON.parse(sessionStr);
+            if (sUser?.firebase_uid) {
+              setIsLoggedIn(true);
+              return;
+            }
+          } catch (e) {}
+        }
+        setIsLoggedIn(false);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -132,6 +159,27 @@ export default function BottomNav() {
             );
           }
 
+          // Account tab - check if logged in; if not, show login popup modal
+          if (tab.path === '/account/profile') {
+            return (
+              <button
+                key={tab.path}
+                type="button"
+                onClick={() => {
+                  if (isLoggedIn) {
+                    router.push('/account/profile');
+                  } else {
+                    setShowAuthModal(true);
+                  }
+                }}
+                className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                aria-label="Open User Account"
+              >
+                {content}
+              </button>
+            );
+          }
+
           // Regular tab
           return (
             <Link
@@ -144,6 +192,69 @@ export default function BottomNav() {
           );
         })}
       </div>
+
+      {/* ── Auth Prompt Popup Modal when user clicks Account without logging in ── */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-sm bg-white dark:bg-[#141720] text-gray-900 dark:text-white rounded-3xl p-6 border border-gray-100 dark:border-white/10 shadow-2xl text-center"
+            >
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              {/* Icon badge */}
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-amber-500 p-0.5 shadow-xl flex items-center justify-center">
+                <div className="w-full h-full rounded-[14px] bg-white dark:bg-[#141720] flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
+                  <User size={30} />
+                </div>
+              </div>
+
+              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-1.5">
+                សូមចូលគណនីរបស់អ្នក
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-6 px-2">
+                ចូលគណនីដើម្បីគ្រប់គ្រងទិន្នន័យផ្ទាល់ខ្លួន តាមដានការបញ្ជាទិញ និងទទួលបានកាក់រង្វាន់ VIP Coins!
+              </p>
+
+              <div className="space-y-2.5">
+                <Link
+                  href="/login"
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6b1111] hover:to-red-700 text-white font-bold text-sm shadow-lg hover:shadow-red-900/30 flex items-center justify-center gap-2 no-underline transition-all"
+                >
+                  <LogIn size={16} />
+                  <span>ចូលគណនី (Sign In)</span>
+                </Link>
+
+                <Link
+                  href="/register"
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-full py-3 px-4 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-800 dark:text-gray-200 font-bold text-xs flex items-center justify-center gap-2 no-underline transition-all border border-gray-200/60 dark:border-white/10"
+                >
+                  <span>ចុះឈ្មោះបង្កើតគណនីថ្មី (Create Account)</span>
+                </Link>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAuthModal(false)}
+                className="mt-4 text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors border-none bg-transparent cursor-pointer"
+              >
+                មើលទំនិញបន្ត (Continue Browsing)
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Global Interactive ChatBot Modal when opened from BottomNav */}
       <AnimatePresence>

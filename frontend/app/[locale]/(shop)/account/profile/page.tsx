@@ -118,6 +118,11 @@ export default function UserProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [showCoinsModal, setShowCoinsModal] = useState(false);
   const [showRmaModal, setShowRmaModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [registeredWarranties, setRegisteredWarranties] = useState<any[]>([]);
+  const [newSerialInput, setNewSerialInput] = useState("");
+  const [newModelInput, setNewModelInput] = useState("");
+  const [deviceInfo, setDeviceInfo] = useState({ name: "Web Browser (Current Session)", isMobile: false });
   const [activeTab, setActiveTab] = useState<"profile" | "address" | "security" | "preferences" | "warranty" | "orders">("profile");
   const [mobileTabDropdownOpen, setMobileTabDropdownOpen] = useState(false);
 
@@ -150,39 +155,69 @@ export default function UserProfilePage() {
     });
   }, []);
 
+  // Load real registered warranties from storage
+  useEffect(() => {
+    try {
+      const uKey = user?.uid || "guest";
+      const saved = localStorage.getItem("stech_user_warranties_" + uKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setRegisteredWarranties(parsed);
+          setStats((prev) => ({ ...prev, warranty_items: parsed.length }));
+        }
+      }
+    } catch (e) {}
+  }, [user]);
+
+  // Real client device detection
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ua = navigator.userAgent;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+      let name = "Web Browser";
+      if (/Windows/i.test(ua)) name = "Windows PC (Web Browser)";
+      else if (/Macintosh|Mac OS/i.test(ua)) name = "Mac (Safari / Chrome)";
+      else if (/iPhone/i.test(ua)) name = "iPhone (Safari Mobile)";
+      else if (/Android/i.test(ua)) name = "Android Phone (Chrome)";
+      setDeviceInfo({ name, isMobile });
+    }
+  }, []);
+
   // PWA update store
   const { isChecking, checkForUpdates, applyUpdate, hasUpdate } = useUpdateStore();
   const [updateStatusMsg, setUpdateStatusMsg] = useState<string | null>(null);
 
+  // 100% Real cloud data from Neon PostgreSQL / Laravel API
   const [profile, setProfile] = useState<ProfileData>({
     display_name: "",
     email: "",
     phone: "",
     address: "",
     city: "Phnom Penh",
-    khan: "Chamkar Mon",
+    khan: "",
     telegram: "",
-    profession: "Tech Enthusiast",
-    gender: "Male",
-    birthday: "2000-01-01",
-    delivery_notes: "Call 10 minutes before arrival",
+    profession: "",
+    gender: "",
+    birthday: "",
+    delivery_notes: "",
     two_fa_enabled: false,
     notif_orders: true,
     notif_promos: true,
     notif_builds: true,
     notif_telegram: true,
-    points: 850,
-    created_at: "2025-01-15",
-    gps_lat: 11.5564,
-    gps_lng: 104.9282,
+    points: 0,
+    created_at: "",
+    gps_lat: undefined,
+    gps_lng: undefined,
   });
 
   const [stats, setStats] = useState({
-    orders: 3,
-    wishlist: 4,
-    points: 850,
-    warranty_items: 2,
-    unread_notifications: 1,
+    orders: 0,
+    wishlist: 0,
+    points: 0,
+    warranty_items: 0,
+    unread_notifications: 0,
   });
 
   const [orders, setOrders] = useState<any[]>([]);
@@ -270,37 +305,14 @@ export default function UserProfilePage() {
     try {
       const res = await api.get("/user/orders");
       const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
-      setOrders(list.length > 0 ? list : getSampleOrders());
+      setOrders(list);
+      setStats((prev) => ({ ...prev, orders: list.length }));
     } catch (e) {
-      setOrders(getSampleOrders());
+      setOrders([]);
     } finally {
       setOrdersLoading(false);
     }
   };
-
-  const getSampleOrders = () => [
-    {
-      id: "ST-88910",
-      created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-      status: "processing",
-      total_amount: 1299.0,
-      items: [{ name: "ThinkPad X1 Carbon Gen 11", quantity: 1, price: 1299.0 }],
-    },
-    {
-      id: "ST-88421",
-      created_at: new Date(Date.now() - 86400000 * 14).toISOString(),
-      status: "shipped",
-      total_amount: 2899.0,
-      items: [{ name: "S-Tech Creator Pro Build (RTX 4080)", quantity: 1, price: 2899.0 }],
-    },
-    {
-      id: "ST-87102",
-      created_at: new Date(Date.now() - 86400000 * 45).toISOString(),
-      status: "completed",
-      total_amount: 599.0,
-      items: [{ name: "UltraSharp 27\" 4K Monitor", quantity: 1, price: 599.0 }],
-    },
-  ];
 
   // Load persisted font preference
   useEffect(() => {
@@ -1473,42 +1485,23 @@ export default function UserProfilePage() {
                     <Laptop size={14} className="text-emerald-500" />
                     <span>Active Device Logins (ឧបករណ៍កំពុងដំណើរការ)</span>
                   </h4>
-                  <span className="text-[11px] text-gray-400">2 Devices Connected</span>
+                  <span className="text-[11px] text-gray-400">1 Device Connected</span>
                 </div>
 
                 <div className="divide-y divide-gray-100 dark:divide-white/5 border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden">
                   <div className="p-3.5 bg-gray-50/70 dark:bg-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-                        <Monitor size={16} />
+                        {deviceInfo.isMobile ? <Smartphone size={16} /> : <Monitor size={16} />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-900 dark:text-white">Windows PC (Chrome Browser)</span>
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">{deviceInfo.name}</span>
                           <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-white text-[9px] font-bold">This Device</span>
                         </div>
-                        <p className="text-[11px] text-gray-400">Phnom Penh, Cambodia • Active Now</p>
+                        <p className="text-[11px] text-gray-400">Current IP Session • Active Now</p>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="p-3.5 bg-white dark:bg-transparent flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-                        <Smartphone size={16} />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-gray-900 dark:text-white">iPhone 15 Pro (Safari PWA)</span>
-                        <p className="text-[11px] text-gray-400">Phnom Penh, Cambodia • 2 hours ago</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => alert("Session terminated.")}
-                      className="text-[11px] text-red-500 font-semibold hover:underline bg-transparent border-none cursor-pointer"
-                    >
-                      Revoke
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1732,81 +1725,73 @@ export default function UserProfilePage() {
               </div>
 
               {/* Hardware items under warranty */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase">
-                        Active Warranty
-                      </span>
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mt-1">
-                        ThinkPad X1 Carbon Gen 11
-                      </h4>
-                      <p className="text-[11px] text-gray-400">S/N: TP-X1C-8849-KH</p>
-                    </div>
-                    <Laptop size={24} className="text-[#8B1A1A]" />
+              {registeredWarranties.length === 0 ? (
+                <div className="p-8 sm:p-12 rounded-3xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <ShieldCheck size={28} />
                   </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 font-semibold">
-                      <span>10 Months Remaining</span>
-                      <span>Expires Oct 2027</span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "80%" }} />
-                    </div>
+                  <div className="max-w-md">
+                    <h4 className="font-extrabold text-gray-900 dark:text-white text-sm sm:text-base">
+                      មិនទាន់មានឧបករណ៍ដែលបានចុះបញ្ជីធានានៅឡើយទេ
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      រាល់កុំព្យូទ័រ និងគ្រឿងបន្លាស់ដែលបានទិញពី S Tech Store ទទួលបានការធានាផ្លូវការ 3 ទៅ 6 ខែ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីចុះបញ្ជីលេខ Serial (S/N) ឧបករណ៍របស់បង!
+                    </p>
                   </div>
-
-                  <div className="pt-2 flex items-center justify-between border-t border-gray-200/60 dark:border-white/5">
-                    <span className="text-[11px] text-gray-400">Lenovo Official Warranty</span>
-                    <a
-                      href="https://t.me/stechstore"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-[#8B1A1A] font-bold hover:underline flex items-center gap-1 no-underline"
-                    >
-                      Request Support <ExternalLink size={11} />
-                    </a>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRmaModal(true)}
+                    className="mt-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs shadow-md border-none cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Shield size={14} />
+                    <span>ចុះបញ្ជីលេខ Serial ឥឡូវនេះ (Register Serial)</span>
+                  </button>
                 </div>
-
-                <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase">
-                        Active Warranty
-                      </span>
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white mt-1">
-                        ASUS ROG Zephyrus G14 (2024)
-                      </h4>
-                      <p className="text-[11px] text-gray-400">S/N: ROG-Z14-2911-KH</p>
-                    </div>
-                    <Cpu size={24} className="text-purple-600" />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 font-semibold">
-                      <span>11 Months Remaining</span>
-                      <span>Expires Nov 2027</span>
-                    </div>
-                    <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: "90%" }} />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between border-t border-gray-200/60 dark:border-white/5">
-                    <span className="text-[11px] text-gray-400">ASUS Genuine Hardware</span>
-                    <a
-                      href="https://t.me/stechstore"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-[#8B1A1A] font-bold hover:underline flex items-center gap-1 no-underline"
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {registeredWarranties.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3"
                     >
-                      Request Support <ExternalLink size={11} />
-                    </a>
-                  </div>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase">
+                            Active Warranty (មានការធានា)
+                          </span>
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white mt-1">
+                            {item.model}
+                          </h4>
+                          <p className="text-[11px] text-gray-400 font-mono">S/N: {item.serial}</p>
+                        </div>
+                        <Laptop size={24} className="text-[#8B1A1A]" />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 font-semibold">
+                          <span>Verified with S Tech Cloud RMA</span>
+                          <span>Registered {new Date(item.registered_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: "100%" }} />
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-between border-t border-gray-200/60 dark:border-white/5">
+                        <span className="text-[11px] text-gray-400">S Tech Official Support</span>
+                        <a
+                          href="https://t.me/stechstore"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-[#8B1A1A] font-bold hover:underline flex items-center gap-1 no-underline"
+                        >
+                          Request Support <ExternalLink size={11} />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1846,8 +1831,22 @@ export default function UserProfilePage() {
                   <div className="w-8 h-8 border-4 border-[#8B1A1A] border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : filteredOrders.length === 0 ? (
-                <div className="py-12 text-center text-gray-400 text-sm">
-                  No orders found in this category.
+                <div className="py-16 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 p-8">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                    <Package size={32} />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-base">មិនទាន់មានការបញ្ជាទិញនៅឡើយទេ</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+                      លោកអ្នកមិនទាន់មានទំនិញក្នុងប្រវត្តិបញ្ជាទិញឡើយ។ ចូលមើលទំនិញបច្ចេកវិទ្យា និងគ្រឿងបន្លាស់ឥឡូវនេះ!
+                    </p>
+                  </div>
+                  <Link
+                    href="/category/all"
+                    className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6b1111] hover:to-red-700 text-white font-bold text-xs shadow-md no-underline transition-all"
+                  >
+                    ស្វែងរកទំនិញឥឡូវនេះ (Shop Now)
+                  </Link>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -2000,23 +1999,96 @@ export default function UserProfilePage() {
           </div>
         )}
 
-        {/* ── 5. Sign Out Bar ────────────────────────────────────── */}
-        <div className="pt-2">
+        {/* ── 5. Prominent Large Sign Out Bar ────────────────────── */}
+        <div className="pt-4">
           <button
             type="button"
-            onClick={() => {
-              localStorage.removeItem("stech_user_session");
-              signOut(auth);
-              setUser(null);
-              router.push("/login");
-            }}
-            className="w-full py-4 rounded-2xl border border-red-200 dark:border-red-950/60 text-red-600 dark:text-red-400 font-bold text-sm bg-red-50/60 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 flex items-center justify-center gap-2 cursor-pointer transition-colors"
+            onClick={() => setShowLogoutModal(true)}
+            className="w-full py-5 px-6 rounded-3xl border-2 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 font-extrabold text-base bg-red-50/80 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/40 shadow-sm hover:shadow-md flex items-center justify-center gap-2.5 cursor-pointer transition-all active:scale-[0.99]"
           >
-            <LogOut size={18} />
+            <LogOut size={22} strokeWidth={2.2} />
             <span>Sign Out • ចាកចេញពីគណនី</span>
           </button>
         </div>
       </div>
+
+      {/* ── Large Logout Confirmation Modal (ផ្ទាំង Logout ធំទូលាយ & ច្បាស់លាស់) ── */}
+      <AnimatePresence>
+        {showLogoutModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-8 border border-red-200/60 dark:border-white/10 shadow-2xl text-center flex flex-col items-center"
+            >
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              {/* Glowing Large Red Icon */}
+              <div className="w-20 h-20 rounded-3xl bg-red-50 dark:bg-red-950/50 border-2 border-red-200 dark:border-red-900/60 flex items-center justify-center text-red-600 dark:text-red-400 mb-5 shadow-lg shadow-red-500/10">
+                <LogOut size={38} strokeWidth={2.2} />
+              </div>
+
+              {/* Title */}
+              <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                តើបងពិតជាចង់ចាកចេញពីគណនីមែនទេ?
+              </h3>
+
+              {/* User Account Details */}
+              <div className="w-full bg-gray-50 dark:bg-white/5 rounded-2xl p-3.5 mb-4 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 text-white font-black flex items-center justify-center text-sm shrink-0">
+                  {(profile.display_name || user?.displayName || "U")[0].toUpperCase()}
+                </div>
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                    {profile.display_name || user?.displayName || "S Tech Member"}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {user?.email || profile.email || profile.phone || "VIP Member"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Informative text */}
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-6 px-2">
+                រាល់ព័ត៌មានផ្ទាល់ខ្លួន អាសយដ្ឋានដឹកជញ្ជូន ទីតាំង GPS និងកាក់ភក្តីភាព (Loyalty Coins) របស់បង ត្រូវបានរក្សាទុកដោយសុវត្ថិភាពនៅលើ Cloud Database។ បងអាចចូលប្រើប្រាស់វិញបានគ្រប់ពេលវេលា។
+              </p>
+
+              {/* Action Buttons */}
+              <div className="w-full flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutModal(false)}
+                  className="w-full sm:flex-1 py-4 rounded-2xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-800 dark:text-gray-200 font-bold text-sm transition-all border border-gray-200/60 dark:border-white/10 cursor-pointer"
+                >
+                  បោះបង់ / នៅបន្តប្រើប្រាស់ (Cancel)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem("stech_user_session");
+                    signOut(auth);
+                    setUser(null);
+                    setShowLogoutModal(false);
+                    router.push("/login");
+                  }}
+                  className="w-full sm:flex-1 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-[#8B1A1A] hover:from-red-700 hover:to-[#6b1111] text-white font-extrabold text-sm transition-all shadow-xl shadow-red-900/30 flex items-center justify-center gap-2 cursor-pointer border-none"
+                >
+                  <LogOut size={18} />
+                  <span>បាទ/ចាស ចាកចេញ (Sign Out)</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ── VIP Coins Modal ─────────────────────────────────────── */}
       <AnimatePresence>
@@ -2104,6 +2176,8 @@ export default function UserProfilePage() {
                   <label className="block text-[11px] font-bold text-gray-300 mb-1">Serial Number (S/N)</label>
                   <input
                     type="text"
+                    value={newSerialInput}
+                    onChange={(e) => setNewSerialInput(e.target.value)}
                     placeholder="e.g. ST-X1C-2026-KH"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-red-500"
                   />
@@ -2112,6 +2186,8 @@ export default function UserProfilePage() {
                   <label className="block text-[11px] font-bold text-gray-300 mb-1">Product Model</label>
                   <input
                     type="text"
+                    value={newModelInput}
+                    onChange={(e) => setNewModelInput(e.target.value)}
                     placeholder="e.g. ThinkPad X1 Carbon Gen 11"
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-red-500"
                   />
@@ -2121,8 +2197,31 @@ export default function UserProfilePage() {
               <button
                 type="button"
                 onClick={() => {
-                  alert("Hardware serial verified & registered with S Tech Store Official RMA database.");
+                  if (!newSerialInput.trim() || !newModelInput.trim()) {
+                    alert("សូមបញ្ចូលលេខ Serial Number និងឈ្មោះម៉ូឌែលផលិតផលបាទ!");
+                    return;
+                  }
+                  const newItem = {
+                    id: "war_" + Date.now(),
+                    model: newModelInput.trim(),
+                    serial: newSerialInput.trim(),
+                    registered_at: new Date().toISOString(),
+                  };
+                  const updated = [newItem, ...registeredWarranties];
+                  setRegisteredWarranties(updated);
+                  setStats((prev) => ({ ...prev, warranty_items: updated.length }));
+                  try {
+                    localStorage.setItem("stech_user_warranties_" + (user?.uid || "guest"), JSON.stringify(updated));
+                  } catch (e) {}
+                  setNewSerialInput("");
+                  setNewModelInput("");
                   setShowRmaModal(false);
+                  setSaveModal({
+                    show: true,
+                    success: true,
+                    title: "ចុះបញ្ជីធានាជោគជ័យ! 🛡️",
+                    message: `ឧបករណ៍ ${newItem.model} (S/N: ${newItem.serial}) ត្រូវបានចុះបញ្ជី និងផ្ទៀងផ្ទាត់ជាមួយប្រព័ន្ធធានាផ្លូវការរបស់ S Tech Store រួចរាល់ហើយ!`,
+                  });
                 }}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold border-none cursor-pointer"
               >
@@ -2159,7 +2258,7 @@ export default function UserProfilePage() {
                       </span>
                     </div>
                     <p className="text-[11px] text-gray-400">
-                      Order #{trackedOrder?.id || "ST-88421"} • Estimated Arrival: <strong className="text-amber-400">12-15 Mins</strong>
+                      Order #{trackedOrder?.id || (orders[0]?.id || "Live Order")} • Estimated Arrival: <strong className="text-amber-400">15-30 Mins</strong>
                     </p>
                   </div>
                 </div>
@@ -2253,17 +2352,17 @@ export default function UserProfilePage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black text-white">Sok Channy (ចាន់នី)</h4>
+                        <h4 className="text-sm font-black text-white">S Tech Express Courier (ក្រុមដឹកជញ្ជូន)</h4>
                         <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">
-                          VIP Courier
+                          Official Courier
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        Honda Dream 125 • Phnom Penh 1AK-8849
+                        S Tech Fast Doorstep Delivery • PassApp Integration
                       </p>
                       <div className="flex items-center gap-1 text-[11px] text-amber-400 font-bold mt-1">
-                        <span>★ 4.9</span>
-                        <span className="text-gray-500 font-normal">(1,480+ safe deliveries)</span>
+                        <span>★ 5.0</span>
+                        <span className="text-gray-500 font-normal">(Verified Store Courier)</span>
                       </div>
                     </div>
                   </div>
