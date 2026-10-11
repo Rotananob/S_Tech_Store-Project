@@ -67,9 +67,31 @@ export default function LoginPage() {
         provider: "tiktok",
       };
       localStorage.setItem("user_session", JSON.stringify(ttUser));
+      localStorage.setItem("stech_user_session", JSON.stringify(ttUser));
       localStorage.setItem("customer_token", ttToken);
       document.cookie = `customer_token=${ttToken}; path=/; max-age=2592000; SameSite=Lax`;
-      router.push("/");
+      window.dispatchEvent(new Event("user_session_updated"));
+
+      setAuthOverlay({
+        show: true,
+        title: `ចូលគណនី TikTok ជោគជ័យ! 🎉`,
+        subtitle: `សូមស្វាគមន៍ ${decodeURIComponent(name)}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...`,
+        isSuccess: true,
+      });
+
+      api.get(`/auth/session/token-login?token=${ttToken}`)
+        .then((res) => {
+          if (res.data?.success && res.data?.user) {
+            localStorage.setItem("user_session", JSON.stringify(res.data.user));
+            localStorage.setItem("stech_user_session", JSON.stringify(res.data.user));
+            window.dispatchEvent(new Event("user_session_updated"));
+          }
+        })
+        .catch(() => {});
+
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
     }
   }, [searchParams]);
 
@@ -298,86 +320,33 @@ export default function LoginPage() {
     window.location.href = oauthUrl;
   };
 
-  // ─── 1-Click TikTok Sign In / Official OAuth ──────────────────────────────────
+  // ─── Real Official TikTok OAuth 2.0 Sign In ─────────────────────────────────
   const handleTikTokSignIn = async () => {
     setError("");
     setLoading(true);
     const deviceName = getDeviceName();
-    const browserName = getBrowserName();
 
     setAuthOverlay({
       show: true,
-      title: `🎵 កំពុងភ្ជាប់ TikTok Authenticator លើ ${deviceName}...`,
-      subtitle: `សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់គណនី TikTok...`,
+      title: "🎵 កំពុងភ្ជាប់ TikTok Login Kit...",
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបើកផ្ទាំង Login ផ្លូវការរបស់ TikTok...",
       isSuccess: false,
     });
 
     try {
-      // 1. Try official TikTok OAuth redirect if configured on backend
-      try {
-        const checkOauth = await api.get("/auth/tiktok/redirect");
-        if (checkOauth.request?.responseURL && !checkOauth.data?.needs_keys) {
-          window.location.href = checkOauth.request.responseURL;
-          return;
-        }
-      } catch (e: any) {}
-
-      // 2. Seamless 1-Click Authenticator
-      const backendUrl = process.env.NODE_ENV === "production"
-        ? "https://stech-backend-xz6j.onrender.com/api"
-        : "http://127.0.0.1:8000/api";
-
-      fetch(`${backendUrl}/security/alert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "🎵 1-Click TikTok Account Login",
-          device: `${deviceName} (${browserName})`,
-          user: `TikTok User (${deviceName})`,
-          action: "TIKTOK_AUTH_VERIFIED",
-          details: `អតិថិជនបាន Login តាមរយៈ TikTok Authenticator លើឧបករណ៍ ${deviceName} (${browserName})។`,
-        }),
-      }).catch(() => {});
-
-      await api.post("/user/notifications", {
-        title: "TikTok Login Successful 🎵",
-        message: `Signed in via TikTok Authenticator on ${deviceName} (${browserName}). Welcome!`,
-        type: "login",
-      }).catch(() => {});
-      useNotificationStore.getState().fetchNotifications();
-
-      const ttId = "tt_" + Math.random().toString(36).substring(2, 9);
-      const ttUser = {
-        id: ttId,
-        email: `tiktok.${ttId}@s-tech-store.tech`,
-        name: `TikTok Creator (${deviceName})`,
-        display_name: `TikTok Creator`,
-        provider: "tiktok",
-        device: deviceName,
-      };
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user_session", JSON.stringify(ttUser));
-        localStorage.setItem("customer_token", "tt_token_" + Date.now());
-        document.cookie = `customer_token=tt_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
+      // 1. Fetch official authorization URL via JSON endpoint to avoid CORS issues
+      const res = await api.get("/auth/tiktok/redirect?format=json");
+      if (res.data?.success && res.data?.url) {
+        window.location.href = res.data.url;
+        return;
       }
-
-      setAuthOverlay({
-        show: true,
-        title: "ចូលគណនីតាម TikTok ជោគជ័យ! 🎉",
-        subtitle: `បានទទួលស្គាល់ឧបករណ៍ ${deviceName} រួចរាល់! កំពុងបញ្ជូនទៅទំព័រដើម...`,
-        isSuccess: true,
-      });
-
-      await new Promise((r) => setTimeout(r, 1800));
-      router.push("/");
     } catch (err: any) {
-      console.error(err);
-      setError("បរាជ័យក្នុងការចូលគណនី TikTok: " + (err.message || "Unknown error"));
-      setAuthOverlay({ show: false, title: "", subtitle: "" });
-    } finally {
-      setLoading(false);
+      console.warn("Direct JSON oauth lookup failed, redirecting via browser navigation:", err);
     }
+
+    // 2. Direct browser navigation to API redirect route
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://stech-backend-xz6j.onrender.com/api";
+    window.location.href = `${backendUrl}/auth/tiktok/redirect`;
   };
 
   const handleFacebookSignIn = async () => {

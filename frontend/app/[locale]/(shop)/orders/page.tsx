@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import api from "@/lib/api";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
+import { Printer } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: "#fef3c7", color: "#92400e", label: "Pending" },
@@ -40,6 +42,34 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  const handleViewReceipt = (order: Order) => {
+    const isCOD = (order.payment_method || "").toLowerCase() === "cod";
+    const receipt: ReceiptData = {
+      orderId: order.order_id,
+      customerName: order.customer_name || "Customer",
+      customerPhone: order.customer_phone || "",
+      shippingAddress: order.shipping_address || "",
+      deliveryType: order.delivery_type || "pnompenh",
+      paymentMethod: order.payment_method || "cod",
+      paymentStatus: order.status === "cancelled" ? "cancelled" : (isCOD ? "cod" : "paid"),
+      items: (order.items || []).map((i) => ({
+        id: i.id,
+        name: i.product?.name || `Tech Item #${i.product_id}`,
+        quantity: i.quantity,
+        price: i.unit_price,
+        image: i.product?.image,
+      })),
+      subtotal: Number(order.total_amount) > 3 ? Number(order.total_amount) - 2 : Number(order.total_amount),
+      deliveryFee: order.delivery_type === "province" ? 3 : 2,
+      total: Number(order.total_amount),
+      paidAt: fmtDate(order.created_at),
+    };
+    setSelectedReceipt(receipt);
+    setShowReceiptModal(true);
+  };
 
   useEffect(() => {
     const auth = getAuth();
@@ -67,6 +97,13 @@ export default function OrdersPage() {
 
   return (
     <div style={{ background: "#fff", minHeight: "100vh" }}>
+      {/* ── Official Invoice / Receipt Modal ── */}
+      <OrderReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receipt={selectedReceipt}
+      />
+
       {/* Hero */}
       <section
         style={{
@@ -270,6 +307,55 @@ export default function OrdersPage() {
                         {order.delivery_type === "pnompenh" ? "Phnom Penh" : order.delivery_type === "province" ? "Province" : order.delivery_type || "N/A"}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Action Bar */}
+                  <div
+                    style={{
+                      marginTop: 16,
+                      paddingTop: 12,
+                      borderTop: "1px solid #f0f0f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: 8,
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: "#888" }}>
+                      Official Electronic Proof of Purchase
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleViewReceipt(order)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "6px 14px",
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        background: "#f3f4f6",
+                        color: "#1f2937",
+                        border: "1px solid #e5e7eb",
+                        cursor: "pointer",
+                        transition: "all 150ms",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#8B1A1A";
+                        e.currentTarget.style.color = "#fff";
+                        e.currentTarget.style.borderColor = "#8B1A1A";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f3f4f6";
+                        e.currentTarget.style.color = "#1f2937";
+                        e.currentTarget.style.borderColor = "#e5e7eb";
+                      }}
+                    >
+                      <Printer size={13} />
+                      <span>View & Print Receipt (វិក្កយបត្រ)</span>
+                    </button>
                   </div>
                 </div>
               );

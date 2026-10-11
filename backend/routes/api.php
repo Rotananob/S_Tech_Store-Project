@@ -454,7 +454,49 @@ Route::get('/auth/tiktok/redirect', function (Request $request) {
     }
 
     $authUrl = "https://www.tiktok.com/v2/auth/authorize/?client_key={$clientKey}&scope=user.info.basic&response_type=code&redirect_uri={$redirectUri}&state={$state}";
+
+    if ($request->wantsJson() || $request->query('format') === 'json') {
+        return response()->json([
+            'success' => true,
+            'url' => $authUrl,
+        ]);
+    }
+
     return redirect()->away($authUrl);
+});
+
+// Generic Customer Session Token Login (TikTok & Telegram)
+Route::get('/auth/session/token-login', function (Request $request) {
+    $token = trim((string)$request->query('token', ''));
+    if (!$token) {
+        return response()->json(['success' => false, 'error' => 'Token required'], 400);
+    }
+
+    $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+    if (!$userId) {
+        return response()->json(['success' => false, 'error' => 'Token expired or invalid'], 401);
+    }
+
+    $user = \App\Models\UserProfile::find($userId);
+    if (!$user) {
+        return response()->json(['success' => false, 'error' => 'User not found'], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'uid' => $user->firebase_uid,
+            'name' => $user->display_name,
+            'display_name' => $user->display_name,
+            'email' => $user->email,
+            'avatar_url' => $user->photo_url ?? $user->avatar_url,
+            'phone' => $user->phone,
+            'status' => $user->status,
+            'provider' => str_starts_with($token, 'tt_') ? 'tiktok' : 'telegram',
+        ]
+    ]);
 });
 
 Route::get('/auth/tiktok/callback', function (Request $request) {

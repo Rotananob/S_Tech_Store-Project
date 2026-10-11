@@ -16,11 +16,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, 
   ExternalLink, X, Smartphone, ArrowRight, CreditCard, 
-  Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket
+  Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import api from "@/lib/api";
+import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -137,6 +138,8 @@ export default function CheckoutPage() {
   const [loadingMsg, setLoadingMsg] = useState("Processing Order...");
   const [orderId, setOrderId] = useState("");
   const [transactionId, setTransactionId] = useState("");
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Card payment form state
   const [cardNumber, setCardNumber] = useState("");
@@ -511,6 +514,43 @@ export default function CheckoutPage() {
 
   // ─── Finish Order & Show Done Screen ─────────────────────────────────────────
   const finishSuccessfulOrder = async (finalOrderId: string, txn: string) => {
+    // 1. Snapshot full receipt details BEFORE clearing cart store
+    const currentPayment = payment;
+    const isCOD = currentPayment === "cod";
+    const snapshotReceipt: ReceiptData = {
+      orderId: finalOrderId,
+      transactionId: txn,
+      customerName: name.trim() || "Customer",
+      customerPhone: phone.trim(),
+      shippingAddress: address.trim(),
+      deliveryType: delivery,
+      paymentMethod: currentPayment,
+      paymentStatus: isCOD ? "cod" : "paid",
+      items: items.map((i) => ({
+        id: i.id,
+        name: (i as any).name || i.product?.name || "Tech Product",
+        quantity: i.quantity,
+        price: Number(i.product?.sale_price ?? i.product?.price ?? i.price ?? 0),
+        image: i.product?.image || (i as any).image,
+      })),
+      subtotal: Number(subtotal),
+      deliveryFee: Number(deliveryFee),
+      discountAmount: Number(discountAmount),
+      promoCode: appliedPromo?.code,
+      total: Number(total),
+      paidAt: new Date().toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    };
+
+    setReceiptData(snapshotReceipt);
+    setShowReceiptModal(true); // Automatically popup official receipt / invoice!
+
     await clearCart();
 
     try {
@@ -535,6 +575,15 @@ export default function CheckoutPage() {
   if (confirmed) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0c0d12] text-gray-900 dark:text-gray-100 pb-20">
+        {/* ── Auto-Popup Official Receipt / Tax Invoice ── */}
+        <OrderReceiptModal
+          isOpen={showReceiptModal}
+          onClose={() => setShowReceiptModal(false)}
+          receipt={receiptData}
+          onTrackOrder={() => router.push("/orders")}
+          onContinueShopping={() => router.push("/")}
+        />
+
         <div className="bg-white dark:bg-[#12151e] border-b border-gray-100 dark:border-white/10 py-6">
           <div className="max-w-4xl mx-auto px-4">
             <h1 className="text-2xl font-black">{t("title")}</h1>
@@ -542,11 +591,11 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="bg-white dark:bg-[#151922] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center relative overflow-hidden border border-gray-100 dark:border-white/10"
+            className="bg-white dark:bg-[#151922] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center relative overflow-hidden border border-gray-100 dark:border-white/10 my-auto"
           >
             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-5 shadow-sm ring-4 ring-emerald-50 dark:ring-white/5">
               <CheckCircle2 size={42} strokeWidth={2.5} />
@@ -558,7 +607,7 @@ export default function CheckoutPage() {
               Our delivery team will contact <strong className="text-gray-900 dark:text-white font-bold">{phone}</strong> for instant dispatch.
             </p>
 
-            <div className="bg-gray-50 dark:bg-white/5 w-full rounded-2xl p-4 sm:p-5 mb-6 text-left border border-gray-100 dark:border-white/5 space-y-2.5">
+            <div className="bg-gray-50 dark:bg-white/5 w-full rounded-2xl p-4 sm:p-5 mb-5 text-left border border-gray-100 dark:border-white/5 space-y-2.5">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 dark:text-gray-400">Order ID</span>
                 <span className="font-black text-[#8B1A1A] dark:text-red-400 font-mono text-sm">{orderId}</span>
@@ -581,16 +630,26 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <div className="w-full space-y-3">
+            {/* Receipt Modal Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setShowReceiptModal(true)}
+              className="w-full mb-3 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Printer size={15} />
+              <span>មើល & បោះពុម្ពវិក្កយបត្រ (View & Print Receipt)</span>
+            </button>
+
+            <div className="w-full space-y-2.5">
               <Link
-                href="/account/profile"
-                className="w-full flex items-center justify-center py-3.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white rounded-xl text-sm font-bold shadow-md transition-all no-underline"
+                href="/orders"
+                className="w-full flex items-center justify-center py-3 bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white rounded-xl text-xs font-bold shadow-md transition-all no-underline"
               >
-                View Order in Profile
+                Track Order in My Orders
               </Link>
               <Link
                 href="/"
-                className="w-full flex items-center justify-center py-3 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 rounded-xl text-sm font-bold transition-all no-underline"
+                className="w-full flex items-center justify-center py-2.5 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-bold transition-all no-underline"
               >
                 {t("backToHome")}
               </Link>
