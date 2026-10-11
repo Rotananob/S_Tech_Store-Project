@@ -45,10 +45,15 @@ export default function middleware(request: NextRequest) {
     return new NextResponse('404 Not Found', { status: 404 });
   }
 
+  // Firebase Auth handler and system reverse-proxy bypass
+  if (pathname.startsWith('/__')) {
+    return NextResponse.next();
+  }
+
   return intlMiddleware(request);
 }
 
 export const config = {
-  // Intercept all routes except Next.js internals, API, and static files
-  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)']
+  // Intercept all routes except Next.js internals, API, static files, and Firebase internal paths
+  matcher: ['/((?!api|_next|_vercel|__|.*\\..*).*)']
 };

@@ -43,6 +43,10 @@ const nextConfig = {
         destination: 'https://fir-tech-store.firebaseapp.com/__/auth/:path*'
       },
       {
+        source: '/:locale/__/auth/:path*',
+        destination: 'https://fir-tech-store.firebaseapp.com/__/auth/:path*'
+      },
+      {
         source: '/api/:path*',
         destination: `${backendUrl}/api/:path*`
       }
