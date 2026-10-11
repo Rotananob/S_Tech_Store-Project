@@ -98,7 +98,15 @@ export async function getCategories(): Promise<Category[] | ApiResponse<Category
   return cachedCategories;
 }
 
+let lastProductFetchTime = 0;
+const CLIENT_CACHE_TTL = 30 * 1000; // 30 seconds instant client cache
+
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
+  // Instant client cache return for fast navigation without redundant DB roundtrips
+  if (typeof window !== "undefined" && !params && cachedProducts.length >= 50 && (Date.now() - lastProductFetchTime < CLIENT_CACHE_TTL)) {
+    return cachedProducts;
+  }
+
   try {
     const query = params ? "?" + new URLSearchParams(params).toString() : "";
     const controller = new AbortController();
@@ -118,6 +126,7 @@ export async function getProducts(params?: Record<string, any>): Promise<Product
       if (list && list.length > 0) {
         const normalized = list.map(normalizeProduct);
         cachedProducts = normalized;
+        lastProductFetchTime = Date.now();
         return normalized;
       }
     }

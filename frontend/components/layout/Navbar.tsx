@@ -238,21 +238,23 @@ export default function Navbar() {
                 type="button"
                 onClick={() => setNotifOpen(!notifOpen)}
                 title={t('alerts')}
-                className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[#1a1a1a] dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
+                className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-xl bg-gray-100/90 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-800 dark:text-gray-100 hover:text-[#8B1A1A] dark:hover:text-red-400 border border-gray-200/80 dark:border-white/10 transition-all cursor-pointer shadow-xs"
               >
                 <Bell size={20} />
                 {mounted && unreadCount > 0 && (
-                  <span className="absolute top-2 right-2 lg:top-1.5 lg:right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                  <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 bg-[#8B1A1A] text-white text-[10px] font-black rounded-full border-2 border-white dark:border-[#12151e] flex items-center justify-center shadow-md leading-none animate-in zoom-in-50">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
                 )}
               </button>
 
-              {/* Notification Center Popover */}
+              {/* Notification Center Popover (Responsive Mobile Floating Panel) */}
               {notifOpen && (
-                <div className="absolute top-full right-0 mt-2 w-[320px] sm:w-[380px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150">
+                <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto top-[62px] sm:top-full sm:right-0 sm:mt-2 w-auto sm:w-[390px] max-w-[420px] mx-auto sm:mx-0 bg-white dark:bg-[#141722] rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 animate-in fade-in-0 zoom-in-95 duration-150">
                   {/* Header */}
-                  <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-[14px] text-[#1a1a1a]">{tNotif('title')}</span>
+                      <span className="font-bold text-[14px] text-gray-900 dark:text-white">{tNotif('title')}</span>
                       {unreadCount > 0 && (
                         <span className="px-2 py-0.5 text-[11px] font-bold bg-[#8B1A1A] text-white rounded-full">
                           {unreadCount}
@@ -264,7 +266,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={markAllAsRead}
-                          className="text-[12px] font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
+                          className="text-[12px] font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
                         >
                           <CheckCheck size={13} />
                           {tNotif('markAllRead')}
@@ -272,7 +274,7 @@ export default function Navbar() {
                         <button
                           type="button"
                           onClick={clearAll}
-                          className="text-[12px] font-semibold text-gray-400 hover:text-red-600 transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
+                          className="text-[12px] font-semibold text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer border-none bg-transparent p-0 flex items-center gap-1"
                           title={tNotif('clearAll')}
                         >
                           <Trash2 size={13} />
@@ -282,10 +284,10 @@ export default function Navbar() {
                   </div>
 
                   {/* Notification List */}
-                  <div className="max-h-[360px] overflow-y-auto divide-y divide-gray-100">
+                  <div className="max-h-[380px] overflow-y-auto divide-y divide-gray-100 dark:divide-white/5">
                     {notifications.length === 0 ? (
-                      <div className="py-10 px-4 text-center text-gray-400 text-[13px] flex flex-col items-center gap-2">
-                        <Bell size={28} className="text-gray-300" />
+                      <div className="py-10 px-4 text-center text-gray-400 dark:text-gray-500 text-[13px] flex flex-col items-center gap-2">
+                        <Bell size={28} className="text-gray-300 dark:text-gray-600" />
                         <span>{tNotif('empty')}</span>
                       </div>
                     ) : (
@@ -297,35 +299,40 @@ export default function Navbar() {
                               markAsRead(n.id);
                               setNotifOpen(false);
                               setActivePopupNotif(n);
+                              if (n.link) {
+                                router.push(n.link);
+                              }
                             }}
                             className={`px-4 py-3.5 flex items-start gap-3 transition-colors cursor-pointer group ${
-                              !n.read ? "bg-red-50/50 hover:bg-red-50" : "bg-white hover:bg-gray-50"
+                              !n.read 
+                                ? "bg-red-50/60 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30" 
+                                : "bg-white dark:bg-[#141722] hover:bg-gray-50 dark:hover:bg-white/5"
                             }`}
                           >
-                            <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                               {getNotifIcon(n.type)}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between gap-2">
-                                <h4 className="text-[13px] font-bold text-[#1a1a1a] truncate group-hover:text-[#8B1A1A] transition-colors">{n.title}</h4>
-                                <span className="text-[11px] text-gray-400 flex items-center gap-1 flex-shrink-0">
+                                <h4 className="text-[13px] font-bold text-gray-900 dark:text-white truncate group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">{n.title}</h4>
+                                <span className="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1 flex-shrink-0">
                                   <Clock size={11} />
                                   {formatTimeAgo(n.created_at)}
                                 </span>
                               </div>
-                              <p className="text-[12px] text-[#555] mt-0.5 line-clamp-2 leading-relaxed">
+                              <p className="text-[12px] text-gray-600 dark:text-gray-300 mt-0.5 line-clamp-2 leading-relaxed">
                                 {n.message}
                               </p>
                               {n.link && (
-                                <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#8B1A1A]">
-                                  <span>View Details</span>
+                                <div className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#8B1A1A] dark:text-red-400">
+                                  <span>View Details & Direct Link</span>
                                   <ExternalLink size={10} />
                                 </div>
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                               {!n.read && (
-                                <span className="w-2 h-2 rounded-full bg-[#8B1A1A] mt-1.5" />
+                                <span className="w-2 h-2 rounded-full bg-[#8B1A1A] dark:bg-red-500 mt-1.5" />
                               )}
                               {n.link && (
                                 <button
@@ -337,7 +344,7 @@ export default function Navbar() {
                                     router.push(n.link!);
                                   }}
                                   title="Go directly to page"
-                                  className="p-1 rounded-md bg-gray-100 hover:bg-[#8B1A1A] hover:text-white text-gray-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  className="p-1 rounded-md bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                                 >
                                   <ExternalLink size={12} />
                                 </button>
@@ -360,12 +367,12 @@ export default function Navbar() {
                 useCartStore.getState().setIsOpen(true);
               }}
               title={t('cart')}
-              className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-lg text-[#555] hover:bg-gray-100 hover:text-[#1a1a1a] transition-all"
+              className="relative w-[44px] h-[44px] lg:w-9 lg:h-9 flex items-center justify-center rounded-xl bg-gray-100/90 dark:bg-white/10 text-gray-900 dark:text-gray-100 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-[#8B1A1A] dark:hover:text-red-400 border border-gray-200/80 dark:border-white/10 transition-all shadow-xs"
             >
               <ShoppingCart size={20} />
               {mounted && cartCount > 0 && (
-                <span className="absolute top-2 right-2 lg:-top-1 lg:-right-1 w-4 h-4 bg-[#8B1A1A] rounded-full text-[10px] font-bold text-white flex items-center justify-center leading-none">
-                  {cartCount}
+                <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] px-1 bg-[#8B1A1A] text-white text-[10px] font-black rounded-full border-2 border-white dark:border-[#12151e] flex items-center justify-center leading-none shadow-md animate-in zoom-in-50">
+                  {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
             </Link>

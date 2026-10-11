@@ -179,7 +179,7 @@ export default function VisualSearchModal() {
       });
 
       // If no direct keyword match, fallback to top featured products
-      const finalMatches = matched.length > 0 ? matched.slice(0, 6) : allProducts.slice(0, 6);
+      const finalMatches = matched.length > 0 ? matched : allProducts;
 
       setAnalyzedItem({
         name: label,
@@ -374,39 +374,39 @@ export default function VisualSearchModal() {
             )}
           </div>
 
-          {/* ── Matched Products Drawer / Results View ─────────────── */}
+          {/* ── Matched Products Drawer / Results View (Full Scrollable Like Category) ── */}
           {matchedProducts.length > 0 && (
             <motion.div
               initial={{ y: 40, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              className="bg-[#161920] border-t border-white/10 p-4 sm:p-5 max-h-[380px] overflow-y-auto"
+              className="bg-[#161920] border-t border-white/10 p-4 sm:p-5 max-h-[70vh] sm:max-h-[520px] overflow-y-auto"
             >
               {/* Analysis Result Banner */}
-              <div className="flex items-center justify-between mb-3.5 pb-2 border-b border-white/10">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm font-black text-white">
+                    <span className="text-sm sm:text-base font-black text-white">
                       Matched: {analyzedItem?.name}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold border border-emerald-500/30">
+                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[11px] font-extrabold border border-emerald-500/30">
                       {analyzedItem?.confidence} Accuracy
                     </span>
                   </div>
-                  <p className="text-[11px] text-gray-400">
-                    {analyzedItem?.labelKh} — រកឃើញ {matchedProducts.length} ផលិតផលត្រូវគ្នា
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {analyzedItem?.labelKh} — រកឃើញ <b className="text-white">{matchedProducts.length} ផលិតផល</b> (Scroll ចុះក្រោមដើម្បីមើលទាំងអស់)
                   </p>
                 </div>
                 <button
                   onClick={handleRetake}
-                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none flex items-center gap-1.5"
+                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 active:scale-95 shrink-0"
                 >
-                  <RefreshCw size={12} />
+                  <RefreshCw size={13} />
                   <span>Scan Again</span>
                 </button>
               </div>
 
               {/* Matched Product Cards Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 pb-6">
                 {matchedProducts.map((product) => {
                   const img = product.image_url || product.image;
                   const isJustAdded = addedId === Number(product.id);
@@ -414,11 +414,11 @@ export default function VisualSearchModal() {
                   return (
                     <div
                       key={product.id}
-                      className="bg-[#1f242e] rounded-2xl p-3 border border-white/5 hover:border-red-500/40 transition-all flex flex-col justify-between group"
+                      className="bg-[#1f242e] rounded-2xl p-3.5 border border-white/5 hover:border-red-500/40 transition-all flex flex-col justify-between group shadow-sm"
                     >
                       <div>
                         {/* Image */}
-                        <div className="w-full h-24 sm:h-28 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden mb-2 relative">
+                        <div className="w-full h-28 sm:h-32 rounded-xl bg-white/5 flex items-center justify-center overflow-hidden mb-2.5 relative">
                           {img ? (
                             <img
                               src={img}
@@ -428,46 +428,46 @@ export default function VisualSearchModal() {
                           ) : (
                             <div className="text-gray-500 text-xs">No image</div>
                           )}
-                          <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-emerald-500 text-[9px] font-bold text-white shadow-sm">
+                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-emerald-500 text-[10px] font-bold text-white shadow-sm">
                             In Stock
                           </span>
                         </div>
 
                         {/* Title */}
-                        <h5 className="text-xs font-bold text-white line-clamp-2 leading-snug mb-1 group-hover:text-red-400 transition-colors">
+                        <h5 className="text-xs sm:text-sm font-bold text-white line-clamp-2 leading-snug mb-1.5 group-hover:text-red-400 transition-colors min-h-[32px]">
                           {product.name}
                         </h5>
 
                         {/* Price */}
-                        <div className="mb-2">
-                          <div className="text-sm font-black text-red-400">
+                        <div className="mb-2.5">
+                          <div className="text-sm sm:text-base font-black text-red-400 font-mono">
                             {formatUSD(product.price)}
                           </div>
-                          <div className="text-[10px] text-gray-400">
+                          <div className="text-[11px] text-gray-400">
                             {formatKHR(product.price)}
                           </div>
                         </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-1.5 mt-auto pt-2 border-t border-white/5">
+                      <div className="flex items-center gap-2 mt-auto pt-2.5 border-t border-white/5">
                         <button
                           type="button"
                           onClick={() => handleAddToCart(product)}
-                          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border-none ${
+                          className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border-none shadow-sm ${
                             isJustAdded
                               ? "bg-emerald-600 text-white"
-                              : "bg-[#8B1A1A] hover:bg-[#6b1111] text-white"
+                              : "bg-[#8B1A1A] hover:bg-[#6b1111] text-white active:scale-95"
                           }`}
                         >
                           {isJustAdded ? (
                             <>
-                              <Check size={12} />
+                              <Check size={14} />
                               <span>Added</span>
                             </>
                           ) : (
                             <>
-                              <ShoppingCart size={12} />
+                              <ShoppingCart size={14} />
                               <span>Add</span>
                             </>
                           )}
@@ -476,10 +476,10 @@ export default function VisualSearchModal() {
                         <Link
                           href={`/products/${product.slug}`}
                           onClick={closeVisualSearch}
-                          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold flex items-center justify-center no-underline"
+                          className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center justify-center no-underline transition-colors shrink-0"
                           title="View Details"
                         >
-                          <ArrowRight size={13} />
+                          <ArrowRight size={15} />
                         </Link>
                       </div>
                     </div>
@@ -491,36 +491,50 @@ export default function VisualSearchModal() {
 
           {/* ── Bottom Controls: Shutter Button, Switch Camera, Quick Chips ── */}
           <div className="px-4 pt-3.5 pb-28 sm:pb-5 bg-[#12141a] border-t border-white/10 shrink-0">
-            {/* Quick Demo Test Chips */}
-            <div className="mb-3">
-              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <Zap size={10} className="text-amber-400" />
-                <span>Quick Test (No Camera Needed / សាកល្បងភ្លាមៗ):</span>
+            {/* Quick Demo Test Chips (Large, Touch-Friendly Taobao Style) */}
+            <div className="mb-3.5">
+              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Zap size={13} className="text-amber-400" />
+                  <span>Quick Test (សាកល្បងម៉ូឌែលគំរូភ្លាមៗ):</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1 cursor-pointer border-none bg-transparent"
+                >
+                  <Upload size={13} />
+                  <span>Upload Photo</span>
+                </button>
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1.5 pt-0.5">
                 {SAMPLE_PRESETS.map((p) => (
                   <button
                     key={p.name}
                     type="button"
                     onClick={() => handleSelectPreset(p)}
-                    className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-red-500/20 hover:border-red-500/40 text-gray-300 hover:text-white border border-white/10 text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer"
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-white/10 hover:bg-red-500/20 hover:border-red-500/40 text-gray-200 hover:text-white border border-white/10 text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 shadow-sm active:scale-95 group"
                   >
-                    {p.name}
+                    <img src={p.image} alt={p.name} className="w-7 h-7 rounded-lg object-cover shadow-xs border border-white/20 group-hover:scale-105 transition-transform" />
+                    <div className="flex flex-col text-left">
+                      <span className="leading-tight text-white">{p.name}</span>
+                      <span className="text-[10px] text-gray-400 font-normal">{p.labelKh}</span>
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Camera Actions Bar */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               {/* Photo Upload from Gallery */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-bold transition-colors cursor-pointer border-none"
+                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold transition-all cursor-pointer border border-white/15 active:scale-95 shadow-sm"
               >
-                <Upload size={16} />
-                <span className="text-xs">Album / Files</span>
+                <Upload size={17} className="text-red-400" />
+                <span>Upload (Album)</span>
               </button>
 
               {/* Shutter Button */}
@@ -552,7 +566,7 @@ export default function VisualSearchModal() {
                 onClick={() => {
                   setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
                 }}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-bold transition-colors cursor-pointer border-none"
+                className="flex items-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-bold transition-colors cursor-pointer border border-white/15 active:scale-95"
                 title="Flip Camera"
               >
                 <RefreshCw size={15} />

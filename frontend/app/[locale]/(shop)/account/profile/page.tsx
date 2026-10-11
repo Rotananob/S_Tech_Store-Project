@@ -10,13 +10,16 @@ import {
   Save, LogOut, ChevronRight, Gift, Sparkles, Eye, Clock, X,
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
-  Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike
+  Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike,
+  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star
 } from "lucide-react";
 import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { useUpdateStore } from "@/store/updateStore";
+import { useCartStore } from "@/store/cartStore";
+import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { translations } from "@/lib/translations";
 import api from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,6 +134,22 @@ export default function UserProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Recommended products for Pinduoduo-inspired "You May Also Like" feed
+  const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    import("@/lib/services/product.service").then(({ getProducts }) => {
+      getProducts()
+        .then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data || []);
+          if (list && list.length > 0) {
+            setRecommendedProducts(list.slice(0, 10));
+          }
+        })
+        .catch((e) => console.error("Error loading recommended products:", e));
+    });
+  }, []);
+
   // PWA update store
   const { isChecking, checkForUpdates, applyUpdate, hasUpdate } = useUpdateStore();
   const [updateStatusMsg, setUpdateStatusMsg] = useState<string | null>(null);
@@ -168,7 +187,7 @@ export default function UserProfilePage() {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [orderFilter, setOrderFilter] = useState<"all" | "processing" | "shipped" | "completed">("all");
+  const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "processing" | "packing" | "shipped" | "completed">("all");
 
   const { lang } = useLangStore();
   const t = translations[lang].profilePage;
@@ -521,7 +540,20 @@ export default function UserProfilePage() {
   );
 
   const memberId = `#ST-${(user?.uid || "88294").slice(0, 6).toUpperCase()}`;
-  const filteredOrders = orders.filter((o) => (orderFilter === "all" ? true : o.status === orderFilter));
+  const filteredOrders = orders.filter((o) => {
+    if (orderFilter === "all") return true;
+    if (orderFilter === "pending") return o.status === "pending" || o.status === "to_pay";
+    if (orderFilter === "processing") return o.status === "processing" || o.status === "to_share";
+    if (orderFilter === "packing") return o.status === "packing" || o.status === "confirmed";
+    if (orderFilter === "shipped") return o.status === "shipped";
+    if (orderFilter === "completed") return o.status === "completed" || o.status === "delivered";
+    return o.status === orderFilter;
+  });
+  const toPayCount = orders.filter((o) => o.status === "pending" || o.status === "to_pay").length;
+  const processingCount = orders.filter((o) => o.status === "processing" || o.status === "to_share").length;
+  const packingCount = orders.filter((o) => o.status === "packing" || o.status === "confirmed").length;
+  const shippedCount = orders.filter((o) => o.status === "shipped").length;
+  const reviewsCount = orders.filter((o) => o.status === "completed" || o.status === "delivered").length;
 
   return (
     <div className="min-h-screen bg-[#f6f8fb] dark:bg-[#0c0e12] text-gray-900 dark:text-gray-100 pt-6 pb-36 sm:pb-16">
@@ -663,70 +695,260 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* ── 2. Quick Stat Counters ─────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <div
-            onClick={() => setActiveTab("orders")}
-            className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Orders</span>
-              <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-500/10 text-[#8B1A1A] flex items-center justify-center">
-                <Package size={16} />
+        {/* ── 2. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
+
+        {/* 2.1 Saver Pass Golden VIP Banner */}
+        <div 
+          onClick={() => setShowCoinsModal(true)}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#ffe8ba] via-[#ffd591] to-[#ffa940] p-3.5 sm:p-4 text-[#873800] shadow-md border border-amber-300/60 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+              <Gift size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-black text-[#612500] uppercase tracking-wide">Saver Pass</span>
+                <span className="text-[10px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">VIP Only</span>
               </div>
+              <p className="text-xs font-semibold text-[#873800]/90 mt-0.5 line-clamp-1">
+                Save up to $10 on next PC build • 0$ Delivery & exclusive VIP vouchers
+              </p>
             </div>
-            <div className="text-2xl font-black text-gray-900 dark:text-white group-hover:text-[#8B1A1A] transition-colors">
-              {orders.length}
+          </div>
+          <div className="flex items-center gap-1 text-xs font-black text-[#612500] shrink-0 ml-2">
+            <span>Claim &gt;</span>
+          </div>
+        </div>
+
+        {/* 2.2 "My Orders" 5-Status Row (Pinduoduo / Taobao style) */}
+        <div className="bg-white dark:bg-[#141720] rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-white/5 shadow-sm">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-white/5">
+            <div className="flex items-center gap-2">
+              <Package size={18} className="text-[#8B1A1A] dark:text-red-400" />
+              <h2 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">My Orders</h2>
             </div>
-            <span className="text-[11px] text-gray-400">Total Purchase History</span>
+            <button 
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); }}
+              className="text-xs font-bold text-gray-500 hover:text-[#8B1A1A] dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-none p-0"
+            >
+              <span>View All Orders</span>
+              <ChevronRight size={14} />
+            </button>
           </div>
 
-          <Link
-            href="/wishlist"
-            className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all no-underline group block"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Wishlist</span>
-              <div className="w-8 h-8 rounded-xl bg-pink-50 dark:bg-pink-500/10 text-pink-600 flex items-center justify-center">
-                <Heart size={16} />
+          <div className="grid grid-cols-5 gap-1 sm:gap-2 text-center">
+            {/* 1. To Pay */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("pending"); }}
+              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+            >
+              <div className="relative mb-1.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CreditCard size={20} />
+                </div>
+                {toPayCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {toPayCount}
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="text-2xl font-black text-gray-900 dark:text-white group-hover:text-pink-600 transition-colors">
-              {wishlistCount || stats.wishlist}
-            </div>
-            <span className="text-[11px] text-gray-400">Saved Tech Hardware</span>
-          </Link>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">To Pay</span>
+            </button>
 
-          <div
-            onClick={() => setActiveTab("warranty")}
-            className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Warranty</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <Shield size={16} />
+            {/* 2. Processing */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("processing"); }}
+              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+            >
+              <div className="relative mb-1.5">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Users size={20} />
+                </div>
+                {processingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {processingCount}
+                  </span>
+                )}
               </div>
-            </div>
-            <div className="text-2xl font-black text-gray-900 dark:text-white group-hover:text-emerald-600 transition-colors">
-              {stats.warranty_items} Active
-            </div>
-            <span className="text-[11px] text-gray-400">Official RMA Protection</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Processing</span>
+            </button>
+
+            {/* 3. Packing */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("packing"); }}
+              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+            >
+              <div className="relative mb-1.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Package size={20} />
+                </div>
+                {packingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {packingCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Packing</span>
+            </button>
+
+            {/* 4. Shipped */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("shipped"); }}
+              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+            >
+              <div className="relative mb-1.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Truck size={20} />
+                </div>
+                {shippedCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {shippedCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Shipped</span>
+            </button>
+
+            {/* 5. Reviews */}
+            <button
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("completed"); }}
+              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+            >
+              <div className="relative mb-1.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <MessageSquare size={20} />
+                </div>
+                {reviewsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {reviewsCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Reviews</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2.3 "Quick Tools & Services" 8-Grid (Pinduoduo Style) */}
+        <div className="bg-white dark:bg-[#141720] rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-white/5 shadow-sm">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-white/5">
+            <h2 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">Quick Tools & Services</h2>
+            <span className="text-[11px] font-medium text-gray-400">Essential Tech Suite</span>
           </div>
 
-          <div
-            onClick={() => setActiveTab("preferences")}
-            className="p-4 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/5 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">App Version</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                <Zap size={16} />
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 text-center">
+            {/* Wishlist */}
+            <Link 
+              href="/wishlist" 
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all no-underline text-gray-800 dark:text-gray-200 group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <Heart size={20} />
               </div>
-            </div>
-            <div className="text-2xl font-black text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">
-              v2.4.2
-            </div>
-            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">PWA Ready & Online</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Wishlist</span>
+              <span className="text-[9px] text-gray-400 font-medium">{wishlistCount || stats.wishlist} items</span>
+            </Link>
+
+            {/* Wallet / Coins */}
+            <button 
+              type="button"
+              onClick={() => setShowCoinsModal(true)}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <Wallet size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Tech Wallet</span>
+              <span className="text-[9px] text-amber-600 font-bold">{stats.points} pts</span>
+            </button>
+
+            {/* Coupons */}
+            <Link 
+              href="/promotions" 
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all no-underline text-gray-800 dark:text-gray-200 group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <Ticket size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Coupons</span>
+              <span className="text-[9px] text-red-600 font-bold">25% OFF</span>
+            </Link>
+
+            {/* Warranty */}
+            <button 
+              type="button"
+              onClick={() => setActiveTab("warranty")}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <ShieldCheck size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Warranty</span>
+              <span className="text-[9px] text-emerald-600 font-medium">100% Genuine</span>
+            </button>
+
+            {/* Delivery Address & GPS */}
+            <button 
+              type="button"
+              onClick={() => setActiveTab("address")}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <MapPin size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Address</span>
+              <span className="text-[9px] text-gray-400 font-medium">GPS Pin</span>
+            </button>
+
+            {/* Browsing History */}
+            <button 
+              type="button"
+              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); }}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <History size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">History</span>
+              <span className="text-[9px] text-gray-400 font-medium">Activity</span>
+            </button>
+
+            {/* Customer Support */}
+            <button 
+              type="button"
+              onClick={() => {
+                import("@/store/chatStore").then(({ useChatStore }) => {
+                  useChatStore.getState().openChat();
+                });
+              }}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <Headphones size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Support</span>
+              <span className="text-[9px] text-teal-600 font-medium">Live 24/7</span>
+            </button>
+
+            {/* Settings & Security */}
+            <button 
+              type="button"
+              onClick={() => setActiveTab("security")}
+              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                <Settings size={20} />
+              </div>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Settings</span>
+              <span className="text-[9px] text-gray-400 font-medium">2FA & Security</span>
+            </button>
           </div>
         </div>
 
@@ -1553,8 +1775,8 @@ export default function UserProfilePage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-white/10 p-1 rounded-xl">
-                  {["all", "processing", "shipped", "completed"].map((st) => (
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-white/10 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                  {["all", "pending", "processing", "packing", "shipped", "completed"].map((st) => (
                     <button
                       key={st}
                       type="button"
@@ -1652,6 +1874,83 @@ export default function UserProfilePage() {
         </div>
       </div>
     </div>
+
+        {/* ── 4. "You May Also Like" 2-Column Product Grid (Pinduoduo Style) ── */}
+        {recommendedProducts.length > 0 && (
+          <div className="pt-6 border-t border-gray-100 dark:border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] animate-pulse" />
+                <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">You May Also Like</h2>
+              </div>
+              <Link 
+                href="/category/all" 
+                className="text-xs font-bold text-[#8B1A1A] dark:text-red-400 hover:underline flex items-center gap-0.5 no-underline"
+              >
+                <span>View More</span>
+                <ChevronRight size={13} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+              {recommendedProducts.map((p) => {
+                const img = p.image_url || p.image || (Array.isArray(p.images) ? p.images[0] : "");
+                return (
+                  <Link
+                    key={p.id}
+                    href={`/products/${p.slug}`}
+                    className="flex flex-col p-3 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all no-underline group"
+                  >
+                    <div className="h-36 sm:h-44 w-full bg-gray-50 dark:bg-white/5 rounded-xl overflow-hidden mb-2.5 p-2 flex items-center justify-center relative">
+                      {img ? (
+                        <img src={img} alt={p.name} className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                      ) : (
+                        <Laptop size={32} className="text-gray-300" />
+                      )}
+                      {p.badge && (
+                        <span className="absolute top-2 left-2 bg-gradient-to-r from-red-600 to-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                          {p.badge}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xs sm:text-[13px] font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug mb-2 group-hover:text-[#8B1A1A] transition-colors">
+                      {p.name}
+                    </h3>
+                    <div className="mt-auto flex items-baseline justify-between gap-1 pt-1">
+                      <div>
+                        <div className="text-xs sm:text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                          {formatUSD(p.sale_price || p.price)}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-mono">
+                          {formatKHR(p.sale_price || p.price)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          useCartStore.getState().addItem({
+                            id: Number(p.id),
+                            name: p.name,
+                            price: Number(p.sale_price || p.price),
+                            image_url: img,
+                            quantity: 1,
+                            product: p,
+                          });
+                        }}
+                        className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center hover:bg-[#8B1A1A] hover:text-white transition-colors cursor-pointer border-none"
+                        title="Add to Cart"
+                      >
+                        <ShoppingCart size={13} />
+                      </button>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── 5. Sign Out Bar ────────────────────────────────────── */}
         <div className="pt-2">

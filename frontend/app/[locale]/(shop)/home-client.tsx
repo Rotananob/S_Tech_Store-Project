@@ -10,7 +10,16 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 
-const HERO_SLIDES = [
+const PROMO_SLIDE = {
+  title: "🔥 Special Promo: Up to 25% OFF",
+  desc: "ប្រើកូដ STECH25 — បញ្ចុះតម្លៃពិសេសលើ Laptops, Desktops & Gear ទាំងអស់!",
+  image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop",
+  alt: "Special Promotion",
+  badge: "🔥 Promo 25% OFF",
+  isPromo: true
+};
+
+const DEFAULT_HERO_SLIDES = [
   {
     title: "Next-Gen Laptops & Gear",
     desc: "Top-tier performance, 100% Genuine with Official Warranty.",
@@ -44,15 +53,16 @@ const HERO_SLIDES = [
 export function HeroSection() {
   const t = useTranslations("Hero");
   const [slideIndex, setSlideIndex] = useState(0);
+  const [slides, setSlides] = useState([PROMO_SLIDE, ...DEFAULT_HERO_SLIDES]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setSlideIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 3500);
+      setSlideIndex((prev) => (prev + 1) % slides.length);
+    }, 4000);
     return () => clearInterval(timer);
-  }, []);
+  }, [slides.length]);
 
-  const current = HERO_SLIDES[slideIndex];
+  const current = slides[slideIndex] || slides[0];
 
   return (
     <section className="bg-white px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden">
@@ -132,7 +142,7 @@ export function HeroSection() {
 
           {/* Slide Indicators (Dots) */}
           <div className="absolute bottom-3 left-4 sm:left-8 z-20 flex items-center gap-1.5">
-            {HERO_SLIDES.map((_, idx) => (
+            {slides.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setSlideIndex(idx)}
@@ -541,7 +551,7 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
         .then((res) => {
           const list = Array.isArray(res) ? res : (res?.data || []);
           if (list && list.length > 0) {
-            setProducts(list.slice(0, 8));
+            setProducts(list);
           }
         })
         .catch((err) => console.error("Client fetch products error:", err));

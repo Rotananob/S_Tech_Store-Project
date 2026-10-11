@@ -1,19 +1,19 @@
-'use client';
-
 import { Link, usePathname } from '@/i18n/routing';
-import { Home, Layers, Camera, ShoppingCart, User } from 'lucide-react';
+import { Home, Layers, Camera, MessageSquare, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useVisualSearchStore } from '@/store/visualSearchStore';
-import { motion } from 'framer-motion';
+import { useChatStore } from '@/store/chatStore';
+import ChatBot from '@/components/ui/ChatBot';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const cartCount = useCartStore((s) => s.getTotalItems());
   const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
+  const { isOpen: isChatOpen, closeChat, openChat, productInfo } = useChatStore();
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
-    if (path !== '/' && pathname.startsWith(path)) return true;
+    if (path !== '/' && path !== '#chat' && pathname.startsWith(path)) return true;
     return false;
   };
 
@@ -22,11 +22,18 @@ export default function BottomNav() {
     return null;
   }
 
-  const tabs = [
+  const tabs: Array<{
+    label: string;
+    path: string;
+    icon: any;
+    isCenter?: boolean;
+    isChat?: boolean;
+    badge?: number;
+  }> = [
     { label: 'Home', path: '/', icon: Home },
     { label: 'Category', path: '/category/all', icon: Layers },
     { label: 'Camera', path: '/scan', icon: Camera, isCenter: true },
-    { label: 'Cart', path: '/cart', icon: ShoppingCart, badge: cartCount },
+    { label: 'Chat', path: '#chat', icon: MessageSquare, isChat: true },
     { label: 'Account', path: '/account/profile', icon: User },
   ];
 
@@ -107,15 +114,16 @@ export default function BottomNav() {
             </>
           );
 
-          // Cart tab - open slide-over instead of navigating
-          if (tab.path === '/cart') {
+          // Chat tab - open live ChatBot modal instead of navigating
+          if (tab.path === '#chat') {
             return (
               <button
-                id="bottom-nav-cart-icon"
+                id="bottom-nav-chat-icon"
                 key={tab.path}
                 type="button"
-                onClick={() => useCartStore.getState().setIsOpen(true)}
+                onClick={() => openChat()}
                 className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                aria-label="Open Customer Chat"
               >
                 {content}
               </button>
@@ -134,6 +142,15 @@ export default function BottomNav() {
           );
         })}
       </div>
+
+      {/* Global Interactive ChatBot Modal when opened from BottomNav */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center pointer-events-auto">
+            <ChatBot onClose={closeChat} productInfo={productInfo || undefined} />
+          </div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

@@ -67,9 +67,9 @@ export function ProductDetailClient({ product }: { product: any }) {
         );
 
         // First prioritize same category, then others
-        let related = validProds.filter(p => p.category_id === product.category_id).slice(0, 4);
-        if (related.length < 4) {
-           const others = validProds.filter(p => p.category_id !== product.category_id).slice(0, 4 - related.length);
+        let related = validProds.filter(p => p.category_id === product.category_id).slice(0, 8);
+        if (related.length < 8) {
+           const others = validProds.filter(p => p.category_id !== product.category_id).slice(0, 8 - related.length);
            related.push(...others);
         }
         setSuggested(related);
@@ -397,187 +397,8 @@ export function ProductDetailClient({ product }: { product: any }) {
               </div>
             </div>
 
-            {/* Reviews Section with Real User Profiles & Submission Form */}
-            <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[14px] sm:text-[15px] font-bold text-gray-900 dark:text-white">
-                    Item Reviews ({reviews.length > 0 ? reviews.length : (product.reviews || 0)})
-                  </h2>
-                  <div className="flex items-center text-amber-400 text-xs gap-0.5">
-                    <Star size={13} fill="currentColor" />
-                    <span className="font-bold text-gray-800 dark:text-gray-200 text-xs ml-0.5">
-                      {reviews.length > 0 
-                        ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
-                        : (product.rating || "4.9")}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="text-[#8B1A1A] dark:text-red-400 hover:text-[#a02222] text-[12px] font-bold flex items-center gap-1 transition-colors px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100/80 cursor-pointer"
-                >
-                  <Sparkles size={13} />
-                  <span>{showReviewForm ? "Cancel" : "Write Review"}</span>
-                </button>
-              </div>
-
-              {reviewSubmitted && (
-                <div className="mb-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>Review published successfully! Thank you for your feedback.</span>
-                </div>
-              )}
-
-              {/* Review Submission Form */}
-              <AnimatePresence>
-                {showReviewForm && (
-                  <motion.form
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    onSubmit={handleSubmitReview}
-                    className="mb-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 overflow-hidden space-y-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Your Rating:</span>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            type="button"
-                            key={star}
-                            onClick={() => setRatingInput(star)}
-                            className="p-1 hover:scale-125 transition-transform cursor-pointer text-amber-400"
-                          >
-                            <Star size={18} fill={star <= ratingInput ? "currentColor" : "none"} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <textarea
-                      value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
-                      placeholder="Share your experience with this tech product (quality, performance, packaging)..."
-                      rows={3}
-                      required
-                      className="w-full text-xs p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#12151e] text-gray-900 dark:text-white focus:border-[#8B1A1A] outline-none transition-all resize-none"
-                    />
-
-                    <div className="flex justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowReviewForm(false)}
-                        className="px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmittingReview || !commentInput.trim()}
-                        className="px-4 py-1.5 bg-[#8B1A1A] hover:bg-[#a02222] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm"
-                      >
-                        {isSubmittingReview ? (
-                          <>
-                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            <span>Posting...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Send size={12} />
-                            <span>Post Review</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
-              <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-                <span className="bg-[#fff0f0] dark:bg-red-950/40 text-[#e02e24] dark:text-red-400 px-3 py-1 rounded-full text-[11px] font-bold">★ Verified Buyers</span>
-                <span className="bg-[#f5f5f5] dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px]">Recommended</span>
-                <span className="bg-[#f5f5f5] dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px]">High Quality</span>
-              </div>
-
-              {reviews.length > 0 ? (
-                <div className="space-y-3.5 divide-y divide-gray-100 dark:divide-white/5">
-                  {reviews.map((rev) => (
-                    <div key={rev.id || Math.random()} className="pt-3 first:pt-0">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div 
-                          onClick={() => {
-                            setSelectedProfileUser({
-                              id: rev.firebase_uid || rev.user_id || rev.id,
-                              name: rev.user_name || "S Tech Customer",
-                              avatar: rev.user_avatar || null,
-                            });
-                          }}
-                          className="flex items-center gap-2.5 cursor-pointer group/user select-none"
-                          title="Click to view public tech profile"
-                        >
-                          {rev.user_avatar ? (
-                            <img
-                              src={rev.user_avatar}
-                              alt={rev.user_name || "Customer"}
-                              className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm group-hover/user:ring-2 ring-[#8B1A1A]/40 transition-all"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[11px] font-black shadow-sm group-hover/user:scale-105 transition-transform">
-                              {(rev.user_name || "C")[0].toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[13px] font-bold text-gray-900 dark:text-white leading-none group-hover/user:text-[#8B1A1A] dark:group-hover/user:text-red-400 group-hover/user:underline transition-colors flex items-center gap-1">
-                                <span>{rev.user_name || "S Tech Customer"}</span>
-                              </span>
-                              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                <CheckCircle2 size={10} /> Verified
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                              <span>{rev.created_at ? new Date(rev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent Purchase"}</span>
-                              <span className="text-gray-300 dark:text-gray-600">•</span>
-                              <span className="text-[#8B1A1A] dark:text-red-400 font-medium">View Profile</span>
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex text-amber-400 text-xs">
-                          {Array.from({ length: rev.rating || 5 }).map((_, i) => (
-                            <Star key={i} size={13} fill="currentColor" />
-                          ))}
-                        </div>
-                      </div>
-
-                      <p className="text-[13px] text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed pl-10">
-                        {rev.comment}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                product.reviews > 0 ? (
-                  <div className="border-b border-gray-50 dark:border-white/5 pb-3 mb-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-[11px] font-bold text-blue-600 dark:text-blue-400">S</div>
-                      <span className="text-[13px] font-bold text-gray-800 dark:text-gray-200">S Tech User</span>
-                    </div>
-                    <div className="flex text-amber-400 text-xs mb-1">★★★★★</div>
-                    <p className="text-[13px] text-gray-600 dark:text-gray-400 line-clamp-2">
-                      Excellent product! Arrived in perfect condition with official warranty.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-[13px] text-gray-500 py-3 text-center">No reviews yet. Be the first to share your experience!</div>
-                )
-              )}
-            </div>
-
             {/* Store Section */}
-            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+            <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mb-3 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full border border-gray-100 dark:border-white/10 overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-white/5 shadow-sm">
@@ -594,7 +415,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                     </div>
                   </div>
                 </div>
-                <button className="border border-[#8B1A1A] dark:border-red-500 text-[#8B1A1A] dark:text-red-400 px-3 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#8B1A1A] hover:text-white transition-colors">
+                <button className="border border-[#8B1A1A] dark:border-red-500 text-[#8B1A1A] dark:text-red-400 px-3.5 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#8B1A1A] hover:text-white transition-colors cursor-pointer">
                   View Store
                 </button>
               </div>
@@ -615,22 +436,197 @@ export function ProductDetailClient({ product }: { product: any }) {
             </div>
 
             {/* Product Details Specs */}
-            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
-              <h2 className="text-[14px] font-bold mb-3 text-gray-900 dark:text-white">Product details</h2>
-              <div className="grid grid-cols-3 gap-2 border-b border-gray-100 dark:border-white/5 pb-4 mb-4">
+            <div className="bg-white dark:bg-[#151922] p-4 sm:p-5 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+              <h2 className="text-[14px] sm:text-[15px] font-bold mb-3 text-gray-900 dark:text-white">Product specifications</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 border-b border-gray-100 dark:border-white/5 pb-4 mb-4">
                 {specs.map((spec, i) => (
-                  <div key={i} className="text-center">
-                    <div className="text-[11px] text-gray-400 mb-1">{spec.key}</div>
-                    <div className="text-[12px] font-medium text-gray-800 dark:text-gray-200 line-clamp-1">{spec.value}</div>
+                  <div key={i} className="p-2 rounded-xl bg-gray-50/70 dark:bg-white/5 text-center">
+                    <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">{spec.key}</div>
+                    <div className="text-[12px] font-bold text-gray-800 dark:text-gray-200 line-clamp-1">{spec.value}</div>
                   </div>
                 ))}
               </div>
-              <div className="text-[14px] text-gray-700 dark:text-gray-300 leading-loose whitespace-pre-line">
+              <div className="text-[13px] sm:text-[14px] text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
                 {(product as any).description || "Genuine product provided by S Tech Store Cambodia. Contact us for more details."}
               </div>
             </div>
             
           </div>
+        </div>
+
+        {/* Customer Reviews Section (Full width, placed ABOVE Suggested Products) */}
+        <div className="bg-white dark:bg-[#151922] p-5 sm:p-8 mt-6 lg:rounded-3xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-5 border-b border-gray-100 dark:border-white/5 gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center font-black">
+                <Star size={20} fill="currentColor" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white">
+                    Customer Reviews
+                  </h2>
+                  <span className="text-xs font-black text-amber-500 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-900/40">
+                    {reviews.length > 0 
+                      ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
+                      : (product.rating || "4.9")} / 5.0
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Verified feedback from genuine S Tech Store buyers ({reviews.length > 0 ? reviews.length : (product.reviews || 0)} total reviews)
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              className="self-start sm:self-auto text-white bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a02222] hover:to-[#d04030] text-xs font-bold flex items-center gap-1.5 transition-all px-4 py-2 rounded-xl shadow-sm cursor-pointer active:scale-95"
+            >
+              <Sparkles size={14} />
+              <span>{showReviewForm ? "Cancel Review" : "Write a Review"}</span>
+            </button>
+          </div>
+
+          {reviewSubmitted && (
+            <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-bold rounded-xl flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>Review published successfully! Thank you for sharing your experience.</span>
+            </div>
+          )}
+
+          {/* Review Submission Form */}
+          <AnimatePresence>
+            {showReviewForm && (
+              <motion.form
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                onSubmit={handleSubmitReview}
+                className="mb-6 p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 overflow-hidden space-y-3.5"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">Rate this product:</span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setRatingInput(star)}
+                        className="p-1 hover:scale-125 transition-transform cursor-pointer text-amber-400"
+                      >
+                        <Star size={20} fill={star <= ratingInput ? "currentColor" : "none"} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <textarea
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  placeholder="Share your experience (build quality, performance, temperature, delivery speed)..."
+                  rows={3}
+                  required
+                  className="w-full text-xs sm:text-sm p-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#12151e] text-gray-900 dark:text-white focus:border-[#8B1A1A] outline-none transition-all resize-none shadow-xs"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowReviewForm(false)}
+                    className="px-4 py-2 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview || !commentInput.trim()}
+                    className="px-5 py-2 bg-[#8B1A1A] hover:bg-[#a02222] text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    {isSubmittingReview ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Posting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={13} />
+                        <span>Submit Review</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          <div className="flex gap-2 overflow-x-auto no-scrollbar mb-5">
+            <span className="bg-[#fff0f0] dark:bg-red-950/40 text-[#e02e24] dark:text-red-400 px-3 py-1 rounded-full text-[11px] font-bold border border-red-200 dark:border-red-900/40">★ Verified Buyers</span>
+            <span className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px] font-medium">Genuine Guarantee</span>
+            <span className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-[11px] font-medium">Fast Cambodia Delivery</span>
+          </div>
+
+          {reviews.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {reviews.map((rev) => (
+                <div key={rev.id || Math.random()} className="p-4 rounded-2xl bg-gray-50/70 dark:bg-white/5 border border-gray-100 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-2">
+                    <div 
+                      onClick={() => {
+                        setSelectedProfileUser({
+                          id: rev.firebase_uid || rev.user_id || rev.id,
+                          name: rev.user_name || "S Tech Customer",
+                          avatar: rev.user_avatar || null,
+                        });
+                      }}
+                      className="flex items-center gap-2.5 cursor-pointer group/user select-none"
+                      title="Click to view public tech profile"
+                    >
+                      {rev.user_avatar ? (
+                        <img
+                          src={rev.user_avatar}
+                          alt={rev.user_name || "Customer"}
+                          className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-white/10 shadow-sm group-hover/user:ring-2 ring-[#8B1A1A]/40 transition-all"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center text-[12px] font-black shadow-sm group-hover/user:scale-105 transition-transform">
+                          {(rev.user_name || "C")[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-bold text-gray-900 dark:text-white leading-none group-hover/user:text-[#8B1A1A] dark:group-hover/user:text-red-400 group-hover/user:underline transition-colors">
+                            {rev.user_name || "S Tech Customer"}
+                          </span>
+                          <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                            <CheckCircle2 size={10} /> Verified
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                          <span>{rev.created_at ? new Date(rev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent Purchase"}</span>
+                          <span className="text-gray-300 dark:text-gray-600">•</span>
+                          <span className="text-[#8B1A1A] dark:text-red-400 font-medium">View Profile</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex text-amber-400 text-xs">
+                      {Array.from({ length: rev.rating || 5 }).map((_, i) => (
+                        <Star key={i} size={13} fill="currentColor" />
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-[13px] text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed pl-11">
+                    {rev.comment}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[13px] text-gray-500 py-6 text-center bg-gray-50/50 dark:bg-white/5 rounded-2xl">
+              No reviews yet. Be the first to share your experience with this tech product!
+            </div>
+          )}
         </div>
 
             {/* Suggested Products with Luxury Styling and Zero Blank Cards */}

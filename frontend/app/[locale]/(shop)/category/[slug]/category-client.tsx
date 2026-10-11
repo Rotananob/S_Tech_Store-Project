@@ -382,7 +382,6 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
                       hidden: { opacity: 0, y: 20 },
                       visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
                     }}
-                    layout
                   >
                     <ProductCard
                       product={{
