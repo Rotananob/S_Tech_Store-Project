@@ -182,9 +182,10 @@ Route::post('/analytics/track-visit', function (Request $request) {
 
     $data = [
         'ip' => $ip,
-        'page' => $request->input('page', '/'),
+        'page' => $request->input('page', 'Home Page 🏠'),
         'referrer' => $request->input('referrer', 'Direct Visit'),
         'device' => $request->input('device', 'Web Browser'),
+        'device_id' => $request->input('device_id', ''),
         'country' => $country,
         'city' => $city,
         'isp' => $request->input('isp', ''),

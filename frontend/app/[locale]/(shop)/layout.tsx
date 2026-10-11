@@ -4,7 +4,6 @@ import BottomNav from "@/components/layout/BottomNav";
 import PWAUpdatePrompt from "@/components/ui/PWAUpdatePrompt";
 import FlyToCartOverlay from "@/components/cart/FlyToCartOverlay";
 import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
-import WebsiteVisitorTracker from "@/components/analytics/WebsiteVisitorTracker";
 
 export default function ShopLayout({
   children,
@@ -13,7 +12,6 @@ export default function ShopLayout({
 }) {
   return (
     <div className="pb-20 lg:pb-0" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <WebsiteVisitorTracker />
       <Navbar />
       <main style={{ flex: 1 }}>{children}</main>
       <div className="hidden lg:block">

@@ -1408,13 +1408,24 @@ class TelegramService
         }
 
         $ip = trim($data['ip'] ?? request()->ip() ?? '127.0.0.1');
-        $page = htmlspecialchars($data['page'] ?? '/');
+        $page = htmlspecialchars($data['page'] ?? 'Home Page 🏠');
         $referrer = htmlspecialchars($data['referrer'] ?? 'Direct Visit');
         $device = htmlspecialchars($data['device'] ?? 'Web Browser');
+        $deviceId = trim($data['device_id'] ?? '');
         $country = htmlspecialchars($data['country'] ?? 'Cambodia 🇰🇭');
         $city = htmlspecialchars($data['city'] ?? '');
         $isp = htmlspecialchars($data['isp'] ?? '');
         $screen = htmlspecialchars($data['screen'] ?? '');
+
+        // 🛡️ Anti-Spam & Session Protection:
+        // 1 device or 1 IP entering the home page is counted ONCE.
+        // If the same client/IP sends repeated pings within a session cooldown (120s), suppress duplicate counting and alert.
+        $clientKey = !empty($deviceId) ? $deviceId : $ip;
+        $antiSpamKey = 'visitor_cooldown_' . md5($clientKey);
+        if (Cache::has($antiSpamKey)) {
+            return true;
+        }
+        Cache::put($antiSpamKey, true, 120);
 
         // 1. Daily Pageviews & Unique Visitors Counter (Counts from 12:00 AM to 11:59 PM)
         $today = date('Y-m-d');
@@ -1471,13 +1482,12 @@ class TelegramService
             );
         } catch (\Throwable $e) {}
 
-        // 2. Throttle telegram notification (25s per IP+Page) to avoid Telegram API 429 rate limit
-        // (Note: hitsToday count above is ALWAYS incremented on every single visit!)
-        $throttleKey = 'tg_traffic_sent_' . md5($ip . '_' . $page);
+        // 2. Throttle telegram notification (60s per IP) to avoid Telegram API 429 rate limit and spamming
+        $throttleKey = 'tg_traffic_sent_' . md5($ip);
         if (Cache::has($throttleKey)) {
             return true;
         }
-        Cache::put($throttleKey, true, 25);
+        Cache::put($throttleKey, true, 60);
 
         $trafficTopicId = $settings['topics']['traffic'] ?? null;
 
