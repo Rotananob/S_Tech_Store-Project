@@ -57,13 +57,27 @@ export default function LoginPage() {
       handleTelegramVerification(payload);
     }
 
+    const errorParam = searchParams?.get("error");
+    if (errorParam) {
+      const errorMsg = searchParams?.get("error_msg");
+      if (errorParam.includes("cancelled")) {
+        setError("ការភ្ជាប់ជាមួយគណនី TikTok ត្រូវបានបោះបង់ (TikTok sign-in cancelled).");
+      } else if (errorParam.includes("tiktok")) {
+        setError(`ការភ្ជាប់ TikTok បរាជ័យ: ${errorMsg ? decodeURIComponent(errorMsg) : "សូមព្យាយាមម្តងទៀត"}`);
+      } else {
+        setError(errorMsg ? decodeURIComponent(errorMsg) : "ការផ្ទៀងផ្ទាត់គណនីមានបញ្ហា");
+      }
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
+    }
+
     const ttToken = searchParams?.get("tiktok_token");
     if (ttToken) {
       const name = searchParams?.get("name") || "TikTok User";
+      const decodedName = decodeURIComponent(name);
       const ttUser = {
         id: "tt_" + Math.random().toString(36).substring(2, 9),
-        name: decodeURIComponent(name),
-        display_name: decodeURIComponent(name),
+        name: decodedName,
+        display_name: decodedName,
         provider: "tiktok",
       };
       localStorage.setItem("user_session", JSON.stringify(ttUser));
@@ -75,7 +89,7 @@ export default function LoginPage() {
       setAuthOverlay({
         show: true,
         title: `ចូលគណនី TikTok ជោគជ័យ! 🎉`,
-        subtitle: `សូមស្វាគមន៍ ${decodeURIComponent(name)}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...`,
+        subtitle: `សូមស្វាគមន៍ ${decodedName}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...`,
         isSuccess: true,
       });
 
@@ -426,8 +440,10 @@ export default function LoginPage() {
     });
 
     try {
-      // 1. Fetch official authorization URL via JSON endpoint to avoid CORS issues
-      const res = await api.get("/auth/tiktok/redirect?format=json");
+      const returnTo = window.location.origin + window.location.pathname;
+      const res = await api.get(
+        `/auth/tiktok/redirect?format=json&origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(returnTo)}`
+      );
       if (res.data?.success && res.data?.url) {
         window.location.href = res.data.url;
         return;
@@ -436,9 +452,10 @@ export default function LoginPage() {
       console.warn("Direct JSON oauth lookup failed, redirecting via browser navigation:", err);
     }
 
-    // 2. Direct browser navigation to API redirect route
+    // 2. Direct browser navigation to API redirect route with origin params
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://stech-backend-xz6j.onrender.com/api";
-    window.location.href = `${backendUrl}/auth/tiktok/redirect`;
+    const returnTo = window.location.origin + window.location.pathname;
+    window.location.href = `${backendUrl}/auth/tiktok/redirect?origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(returnTo)}`;
   };
 
   const handleFacebookSignIn = async () => {

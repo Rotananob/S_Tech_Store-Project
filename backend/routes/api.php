@@ -555,25 +555,33 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
 
 // Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)
 Route::get('/auth/tiktok/redirect', function (Request $request) {
-    $clientKey = env('TIKTOK_CLIENT_KEY', '');
-    $redirectUri = urlencode(env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback'));
+    $clientKey = env('TIKTOK_CLIENT_KEY') ?: 'aw19o3ok60albxxy';
+    $clientSecret = env('TIKTOK_CLIENT_SECRET') ?: 'LMEnC3OjLmX5Giz2b2vgT0Qmq6kbpJ7V';
+
+    $origin = $request->query('origin') ?: $request->headers->get('referer') ?: 'https://www.s-tech-store.tech';
+    $returnTo = $request->query('return_to') ?: (rtrim($origin, '/') . '/login');
+    $redirectUri = $request->query('redirect_uri') ?: env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback');
+
+    // Generate PKCE code_verifier and code_challenge (Required by TikTok Login Kit v2)
+    $verifierBytes = random_bytes(48);
+    $codeVerifier = rtrim(strtr(base64_encode($verifierBytes), '+/', '-_'), '=');
+    $codeChallenge = rtrim(strtr(base64_encode(hash('sha256', $codeVerifier, true)), '+/', '-_'), '=');
+
     $state = \Illuminate\Support\Str::random(32);
-    \Illuminate\Support\Facades\Cache::put("tiktok_state_{$state}", true, 600);
+    \Illuminate\Support\Facades\Cache::put("tiktok_oauth_{$state}", [
+        'verifier' => $codeVerifier,
+        'redirect_uri' => $redirectUri,
+        'return_to' => $returnTo,
+    ], 600);
 
-    if (empty($clientKey)) {
-        return response()->json([
-            'success' => false,
-            'needs_keys' => true,
-            'message' => 'TikTok Client Key មិនទាន់ត្រូវបានកំណត់ក្នុង .env (TIKTOK_CLIENT_KEY) នៅឡើយទេ។ សូមបង្កើត App ឥតគិតថ្លៃនៅ developers.tiktok.com',
-        ], 400);
-    }
-
-    $authUrl = "https://www.tiktok.com/v2/auth/authorize/?client_key={$clientKey}&scope=user.info.basic&response_type=code&redirect_uri={$redirectUri}&state={$state}";
+    $encodedRedirectUri = urlencode($redirectUri);
+    $authUrl = "https://www.tiktok.com/v2/auth/authorize/?client_key={$clientKey}&scope=user.info.basic&response_type=code&redirect_uri={$encodedRedirectUri}&state={$state}&code_challenge={$codeChallenge}&code_challenge_method=S256";
 
     if ($request->wantsJson() || $request->query('format') === 'json') {
         return response()->json([
             'success' => true,
             'url' => $authUrl,
+            'client_key' => $clientKey,
         ]);
     }
 
@@ -588,13 +596,17 @@ Route::get('/auth/session/token-login', function (Request $request) {
     }
 
     $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
-    if (!$userId) {
-        return response()->json(['success' => false, 'error' => 'Token expired or invalid'], 401);
+    $user = null;
+    if ($userId) {
+        $user = \App\Models\UserProfile::find($userId);
+    }
+    // Database fallback in case cache restarted or expired
+    if (!$user) {
+        $user = \App\Models\UserProfile::where('magic_login_token', $token)->first();
     }
 
-    $user = \App\Models\UserProfile::find($userId);
     if (!$user) {
-        return response()->json(['success' => false, 'error' => 'User not found'], 404);
+        return response()->json(['success' => false, 'error' => 'User not found or token expired'], 404);
     }
 
     return response()->json([
@@ -607,6 +619,7 @@ Route::get('/auth/session/token-login', function (Request $request) {
             'display_name' => $user->display_name,
             'email' => $user->email,
             'avatar_url' => $user->photo_url ?? $user->avatar_url,
+            'photo_url' => $user->photo_url ?? $user->avatar_url,
             'phone' => $user->phone,
             'status' => $user->status,
             'provider' => str_starts_with($token, 'tt_') ? 'tiktok' : 'telegram',
@@ -617,41 +630,68 @@ Route::get('/auth/session/token-login', function (Request $request) {
 Route::get('/auth/tiktok/callback', function (Request $request) {
     $code = $request->query('code', '');
     $state = $request->query('state', '');
-    $clientKey = env('TIKTOK_CLIENT_KEY', '');
-    $clientSecret = env('TIKTOK_CLIENT_SECRET', '');
-    $redirectUri = env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback');
+    $error = $request->query('error', '');
+    $errorDesc = $request->query('error_description', '');
 
-    if (empty($code)) {
-        return redirect('https://www.s-tech-store.tech/login?error=tiktok_cancelled');
+    $clientKey = env('TIKTOK_CLIENT_KEY') ?: 'aw19o3ok60albxxy';
+    $clientSecret = env('TIKTOK_CLIENT_SECRET') ?: 'LMEnC3OjLmX5Giz2b2vgT0Qmq6kbpJ7V';
+
+    $oauthData = \Illuminate\Support\Facades\Cache::get("tiktok_oauth_{$state}");
+    $codeVerifier = is_array($oauthData) ? ($oauthData['verifier'] ?? '') : '';
+    $redirectUri = is_array($oauthData) ? ($oauthData['redirect_uri'] ?? null) : null;
+    $returnTo = is_array($oauthData) ? ($oauthData['return_to'] ?? 'https://www.s-tech-store.tech/login') : 'https://www.s-tech-store.tech/login';
+
+    if (!$redirectUri) {
+        $redirectUri = env('TIKTOK_REDIRECT_URI', 'https://www.s-tech-store.tech/api/auth/tiktok/callback');
+    }
+
+    $separator = str_contains($returnTo, '?') ? '&' : '?';
+
+    if (!empty($error) || empty($code)) {
+        \Illuminate\Support\Facades\Log::warning("TikTok OAuth Cancelled or Denied: error={$error}, desc={$errorDesc}");
+        return redirect("{$returnTo}{$separator}error=tiktok_cancelled&error_msg=" . urlencode($errorDesc ?: $error ?: 'User cancelled'));
     }
 
     try {
-        $resp = \Illuminate\Support\Facades\Http::asForm()->post('https://open.tiktokapis.com/v2/oauth/token/', [
+        $tokenParams = [
             'client_key' => $clientKey,
             'client_secret' => $clientSecret,
             'code' => $code,
             'grant_type' => 'authorization_code',
             'redirect_uri' => $redirectUri,
-        ]);
-
-        $tokenData = $resp->json();
-        $accessToken = $tokenData['data']['access_token'] ?? null;
-        $openId = $tokenData['data']['open_id'] ?? null;
-
-        if (!$accessToken || !$openId) {
-            return redirect('https://www.s-tech-store.tech/login?error=tiktok_token_failed');
+        ];
+        if (!empty($codeVerifier)) {
+            $tokenParams['code_verifier'] = $codeVerifier;
         }
 
+        $resp = \Illuminate\Support\Facades\Http::asForm()->post('https://open.tiktokapis.com/v2/oauth/token/', $tokenParams);
+        $tokenData = $resp->json();
+
+        \Illuminate\Support\Facades\Log::info("TikTok Token Response: " . json_encode($tokenData));
+
+        $accessToken = $tokenData['data']['access_token'] ?? $tokenData['access_token'] ?? null;
+        $openId = $tokenData['data']['open_id'] ?? $tokenData['open_id'] ?? null;
+
+        if (!$accessToken || !$openId) {
+            $errMsg = $tokenData['error']['message'] ?? $tokenData['error_description'] ?? $tokenData['message'] ?? 'Token exchange failed';
+            \Illuminate\Support\Facades\Log::error("TikTok OAuth Token Failed: " . json_encode($tokenData));
+            return redirect("{$returnTo}{$separator}error=tiktok_token_failed&error_msg=" . urlencode($errMsg));
+        }
+
+        // Fetch User Info from TikTok Login Kit v2
         $userResp = \Illuminate\Support\Facades\Http::withHeaders([
             'Authorization' => "Bearer {$accessToken}",
-        ])->get('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,display_name');
+        ])->get('https://open.tiktokapis.com/v2/user/info/?fields=open_id,union_id,avatar_url,avatar_url_100,avatar_large_url,display_name');
 
-        $userData = $userResp->json()['data']['user'] ?? [];
-        $displayName = $userData['display_name'] ?? ('TikTok User #' . substr($openId, 0, 6));
-        $avatarUrl = $userData['avatar_url'] ?? '';
+        $userBody = $userResp->json();
+        $userData = $userBody['data']['user'] ?? $userBody['user'] ?? [];
+        $displayName = !empty($userData['display_name']) ? trim($userData['display_name']) : ('TikTok User #' . substr($openId, 0, 6));
+        $avatarUrl = $userData['avatar_large_url'] ?? $userData['avatar_url'] ?? $userData['avatar_url_100'] ?? '';
 
         $firebaseUid = 'tt_' . $openId;
         $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => $firebaseUid]);
+        $isNewUser = !$user->exists;
+
         $user->display_name = $displayName;
         if (empty($user->email)) {
             $user->email = "tiktok_{$openId}@s-tech-store.tech";
@@ -662,15 +702,39 @@ Route::get('/auth/tiktok/callback', function (Request $request) {
         }
         $user->is_active = true;
         $user->status = 'active';
-        $user->save();
 
         $token = 'tt_sess_' . \Illuminate\Support\Str::random(60);
+        $user->magic_login_token = $token;
+        $user->save();
+
         \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
 
-        return redirect("https://www.s-tech-store.tech/login?tiktok_token={$token}&name=" . urlencode($displayName));
+        if ($isNewUser) {
+            try {
+                \App\Services\TelegramService::sendNewUserRegistrationNotification([
+                    'id' => $user->id,
+                    'name' => $displayName,
+                    'email' => $user->email,
+                    'phone' => 'TikTok Account',
+                    'role' => 'tiktok_customer',
+                ]);
+            } catch (\Throwable $t) {}
+
+            try {
+                \App\Models\UserNotification::create([
+                    'firebase_uid' => $firebaseUid,
+                    'title' => 'Welcome via TikTok! 🎵🎉',
+                    'message' => "ស្វាគមន៍មកកាន់ S Tech Store! គណនី TikTok របស់អ្នក ({$displayName}) ត្រូវបានតភ្ជាប់ដោយជោគជ័យ។",
+                    'type' => 'welcome',
+                    'is_read' => false,
+                ]);
+            } catch (\Throwable $t) {}
+        }
+
+        return redirect("{$returnTo}{$separator}tiktok_token={$token}&name=" . urlencode($displayName));
     } catch (\Throwable $e) {
         \Illuminate\Support\Facades\Log::error('TikTok OAuth Callback Error: ' . $e->getMessage());
-        return redirect('https://www.s-tech-store.tech/login?error=tiktok_exception');
+        return redirect("{$returnTo}{$separator}error=tiktok_exception&error_msg=" . urlencode($e->getMessage()));
     }
 });
 

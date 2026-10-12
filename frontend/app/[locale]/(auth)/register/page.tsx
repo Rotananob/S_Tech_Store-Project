@@ -58,19 +58,55 @@ export default function RegisterPage() {
       handleTelegramVerification(payload);
     }
 
+    const errorParam = searchParams?.get("error");
+    if (errorParam) {
+      const errorMsg = searchParams?.get("error_msg");
+      if (errorParam.includes("cancelled")) {
+        setError("ការចុះឈ្មោះជាមួយគណនី TikTok ត្រូវបានបោះបង់ (TikTok sign-up cancelled).");
+      } else if (errorParam.includes("tiktok")) {
+        setError(`ការចុះឈ្មោះតាម TikTok បរាជ័យ: ${errorMsg ? decodeURIComponent(errorMsg) : "សូមព្យាយាមម្តងទៀត"}`);
+      } else {
+        setError(errorMsg ? decodeURIComponent(errorMsg) : "ការផ្ទៀងផ្ទាត់គណនីមានបញ្ហា");
+      }
+      setAuthOverlay({ show: false, title: "", subtitle: "" });
+    }
+
     const ttToken = searchParams?.get("tiktok_token");
     if (ttToken) {
       const name = searchParams?.get("name") || "TikTok Member";
+      const decodedName = decodeURIComponent(name);
       const ttUser = {
         id: "tt_" + Math.random().toString(36).substring(2, 9),
-        name: decodeURIComponent(name),
-        display_name: decodeURIComponent(name),
+        name: decodedName,
+        display_name: decodedName,
         provider: "tiktok",
       };
       localStorage.setItem("user_session", JSON.stringify(ttUser));
+      localStorage.setItem("stech_user_session", JSON.stringify(ttUser));
       localStorage.setItem("customer_token", ttToken);
       document.cookie = `customer_token=${ttToken}; path=/; max-age=2592000; SameSite=Lax`;
-      router.push("/");
+      window.dispatchEvent(new Event("user_session_updated"));
+
+      setAuthOverlay({
+        show: true,
+        title: `ចុះឈ្មោះជាមួយ TikTok ជោគជ័យ! 🎉`,
+        subtitle: `សូមស្វាគមន៍ ${decodedName}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...`,
+        isSuccess: true,
+      });
+
+      api.get(`/auth/session/token-login?token=${ttToken}`)
+        .then((res) => {
+          if (res.data?.success && res.data?.user) {
+            localStorage.setItem("user_session", JSON.stringify(res.data.user));
+            localStorage.setItem("stech_user_session", JSON.stringify(res.data.user));
+            window.dispatchEvent(new Event("user_session_updated"));
+          }
+        })
+        .catch(() => {});
+
+      setTimeout(() => {
+        router.push("/");
+      }, 1500);
     }
   }, [searchParams]);
 
@@ -413,86 +449,36 @@ export default function RegisterPage() {
     window.location.href = oauthUrl;
   };
 
-  // ─── 1-Click TikTok Sign Up / Official OAuth ──────────────────────────────────
+  // ─── Real Official TikTok OAuth 2.0 Sign Up ──────────────────────────────────
   const handleTikTokSignIn = async () => {
     setError("");
     setLoading(true);
     const deviceName = getDeviceName();
-    const browserName = getBrowserName();
 
     setAuthOverlay({
       show: true,
-      title: `🎵 កំពុងចុះឈ្មោះ TikTok លើ ${deviceName}...`,
-      subtitle: `សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបង្កើតគណនី TikTok និងផ្ញើ Alert...`,
+      title: `🎵 កំពុងភ្ជាប់ TikTok Login Kit (${deviceName})...`,
+      subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបើកផ្ទាំងចុះឈ្មោះផ្លូវការរបស់ TikTok...",
       isSuccess: false,
     });
 
     try {
-      // 1. Try official TikTok OAuth redirect if configured on backend
-      try {
-        const checkOauth = await api.get("/auth/tiktok/redirect");
-        if (checkOauth.request?.responseURL && !checkOauth.data?.needs_keys) {
-          window.location.href = checkOauth.request.responseURL;
-          return;
-        }
-      } catch (e: any) {}
-
-      // 2. Seamless 1-Click Authenticator
-      const backendUrl = process.env.NODE_ENV === "production"
-        ? "https://stech-backend-xz6j.onrender.com/api"
-        : "http://127.0.0.1:8000/api";
-
-      fetch(`${backendUrl}/security/alert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "🎵 1-Click TikTok New Registration",
-          device: `${deviceName} (${browserName})`,
-          user: `TikTok User (${deviceName})`,
-          action: "TIKTOK_REGISTER_VERIFIED",
-          details: `សមាជិកថ្មីបានចុះឈ្មោះតាមរយៈ TikTok Authenticator លើឧបករណ៍ ${deviceName} (${browserName})។`,
-        }),
-      }).catch(() => {});
-
-      await api.post("/user/notifications", {
-        title: "Welcome via TikTok! 🎵🎉",
-        message: `Registered via TikTok Authenticator on ${deviceName} (${browserName}). Welcome!`,
-        type: "welcome",
-      }).catch(() => {});
-      useNotificationStore.getState().fetchNotifications();
-
-      const ttId = "tt_" + Math.random().toString(36).substring(2, 9);
-      const ttUser = {
-        id: ttId,
-        email: `tiktok.${ttId}@s-tech-store.tech`,
-        name: `TikTok Member (${deviceName})`,
-        display_name: `TikTok Member`,
-        provider: "tiktok",
-        device: deviceName,
-      };
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("user_session", JSON.stringify(ttUser));
-        localStorage.setItem("customer_token", "tt_token_" + Date.now());
-        document.cookie = `customer_token=tt_token_${Date.now()}; path=/; max-age=604800; SameSite=Lax`;
+      const returnTo = window.location.origin + window.location.pathname;
+      const res = await api.get(
+        `/auth/tiktok/redirect?format=json&origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(returnTo)}`
+      );
+      if (res.data?.success && res.data?.url) {
+        window.location.href = res.data.url;
+        return;
       }
-
-      setAuthOverlay({
-        show: true,
-        title: "ចុះឈ្មោះតាម TikTok ជោគជ័យ! 🎉",
-        subtitle: `បានទទួលស្គាល់ឧបករណ៍ ${deviceName} រួចរាល់! កំពុងបញ្ជូនទៅទំព័រដើម...`,
-        isSuccess: true,
-      });
-
-      await new Promise((r) => setTimeout(r, 1800));
-      router.push("/");
     } catch (err: any) {
-      console.error(err);
-      setError("បរាជ័យក្នុងការចុះឈ្មោះតាម TikTok: " + (err.message || "Unknown error"));
-      setAuthOverlay({ show: false, title: "", subtitle: "" });
-    } finally {
-      setLoading(false);
+      console.warn("Direct JSON oauth lookup failed, redirecting via browser navigation:", err);
     }
+
+    // Direct browser navigation to API redirect route with origin params
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://stech-backend-xz6j.onrender.com/api";
+    const returnTo = window.location.origin + window.location.pathname;
+    window.location.href = `${backendUrl}/auth/tiktok/redirect?origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(returnTo)}`;
   };
 
   const handleFacebookSignIn = async () => {
