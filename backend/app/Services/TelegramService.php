@@ -579,6 +579,89 @@ class TelegramService
                 return;
             }
 
+            // Customer My Wallet & Cash Balance (Real Data Query)
+            if (in_array($callbackData, ['cust_my_wallet', 'btn_my_wallet']) && $chatId) {
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                    ->orWhere('telegram_chat_id', (string)$chatId)
+                    ->first();
+
+                $walletBalance = (float)($user->wallet_balance ?? 0.00);
+                $points = (int)($user->points ?? 0);
+                $pointsVal = $points * 0.01;
+                $totalFunds = $walletBalance + $pointsVal;
+
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
+
+                $recentTxs = collect();
+                if ($user && !empty($user->firebase_uid)) {
+                    $recentTxs = \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
+                        ->latest()
+                        ->take(3)
+                        ->get();
+                }
+
+                $txListText = "";
+                if ($recentTxs->isNotEmpty()) {
+                    $txListText = "📋 <b>ប្រតិបត្តិការកាបូបចុងក្រោយ (Recent Transactions):</b>\n";
+                    foreach ($recentTxs as $tx) {
+                        $txSign = in_array($tx->type, ['deposit', 'refund', 'reward', 'coin_reward']) ? '➕' : '➖';
+                        $txTypeTitle = match($tx->type) {
+                            'deposit' => 'បញ្ចូលទឹកប្រាក់ (Deposit)',
+                            'payment', 'order' => 'ទូទាត់ទំនិញ (Payment)',
+                            'refund' => 'សងប្រាក់ត្រឡប់ (Refund)',
+                            'reward', 'coin_reward' => 'រង្វាន់ & Bonus',
+                            default => ucfirst($tx->type),
+                        };
+                        $txStatusBadge = match(strtolower($tx->status ?? 'completed')) {
+                            'completed', 'success' => '✅ ជោគជ័យ',
+                            'pending' => '⏳ រង់ចាំ',
+                            'failed' => '❌ បរាជ័យ',
+                            default => ucfirst($tx->status),
+                        };
+                        $txAmountStr = number_format((float)$tx->amount, 2);
+                        $txDate = $tx->created_at ? $tx->created_at->format('d/m/Y H:i') : '';
+                        $txListText .= "• {$txSign} <b>\${$txAmountStr} USD</b> — {$txTypeTitle} ({$txStatusBadge}) <i>{$txDate}</i>\n";
+                    }
+                    $txListText .= "\n";
+                }
+
+                $walletText = "💰 <b>កាបូបលុយ & សមតុល្យគណនី (S Tech Smart Wallet):</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                    . "💵 <b>សមតុល្យសាច់ប្រាក់ (Cash Balance):</b> <b>\$" . number_format($walletBalance, 2) . " USD</b>\n"
+                    . "🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$points} Coins</b> (ស្មើ <b>\$" . number_format($pointsVal, 2) . " USD</b>)\n"
+                    . "💎 <b>ទឹកប្រាក់អាចប្រើប្រាស់សរុប:</b> <b>\$" . number_format($totalFunds, 2) . " USD</b>\n\n"
+                    . $txListText
+                    . "💳 <b>វិធីបញ្ចូលទឹកប្រាក់ងាយៗ (Top-Up KHQR):</b>\n"
+                    . "• ស្កេនទូទាត់តាម <b>Bakong KHQR</b> គ្រប់ធនាគារ (ABA, ACLEDA, Wing, Canadia...)\n"
+                    . "• ទឹកប្រាក់ចូលគណនីភ្លាមៗ ស្វ័យប្រវត្តក្នុងរយៈពេល ១-៥ វិនាទី\n"
+                    . "• ប្រើទូទាត់ទំនិញលឿនរហ័ស និងទទួលបាន Bonus Coins បន្ថែមរាល់ការទិញ!\n\n"
+                    . "👉 <b>ចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ចូលលុយ ឬទិញទំនិញក្នុង Mini App!</b>";
+
+                $walletKb = [
+                    'inline_keyboard' => [
+                        [['text' => '💳 បញ្ចូលលុយកាបូប (Top Up KHQR)', 'web_app' => ['url' => $walletAppUrl]]],
+                        [
+                            ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
+                            ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                        ],
+                        [
+                            ['text' => '🔄 ពិនិត្យសមតុល្យឡើងវិញ', 'callback_data' => 'cust_my_wallet'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $walletText, $walletKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $walletText, $walletKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'កាបូបលុយ & សមតុល្យ', $activeToken);
+                return;
+            }
+
             // Customer My Points & VIP Rewards (Real Data Query)
             if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
                 $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
@@ -803,6 +886,151 @@ class TelegramService
                     self::sendMessageWithKeyboard($chatId, $supportText, $supportKb, 'HTML', null, $activeToken);
                 }
                 self::answerCallbackQuery($callbackId, 'បានជូនដំណឹងទៅក្រុមការងារ', $activeToken);
+                return;
+            }
+
+            // Customer Ask Options (Quick FAQ Menu)
+            if (in_array($callbackData, ['cust_ask_options', 'btn_faq']) && $chatId) {
+                $askText = "❓ <b>មជ្ឈមណ្ឌលសួរសំណួរ & ជំនួយរហ័ស (Quick FAQ & Inquiries):</b>\n\n"
+                    . "ជម្រាបសួរ <b>{$fromName}</b>! សូមជ្រើសរើសប្រធានបទដែលលោកអ្នកចង់សាកសួរខាងក្រោម៖\n\n"
+                    . "💡 <i>លោកអ្នកក៏អាចវាយសួរជាពាក្យពេចន៍ផ្ទាល់ក្នុង Chat នេះបានគ្រប់ពេលដូចជា៖</i>\n"
+                    . "👉 <i>\"លុយខ្ញុំសល់ប៉ុន្មាន?\"</i>\n"
+                    . "👉 <i>\"តាមដានឥវ៉ាន់ ST-10023\"</i>\n"
+                    . "👉 <i>\"ថ្លៃដឹកជញ្ជូនភ្នំពេញ និងខេត្ត?\"</i>\n"
+                    . "👉 <i>\"Laptop gaming មានតម្លៃប៉ុន្មាន?\"</i>";
+
+                $askKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '💰 សមតុល្យទឹកប្រាក់ & កាបូប', 'callback_data' => 'cust_my_wallet'],
+                            ['text' => '📦 តាមដានការកុម្ម៉ង់', 'callback_data' => 'cust_my_orders'],
+                        ],
+                        [
+                            ['text' => '💳 វិធីបង់ប្រាក់ & Bakong KHQR', 'callback_data' => 'cust_ask_payment'],
+                            ['text' => '🚚 សេវាដឹកជញ្ជូន & ថ្លៃដឹក', 'callback_data' => 'cust_ask_delivery'],
+                        ],
+                        [
+                            ['text' => '🛡️ ការធានា & គោលការណ៍ប្តូរ', 'callback_data' => 'cust_ask_warranty'],
+                            ['text' => '🔥 ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ', 'callback_data' => 'cust_promo'],
+                        ],
+                        [
+                            ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
+                            ['text' => '🔧 សេវាជួសជុល & Upgrade', 'callback_data' => 'cust_my_repairs'],
+                        ],
+                        [
+                            ['text' => '💬 ជជែកជាមួយបុគ្គលិកផ្ទាល់', 'callback_data' => 'cust_support'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $askText, $askKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $askText, $askKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'សួរសំណួរ & ជំនួយ', $activeToken);
+                return;
+            }
+
+            // Customer Ask Payment FAQ
+            if ($callbackData === 'cust_ask_payment' && $chatId) {
+                $payText = "💳 <b>វិធីសាស្ត្រទូទាត់ប្រាក់នៅ S Tech Store:</b>\n\n"
+                    . "យើងខ្ញុំផ្តល់ជូននូវជម្រើសទូទាត់ប្រាក់ទំនើប រហ័ស និងមានសុវត្ថិភាព ១០០%៖\n\n"
+                    . "• 🇰🇭 <b>Bakong KHQR (គ្រប់ធនាគារក្នុងប្រទេសកម្ពុជា):</b>\n"
+                    . "   ស្កេនទូទាត់បានភ្លាមៗពី ABA, ACLEDA, Wing, Canadia, TrueMoney, Sathapana, etc.\n"
+                    . "• 💰 <b>កាបូបលុយ S Tech Smart Wallet:</b>\n"
+                    . "   បញ្ចូលទឹកប្រាក់ទុកជាមុន ទូទាត់ទំនិញភ្លាមៗក្នុង ១ វិនាទី និងទទួលបាន cashback coins!\n"
+                    . "• 💳 <b>កាតឥណទាន / ឥណពន្ធ:</b> ទទួល Visa & Mastercard\n"
+                    . "• 💵 <b>ទូទាត់ពេលទំនិញដល់ដៃ (COD):</b> ទទួលសាច់ប្រាក់សុទ្ធពេលដឹកដល់ទីតាំង (ភ្នំពេញ)\n\n"
+                    . "👉 ចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យកាបូបលុយ ឬទិញទំនិញក្នុង Mini App!";
+
+                $payKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '💰 មើលកាបូបលុយរបស់ខ្ញុំ', 'callback_data' => 'cust_my_wallet'],
+                            ['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                        ],
+                        [
+                            ['text' => '❓ សំណួរផ្សេងទៀត', 'callback_data' => 'cust_ask_options'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $payText, $payKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $payText, $payKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'វិធីបង់ប្រាក់', $activeToken);
+                return;
+            }
+
+            // Customer Ask Delivery FAQ
+            if ($callbackData === 'cust_ask_delivery' && $chatId) {
+                $delText = "🚚 <b>ព័ត៌មានសេវាកម្មដឹកជញ្ជូន (Delivery Service):</b>\n\n"
+                    . "📍 <b>ក្នុងរាជធានីភ្នំពេញ:</b>\n"
+                    . "• រយៈពេលដឹក: <b>1 ទៅ 3 ម៉ោង</b> ទទួលបានទំនិញដល់ដៃ\n"
+                    . "• តម្លៃដឹក: <b>\$1.50 - \$2.00</b>\n"
+                    . "• 🎉 <b>FREE Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃ សម្រាប់ការកុម្ម៉ង់ចាប់ពី <b>\$50 ឡើងទៅ</b>!\n\n"
+                    . "🌍 <b>បណ្តា ២៥ ខេត្ត-ក្រុង:</b>\n"
+                    . "• ផ្ញើតាមដៃគូដឹកជញ្ជូនល្បីៗ: វីរៈប៊ុនថាំ (VET), J&T Express, Kerry Express\n"
+                    . "• រយៈពេល: <b>1 ទៅ 2 ថ្ងៃ</b> ទទួលបានទំនិញ\n"
+                    . "• តម្លៃសេវា: <b>\$2.50 - \$3.00</b> (ខ្ចប់ទំនិញការពារប៉ះទង្គិច Bubble Wrap យ៉ាងម៉ត់ចត់)\n\n"
+                    . "👉 អាចតាមដានការដឹកជញ្ជូនផ្ទាល់នៅក្នុង Mini App!";
+
+                $delKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '📦 តាមដានការកុម្ម៉ង់', 'callback_data' => 'cust_my_orders'],
+                            ['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                        ],
+                        [
+                            ['text' => '❓ សំណួរផ្សេងទៀត', 'callback_data' => 'cust_ask_options'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $delText, $delKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $delText, $delKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'សេវាដឹកជញ្ជូន', $activeToken);
+                return;
+            }
+
+            // Customer Ask Warranty FAQ
+            if ($callbackData === 'cust_ask_warranty' && $chatId) {
+                $warText = "🛡️ <b>គោលការណ៍ធានា និងការប្តូរទំនិញ (Warranty Policy):</b>\n\n"
+                    . "រាល់ទំនិញទាំងអស់នៅ S Tech Store ទទួលបានការធានាផ្លូវការ ១០០%៖\n\n"
+                    . "• 🌟 <b>ទំនិញថ្មីប្រអប់ (Brand New 100%):</b> ធានាផ្លូវការពីរោងចក្រ <b>6 ខែ ទៅ 2 ឆ្នាំពេញ</b>\n"
+                    . "• 🔄 <b>ទំនិញមួយទឹកគុណភាពខ្ពស់ (Pre-Owned):</b> ធានាពីហាង <b>1 ទៅ 3 ខែពេញ</b>\n"
+                    . "• 🔄 <b>គោលការណ៍ប្តូរថ្មី:</b> ប្តូរជូនថ្មីភ្លាមៗក្នុងរយៈពេល <b>7 ថ្ងៃដំបូង</b> ប្រសិនបើមានបញ្ហាបច្ចេកទេសពីរោងចក្រ\n"
+                    . "• 🛠️ <b>សេវាផ្នែកទន់ (Software):</b> ដំឡើង Genuine Windows 11, Drivers & Clean Cache <b>ឥតគិតថ្លៃ Free អស់មួយជីវិត</b>!\n\n"
+                    . "👉 លោកអ្នកអាចជឿជាក់បាន ១០០% លើគុណភាព និងទំនួលខុសត្រូវរបស់យើង!";
+
+                $warKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '🔧 សេវាជួសជុល & Upgrade', 'callback_data' => 'cust_my_repairs'],
+                            ['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                        ],
+                        [
+                            ['text' => '❓ សំណួរផ្សេងទៀត', 'callback_data' => 'cust_ask_options'],
+                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                        ],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $warText, $warKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $warText, $warKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'គោលការណ៍ធានា', $activeToken);
                 return;
             }
 
@@ -1594,6 +1822,84 @@ class TelegramService
             return;
         }
 
+        // Customer /wallet, /balance, /money, /funds, /topup (Real Wallet Lookup)
+        if (preg_match('/^\/(?:wallet|balance|money|funds|topup)(?:@\w+)?/i', $text)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                ->orWhere('telegram_chat_id', (string)$chatId)
+                ->first();
+
+            $walletBalance = (float)($user->wallet_balance ?? 0.00);
+            $points = (int)($user->points ?? 0);
+            $pointsVal = $points * 0.01;
+            $totalFunds = $walletBalance + $pointsVal;
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
+
+            $recentTxs = collect();
+            if ($user && !empty($user->firebase_uid)) {
+                $recentTxs = \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
+                    ->latest()
+                    ->take(3)
+                    ->get();
+            }
+
+            $txListText = "";
+            if ($recentTxs->isNotEmpty()) {
+                $txListText = "📋 <b>ប្រតិបត្តិការកាបូបចុងក្រោយ (Recent Transactions):</b>\n";
+                foreach ($recentTxs as $tx) {
+                    $txSign = in_array($tx->type, ['deposit', 'refund', 'reward', 'coin_reward']) ? '➕' : '➖';
+                    $txTypeTitle = match($tx->type) {
+                        'deposit' => 'បញ្ចូលទឹកប្រាក់ (Deposit)',
+                        'payment', 'order' => 'ទូទាត់ទំនិញ (Payment)',
+                        'refund' => 'សងប្រាក់ត្រឡប់ (Refund)',
+                        'reward', 'coin_reward' => 'រង្វាន់ & Bonus',
+                        default => ucfirst($tx->type),
+                    };
+                    $txStatusBadge = match(strtolower($tx->status ?? 'completed')) {
+                        'completed', 'success' => '✅ ជោគជ័យ',
+                        'pending' => '⏳ រង់ចាំ',
+                        'failed' => '❌ បរាជ័យ',
+                        default => ucfirst($tx->status),
+                    };
+                    $txAmountStr = number_format((float)$tx->amount, 2);
+                    $txDate = $tx->created_at ? $tx->created_at->format('d/m/Y H:i') : '';
+                    $txListText .= "• {$txSign} <b>\${$txAmountStr} USD</b> — {$txTypeTitle} ({$txStatusBadge}) <i>{$txDate}</i>\n";
+                }
+                $txListText .= "\n";
+            }
+
+            $walletText = "💰 <b>កាបូបលុយ & សមតុល្យគណនី (S Tech Smart Wallet):</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                . "💵 <b>សមតុល្យសាច់ប្រាក់ (Cash Balance):</b> <b>\$" . number_format($walletBalance, 2) . " USD</b>\n"
+                . "🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$points} Coins</b> (ស្មើ <b>\$" . number_format($pointsVal, 2) . " USD</b>)\n"
+                . "💎 <b>ទឹកប្រាក់អាចប្រើប្រាស់សរុប:</b> <b>\$" . number_format($totalFunds, 2) . " USD</b>\n\n"
+                . $txListText
+                . "💳 <b>វិធីបញ្ចូលទឹកប្រាក់ងាយៗ (Top-Up KHQR):</b>\n"
+                . "• ស្កេនទូទាត់តាម <b>Bakong KHQR</b> គ្រប់ធនាគារ (ABA, ACLEDA, Wing, Canadia...)\n"
+                . "• ទឹកប្រាក់ចូលគណនីភ្លាមៗ ស្វ័យប្រវត្តក្នុងរយៈពេល ១-៥ វិនាទី\n"
+                . "• ប្រើទូទាត់ទំនិញលឿនរហ័ស និងទទួលបាន Bonus Coins បន្ថែមរាល់ការទិញ!\n\n"
+                . "👉 <b>ចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ចូលលុយ ឬទិញទំនិញក្នុង Mini App!</b>";
+
+            $walletKb = [
+                'inline_keyboard' => [
+                    [['text' => '💳 បញ្ចូលលុយកាបូប (Top Up KHQR)', 'web_app' => ['url' => $walletAppUrl]]],
+                    [
+                        ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
+                        ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                    ],
+                    [
+                        ['text' => '🔄 ពិនិត្យសមតុល្យឡើងវិញ', 'callback_data' => 'cust_my_wallet'],
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $walletText, $walletKb, 'HTML', null, $activeToken);
+            return;
+        }
+
         // Customer /repair or /repairs
         if (preg_match('/^\/(?:repair|repairs|services)(?:@\w+)?/i', $text)) {
             $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
@@ -1693,14 +1999,18 @@ class TelegramService
                 . "សូមស្វាគមន៍! លោកអ្នកអាចប្រើពាក្យបញ្ជា ឬវាយសួរផ្ទាល់ដូចខាងក្រោម៖\n\n"
                 . "📋 <b>បញ្ជីពាក្យបញ្ជា (Commands):</b>\n"
                 . "• <code>/start</code> — 🏠 មឺនុយមេ & បើក Mini App\n"
+                . "• <code>/wallet</code> — 💰 ពិនិត្យសមតុល្យទឹកប្រាក់ & កាបូប (My Balance)\n"
+                . "• <code>/points</code> — 🪙 ពិន្ទុ S-Coins & VIP Rewards\n"
+                . "• <code>/ask</code> — ❓ បញ្ជីសំណួរញឹកញាប់ & ជំនួយរហ័ស (Quick FAQ)\n"
                 . "• <code>/shop</code> — 💻 មើលផលិតផល Laptops, PC, Parts\n"
                 . "• <code>/promo</code> — 🔥 ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ\n"
                 . "• <code>/track</code> — 📦 តាមដានស្ថានភាពការបញ្ជាទិញ\n"
                 . "• <code>/repair</code> — 🔧 សេវាជួសជុល & Upgrade\n"
                 . "• <code>/contact</code> — 📞 ទំនាក់ទំនង & ទីតាំងហាង\n"
                 . "• <code>/help</code> — ❓ បង្ហាញជំនួយនេះ\n\n"
-                . "💡 <b>ជំនួយការឆ្លាតវៃ (Smart FAQ):</b>\n"
-                . "លោកអ្នកអាចវាយសួរផ្ទាល់ដូចជា៖\n"
+                . "💡 <b>ជំនួយការឆ្លាតវៃ (Smart Inquiries):</b>\n"
+                . "លោកអ្នកអាចវាយសួរផ្ទាល់ក្នុង Chat ដូចជា៖\n"
+                . "👉 <i>\"លុយខ្ញុំសល់ប៉ុន្មាន?\"</i> (ឆែកសមតុល្យលុយកាបូបភ្លាមៗ)\n"
                 . "👉 <i>\"Laptop តម្លៃប៉ុន្មានខ្លះ?\"</i>\n"
                 . "👉 <i>\"សេវាដឹកភ្នំពេញ និងខេត្តប៉ុន្មាន?\"</i>\n"
                 . "👉 <i>\"ការធានារយៈពេលប៉ុន្មាន?\"</i>\n"
@@ -1709,11 +2019,56 @@ class TelegramService
 
             $helpKb = [
                 'inline_keyboard' => [
-                    [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    [
+                        ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                        ['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                    ],
+                    [
+                        ['text' => '❓ សួរសំណួររហ័ស (Ask FAQ)', 'callback_data' => 'cust_ask_options'],
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
                 ],
             ];
             self::sendMessageWithKeyboard($chatId, $helpText, $helpKb, 'HTML', null, $activeToken);
+            return;
+        }
+
+        // Customer /ask or /faq
+        if (preg_match('/^\/(?:ask|faq|questions)(?:@\w+)?/i', $text)) {
+            $askText = "❓ <b>មជ្ឈមណ្ឌលសួរសំណួរ & ជំនួយរហ័ស (Quick FAQ & Inquiries):</b>\n\n"
+                . "ជម្រាបសួរ <b>{$fromName}</b>! សូមជ្រើសរើសប្រធានបទដែលលោកអ្នកចង់សាកសួរខាងក្រោម៖\n\n"
+                . "💡 <i>លោកអ្នកក៏អាចវាយសួរជាពាក្យពេចន៍ផ្ទាល់ក្នុង Chat នេះបានគ្រប់ពេលដូចជា៖</i>\n"
+                . "👉 <i>\"លុយខ្ញុំសល់ប៉ុន្មាន?\"</i>\n"
+                . "👉 <i>\"តាមដានឥវ៉ាន់ ST-10023\"</i>\n"
+                . "👉 <i>\"ថ្លៃដឹកជញ្ជូនភ្នំពេញ និងខេត្ត?\"</i>\n"
+                . "👉 <i>\"Laptop gaming មានតម្លៃប៉ុន្មាន?\"</i>";
+
+            $askKb = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '💰 សមតុល្យទឹកប្រាក់ & កាបូប', 'callback_data' => 'cust_my_wallet'],
+                        ['text' => '📦 តាមដានការកុម្ម៉ង់', 'callback_data' => 'cust_my_orders'],
+                    ],
+                    [
+                        ['text' => '💳 វិធីបង់ប្រាក់ & Bakong KHQR', 'callback_data' => 'cust_ask_payment'],
+                        ['text' => '🚚 សេវាដឹកជញ្ជូន & ថ្លៃដឹក', 'callback_data' => 'cust_ask_delivery'],
+                    ],
+                    [
+                        ['text' => '🛡️ ការធានា & គោលការណ៍ប្តូរ', 'callback_data' => 'cust_ask_warranty'],
+                        ['text' => '🔥 ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ', 'callback_data' => 'cust_promo'],
+                    ],
+                    [
+                        ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
+                        ['text' => '🔧 សេវាជួសជុល & Upgrade', 'callback_data' => 'cust_my_repairs'],
+                    ],
+                    [
+                        ['text' => '💬 ជជែកជាមួយបុគ្គលិកផ្ទាល់', 'callback_data' => 'cust_support'],
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $askText, $askKb, 'HTML', null, $activeToken);
             return;
         }
 
@@ -1835,6 +2190,71 @@ class TelegramService
             }
         }
 
+        // A.2 Inquiries about Money, Wallet Balance, Funds & Coins ("លុយខ្ញុំសល់ប៉ុន្មាន", "check balance", "ទឹកប្រាក់", "កាបូបលុយ", "wallet balance", "សមតុល្យ")
+        if (preg_match('/(លុយ(?:ខ្ញុំ)?(?:សល់|មាន)?|ទឹកប្រាក់|កាបូប(?:លុយ)?|សមតុល្យ|wallet|balance|money|funds|cash\s*balance|check\s*balance|កាក់|សល់លុយ|កុងលុយ|ចំនួនទឹកប្រាក់|បញ្ចូលលុយ|topup)/u', $textLower)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                ->orWhere('telegram_chat_id', (string)$chatId)
+                ->first();
+
+            $walletBalance = (float)($user->wallet_balance ?? 0.00);
+            $points = (int)($user->points ?? 0);
+            $pointsVal = $points * 0.01;
+            $totalFunds = $walletBalance + $pointsVal;
+
+            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+            $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
+
+            $reply = "💰 <b>សមតុល្យទឹកប្រាក់ & កាបូបរបស់អ្នក (Your Wallet):</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "👤 <b>អតិថិជន:</b> <b>{$fromName}</b>\n"
+                . "💵 <b>សមតុល្យទឹកប្រាក់ (Cash Balance):</b> <b>\$" . number_format($walletBalance, 2) . " USD</b>\n"
+                . "🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$points} Coins</b> (ស្មើ <b>\$" . number_format($pointsVal, 2) . " USD</b>)\n"
+                . "💎 <b>ទឹកប្រាក់ប្រើប្រាស់បានសរុប:</b> <b>\$" . number_format($totalFunds, 2) . " USD</b>\n\n"
+                . "💡 <b>ការប្រើប្រាស់ & បញ្ចូលទឹកប្រាក់៖</b>\n"
+                . "• លោកអ្នកអាចប្រើសមតុល្យនេះដើម្បីទិញ Laptop, PC ឬ Accessories ភ្លាមៗ\n"
+                . "• បញ្ចូលលុយតាម <b>Bakong KHQR</b> ស្វ័យប្រវត្ត ២៤/៧ ងាយស្រួលនិងសុវត្ថិភាពខ្ពស់\n\n"
+                . "👉 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬបញ្ចូលលុយក្នុង Mini App!</i>";
+
+            $replyKb = [
+                'inline_keyboard' => [
+                    [['text' => '💳 ចូលទៅកាបូបលុយ & Top Up', 'web_app' => ['url' => $walletAppUrl]]],
+                    [
+                        ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
+                        ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                    ],
+                    [
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $reply, $replyKb, 'HTML', null, $activeToken);
+            return;
+        }
+
+        // A.3 Promotions, Vouchers & Promo Code Inquiries ("voucher", "coupon", "code", "បញ្ចុះតម្លៃ", "stech10")
+        if (preg_match('/(voucher|coupon|code|កូដ|បញ្ចុះតម្លៃ|discount|កូដបញ្ចុះតម្លៃ|stech10|pchumben)/u', $textLower)) {
+            $promoText = "🔥 <b>កូដបញ្ចុះតម្លៃ & ប្រូម៉ូសិនពិសេស (Vouchers & Deals):</b>\n\n"
+                . "🎉 <b>កូដបញ្ចុះតម្លៃសកម្មបច្ចុប្បន្ន (Active Promo Codes):</b>\n"
+                . "• 🎟️ <code>STECH10</code> — បញ្ចុះ <b>10% ភ្លាមៗ</b> លើរាល់ការបញ្ជាទិញ\n"
+                . "• 🎟️ <code>PCHUMBEN2026</code> — បញ្ចុះតម្លៃរហូតដល់ <b>\$50 USD</b> លើ Laptop Gaming\n\n"
+                . "🚚 <b>Free Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ (ចាប់ពី \$50 ឡើងទៅ)\n"
+                . "🎁 <b>កាដូថែមជូន:</b> Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows 11 Free!\n\n"
+                . "👉 <b>សូមចុចបើក Mini App ដើម្បីប្រើប្រាស់កូដបញ្ចុះតម្លៃភ្លាមៗ!</b>";
+
+            $promoKb = [
+                'inline_keyboard' => [
+                    [['text' => '🛍️ ប្រើកូដទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                    [
+                        ['text' => '💻 មើលផលិតផលបញ្ចុះតម្លៃ', 'callback_data' => 'cust_shop'],
+                        ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+            self::sendMessageWithKeyboard($chatId, $promoText, $promoKb, 'HTML', null, $activeToken);
+            return;
+        }
+
         // B. Laptop & PC Pricing inquiries
         if (preg_match('/(laptop|pc|កុំព្យូទ័រ|តម្លៃ|price|cost|ថ្លៃ|macbook|dell|asus|lenovo|acer|msi|gaming|screen|ram|ssd|vga|rtx|monitor|គ្រឿង)/u', $textLower)) {
             $reply = "💻 <b>ព័ត៌មានតម្លៃ Laptops & PC នៅ S Tech Store:</b>\n\n"
@@ -1903,17 +2323,21 @@ class TelegramService
         }
 
         // E. Payment methods inquiries (Bakong KHQR, ABA, Cards)
-        if (preg_match('/(បង់ប្រាក់|payment|pay|khqr|bakong|aba|acleda|wing|visa|mastercard|cash|cod|លុយ|កុង|វេរ)/u', $textLower)) {
+        if (preg_match('/(បង់ប្រាក់|payment|pay|khqr|bakong|aba|acleda|wing|visa|mastercard|cash\b|cod|កុងធនាគារ|វេរប្រាក់|ផ្ទេរប្រាក់)/u', $textLower)) {
             $reply = "💳 <b>វិធីសាស្ត្រទូទាត់ប្រាក់នៅ S Tech Store:</b>\n\n"
                 . "យើងខ្ញុំផ្តល់ជូននូវជម្រើសទូទាត់ប្រាក់ដែលងាយស្រួល រហ័ស និងមានសុវត្ថិភាពខ្ពស់៖\n\n"
                 . "• 🇰🇭 <b>Bakong KHQR (គ្រប់ធនាគារទាំងអស់):</b> ស្កេនទូទាត់បានភ្លាមៗជាមួយ ABA, ACLEDA, Wing, Canadia, TrueMoney, Sathapana, etc.\n"
+                . "• 💰 <b>កាបូបលុយ S Tech Smart Wallet:</b> បញ្ចូលទឹកប្រាក់ទុកជាមុន ទូទាត់រហ័សទាន់ចិត្ត និងទទួលបាន Bonus Coins\n"
                 . "• 💳 <b>កាតអន្តរជាតិ:</b> ទទួល Visa & Mastercard\n"
                 . "• 💵 <b>ទូទាត់ពេលទំនិញដល់ដៃ (COD):</b> ទទួលសាច់ប្រាក់សុទ្ធពេលដឹកទំនិញដល់ទីតាំង (សម្រាប់ភ្នំពេញ)\n\n"
                 . "🔒 រាល់ប្រតិបត្តិការទូទាត់ KHQR ត្រូវបានផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តក្នុងប្រព័ន្ធ!";
 
             $replyKb = [
                 'inline_keyboard' => [
-                    [['text' => '🛍️ បើកទិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                    [
+                        ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                        ['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']],
+                    ],
                     [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                 ],
             ];
@@ -1997,19 +2421,25 @@ class TelegramService
         $reply = "👋 <b>ជម្រាបសួរ {$fromName}!</b>\n\n"
             . "សូមអរគុណសម្រាប់ការទាក់ទងមកកាន់ <b>S Tech Store Official Bot</b>!\n\n"
             . "🤖 ខ្ញុំអាចជួយលោកអ្នកសាកសួរព័ត៌មានដូចជា៖\n"
-            . "• 💻 តម្លៃ Laptops & PC (វាយពាក្យ: <i>\"តម្លៃ laptop\"</i>)\n"
-            . "• 🚚 សេវាដឹកជញ្ជូន (វាយពាក្យ: <i>\"សេវាដឹក\"</i>)\n"
-            . "• 🛡️ ការធានាផលិតផល (វាយពាក្យ: <i>\"ការធានា\"</i>)\n"
-            . "• 💳 ការទូទាត់ប្រាក់ (វាយពាក្យ: <i>\"បង់ប្រាក់\"</i>)\n"
-            . "• 📦 តាមដានទំនិញ (វាយលេខ Order ដូចជា: <code>ST-10023</code>)\n\n"
+            . "• 💰 <b>សមតុល្យទឹកប្រាក់ & កាបូប:</b> វាយពាក្យ <i>\"លុយខ្ញុំ\"</i> ឬ <i>\"wallet\"</i>\n"
+            . "• 📦 <b>តាមដានទំនិញ:</b> វាយពាក្យ <i>\"order ខ្ញុំ\"</i> ឬលេខកូដដូចជា: <code>ST-10023</code>\n"
+            . "• 🎟️ <b>កូដបញ្ចុះតម្លៃ & ប្រូម៉ូសិន:</b> វាយពាក្យ <i>\"voucher\"</i> ឬ <i>\"កូដ\"</i>\n"
+            . "• 💻 <b>តម្លៃ Laptops & PC:</b> វាយពាក្យ <i>\"តម្លៃ laptop\"</i>\n"
+            . "• 🚚 <b>សេវាដឹកជញ្ជូន:</b> វាយពាក្យ <i>\"សេវាដឹក\"</i>\n"
+            . "• 🛡️ <b>ការធានាផលិតផល:</b> វាយពាក្យ <i>\"ការធានា\"</i>\n"
+            . "• 💳 <b>ការទូទាត់ប្រាក់:</b> វាយពាក្យ <i>\"បង់ប្រាក់\"</i>\n\n"
             . "👉 ឬចុចប៊ូតុង <b>បើក Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខភ្លាមៗ!";
 
         $replyKb = [
             'inline_keyboard' => [
                 [['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
                 [
-                    ['text' => '💻 ផលិតផល', 'callback_data' => 'cust_shop'],
-                    ['text' => '🔥 ប្រូម៉ូសិន', 'callback_data' => 'cust_promo'],
+                    ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                ],
+                [
+                    ['text' => '❓ សួរសំណួរ (Ask FAQ)', 'callback_data' => 'cust_ask_options'],
+                    ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
                 ],
                 [
                     ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -2557,15 +2987,19 @@ class TelegramService
                     ['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => $appUrl]],
                 ],
                 [
+                    ['text' => '💰 កាបូបលុយ & សមតុល្យ (Wallet)', 'callback_data' => 'cust_my_wallet'],
                     ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ (My Orders)', 'callback_data' => 'cust_my_orders'],
-                    ['text' => '🪙 ពិន្ទុ & VIP (My Points)', 'callback_data' => 'cust_my_points'],
                 ],
                 [
-                    ['text' => '🔧 សំបុត្រជួសជុល (Repairs)', 'callback_data' => 'cust_my_repairs'],
+                    ['text' => '🪙 ពិន្ទុ & VIP (My Points)', 'callback_data' => 'cust_my_points'],
                     ['text' => '🔥 ប្រូម៉ូសិន (Hot Promo)', 'callback_data' => 'cust_promo'],
                 ],
                 [
                     ['text' => '💻 ផលិតផល (Shop Products)', 'callback_data' => 'cust_shop'],
+                    ['text' => '🔧 សំបុត្រជួសជុល (Repairs)', 'callback_data' => 'cust_my_repairs'],
+                ],
+                [
+                    ['text' => '❓ សួរសំណួរ & ជំនួយ (Ask FAQ)', 'callback_data' => 'cust_ask_options'],
                     ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
                 ],
                 [
