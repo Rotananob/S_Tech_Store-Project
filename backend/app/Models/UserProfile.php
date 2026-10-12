@@ -15,6 +15,7 @@ class UserProfile extends Model
         'is_active', 'status', 'last_password_reset_at',
         'magic_login_token', 'magic_token_expires_at',
         'has_claimed_welcome_gift', 'welcome_gift_claimed_at',
+        'wallet_balance', 'last_daily_coin_at', 'daily_streak', 'lifetime_free_coins',
     ];
 
     protected $casts = [
@@ -28,11 +29,20 @@ class UserProfile extends Model
         'has_claimed_welcome_gift' => 'boolean',
         'welcome_gift_claimed_at' => 'datetime',
         'points' => 'integer',
+        'wallet_balance' => 'float',
+        'daily_streak' => 'integer',
+        'lifetime_free_coins' => 'integer',
+        'last_daily_coin_at' => 'date',
         'gps_lat' => 'float',
         'gps_lng' => 'float',
         'last_password_reset_at' => 'datetime',
         'magic_token_expires_at' => 'datetime',
     ];
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class, 'firebase_uid', 'firebase_uid');
+    }
 
     public function notifications()
     {

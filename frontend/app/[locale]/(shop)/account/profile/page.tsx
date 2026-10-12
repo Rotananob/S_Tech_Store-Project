@@ -231,6 +231,7 @@ export default function UserProfilePage() {
     orders: 0,
     wishlist: 0,
     points: 0,
+    wallet_balance: 0,
     warranty_items: 0,
     unread_notifications: 0,
   });
@@ -1101,6 +1102,35 @@ export default function UserProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Real Cash Wallet & Loyalty Coins Quick Bar */}
+        <Link
+          href="/account/wallet"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#180a0a] via-[#120808] to-[#1a1408] p-4 text-white shadow-md border border-red-900/40 hover:border-amber-500/50 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99] no-underline"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-amber-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+              <Wallet size={20} />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-white">S-Tech Real Wallet & Coins</span>
+                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                  ${Number(stats.wallet_balance || 0).toFixed(2)} USD
+                </span>
+                <span className="text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                  {stats.points || 0} Coins
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                បញ្ចូលលុយពី Bank (KHQR) • ទទួល 1 Coin រាល់ថ្ងៃ • ប្តូរកាក់ជាសាច់ប្រាក់
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-black text-amber-400 shrink-0 ml-2">
+            <span>បើកកាបូប &gt;</span>
+          </div>
+        </Link>
 
         {/* 2.1 Saver Pass Golden VIP Banner */}
         <div 
@@ -2628,13 +2658,23 @@ export default function UserProfilePage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowCoinsModal(false)}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-xs font-bold border-none cursor-pointer"
-              >
-                Got It
-              </button>
+              <div className="flex gap-2">
+                <Link
+                  href="/account/wallet"
+                  onClick={() => setShowCoinsModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black text-xs font-black text-center border-none cursor-pointer no-underline flex items-center justify-center gap-1.5 shadow-md shadow-amber-950/40"
+                >
+                  <Wallet size={14} />
+                  <span>បើកកាបូប & ទទួលកាក់ (Open Wallet)</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowCoinsModal(false)}
+                  className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border-none cursor-pointer"
+                >
+                  បិទ
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

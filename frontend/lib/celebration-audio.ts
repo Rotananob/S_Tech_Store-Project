@@ -46,3 +46,6 @@ export function playCelebrationSound() {
     console.warn("Celebration audio could not play:", err);
   }
 }
+
+export const playCelebrationFanfare = playCelebrationSound;
+

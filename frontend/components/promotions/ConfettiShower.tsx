@@ -27,7 +27,14 @@ const COLORS = [
   "#00C7BE", // Teal
 ];
 
-export default function ConfettiShower({ duration = 5000 }: { duration?: number }) {
+export default function ConfettiShower({
+  duration = 5000,
+  durationMs,
+}: {
+  duration?: number;
+  durationMs?: number;
+}) {
+  const actualDuration = durationMs || duration;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -118,7 +125,7 @@ export default function ConfettiShower({ duration = 5000 }: { duration?: number 
         ctx.restore();
       });
 
-      if (elapsed < duration) {
+      if (elapsed < actualDuration) {
         animId = requestAnimationFrame(render);
       } else {
         ctx.clearRect(0, 0, width, height);
@@ -131,7 +138,7 @@ export default function ConfettiShower({ duration = 5000 }: { duration?: number 
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", handleResize);
     };
-  }, [duration]);
+  }, [actualDuration]);
 
   return (
     <canvas

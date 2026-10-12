@@ -1113,6 +1113,15 @@ Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
 Route::post('/user/claim-welcome-gift', [UserController::class, 'claimWelcomeGift']);
 
+// Real S-Tech Wallet & Coin Rewards System (Real Money Top-up & Daily/Activity Coins)
+Route::get('/user/wallet', [\App\Http\Controllers\WalletController::class, 'getWallet']);
+Route::post('/user/wallet/daily-checkin', [\App\Http\Controllers\WalletController::class, 'dailyCheckin']);
+Route::post('/user/wallet/activity-reward', [\App\Http\Controllers\WalletController::class, 'claimActivityReward']);
+Route::post('/user/wallet/topup/session', [\App\Http\Controllers\WalletController::class, 'createTopupSession']);
+Route::post('/user/wallet/topup/confirm', [\App\Http\Controllers\WalletController::class, 'confirmTopup']);
+Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins']);
+Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet']);
+
 // Notifications
 Route::get('/notifications', [UserController::class, 'getNotifications']);
 Route::post('/notifications', [UserController::class, 'createNotification']);

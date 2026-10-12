@@ -19,13 +19,15 @@ import {
   Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText,
   Truck, MapPin, User, Phone, ChevronRight, ArrowLeft, Shield, Award, HelpCircle,
   Building, CheckSquare, Zap, BadgePercent, Store, Navigation, Crosshair, Send,
-  LocateFixed, Globe, Map
+  LocateFixed, Globe, Map, Wallet, Plus
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { getEffectiveUser } from "@/lib/auth-user";
 import api from "@/lib/api";
 import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
+import WalletTopupModal from "@/components/wallet/WalletTopupModal";
+import { payOrderWithWallet } from "@/lib/services/wallet.service";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -45,6 +47,18 @@ const DELIVERY_NOTE_SUGGESTIONS = [
 
 // ─── Payment Methods ────────────────────────────────────────────────────────────
 const PAYMENT_METHODS = [
+  {
+    id: "wallet",
+    label: "S-Tech Real Wallet • កាបូបលុយ S-Tech",
+    sub: "Pay instantly from your S-Tech Cash Wallet with 1-click",
+    badge: "Instant 1-Click Pay",
+    theme: "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20",
+    icon: (
+      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-sm shrink-0">
+        <Wallet size={18} />
+      </div>
+    ),
+  },
   {
     id: "bakong",
     label: "Bakong KHQR • All Banks",
@@ -223,6 +237,11 @@ export default function CheckoutPage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // S-Tech Real Wallet & Coins States
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [userCoins, setUserCoins] = useState<number>(0);
+  const [showWalletTopupModal, setShowWalletTopupModal] = useState<boolean>(false);
+
   // Auto pre-fill from user authentication & cloud profile
   useEffect(() => {
     fetchCart();
@@ -236,6 +255,13 @@ export default function CheckoutPage() {
       if (fallbackUser?.phone) {
         setPhone(fallbackUser.phone);
       }
+
+      api.get("/user/wallet").then((res) => {
+        if (res.data?.wallet) {
+          setWalletBalance(Number(res.data.wallet.balance || 0));
+          setUserCoins(Number(res.data.wallet.coins || 0));
+        }
+      }).catch(() => {});
 
       api.get("/user/profile").then((res) => {
         if (res.data?.profile) {
@@ -540,8 +566,66 @@ export default function CheckoutPage() {
       return;
     }
 
+    // ── Handle S-Tech Real Wallet Flow ──
+    if (payment === "wallet") {
+      if (walletBalance < Number(total)) {
+        const shortage = (Number(total) - walletBalance).toFixed(2);
+        alert(`សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $${shortage} USD)! សូមចុច "បញ្ចូលលុយ (Top Up)" មុនពេលបន្តទូទាត់។`);
+        setShowWalletTopupModal(true);
+        return;
+      }
+      await executeWalletOrder();
+      return;
+    }
+
     // ── Handle COD ──
     await executeStandardOrder();
+  };
+
+  // ─── Execute S-Tech Wallet Payment Order ───────────────────────────────────────
+  const executeWalletOrder = async () => {
+    setLoading(true);
+    setLoadingMsg("កំពុងទូទាត់តាមកាបូប S-Tech Wallet (Deducting Balance)...");
+
+    const fullAddress = buildFullAddress();
+
+    const payload = {
+      delivery_type: delivery,
+      payment_method: "wallet",
+      name: name.trim(),
+      phone: phone.trim(),
+      address: fullAddress,
+      promo_code: appliedPromo ? appliedPromo.code : undefined,
+      discount_amount: discountAmount,
+      items: items.map((item) => ({
+        product_id: item.product?.id || (item as any).product_id || item.id,
+        quantity: item.quantity,
+        price: Number(item.product?.sale_price ?? item.product?.price ?? item.price ?? 0),
+      })),
+      subtotal: Number(subtotal),
+      delivery_fee: Number(deliveryFee),
+      total_amount: Number(total),
+    };
+
+    const res = await createOrder(payload);
+
+    if (res.success) {
+      const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+      setOrderId(newOrderId);
+
+      try {
+        const walletPayRes = await payOrderWithWallet(newOrderId);
+        setWalletBalance(walletPayRes.remaining_balance);
+        setLoading(false);
+        await finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
+      } catch (err: any) {
+        setLoading(false);
+        alert(err.response?.data?.message || "មិនអាចកាត់ប្រាក់ពីកាបូបបានទេ។ សូមពិនិត្យសមតុល្យរបស់អ្នក។");
+      }
+    } else {
+      setLoading(false);
+      alert(res.error || t("alertFailed"));
+    }
   };
 
   // ─── Execute Standard COD Order ──────────────────────────────────────────────
@@ -1288,6 +1372,63 @@ export default function CheckoutPage() {
                 })}
               </div>
 
+              {/* ── S-Tech Real Wallet Information & Balance Card (when Wallet selected) ── */}
+              {payment === "wallet" && (
+                <div className="mt-5 p-5 rounded-2xl bg-gradient-to-br from-red-950/20 via-[#11131a] to-[#151922] border border-red-900/40 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md shadow-red-950/50">
+                        <Wallet size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white flex items-center gap-2">
+                          <span>កាបូបលុយ S-Tech Real Wallet</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                            Direct Balance Pay
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-gray-400">ទូទាត់ភ្លាមៗដោយគ្មានការរង់ចាំ 100% ស្វ័យប្រវត្តិ</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowWalletTopupModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black border-none cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50"
+                    >
+                      <Plus size={13} strokeWidth={3} />
+                      <span>បញ្ចូលលុយ (Top Up from Bank)</span>
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[11px] text-gray-400">សមតុល្យកាបូបបច្ចុប្បន្ន:</span>
+                      <div className="text-2xl font-black text-white">
+                        ${walletBalance.toFixed(2)} USD
+                      </div>
+                      <div className="text-[11px] text-gray-400">
+                        ~ {Math.round(walletBalance * USD_TO_KHR).toLocaleString()} KHR
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right">
+                      {walletBalance >= Number(total) ? (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30">
+                          <CheckCircle2 size={15} />
+                          <span>សមតុល្យគ្រប់គ្រាន់ — អាចចុចបញ្ជាក់ទូទាត់បាន</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/30">
+                          <AlertCircle size={15} />
+                          <span>សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD • សូមចុចបញ្ចូលលុយ</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Interactive Credit/Debit Card Form (when VISA selected) ── */}
               {payment === "visa" && (
                 <div className="mt-5 p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
@@ -1867,6 +2008,16 @@ export default function CheckoutPage() {
           </div>
         )}
       </AnimatePresence>
+      {/* ── S-Tech Real Wallet Topup Modal ── */}
+      <WalletTopupModal
+        isOpen={showWalletTopupModal}
+        onClose={() => setShowWalletTopupModal(false)}
+        initialAmount={Math.max(5, Math.ceil(Number(total) - walletBalance))}
+        onSuccess={(newBal) => {
+          setWalletBalance(newBal);
+          setShowWalletTopupModal(false);
+        }}
+      />
     </div>
   );
 }

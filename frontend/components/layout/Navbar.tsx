@@ -9,7 +9,7 @@ import { auth } from "../../lib/firebase";
 import {
   Search, ShoppingCart, User, Phone,
   Menu, X, ChevronDown, Heart, Bell,
-  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera, ExternalLink
+  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera, ExternalLink, Wallet
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
@@ -545,6 +545,14 @@ export default function Navbar() {
             {/* ── Prominent Sign In / Register Buttons or User Profile (Desktop Only) ── */}
             {user ? (
               <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-gray-200 dark:border-white/10 shrink-0">
+                <Link
+                  href="/account/wallet"
+                  title="S-Tech Wallet & Coins"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-xs transition-all border border-amber-500/30 no-underline shadow-xs shrink-0 whitespace-nowrap"
+                >
+                  <Wallet size={13} />
+                  <span>Wallet</span>
+                </Link>
                 <Link
                   href="/account/profile"
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-950/40 text-[#1a1a1a] dark:text-gray-100 hover:text-[#8B1A1A] dark:hover:text-red-400 font-bold text-sm transition-all border border-gray-200 dark:border-white/10 hover:border-red-200 no-underline shadow-sm shrink-0 whitespace-nowrap"
