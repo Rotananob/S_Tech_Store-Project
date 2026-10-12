@@ -27,6 +27,7 @@ class User extends Authenticatable
         'status',
         'phone',
         'permissions',
+        'two_factor_enabled',
         'api_token',
         'last_login_at',
     ];
@@ -54,6 +55,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'permissions' => 'array',
+            'two_factor_enabled' => 'boolean',
         ];
     }
 

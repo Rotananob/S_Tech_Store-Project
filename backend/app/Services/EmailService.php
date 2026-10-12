@@ -362,8 +362,72 @@ HTML;
         return [
             'success' => true,
             'email_sent' => $sent,
+    /**
+     * Send 2FA Activation / Security Alert Email
+     */
+    public static function send2FAAlert(string $email, string $username, bool $enabled, ?string $code = null): array
+    {
+        $statusText = $enabled ? "បានបើកដំណើរការ (Enabled)" : "ត្រូវបានបិទ (Disabled)";
+        $statusColor = $enabled ? "#10b981" : "#ef4444";
+        $subject = ($enabled ? '🔒 2FA Security Activated: ' : '⚠️ 2FA Security Notice: ') . self::STORE_NAME;
+
+        $codeHtml = '';
+        if (!empty($code)) {
+            $codeHtml = <<<HTML
+            <div style="background:#1e293b; border: 1px dashed #38bdf8; border-radius: 14px; padding: 18px; text-align: center; margin: 20px 0;">
+                <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">លេខកូដផ្ទៀងផ្ទាត់ 2FA (Verification Code)</div>
+                <div style="font-family: monospace; font-size: 32px; font-weight: 900; color: #38bdf8; letter-spacing: 6px;">{$code}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">មានសុពលភាពរយៈពេល ១០ នាទី (Expires in 10 mins)</div>
+            </div>
+HTML;
+        }
+
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <title>{$subject}</title>
+  <style>
+    body { font-family: 'Kantumruy Pro', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
+    .card { max-width: 600px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; }
+    .header { background: linear-gradient(135deg, #8B1A1A 0%, #1e293b 100%); padding: 30px; text-align: center; color: #ffffff; }
+    .content { padding: 28px; font-size: 14px; line-height: 1.6; color: #cbd5e1; }
+    .status-badge { display: inline-block; background: {$statusColor}22; color: {$statusColor}; border: 1px solid {$statusColor}55; padding: 6px 14px; border-radius: 9999px; font-weight: 700; font-size: 13px; margin: 12px 0; }
+    .footer { background: #10141d; padding: 20px; text-align: center; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h2 style="margin:0;">🔒 Two-Factor Authentication Alert</h2>
+      <p style="margin:6px 0 0; font-size: 13px; opacity:0.8;">S Tech Store Security Notification</p>
+    </div>
+    <div class="content">
+      <p>សួស្តីបង <b>{$username}</b>,</p>
+      <p>នេះជាការជូនដំណឹងសុវត្ថិភាពពីប្រព័ន្ធ <b>S Tech Store</b>៖ មុខងារផ្ទៀងផ្ទាត់ពីរកត្តា (Two-Factor Authentication - 2FA) លើគណនីរបស់អ្នក <b>{$email}</b> ត្រូវបាន៖</p>
+      <div style="text-align:center;">
+        <span class="status-badge">{$statusText}</span>
+      </div>
+      {$codeHtml}
+      <p style="font-size: 12px; color: #94a3b8; margin-top: 18px;">
+        ប្រសិនបើនេះមិនមែនជាសកម្មភាពរបស់អ្នក សូមទាក់ទងមកកាន់ក្រុមការងារ Support បន្ទាន់តាមរយៈ Telegram ឬអ៊ីមែល <b>support@s-tech-store.tech</b>។
+      </p>
+    </div>
+    <div class="footer">
+      © S Tech Store Cambodia • All rights reserved
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+
+        $sent = self::tryDispatchMail($email, $subject, $html);
+        return [
+            'success' => true,
+            'email_sent' => $sent,
             'recipient' => $email,
-            'otp' => $otp,
+            'status' => $statusText,
         ];
     }
 

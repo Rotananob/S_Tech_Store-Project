@@ -30,7 +30,8 @@ import {
   AlertTriangle,
   X,
   Tag,
-  Inbox
+  Inbox,
+  ChevronLeft
 } from "lucide-react";
 import { 
   subscribeToAllChats, 
@@ -143,8 +144,9 @@ export default function AdminRealtimeChatPage() {
   useEffect(() => {
     const unsub = subscribeToAllChats((incomingChats) => {
       setChats(incomingChats);
-      // Auto select first chat if none selected yet
-      if (!selectedChatId && incomingChats.length > 0) {
+      // Auto select first chat on desktop only (keep list view default on phones)
+      const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024;
+      if (!selectedChatId && incomingChats.length > 0 && isDesktop) {
         const firstActive = incomingChats.find(c => !c.is_archived) || incomingChats[0];
         setSelectedChatId(firstActive.id);
       }
@@ -459,9 +461,9 @@ export default function AdminRealtimeChatPage() {
       </div>
 
       {/* Main Chat Interface Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-230px)] min-h-[580px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100dvh-200px)] min-h-[500px] lg:h-[calc(100vh-230px)] lg:min-h-[580px]">
         {/* Left Sidebar: Chat List (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden">
+        <div className={`lg:col-span-4 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden ${selectedChatId ? "hidden lg:flex" : "flex h-full"}`}>
           {/* Search & Filter Header */}
           <div className="p-3.5 border-b border-gray-100 space-y-2.5 bg-gray-50/60">
             <div className="relative">
@@ -666,13 +668,22 @@ export default function AdminRealtimeChatPage() {
         </div>
 
         {/* Right Pane: Active Conversation (8 cols) */}
-        <div className="lg:col-span-8 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden relative">
+        <div className={`lg:col-span-8 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden relative ${!selectedChatId ? "hidden lg:flex" : "flex h-full"}`}>
           {activeChat ? (
             <>
               {/* Active Chat Header with Ticket Controls */}
               <div className="p-3.5 sm:p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-11 h-11 rounded-full text-white font-black text-base flex items-center justify-center shadow-xs shrink-0 ${
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  {/* Mobile Back Button to Chat List */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChatId(null)}
+                    className="lg:hidden p-1.5 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer shrink-0"
+                    title="ត្រឡប់ទៅបញ្ជីការសន្ទនា (Back to chat list)"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full text-white font-black text-sm sm:text-base flex items-center justify-center shadow-xs shrink-0 ${
                     activeChat.status === "resolved"
                       ? "bg-gradient-to-tr from-emerald-600 to-teal-700"
                       : "bg-gradient-to-tr from-[#8B1A1A] to-red-600"

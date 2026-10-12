@@ -769,7 +769,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           const newStaffMsgs: ChatItem[] = [];
 
           for (const m of firebaseMsgs) {
-            if (m.sender === "admin" || m.sender === "staff") {
+            if (m.sender === "admin" || m.sender === "staff" || m.sender === "system") {
               // Isolation check:
               // 1. If message has a sessionId, it MUST match the active session!
               // 2. If no sessionId (legacy message), it MUST have been sent AFTER this session was created!
@@ -780,8 +780,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
               if (isForThisSession && !existingIds.has(m.id || m.text)) {
                 newStaffMsgs.push({
                   id: m.id,
-                  sender: "staff",
-                  senderName: m.senderName || "S Tech Support",
+                  sender: m.sender === "system" ? "system" : "staff",
+                  senderName: m.senderName || (m.sender === "system" ? "S Tech System" : "S Tech Support"),
                   text: m.text,
                   time: m.timestamp
                     ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -1179,15 +1179,19 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           <div className="truncate min-w-0">
             <div className="flex items-center gap-1.5">
               <h3 className="font-extrabold text-gray-900 dark:text-white text-[13.5px] sm:text-[15px] leading-tight truncate">
-                S Tech AI
+                {isAiPaused ? (pausedByStaff || "Live Staff Support") : "S Tech AI"}
               </h3>
-              <span className="text-[9px] bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 shadow-xs">
-                PRO INTEL
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 shadow-xs ${
+                isAiPaused 
+                  ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white" 
+                  : "bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white"
+              }`}>
+                {isAiPaused ? "LIVE AGENT" : "PRO INTEL"}
               </span>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate">
-              <MessageSquare size={10} className="shrink-0 text-emerald-500" />
-              <span className="truncate">{currentTitle}</span>
+              <MessageSquare size={10} className={`shrink-0 ${isAiPaused ? "text-emerald-500" : "text-emerald-500"}`} />
+              <span className="truncate">{isAiPaused ? `👤 ជជែកផ្ទាល់ជាមួយ ${pausedByStaff || "បុគ្គលិក"}` : currentTitle}</span>
             </div>
           </div>
         </div>
@@ -1324,9 +1328,12 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 )}
               </div>
             ) : msg.sender === "system" ? (
-              // System Message
-              <div className="bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800/40 text-xs px-3.5 py-2 rounded-xl max-w-[90%] text-center my-1 shadow-xs">
-                {msg.text}
+              // System Message / Staff Takeover Announcement
+              <div className="my-2 max-w-[92%] sm:max-w-[85%] mx-auto w-full flex items-center justify-center animate-in fade-in zoom-in-95 duration-200">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-[#111e19] dark:to-emerald-950/40 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-center">{msg.text}</span>
+                </div>
               </div>
             ) : msg.sender === "staff" ? (
               // Live Human Staff Reply (Instagram / Support style)

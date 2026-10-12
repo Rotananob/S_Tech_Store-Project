@@ -1246,6 +1246,14 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/telegram/disconnect', [\App\Http\Controllers\TelegramController::class, 'disconnect']);
     Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
     Route::post('/admin/telegram/broadcast', [\App\Http\Controllers\TelegramController::class, 'broadcast']);
+
+    // System Settings & Real 2FA (Two-Factor Authentication)
+    Route::get('/admin/settings', [\App\Http\Controllers\AdminSettingsController::class, 'getSettings']);
+    Route::post('/admin/settings', [\App\Http\Controllers\AdminSettingsController::class, 'updateSettings']);
+    Route::post('/admin/settings/change-password', [\App\Http\Controllers\AdminSettingsController::class, 'changePassword']);
+    Route::post('/admin/settings/toggle-2fa', [\App\Http\Controllers\AdminSettingsController::class, 'toggle2FA']);
+    Route::post('/admin/settings/send-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'send2FACode']);
+    Route::post('/admin/settings/verify-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'verify2FACode']);
 });
 
 // Public Telegram Webhook Endpoint
