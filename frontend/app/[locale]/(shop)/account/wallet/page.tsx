@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   getWalletData,
+  getCachedWalletData,
   claimDailyCheckin,
   claimActivityReward,
   WalletData,
@@ -25,9 +26,9 @@ const USD_TO_KHR = 4060;
 
 export default function WalletAndCoinsPage() {
   const router = useRouter();
-  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [wallet, setWallet] = useState<WalletData | null>(() => getCachedWalletData());
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCachedWalletData());
   const [refreshing, setRefreshing] = useState(false);
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [claimingActivity, setClaimingActivity] = useState<string | null>(null);
@@ -38,21 +39,39 @@ export default function WalletAndCoinsPage() {
   const [txFilter, setTxFilter] = useState<"all" | "deposit" | "reward" | "purchase">("all");
 
   const loadData = async (isSilent = false) => {
-    if (!isSilent) setLoading(true);
+    if (!isSilent && !wallet) setLoading(true);
     try {
       const data = await getWalletData();
-      setWallet(data.wallet);
-      setTransactions(data.transactions);
+      if (data.wallet) {
+        setWallet(data.wallet);
+      }
+      setTransactions(data.transactions || []);
     } catch (err) {
       console.error("Error loading wallet:", err);
     } finally {
-      if (!isSilent) setLoading(false);
+      setLoading(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    // 1. If we already have cached wallet, load silently in background (0ms latency to user)
+    const hasCache = !!getCachedWalletData();
+    loadData(hasCache);
+
+    // 2. Listen to real-time wallet balance sync events across components
+    const handleWalletUpdated = (e: any) => {
+      if (e?.detail) {
+        setWallet(e.detail);
+      }
+    };
+    window.addEventListener("stech_wallet_updated", handleWalletUpdated);
+    window.addEventListener("user_session_updated", () => loadData(true));
+
+    return () => {
+      window.removeEventListener("stech_wallet_updated", handleWalletUpdated);
+      window.removeEventListener("user_session_updated", () => loadData(true));
+    };
   }, []);
 
   const triggerToast = (title: string, desc: string) => {

@@ -245,9 +245,41 @@ export default function CheckoutPage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // S-Tech Real Wallet & Coins States
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-  const [userCoins, setUserCoins] = useState<number>(0);
+  // S-Tech Real Wallet & Coins States (Instant 0ms hydration from cache)
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const wRaw = localStorage.getItem("stech_cached_wallet");
+        if (wRaw) {
+          const w = JSON.parse(wRaw);
+          if (w.balance !== undefined) return Number(w.balance);
+        }
+        const sRaw = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sRaw) {
+          const s = JSON.parse(sRaw);
+          if (s.wallet_balance !== undefined) return Number(s.wallet_balance);
+        }
+      } catch (e) {}
+    }
+    return 0;
+  });
+  const [userCoins, setUserCoins] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const wRaw = localStorage.getItem("stech_cached_wallet");
+        if (wRaw) {
+          const w = JSON.parse(wRaw);
+          if (w.coins !== undefined) return Number(w.coins);
+        }
+        const sRaw = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sRaw) {
+          const s = JSON.parse(sRaw);
+          if (s.points !== undefined) return Number(s.points);
+        }
+      } catch (e) {}
+    }
+    return 0;
+  });
   const [showWalletTopupModal, setShowWalletTopupModal] = useState<boolean>(false);
 
   // Auto pre-fill from user authentication & cloud profile
@@ -268,6 +300,9 @@ export default function CheckoutPage() {
         if (res.data?.wallet) {
           setWalletBalance(Number(res.data.wallet.balance || 0));
           setUserCoins(Number(res.data.wallet.coins || 0));
+          try {
+            localStorage.setItem("stech_cached_wallet", JSON.stringify(res.data.wallet));
+          } catch (e) {}
         }
       }).catch(() => {});
 

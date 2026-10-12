@@ -269,13 +269,33 @@ export default function UserProfilePage() {
     gps_lng: undefined,
   });
 
-  const [stats, setStats] = useState({
-    orders: 0,
-    wishlist: 0,
-    points: 0,
-    wallet_balance: 0,
-    warranty_items: 0,
-    unread_notifications: 0,
+  const [stats, setStats] = useState(() => {
+    let cachedBalance = 0;
+    let cachedPoints = 0;
+    if (typeof window !== "undefined") {
+      try {
+        const wRaw = localStorage.getItem("stech_cached_wallet");
+        if (wRaw) {
+          const w = JSON.parse(wRaw);
+          if (w.balance !== undefined) cachedBalance = Number(w.balance);
+          if (w.coins !== undefined) cachedPoints = Number(w.coins);
+        }
+        const sRaw = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sRaw) {
+          const s = JSON.parse(sRaw);
+          if (cachedBalance === 0 && s.wallet_balance !== undefined) cachedBalance = Number(s.wallet_balance);
+          if (cachedPoints === 0 && s.points !== undefined) cachedPoints = Number(s.points);
+        }
+      } catch (e) {}
+    }
+    return {
+      orders: 0,
+      wishlist: 0,
+      points: cachedPoints,
+      wallet_balance: cachedBalance,
+      warranty_items: 0,
+      unread_notifications: 0,
+    };
   });
 
   const [orders, setOrders] = useState<any[]>([]);
@@ -349,10 +369,21 @@ export default function UserProfilePage() {
     });
 
     window.addEventListener("user_session_updated", syncProfileSession);
+    const handleWalletUpdated = (e: any) => {
+      if (e?.detail) {
+        setStats((prev) => ({
+          ...prev,
+          wallet_balance: e.detail.balance !== undefined ? Number(e.detail.balance) : prev.wallet_balance,
+          points: e.detail.coins !== undefined ? Number(e.detail.coins) : prev.points,
+        }));
+      }
+    };
+    window.addEventListener("stech_wallet_updated", handleWalletUpdated);
 
     return () => {
       unsub();
       window.removeEventListener("user_session_updated", syncProfileSession);
+      window.removeEventListener("stech_wallet_updated", handleWalletUpdated);
     };
   }, []);
 
@@ -371,6 +402,14 @@ export default function UserProfilePage() {
       }
       if (res.data?.stats) {
         setStats((prev) => ({ ...prev, ...res.data.stats }));
+        try {
+          const cached = JSON.parse(localStorage.getItem("stech_cached_wallet") || "{}");
+          localStorage.setItem("stech_cached_wallet", JSON.stringify({
+            ...cached,
+            balance: res.data.stats.wallet_balance ?? cached.balance,
+            coins: res.data.stats.points ?? cached.coins,
+          }));
+        } catch (e) {}
       }
     } catch (e) {
       // Backend warming up — gracefully seed default values

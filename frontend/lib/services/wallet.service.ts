@@ -54,8 +54,50 @@ export interface TopupSessionResponse {
   method: string;
 }
 
+export const getCachedWalletData = (): WalletData | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("stech_cached_wallet");
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+};
+
+export const updateCachedWallet = (partial: Partial<WalletData>) => {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getCachedWalletData() || {
+      balance: 0,
+      coins: 0,
+      coins_usd_value: 0,
+      daily_checkin: {
+        can_claim: true,
+        already_claimed_today: false,
+        streak: 0,
+        last_claimed_at: null,
+        today_reward_coins: 1,
+      },
+      stats: {
+        total_transactions: 0,
+        total_deposited: 0,
+      },
+    };
+    const updated = { ...existing, ...partial };
+    localStorage.setItem("stech_cached_wallet", JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("stech_wallet_updated", { detail: updated }));
+  } catch (e) {}
+};
+
 export const getWalletData = async (): Promise<{ wallet: WalletData; transactions: WalletTransaction[] }> => {
   const res = await api.get("/user/wallet");
+  if (res.data?.wallet) {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("stech_cached_wallet", JSON.stringify(res.data.wallet));
+        window.dispatchEvent(new CustomEvent("stech_wallet_updated", { detail: res.data.wallet }));
+      } catch (e) {}
+    }
+  }
   return {
     wallet: res.data?.wallet,
     transactions: res.data?.transactions || [],
@@ -116,6 +158,9 @@ export const confirmTopup = async (depositId: string): Promise<{
   new_balance: number;
 }> => {
   const res = await api.post("/user/wallet/topup/confirm", { deposit_id: depositId });
+  if (res.data?.success && res.data?.new_balance !== undefined) {
+    updateCachedWallet({ balance: Number(res.data.new_balance) });
+  }
   return res.data;
 };
 
@@ -127,8 +172,19 @@ export const convertCoinsToUSD = async (coins: number): Promise<{
   remaining_coins: number;
 }> => {
   const res = await api.post("/user/wallet/redeem-coins", { coins });
+  if (res.data?.success) {
+    updateCachedWallet({
+      balance: Number(res.data.new_wallet_balance),
+      coins: Number(res.data.remaining_coins),
+      coins_usd_value: round(Number(res.data.remaining_coins) / 100, 2),
+    });
+  }
   return res.data;
 };
+
+function round(val: number, decimals: number) {
+  return Number(Math.round(Number(val + "e" + decimals)) + "e-" + decimals);
+}
 
 export const payOrderWithWallet = async (orderId: string): Promise<{
   success: boolean;
@@ -138,5 +194,8 @@ export const payOrderWithWallet = async (orderId: string): Promise<{
   remaining_balance: number;
 }> => {
   const res = await api.post("/user/wallet/pay-order", { order_id: orderId });
+  if (res.data?.success && res.data?.remaining_balance !== undefined) {
+    updateCachedWallet({ balance: Number(res.data.remaining_balance) });
+  }
   return res.data;
 };

@@ -71,21 +71,65 @@ export default function OrdersPage() {
     setShowReceiptModal(true);
   };
 
+  const hasActiveClientSession = (): boolean => {
+    if (typeof window === "undefined") return false;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("tg_token")) return true;
+      if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) return true;
+      if (localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || localStorage.getItem("customer_token")) return true;
+    } catch (e) {}
+    return false;
+  };
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/user/orders");
+      const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
+      setOrders(list);
+      setLoggedIn(true);
+    } catch (e: any) {
+      if (e?.response?.status === 401 && !hasActiveClientSession()) {
+        setLoggedIn(false);
+      } else {
+        setOrders([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    // 1. Check for immediate client-side session (Telegram Mini App, 1-Click token, or local storage)
+    if (hasActiveClientSession()) {
+      setLoggedIn(true);
+      fetchOrders();
+    }
+
+    // 2. Listen to Firebase auth state
     const auth = getAuth();
     const unsub = onAuthStateChanged(auth, (user) => {
-      setLoggedIn(!!user);
       if (user) {
-        api
-          .get("/user/orders")
-          .then((res) => setOrders(res.data || []))
-          .catch(() => setOrders([]))
-          .finally(() => setLoading(false));
-      } else {
+        setLoggedIn(true);
+        fetchOrders();
+      } else if (!hasActiveClientSession()) {
+        setLoggedIn(false);
         setLoading(false);
       }
     });
-    return () => unsub();
+
+    // 3. Listen to TelegramAuthBridge 1-click token auto-login events
+    const handleSessionUpdated = () => {
+      setLoggedIn(true);
+      fetchOrders();
+    };
+    window.addEventListener("user_session_updated", handleSessionUpdated);
+
+    return () => {
+      unsub();
+      window.removeEventListener("user_session_updated", handleSessionUpdated);
+    };
   }, []);
 
   const fmtDate = (iso: string) => {

@@ -405,13 +405,15 @@ class TelegramService
                 }
             }
 
+            // ⚡ Zero-Latency Callback Answer: Immediately extinguish Telegram client top loading spinner (<25ms)
+            if ($callbackId) {
+                self::answerCallbackQuery($callbackId, '', $activeToken);
+            }
+
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
                 if ($chatType !== 'private') {
                     self::setupTopics($chatId);
-                    self::answerCallbackQuery($callbackId, 'កំពុងរៀបចំ Forum Topics...', $activeToken);
-                } else {
-                    self::answerCallbackQuery($callbackId, 'មុខងារនេះសម្រាប់ Admin ក្នុង Group ប៉ុណ្ណោះ', $activeToken);
                 }
                 return;
             }
@@ -430,12 +432,14 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $welcome, $menuKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'មឺនុយមេ', $activeToken);
                 return;
             }
 
             // Customer Products / Shop
             if ($callbackData === 'cust_shop' && $chatId) {
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $shopAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
                 $shopText = "💻 <b>ប្រភេទផលិតផល និងឧបករណ៍បច្ចេកវិទ្យានៅ S Tech Store:</b>\n\n"
                     . "🌟 <b>ទំនិញពេញនិយម និងមានក្នុងស្តុកស្រាប់៖</b>\n"
                     . "• 💻 <b>Laptops ម៉ាកល្បីៗ:</b> ASUS ROG/TUF, Apple MacBook M2/M3, Dell XPS/Latitude, Lenovo Legion/ThinkPad, Acer Nitro, MSI Gaming\n"
@@ -446,7 +450,7 @@ class TelegramService
 
                 $shopKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App ឥឡូវនេះ', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App ឥឡូវនេះ', 'web_app' => ['url' => $shopAppUrl]]],
                         [
                             ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -459,12 +463,14 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $shopText, $shopKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'ផលិតផលទាំងអស់', $activeToken);
                 return;
             }
 
             // Customer Promotions
             if ($callbackData === 'cust_promo' && $chatId) {
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $promoAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
                 $promoText = "🔥 <b>កម្មវិធីប្រូម៉ូសិនពិសេសនៅ S Tech Store!</b>\n\n"
                     . "🎉 <b>មហាប្រូម៉ូសិន និងការបញ្ចុះតម្លៃពិសេស៖</b>\n"
                     . "• 💥 បញ្ចុះតម្លៃពិសេសរហូតដល់ <b>30%</b> លើម៉ូឌែល Laptops & Accessories\n"
@@ -477,7 +483,7 @@ class TelegramService
 
                 $promoKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ ប្រើប្រូម៉ូសិនក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ ប្រើប្រូម៉ូសិនក្នុង Mini App', 'web_app' => ['url' => $promoAppUrl]]],
                         [
                             ['text' => '💻 មើលផលិតផលបញ្ចុះតម្លៃ', 'callback_data' => 'cust_shop'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -490,22 +496,41 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $promoText, $promoKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'ប្រូម៉ូសិនពិសេស', $activeToken);
                 return;
             }
 
-            // Customer My Orders & Track Order (Real Data Query)
+            // Customer My Orders & Track Order (Instant Animation & Targeted Fast Query)
             if (in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) && $chatId) {
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                // 1. Instant in-chat visual feedback / animation
+                if ($messageId) {
+                    $loadingAnim = "📦 <b>កំពុងទាញយកបញ្ជីការកុម្ម៉ង់...</b>\n\n"
+                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
+                        . "<code>[ ▰▰▰▰▰▰▰▱▱▱ ] 70%</code>";
+                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
+                }
+
+                // 2. Targeted lightweight DB query (only essential columns)
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                    ->select(['id', 'phone'])
+                    ->first();
+
                 $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
                     $q->where('user_id', 'tg_' . $chatId);
                     if ($user && !empty($user->phone)) {
                         $q->orWhere('customer_phone', $user->phone);
                     }
-                })->with('items.product')->latest()->take(5)->get();
+                })
+                ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
+                ->with(['items' => function ($q) {
+                    $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
+                }])
+                ->latest()
+                ->take(3)
+                ->get();
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
                 if ($orders->isEmpty()) {
                     $ordersText = "📦 <b>ការបញ្ជាទិញរបស់អ្នក (My Orders):</b>\n\n"
@@ -515,7 +540,7 @@ class TelegramService
 
                     $ordersKb = [
                         'inline_keyboard' => [
-                            [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $ordersAppUrl]]],
+                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
                             [
                                 ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
                                 ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -562,6 +587,7 @@ class TelegramService
                     $ordersKb = [
                         'inline_keyboard' => [
                             [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
                             [
                                 ['text' => '🔄 ពិនិត្យឡើងវិញ (Refresh)', 'callback_data' => 'cust_my_orders'],
                                 ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -575,14 +601,21 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'បញ្ជីការបញ្ជាទិញ', $activeToken);
                 return;
             }
 
-            // Customer My Wallet & Cash Balance (Real Data Query)
+            // Customer My Wallet & Cash Balance (Instant Animation & Targeted Fast Query)
             if (in_array($callbackData, ['cust_my_wallet', 'btn_my_wallet']) && $chatId) {
+                if ($messageId) {
+                    $loadingAnim = "💰 <b>កំពុងទាញយកសមតុល្យកាបូបលុយ...</b>\n\n"
+                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
+                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 80%</code>";
+                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
+                }
+
                 $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
                     ->orWhere('telegram_chat_id', (string)$chatId)
+                    ->select(['id', 'firebase_uid', 'wallet_balance', 'points'])
                     ->first();
 
                 $walletBalance = (float)($user->wallet_balance ?? 0.00);
@@ -592,10 +625,12 @@ class TelegramService
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
                 $recentTxs = collect();
                 if ($user && !empty($user->firebase_uid)) {
                     $recentTxs = \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
+                        ->select(['id', 'type', 'amount', 'status', 'created_at'])
                         ->latest()
                         ->take(3)
                         ->get();
@@ -642,6 +677,7 @@ class TelegramService
                 $walletKb = [
                     'inline_keyboard' => [
                         [['text' => '💳 បញ្ចូលលុយកាបូប (Top Up KHQR)', 'web_app' => ['url' => $walletAppUrl]]],
+                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
                         [
                             ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
                             ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
@@ -658,13 +694,21 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $walletText, $walletKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'កាបូបលុយ & សមតុល្យ', $activeToken);
                 return;
             }
 
-            // Customer My Points & VIP Rewards (Real Data Query)
+            // Customer My Points & VIP Rewards (Instant Animation & Targeted Fast Query)
             if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                if ($messageId) {
+                    $loadingAnim = "🪙 <b>កំពុងទាញយកពិន្ទុ & VIP Rewards...</b>\n\n"
+                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
+                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 85%</code>";
+                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
+                }
+
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                    ->select(['id', 'points'])
+                    ->first();
                 $points = (int)($user->points ?? 0);
                 $dollarVal = number_format($points * 0.01, 2);
 
@@ -680,7 +724,7 @@ class TelegramService
                     ->count();
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-                $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
                 $pointsText = "🪙 <b>កាបូបពិន្ទុ & កម្រិតសមាជិក (S-Coins & VIP Rewards):</b>\n\n"
                     . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
@@ -696,7 +740,7 @@ class TelegramService
 
                 $pointsKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ ប្រើប្រាស់ Points ទិញក្នុង Mini App', 'web_app' => ['url' => $pointsAppUrl]]],
+                        [['text' => '🛍️ ប្រើប្រាស់ Points ទិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]]],
                         [
                             ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -709,20 +753,34 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $pointsText, $pointsKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'ពិន្ទុ & VIP', $activeToken);
                 return;
             }
 
-            // Customer My Repairs & Warranty Service (Real Data Query)
+            // Customer My Repairs & Warranty Service (Instant Animation & Targeted Fast Query)
             if (in_array($callbackData, ['cust_my_repairs', 'btn_my_repairs', 'cust_repair']) && $chatId) {
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+                if ($messageId) {
+                    $loadingAnim = "🔧 <b>កំពុងទាញយកសំបុត្រជួសជុល & Warranty...</b>\n\n"
+                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
+                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 80%</code>";
+                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
+                }
+
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                    ->select(['id', 'phone', 'email'])
+                    ->first();
+
                 $repairs = \App\Models\Repair::where(function ($q) use ($user) {
                     if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
                     if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
-                })->latest()->take(3)->get();
+                })
+                ->select(['id', 'ticket_code', 'device_name', 'status', 'technician_name', 'estimated_cost', 'issue_description'])
+                ->latest()
+                ->take(3)
+                ->get();
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
                 if ($repairs->isEmpty()) {
                     $repairText = "🔧 <b>សេវាកម្មជួសជុល & សំបុត្រជួសជុល (Repair Tickets):</b>\n\n"
@@ -738,6 +796,7 @@ class TelegramService
                     $repairKb = [
                         'inline_keyboard' => [
                             [['text' => '🔧 បើកសេវាជួសជុលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
                             [
                                 ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
                                 ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -770,6 +829,7 @@ class TelegramService
                     $repairKb = [
                         'inline_keyboard' => [
                             [['text' => '🔧 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $repairAppUrl]]],
+                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
                             [
                                 ['text' => '📞 ទាក់ទងជាងបច្ចេកទេស', 'callback_data' => 'cust_contact'],
                                 ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -783,12 +843,14 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $repairText, $repairKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'សេវាជួសជុល', $activeToken);
                 return;
             }
 
             // Customer Contact & Location
             if (in_array($callbackData, ['cust_contact', 'btn_about_store']) && $chatId) {
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
                 $contactText = "📍 <b>ទំនាក់ទំនង & ទីតាំងហាង S Tech Store Cambodia:</b>\n\n"
                     . "🏪 <b>ហាង S Tech Store</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
                     . "📍 <b>ទីតាំង:</b> រាជធានីភ្នំពេញ, ប្រទេសកម្ពុជា\n"
@@ -800,7 +862,7 @@ class TelegramService
 
                 $contactKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]]],
                         [
                             ['text' => '🌐 បើកមើលគេហទំព័រ', 'url' => 'https://www.s-tech-store.tech'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -813,12 +875,14 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $contactText, $contactKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'ទំនាក់ទំនង & ទីតាំង', $activeToken);
                 return;
             }
 
             // Customer Help
             if (in_array($callbackData, ['cust_help', 'btn_how_to_connect']) && $chatId) {
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
                 $helpText = "❓ <b>មជ្ឈមណ្ឌលជំនួយ S Tech Store (Customer Help):</b>\n\n"
                     . "សូមស្វាគមន៍! លោកអ្នកអាចប្រើពាក្យបញ្ជា ឬវាយសួរផ្ទាល់ដូចខាងក្រោម៖\n\n"
                     . "📋 <b>បញ្ជីពាក្យបញ្ជា (Commands):</b>\n"
@@ -839,7 +903,7 @@ class TelegramService
 
                 $helpKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]]],
                         [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ],
                 ];
@@ -849,7 +913,6 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $helpText, $helpKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'ជំនួយ', $activeToken);
                 return;
             }
 
@@ -864,6 +927,9 @@ class TelegramService
                     ]);
                 } catch (\Throwable $e) {}
 
+                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
                 $supportText = "💬 <b>ផ្នែកបម្រើអតិថិជន & ក្រុមការងារ Support</b>\n\n"
                     . "ជម្រាបសួរ <b>{$fromName}</b>! សំណើរបស់អ្នកត្រូវបានបញ្ជូនទៅកាន់ក្រុមការងារ On-Duty Support រួចរាល់ហើយ។\n\n"
                     . "👨‍💻 បុគ្គលិកជំនាញរបស់យើងនឹងឆ្លើយតប ឬទាក់ទងមកកាន់លោកអ្នកក្នុងពេលបន្តិចទៀតនេះ។\n\n"
@@ -872,7 +938,7 @@ class TelegramService
 
                 $supportKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]]],
                         [
                             ['text' => '🌐 ចូលគេហទំព័រហាង', 'url' => 'https://www.s-tech-store.tech'],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
@@ -885,7 +951,6 @@ class TelegramService
                 } else {
                     self::sendMessageWithKeyboard($chatId, $supportText, $supportKb, 'HTML', null, $activeToken);
                 }
-                self::answerCallbackQuery($callbackId, 'បានជូនដំណឹងទៅក្រុមការងារ', $activeToken);
                 return;
             }
 

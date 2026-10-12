@@ -102,11 +102,19 @@ class WalletController extends Controller
             $streak = 0;
         }
 
-        // Fetch recent 30 transactions
+        // Fetch recent 30 transactions (lightweight column selection)
         $transactions = WalletTransaction::where('firebase_uid', $user->firebase_uid)
+            ->select(['id', 'firebase_uid', 'type', 'amount', 'coins', 'description', 'payment_method', 'status', 'created_at'])
             ->orderBy('created_at', 'desc')
             ->limit(30)
             ->get();
+
+        $stats = \Illuminate\Support\Facades\Cache::remember("wallet_stats_{$user->firebase_uid}", 60, function () use ($user) {
+            return [
+                'total_transactions' => WalletTransaction::where('firebase_uid', $user->firebase_uid)->count(),
+                'total_deposited' => (float)WalletTransaction::where('firebase_uid', $user->firebase_uid)->where('type', 'deposit')->where('status', 'completed')->sum('amount'),
+            ];
+        });
 
         return response()->json([
             'success' => true,
@@ -121,10 +129,7 @@ class WalletController extends Controller
                     'last_claimed_at' => $user->last_daily_coin_at,
                     'today_reward_coins' => 1,
                 ],
-                'stats' => [
-                    'total_transactions' => WalletTransaction::where('firebase_uid', $user->firebase_uid)->count(),
-                    'total_deposited' => (float)WalletTransaction::where('firebase_uid', $user->firebase_uid)->where('type', 'deposit')->where('status', 'completed')->sum('amount'),
-                ],
+                'stats' => $stats,
             ],
             'transactions' => $transactions,
         ]);
@@ -522,6 +527,7 @@ class WalletController extends Controller
                 $txLocked->save();
 
                 \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$cleanId}");
+                \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$lockedUser->firebase_uid}");
 
                 try {
                     UserNotification::create([
@@ -624,6 +630,7 @@ class WalletController extends Controller
 
             // Remove cache
             \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
+            \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$lockedUser->firebase_uid}");
 
             // Create notification
             try {
