@@ -580,13 +580,8 @@ export default function UserProfilePage() {
   const startTelegramPolling = (token: string) => {
     setTelegramPolling(true);
     let attempts = 0;
-    const interval = setInterval(async () => {
-      attempts++;
-      if (attempts > 120) {
-        clearInterval(interval);
-        setTelegramPolling(false);
-        return;
-      }
+
+    const checkLink = async () => {
       try {
         const res = await api.get(`/user/telegram/link-check?token=${encodeURIComponent(token)}`);
         if (res.data?.completed) {
@@ -602,12 +597,34 @@ export default function UserProfilePage() {
           setTimeout(() => {
             setTelegramModalOpen(false);
             setTelegramSuccess(false);
-          }, 3000);
+          }, 2500);
+          return true;
         }
-      } catch (e) {
-        // Polling retry
+      } catch (e) {}
+      return false;
+    };
+
+    // Immediate check
+    checkLink();
+
+    const interval = setInterval(async () => {
+      attempts++;
+      if (attempts > 60) {
+        clearInterval(interval);
+        setTelegramPolling(false);
+        return;
       }
-    }, 2500);
+      await checkLink();
+    }, 1200);
+
+    // Also check on tab return
+    const onReturn = () => {
+      if (document.visibilityState === "visible") {
+        checkLink();
+      }
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
   };
 
   const handleUnlinkTelegram = async () => {

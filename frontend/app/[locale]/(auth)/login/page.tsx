@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
@@ -247,6 +247,118 @@ export default function LoginPage() {
     }
   };
 
+  // ─── Persistent Telegram Handshake Session Polling (Reload & Tab-Switch Protected) ───
+  const telegramPollIntervalRef = useRef<any>(null);
+
+  const startOrResumeTelegramPolling = (token: string) => {
+    if (telegramPollIntervalRef.current) {
+      clearInterval(telegramPollIntervalRef.current);
+    }
+
+    setAuthOverlay({
+      show: true,
+      title: "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
+      subtitle: "សូមចុចប៊ូតុង \"START\" លើ Telegram របស់លោកអ្នក ដើម្បីចូលគណនីភ្លាមៗ...",
+      isSuccess: false,
+    });
+
+    const checkStatus = async () => {
+      try {
+        const checkRes = await api.get(`/auth/telegram/handshake-check?token=${encodeURIComponent(token)}`);
+        if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
+          if (telegramPollIntervalRef.current) {
+            clearInterval(telegramPollIntervalRef.current);
+            telegramPollIntervalRef.current = null;
+          }
+
+          const rawUser = checkRes.data.user;
+          const userObj = {
+            ...rawUser,
+            firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+            uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+            display_name: rawUser.display_name || rawUser.name,
+            provider: "telegram",
+          };
+          localStorage.setItem("user_session", JSON.stringify(userObj));
+          localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+          localStorage.setItem("customer_token", checkRes.data.token);
+          document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+          localStorage.removeItem("stech_pending_tg_handshake");
+          sessionStorage.removeItem("stech_pending_tg_handshake");
+          window.dispatchEvent(new Event("user_session_updated"));
+
+          setAuthOverlay({
+            show: true,
+            title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
+            subtitle: "ចូលគណនីជាមួយ Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
+            isSuccess: true,
+          });
+
+          await new Promise((r) => setTimeout(r, 1000));
+          router.push("/");
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    };
+
+    // Immediate check on trigger
+    checkStatus();
+
+    let attempts = 0;
+    telegramPollIntervalRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 50) {
+        if (telegramPollIntervalRef.current) {
+          clearInterval(telegramPollIntervalRef.current);
+          telegramPollIntervalRef.current = null;
+        }
+        localStorage.removeItem("stech_pending_tg_handshake");
+        sessionStorage.removeItem("stech_pending_tg_handshake");
+        setAuthOverlay({ show: false, title: "", subtitle: "" });
+        return;
+      }
+      await checkStatus();
+    }, 1200);
+  };
+
+  // Mount & Visibility listener to lock page and resume login immediately upon return
+  useEffect(() => {
+    const resumeIfPending = () => {
+      try {
+        const saved = localStorage.getItem("stech_pending_tg_handshake") || sessionStorage.getItem("stech_pending_tg_handshake");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.token && (Date.now() - (parsed.createdAt || 0)) < 600000) {
+            startOrResumeTelegramPolling(parsed.token);
+          } else {
+            localStorage.removeItem("stech_pending_tg_handshake");
+            sessionStorage.removeItem("stech_pending_tg_handshake");
+          }
+        }
+      } catch (e) {}
+    };
+
+    resumeIfPending();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        resumeIfPending();
+      }
+    };
+
+    window.addEventListener("focus", resumeIfPending);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.removeEventListener("focus", resumeIfPending);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (telegramPollIntervalRef.current) {
+        clearInterval(telegramPollIntervalRef.current);
+      }
+    };
+  }, []);
+
   // ─── Trigger Real Telegram OAuth (1-Click App Handshake OR Widget) ───────────────
   const handleTelegramSignIn = async () => {
     setError("");
@@ -269,6 +381,14 @@ export default function LoginPage() {
         const deepLink = res.data.deep_link;
         const appLink = res.data.app_link;
 
+        // Lock & persist pending handshake session so refresh or backgrounding NEVER loses state
+        const pendingSession = {
+          token,
+          createdAt: Date.now(),
+        };
+        localStorage.setItem("stech_pending_tg_handshake", JSON.stringify(pendingSession));
+        sessionStorage.setItem("stech_pending_tg_handshake", JSON.stringify(pendingSession));
+
         const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
         if (isMobile) {
           window.location.href = appLink || deepLink;
@@ -276,55 +396,7 @@ export default function LoginPage() {
           window.open(deepLink, "_blank");
         }
 
-        setAuthOverlay({
-          show: true,
-          title: "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
-          subtitle: "សូមចុចប៊ូតុង \"START\" លើ Telegram របស់លោកអ្នក ដើម្បីចូលគណនីភ្លាមៗ...",
-          isSuccess: false,
-        });
-
-        // Poll for handshake completion (up to 40 times = 60s)
-        let attempts = 0;
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          if (attempts > 40) {
-            clearInterval(pollInterval);
-            setAuthOverlay({ show: false, title: "", subtitle: "" });
-            return;
-          }
-
-          try {
-            const checkRes = await api.get(`/auth/telegram/handshake-check?token=${token}`);
-            if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
-              clearInterval(pollInterval);
-
-              const rawUser = checkRes.data.user;
-              const userObj = {
-                ...rawUser,
-                firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-                uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-                display_name: rawUser.display_name || rawUser.name,
-                provider: "telegram",
-              };
-              localStorage.setItem("user_session", JSON.stringify(userObj));
-              localStorage.setItem("stech_user_session", JSON.stringify(userObj));
-              localStorage.setItem("customer_token", checkRes.data.token);
-              document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
-              window.dispatchEvent(new Event("user_session_updated"));
-
-              setAuthOverlay({
-                show: true,
-                title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
-                subtitle: "ចូលគណនីជាមួយ Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
-                isSuccess: true,
-              });
-
-              await new Promise((r) => setTimeout(r, 1200));
-              router.push("/");
-            }
-          } catch (e) {}
-        }, 1500);
-
+        startOrResumeTelegramPolling(token);
         return;
       }
     } catch (err: any) {

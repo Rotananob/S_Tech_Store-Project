@@ -118,6 +118,68 @@ export default function TelegramAuthBridge() {
           .catch(() => {});
       }
     }
+
+    // C. Lock & Resume: Auto-detect pending handshake when user returns from Telegram app
+    const checkPendingHandshake = () => {
+      try {
+        const existing = localStorage.getItem("user_session") || localStorage.getItem("stech_user_session");
+        if (existing) {
+          localStorage.removeItem("stech_pending_tg_handshake");
+          sessionStorage.removeItem("stech_pending_tg_handshake");
+          return;
+        }
+
+        const rawPending = localStorage.getItem("stech_pending_tg_handshake") || sessionStorage.getItem("stech_pending_tg_handshake");
+        if (!rawPending) return;
+
+        const pending = JSON.parse(rawPending);
+        if (!pending?.token || (Date.now() - (pending.createdAt || 0)) > 600000) {
+          localStorage.removeItem("stech_pending_tg_handshake");
+          sessionStorage.removeItem("stech_pending_tg_handshake");
+          return;
+        }
+
+        api.get(`/auth/telegram/handshake-check?token=${encodeURIComponent(pending.token)}`)
+          .then((checkRes) => {
+            if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
+              const rawUser = checkRes.data.user;
+              const userObj = {
+                ...rawUser,
+                firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+                uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+                display_name: rawUser.display_name || rawUser.name,
+                provider: "telegram",
+              };
+              localStorage.setItem("user_session", JSON.stringify(userObj));
+              localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+              localStorage.setItem("customer_token", checkRes.data.token);
+              document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+              localStorage.removeItem("stech_pending_tg_handshake");
+              sessionStorage.removeItem("stech_pending_tg_handshake");
+              window.dispatchEvent(new Event("user_session_updated"));
+            }
+          })
+          .catch(() => {});
+      } catch (e) {}
+    };
+
+    // Check immediately on load
+    checkPendingHandshake();
+
+    // Check on window focus and tab visibility change (e.g. user switched back from Telegram app)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        checkPendingHandshake();
+      }
+    };
+
+    window.addEventListener("focus", checkPendingHandshake);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", checkPendingHandshake);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   return null;
