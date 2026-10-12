@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, QrCode, CreditCard, ArrowRight,
   Download, Copy, Check, ExternalLink, Loader2, Sparkles, AlertCircle
 } from "lucide-react";
-import { createTopupSession, confirmTopup, TopupSessionResponse } from "@/lib/services/wallet.service";
+import { createTopupSession, confirmTopup, checkTopupStatus, TopupSessionResponse } from "@/lib/services/wallet.service";
 import { playCelebrationFanfare } from "@/lib/celebration-audio";
 import ConfettiShower from "@/components/promotions/ConfettiShower";
 
@@ -73,6 +73,39 @@ export default function WalletTopupModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-poll Bakong Open API status every 3 seconds while QR is shown
+  useEffect(() => {
+    if (step === "qr" && session?.deposit_id) {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await checkTopupStatus(session.deposit_id);
+          if (res.success && res.paid) {
+            if (pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+            }
+            playCelebrationFanfare();
+            setShowConfetti(true);
+            setStep("success");
+            if (res.wallet_balance !== undefined) {
+              onSuccess(res.wallet_balance);
+            }
+          }
+        } catch (e) {
+          // Keep polling silently
+        }
+      }, 3000);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [step, session?.deposit_id, onSuccess]);
 
   const getEffectiveAmount = (): number => {
     if (customAmount && !isNaN(Number(customAmount)) && Number(customAmount) > 0) {
@@ -108,12 +141,16 @@ export default function WalletTopupModal({
 
     try {
       const res = await confirmTopup(session.deposit_id);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
       playCelebrationFanfare();
       setShowConfetti(true);
       setStep("success");
       onSuccess(res.new_balance);
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || "ការផ្ទៀងផ្ទាត់មិនទាន់បានជោគជ័យឡើយ។");
+      setErrorMsg(err.response?.data?.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ជាមុនសិន។");
     } finally {
       setConfirming(false);
     }
@@ -126,6 +163,10 @@ export default function WalletTopupModal({
   };
 
   const handleReset = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
     setStep("select");
     setSession(null);
     setErrorMsg(null);
@@ -424,6 +465,11 @@ export default function WalletTopupModal({
 
                 {/* Action Buttons */}
                 <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                    <span>ប្រព័ន្ធកំពុងរង់ចាំ និងផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តិតាម Bakong Open API (Live)</span>
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleConfirmPayment}

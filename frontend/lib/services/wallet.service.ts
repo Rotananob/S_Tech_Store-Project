@@ -97,6 +97,18 @@ export const createTopupSession = async (
   return res.data;
 };
 
+export const checkTopupStatus = async (depositId: string): Promise<{
+  success: boolean;
+  paid: boolean;
+  status: string;
+  amount?: number;
+  wallet_balance?: number;
+  message?: string;
+}> => {
+  const res = await api.get(`/user/wallet/topup/status/${depositId}`);
+  return res.data;
+};
+
 export const confirmTopup = async (depositId: string): Promise<{
   success: boolean;
   message: string;

@@ -50,11 +50,23 @@ class WalletController extends Controller
     private function resolveUser(Request $request): ?UserProfile
     {
         $uid = $this->getUid($request);
-        if (!$uid) return null;
+        if ($uid) {
+            $user = UserProfile::where('firebase_uid', $uid)->first();
+            if ($user) return $user;
+        }
 
-        return UserProfile::firstOrCreate(
-            ['firebase_uid' => $uid],
-            [
+        $token = $request->header('X-Customer-Token') ?: $request->bearerToken();
+        if (!empty($token)) {
+            $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+            if ($userId) {
+                $user = UserProfile::find($userId);
+                if ($user) return $user;
+            }
+        }
+
+        if ($uid) {
+            return UserProfile::create([
+                'firebase_uid' => $uid,
                 'display_name' => $request->header('X-Firebase-Name', 'អតិថិជន S-Tech'),
                 'email' => $request->header('X-Firebase-Email', ''),
                 'photo_url' => $request->header('X-Firebase-Photo', ''),
@@ -62,8 +74,10 @@ class WalletController extends Controller
                 'points' => 0,
                 'lifetime_free_coins' => 0,
                 'daily_streak' => 0,
-            ]
-        );
+            ]);
+        }
+
+        return null;
     }
 
     /**
@@ -267,7 +281,7 @@ class WalletController extends Controller
 
     /**
      * POST /api/user/wallet/topup/session
-     * Initiates a real bank top-up session (Bakong KHQR, ABA, Wing, ACLEDA, Card).
+     * Initiates an authentic bank top-up session (Bakong KHQR, ABA, Wing, ACLEDA, Card).
      */
     public function createTopupSession(Request $request)
     {
@@ -284,12 +298,20 @@ class WalletController extends Controller
 
         $amount = (float)$validated['amount'];
         $method = $validated['method'] ?? 'bakong';
-        $currency = $validated['currency'] ?? 'USD';
+        $currency = strtoupper($validated['currency'] ?? 'USD');
         $depositId = 'DEP_' . strtoupper(Str::random(10));
+        $rate = config('payment.currency.usd_to_khr_rate', 4060);
+        $amountKhr = round($amount * $rate);
 
-        // Generate authentic EMVCo Bakong KHQR String using standard PaymentService
-        $khqrString = PaymentService::generateKHQRString($amount, $depositId, $currency);
-        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&format=png&data=' . urlencode($khqrString);
+        // Generate authentic EMVCo Bakong KHQR String for both USD and KHR
+        $khqrUsd = PaymentService::generateKHQRString($amount, $depositId, 'USD');
+        $khqrKhr = PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR');
+        $activeKhqr = ($currency === 'KHR') ? $khqrKhr : $khqrUsd;
+        $activeMd5 = md5($activeKhqr);
+        $md5Usd = md5($khqrUsd);
+        $md5Khr = md5($khqrKhr);
+
+        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&format=png&data=' . urlencode($activeKhqr);
 
         // Universal Deeplink from Bakong Open API
         $bakongToken = config('payment.bakong.api_token');
@@ -298,9 +320,9 @@ class WalletController extends Controller
             try {
                 $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
                 $dRes = \Illuminate\Support\Facades\Http::withToken($bakongToken)
-                    ->timeout(4)
+                    ->timeout(5)
                     ->post($apiUrl . '/generate_deeplink_by_qr', [
-                        'qr' => $khqrString,
+                        'qr' => $activeKhqr,
                     ]);
                 if ($dRes->successful() && $dRes->json('responseCode') == 0) {
                     $universalDeeplink = $dRes->json('data.shortLink') ?: $dRes->json('data.fullLink');
@@ -313,13 +335,13 @@ class WalletController extends Controller
         // Prepare banking app deeplinks
         $deeplinks = [
             'universal' => $universalDeeplink,
-            'bakong' => $universalDeeplink ?: ("bakong://qr?data=" . urlencode($khqrString)),
-            'aba' => $universalDeeplink ?: ("aba://qr?data=" . urlencode($khqrString)),
-            'wing' => "wing://qr?data=" . urlencode($khqrString),
-            'acleda' => "acledamb://pay?qr=" . urlencode($khqrString),
+            'bakong' => $universalDeeplink ?: ("bakong://qr?data=" . urlencode($activeKhqr)),
+            'aba' => $universalDeeplink ?: ("aba://qr?data=" . urlencode($activeKhqr)),
+            'wing' => "wing://qr?data=" . urlencode($activeKhqr),
+            'acleda' => "acledamb://pay?qr=" . urlencode($activeKhqr),
         ];
 
-        // Store pending deposit transaction in ledger
+        // Store pending deposit transaction in ledger with complete cryptographic hash fingerprint
         WalletTransaction::create([
             'firebase_uid' => $user->firebase_uid,
             'type' => 'deposit',
@@ -331,8 +353,14 @@ class WalletController extends Controller
             'status' => 'pending',
             'metadata' => [
                 'currency' => $currency,
-                'khqr_string' => $khqrString,
-                'md5' => md5($khqrString),
+                'amount_usd' => $amount,
+                'amount_khr' => $amountKhr,
+                'khqr_string' => $activeKhqr,
+                'khqr_usd' => $khqrUsd,
+                'khqr_khr' => $khqrKhr,
+                'md5' => $activeMd5,
+                'md5_usd' => $md5Usd,
+                'md5_khr' => $md5Khr,
             ],
         ]);
 
@@ -348,23 +376,194 @@ class WalletController extends Controller
             'success' => true,
             'deposit_id' => $depositId,
             'amount' => $amount,
-            'amount_khr' => round($amount * 4060),
-            'khqr_string' => $khqrString,
+            'amount_khr' => $amountKhr,
+            'khqr_string' => $activeKhqr,
+            'khqr_usd' => $khqrUsd,
+            'khqr_khr' => $khqrKhr,
             'qr_image_url' => $qrImageUrl,
             'deeplinks' => $deeplinks,
             'method' => $method,
             'merchant' => [
                 'name' => config('payment.bakong.account_name', 'ROTANA NOB'),
                 'bank' => config('payment.bakong.bank_name', 'ABA Bank'),
-                'usd_account' => '014 579 634',
-                'khr_account' => '006 822 995',
+                'usd_account' => config('payment.bakong.account_usd', '014 579 634'),
+                'khr_account' => config('payment.bakong.account_khr', '006 822 995'),
             ],
+        ]);
+    }
+
+    /**
+     * Internal strict NBC Bakong Open API verification check
+     * Queries /check_transaction_by_md5 to verify real incoming bank payment.
+     */
+    private function verifyBakongDeposit(WalletTransaction $tx): array
+    {
+        $bakongToken = config('payment.bakong.api_token');
+        if (empty($bakongToken)) {
+            return [
+                'verified' => false,
+                'data' => null,
+                'error' => 'Bakong API Token មិនទាន់ត្រូវបានកំណត់រចនាសម្ព័ន្ធឡើយ',
+            ];
+        }
+
+        $depositId = $tx->reference_id;
+        $txMeta = $tx->metadata ?: [];
+        $rate = config('payment.currency.usd_to_khr_rate', 4060);
+        $amountKhr = round((float)$tx->amount * $rate);
+
+        // Collect all possible valid MD5 hashes (USD dynamic, KHR dynamic, active string)
+        $md5List = array_values(array_filter(array_unique([
+            $txMeta['md5'] ?? null,
+            $txMeta['md5_usd'] ?? null,
+            $txMeta['md5_khr'] ?? null,
+            !empty($txMeta['khqr_string']) ? md5($txMeta['khqr_string']) : null,
+            !empty($txMeta['khqr_usd']) ? md5($txMeta['khqr_usd']) : null,
+            !empty($txMeta['khqr_khr']) ? md5($txMeta['khqr_khr']) : null,
+            md5(\App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId, 'USD')),
+            md5(\App\Services\PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR')),
+        ])));
+
+        $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
+
+        foreach ($md5List as $md5) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
+                    ->timeout(6)
+                    ->post($apiUrl . '/check_transaction_by_md5', [
+                        'md5' => $md5,
+                    ]);
+
+                if ($response->successful()) {
+                    $json = $response->json();
+                    if (($json['responseCode'] ?? -1) === 0 && !empty($json['data'])) {
+                        return [
+                            'verified' => true,
+                            'data' => $json['data'],
+                            'verified_md5' => $md5,
+                            'error' => null,
+                        ];
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Bakong deposit verification check exception: " . $e->getMessage());
+            }
+        }
+
+        return [
+            'verified' => false,
+            'data' => null,
+            'error' => 'not_found',
+        ];
+    }
+
+    /**
+     * GET /api/user/wallet/topup/status/{depositId}
+     * Real-time polling check for bank top-up.
+     * Auto-credits the user as soon as money is received in Bakong/ABA!
+     */
+    public function checkTopupStatus(Request $request, $depositId)
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $cleanId = trim((string)$depositId);
+        $tx = WalletTransaction::where('reference_id', $cleanId)
+            ->where('firebase_uid', $user->firebase_uid)
+            ->first();
+
+        if (!$tx) {
+            return response()->json(['success' => false, 'paid' => false, 'message' => 'Deposit session not found'], 404);
+        }
+
+        if ($tx->status === 'completed') {
+            return response()->json([
+                'success' => true,
+                'paid' => true,
+                'status' => 'completed',
+                'amount' => (float)$tx->amount,
+                'wallet_balance' => (float)$user->fresh()->wallet_balance,
+            ]);
+        }
+
+        // Check real Bakong Open API status
+        $verifyResult = $this->verifyBakongDeposit($tx);
+
+        if ($verifyResult['verified']) {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $cleanId, $verifyResult) {
+                $txLocked = WalletTransaction::where('reference_id', $cleanId)
+                    ->where('firebase_uid', $user->firebase_uid)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($txLocked && $txLocked->status === 'completed') {
+                    return response()->json([
+                        'success' => true,
+                        'paid' => true,
+                        'status' => 'completed',
+                        'amount' => (float)$txLocked->amount,
+                        'wallet_balance' => (float)$user->fresh()->wallet_balance,
+                    ]);
+                }
+
+                $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
+                $amount = (float)$txLocked->amount;
+                $lockedUser->wallet_balance = ((float)($lockedUser->wallet_balance ?? 0.00)) + $amount;
+                $lockedUser->save();
+
+                $txLocked->status = 'completed';
+                $meta = $txLocked->metadata ?: [];
+                $meta['verified_by'] = 'bakong_polling';
+                $meta['bank_tx'] = $verifyResult['data'];
+                $meta['verified_at'] = now()->toIso8601String();
+                $txLocked->metadata = $meta;
+                $txLocked->save();
+
+                \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$cleanId}");
+
+                try {
+                    UserNotification::create([
+                        'firebase_uid' => $lockedUser->firebase_uid,
+                        'title' => '💳 បញ្ចូលទឹកប្រាក់ជោគជ័យ! (Wallet Funded)',
+                        'message' => "លោកអ្នកបានបញ្ចូលទឹកប្រាក់ចំនួន $" . number_format($amount, 2) . " តាមរយៈធនាគារដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($lockedUser->wallet_balance, 2),
+                        'type' => 'system',
+                        'read' => false,
+                    ]);
+                } catch (\Throwable $t) {}
+
+                try {
+                    \App\Services\TelegramService::sendFinanceAlert([
+                        'type' => 'Bank Topup Auto-Verified (Bakong KHQR)',
+                        'amount' => $amount,
+                        'method' => strtoupper($txLocked->payment_method ?: 'BAKONG'),
+                        'order_id' => $cleanId,
+                        'customer' => $lockedUser->display_name ?: 'S-Tech Customer',
+                    ]);
+                } catch (\Throwable $t) {}
+
+                return response()->json([
+                    'success' => true,
+                    'paid' => true,
+                    'status' => 'completed',
+                    'amount' => $amount,
+                    'wallet_balance' => (float)$lockedUser->wallet_balance,
+                ]);
+            });
+        }
+
+        return response()->json([
+            'success' => true,
+            'paid' => false,
+            'status' => 'pending',
         ]);
     }
 
     /**
      * POST /api/user/wallet/topup/confirm
      * Confirms the bank top-up and instantly credits the wallet balance.
+     * STRICT SECURITY: Only credits when Bakong Open API confirms real funds received!
      */
     public function confirmTopup(Request $request)
     {
@@ -377,7 +576,7 @@ class WalletController extends Controller
             'deposit_id' => 'required|string',
         ]);
 
-        $depositId = $validated['deposit_id'];
+        $depositId = trim($validated['deposit_id']);
 
         // Begin atomic database transaction to prevent double-spending & race conditions
         return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $depositId) {
@@ -398,45 +597,14 @@ class WalletController extends Controller
                 ]);
             }
 
-            // Verify with Bakong Open API if gateway credentials configured
-            $bakongToken = config('payment.bakong.api_token');
-            if (!empty($bakongToken)) {
-                try {
-                    $txMeta = $tx->metadata ?: [];
-                    $rate = config('payment.currency.usd_to_khr_rate', 4060);
-                    $amountKhr = round((float)$tx->amount * $rate);
+            // Verify with Bakong Open API — STRICT SECURITY: DO NOT CREDIT WITHOUT BANK PROOF!
+            $verifyResult = $this->verifyBakongDeposit($tx);
 
-                    $md5List = array_values(array_filter(array_unique([
-                        $txMeta['md5'] ?? null,
-                        !empty($txMeta['khqr_string']) ? md5($txMeta['khqr_string']) : null,
-                        md5(\App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId, 'USD')),
-                        md5(\App\Services\PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR')),
-                    ])));
-
-                    $verified = false;
-                    $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
-                    foreach ($md5List as $md5) {
-                        $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
-                            ->timeout(6)
-                            ->post($apiUrl . '/check_transaction_by_md5', [
-                                'md5' => $md5,
-                            ]);
-
-                        if ($response->successful() && ($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
-                            $verified = true;
-                            break;
-                        }
-                    }
-
-                    if (!$verified) {
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការទូទាត់ពីធនាគារ Bakong នៅឡើយទេ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នកឡើងវិញ។',
-                        ], 400);
-                    }
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Bakong topup verification check: " . $e->getMessage());
-                }
+            if (!$verifyResult['verified']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។',
+                ], 400);
             }
 
             // Credit locked user account atomically
@@ -447,6 +615,11 @@ class WalletController extends Controller
 
             // Update transaction status
             $tx->status = 'completed';
+            $meta = $tx->metadata ?: [];
+            $meta['verified_by'] = 'manual_confirm_button';
+            $meta['bank_tx'] = $verifyResult['data'];
+            $meta['verified_at'] = now()->toIso8601String();
+            $tx->metadata = $meta;
             $tx->save();
 
             // Remove cache
@@ -460,6 +633,16 @@ class WalletController extends Controller
                     'message' => "លោកអ្នកបានបញ្ចូលទឹកប្រាក់ចំនួន $" . number_format($amount, 2) . " ទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($lockedUser->wallet_balance, 2),
                     'type' => 'system',
                     'read' => false,
+                ]);
+            } catch (\Throwable $t) {}
+
+            try {
+                \App\Services\TelegramService::sendFinanceAlert([
+                    'type' => 'Bank Topup Verified (Bakong KHQR)',
+                    'amount' => $amount,
+                    'method' => strtoupper($tx->payment_method ?: 'BAKONG'),
+                    'order_id' => $depositId,
+                    'customer' => $lockedUser->display_name ?: 'S-Tech Customer',
                 ]);
             } catch (\Throwable $t) {}
 
@@ -530,6 +713,7 @@ class WalletController extends Controller
     /**
      * POST /api/user/wallet/pay-order
      * 1-Click Payment for Order from S-Tech Wallet balance.
+     * Fully atomic & Postgres-safe.
      */
     public function payWithWallet(Request $request)
     {
@@ -542,61 +726,75 @@ class WalletController extends Controller
             'order_id' => 'required|string',
         ]);
 
-        $order = Order::where('order_id', $validated['order_id'])
-            ->orWhere('id', $validated['order_id'])
-            ->firstOrFail();
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $validated) {
+            $orderIdInput = trim((string)$validated['order_id']);
+            $orderQuery = Order::where('order_id', $orderIdInput);
+            if (is_numeric($orderIdInput)) {
+                $orderQuery->orWhere('id', (int)$orderIdInput);
+            }
+            $order = $orderQuery->lockForUpdate()->first();
 
-        if ($order->payment_status === 'paid') {
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "រកមិនឃើញការបញ្ជាទិញ #{$orderIdInput} ឡើយ (Order Not Found)",
+                ], 404);
+            }
+
+            if ($order->payment_status === 'paid') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់រួចរាល់ហើយ',
+                    'order' => $order,
+                    'remaining_balance' => (float)$user->fresh()->wallet_balance,
+                ]);
+            }
+
+            $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
+            $orderAmount = (float)$order->total_amount;
+            $walletBalance = (float)($lockedUser->wallet_balance ?? 0.00);
+
+            if ($walletBalance < $orderAmount) {
+                $shortage = round($orderAmount - $walletBalance, 2);
+                return response()->json([
+                    'success' => false,
+                    'message' => "សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $" . number_format($shortage, 2) . ")! សូមបញ្ចូលលុយបន្ថែម។",
+                    'current_balance' => $walletBalance,
+                    'required_amount' => $orderAmount,
+                    'shortage' => $shortage,
+                ], 422);
+            }
+
+            // Deduct balance atomically
+            $lockedUser->wallet_balance = $walletBalance - $orderAmount;
+            $lockedUser->save();
+
+            // Mark order as paid
+            $tranId = 'WAL_' . strtoupper(Str::random(10));
+            PaymentService::markOrderAsPaid($order, $tranId, 'wallet', [
+                'paid_via' => 'stech_wallet',
+                'customer_uid' => $lockedUser->firebase_uid,
+            ]);
+
+            // Record in ledger
+            WalletTransaction::create([
+                'firebase_uid' => $lockedUser->firebase_uid,
+                'type' => 'purchase',
+                'amount' => -$orderAmount,
+                'coins' => 0,
+                'description' => "ទូទាត់ការបញ្ជាទិញ #{$order->order_id}",
+                'payment_method' => 'wallet',
+                'reference_id' => $order->order_id,
+                'status' => 'completed',
+            ]);
+
             return response()->json([
                 'success' => true,
-                'message' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់រួចរាល់ហើយ',
-                'order' => $order,
+                'message' => "ការទូទាត់តាមកាបូប S-Tech Wallet បានជោគជ័យ 100%! 🎉",
+                'order_id' => $order->order_id,
+                'amount_deducted' => $orderAmount,
+                'remaining_balance' => (float)$lockedUser->wallet_balance,
             ]);
-        }
-
-        $orderAmount = (float)$order->total_amount;
-        $walletBalance = (float)($user->wallet_balance ?? 0.00);
-
-        if ($walletBalance < $orderAmount) {
-            $shortage = round($orderAmount - $walletBalance, 2);
-            return response()->json([
-                'success' => false,
-                'message' => "សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $" . number_format($shortage, 2) . ")! សូមបញ្ចូលលុយបន្ថែម។",
-                'current_balance' => $walletBalance,
-                'required_amount' => $orderAmount,
-                'shortage' => $shortage,
-            ], 422);
-        }
-
-        // Deduct balance
-        $user->wallet_balance = $walletBalance - $orderAmount;
-        $user->save();
-
-        // Mark order as paid
-        $tranId = 'WAL_' . strtoupper(Str::random(10));
-        PaymentService::markOrderAsPaid($order, $tranId, 'wallet', [
-            'paid_via' => 'stech_wallet',
-            'customer_uid' => $user->firebase_uid,
-        ]);
-
-        // Record in ledger
-        WalletTransaction::create([
-            'firebase_uid' => $user->firebase_uid,
-            'type' => 'purchase',
-            'amount' => -$orderAmount,
-            'coins' => 0,
-            'description' => "ទូទាត់ការបញ្ជាទិញ #{$order->order_id}",
-            'payment_method' => 'wallet',
-            'reference_id' => $order->order_id,
-            'status' => 'completed',
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => "ការទូទាត់តាមកាបូប S-Tech Wallet បានជោគជ័យ 100%! 🎉",
-            'order_id' => $order->order_id,
-            'amount_deducted' => $orderAmount,
-            'remaining_balance' => (float)$user->wallet_balance,
-        ]);
+        });
     }
 }

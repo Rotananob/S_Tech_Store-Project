@@ -3097,7 +3097,11 @@ class TelegramService
         if ($orderOrUser instanceof \App\Models\Order) {
             $uid = $orderOrUser->user_id;
             if (!empty($uid)) {
-                $u = \App\Models\UserProfile::where('firebase_uid', $uid)->orWhere('id', $uid)->first();
+                $uQuery = \App\Models\UserProfile::where('firebase_uid', $uid);
+                if (is_numeric($uid)) {
+                    $uQuery->orWhere('id', (int)$uid);
+                }
+                $u = $uQuery->first();
                 if ($u && !empty($u->telegram_chat_id)) {
                     return (string)$u->telegram_chat_id;
                 }
