@@ -32,5 +32,21 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'maskable',
       },
     ],
+    shortcuts: [
+      {
+        name: 'Admin Dashboard',
+        short_name: 'Admin',
+        description: 'S Tech Store Management Dashboard',
+        url: '/km/rok-mix-khernh',
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'Orders Management',
+        short_name: 'Orders',
+        description: 'គ្រប់គ្រងការបញ្ជាទិញ',
+        url: '/km/rok-mix-khernh/orders',
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+      },
+    ],
   };
 }

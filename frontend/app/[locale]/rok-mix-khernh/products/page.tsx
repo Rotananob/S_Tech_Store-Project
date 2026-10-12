@@ -116,7 +116,7 @@ export default function AdminProductsPage() {
         } catch (e) {}
         return next;
       });
-      showToast(`✓ បានលុបទំនិញ "${deleteTarget.name}" ចេញពី Neon DB ជោគជ័យ!`);
+      showToast(`បានលុបទំនិញ "${deleteTarget.name}" ដោយជោគជ័យ!`);
     } catch (e) {
       showToast("បរាជ័យក្នុងការលុបទំនិញ សូមព្យាយាមម្តងទៀត។", "error");
     } finally {
@@ -153,7 +153,7 @@ export default function AdminProductsPage() {
               តើបងប្រាកដជាចង់លុបទំនិញនេះមែនទេ?
             </h3>
             <p className="text-xs text-red-600 dark:text-red-400 font-bold mb-4 uppercase tracking-wider">
-              ⚠️ Warning: Permanent Database Deletion
+              Warning: Permanent Product Deletion
             </p>
 
             <div className="p-3.5 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-200/60 dark:border-white/10 mb-5 flex items-center gap-3 text-left">

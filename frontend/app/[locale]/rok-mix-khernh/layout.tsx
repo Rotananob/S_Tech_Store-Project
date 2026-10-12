@@ -28,6 +28,7 @@ import {
   Sparkles,
   Layers
 } from "lucide-react";
+import { AdminPWAController, AdminPWAInstallButton } from "@/components/admin/AdminPWAController";
 
 type AdminUser = {
   id: number;
@@ -255,6 +256,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="admin-theme flex min-h-screen bg-gray-50 text-gray-900 font-sans">
+      {/* PWA Controller: Manifest, Meta Tags, Mobile Install Prompt */}
+      <AdminPWAController />
+
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -562,6 +566,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span>{isKm ? "+ បន្ថែមទំនិញថ្មី • Add Product" : "+ Add New Product"}</span>
           </Link>
 
+          {/* PWA Install Button in Sidebar */}
+          <AdminPWAInstallButton variant="sidebar" />
+
           <div className="grid grid-cols-2 gap-2">
             <a
               href="/"
@@ -616,7 +623,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
             {/* Branch and Shift Badge on Top Header for quick viewing */}
             <div className="hidden md:flex items-center gap-2 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-700">
               <Store size={13} className="text-[#8B1A1A]" />
@@ -625,6 +632,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Clock size={13} className="text-blue-600" />
               <span>{user?.shift?.split(' ')[0] || "Day"}</span>
             </div>
+
+            {/* PWA Install Button in Top Header */}
+            <AdminPWAInstallButton variant="pill" />
 
             {/* Language Switcher */}
             <LanguageSwitcher />
