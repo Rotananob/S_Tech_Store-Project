@@ -893,8 +893,10 @@ class TelegramService
                     ? $from['phone_number']
                     : 'ភ្ជាប់តាម Telegram ID (' . $tgId . ')');
 
-            // Mark handshake complete immediately in cache so the frontend gets success on its very first poll!
-            Cache::put($handshakeKey, [
+            $user->magic_login_token = $sessionToken;
+            $user->save();
+
+            $completedHandshake = [
                 'status' => 'completed',
                 'token' => $sessionToken,
                 'user' => [
@@ -908,9 +910,20 @@ class TelegramService
                     'telegram_id' => $tgId,
                     'telegram_chat_id' => $tgId,
                     'phone' => $phoneNumber,
+                    'photo_url' => $user->photo_url,
+                    'avatar' => $user->photo_url,
                     'provider' => 'telegram',
                 ],
-            ], 600);
+            ];
+
+            // Mark handshake complete immediately in cache and database for 0-delay sync
+            Cache::put($handshakeKey, $completedHandshake, 600);
+            try {
+                \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                    ['key' => $handshakeKey],
+                    ['value' => json_encode($completedHandshake), 'updated_at' => now()]
+                );
+            } catch (\Throwable $t) {}
 
             // 2. SEND INSTANT DEFAULT RESPONSE TO TELEGRAM (ZERO DELAY)
             $loadingMsg = "⚡ <b>កំពុងផ្ទៀងផ្ទាត់ និងភ្ជាប់គណនីរបស់អ្នកជាមួយ S Tech Store...</b>\n"

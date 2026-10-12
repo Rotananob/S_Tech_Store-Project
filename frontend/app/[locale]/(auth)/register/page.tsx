@@ -58,6 +58,52 @@ export default function RegisterPage() {
       handleTelegramVerification(payload);
     }
 
+    const tgToken = searchParams?.get("tg_token");
+    if (tgToken) {
+      setAuthOverlay({
+        show: true,
+        title: "⚡ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
+        subtitle: "សូមរង់ចាំបន្តិច កំពុងទាញយកទិន្នន័យគណនី...",
+        isSuccess: false,
+      });
+
+      api.get(`/auth/telegram/token-login?token=${encodeURIComponent(tgToken)}`)
+        .then((res) => {
+          if (res.data?.success && res.data?.user) {
+            const rawUser = res.data.user;
+            const userObj = {
+              ...rawUser,
+              firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+              uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+              display_name: rawUser.display_name || rawUser.name,
+              provider: "telegram",
+            };
+            localStorage.setItem("user_session", JSON.stringify(userObj));
+            localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+            localStorage.setItem("customer_token", res.data.token);
+            document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+            localStorage.removeItem("stech_pending_tg_handshake");
+            sessionStorage.removeItem("stech_pending_tg_handshake");
+            window.dispatchEvent(new Event("user_session_updated"));
+
+            setAuthOverlay({
+              show: true,
+              title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
+              subtitle: "ចុះឈ្មោះ និងចូលគណនី Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
+              isSuccess: true,
+            });
+
+            setTimeout(() => {
+              router.push("/");
+            }, 200);
+          }
+        })
+        .catch(() => {
+          setError("Token ចូលគណនី Telegram មិនត្រឹមត្រូវ ឬបានផុតកំណត់។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+        });
+    }
+
     const errorParam = searchParams?.get("error");
     if (errorParam) {
       const errorMsg = searchParams?.get("error_msg");
@@ -284,25 +330,36 @@ export default function RegisterPage() {
     }
   };
 
-  // ─── Persistent Telegram Handshake Session Polling (Reload & Tab-Switch Protected) ───
+  // ─── High-Performance Real-Time Telegram Polling (Synchronized with Bot) ───
   const telegramPollIntervalRef = useRef<any>(null);
+  const isPollingCompletedRef = useRef<boolean>(false);
+  const lastResumeTimeRef = useRef<number>(0);
 
-  const startOrResumeTelegramPolling = (token: string) => {
+  const startOrResumeTelegramPolling = (token: string, isReturning = false) => {
+    if (isPollingCompletedRef.current) return;
+
     if (telegramPollIntervalRef.current) {
       clearInterval(telegramPollIntervalRef.current);
+      telegramPollIntervalRef.current = null;
     }
 
     setAuthOverlay({
       show: true,
-      title: "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
-      subtitle: "សូមចុចប៊ូតុង \"START\" លើ Telegram របស់លោកអ្នក ដើម្បីចុះឈ្មោះភ្លាមៗ...",
+      title: isReturning
+        ? "⚡ កំពុងផ្ទៀងផ្ទាត់ជាមួយ Telegram Bot..."
+        : "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
+      subtitle: isReturning
+        ? "សូមរង់ចាំមួយភ្លែត កំពុងឆែកមើលស្ថានភាពជោគជ័យពី Telegram..."
+        : 'សូមចុចប៊ូតុង "START" លើ Telegram របស់លោកអ្នក ដើម្បីចុះឈ្មោះភ្លាមៗ...',
       isSuccess: false,
     });
 
     const checkStatus = async () => {
+      if (isPollingCompletedRef.current) return true;
       try {
         const checkRes = await api.get(`/auth/telegram/handshake-check?token=${encodeURIComponent(token)}`);
         if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
+          isPollingCompletedRef.current = true;
           if (telegramPollIntervalRef.current) {
             clearInterval(telegramPollIntervalRef.current);
             telegramPollIntervalRef.current = null;
@@ -331,43 +388,68 @@ export default function RegisterPage() {
             isSuccess: true,
           });
 
-          await new Promise((r) => setTimeout(r, 1000));
-          router.push("/");
+          // Ultra snappy 200ms entry transition
+          setTimeout(() => {
+            router.push("/");
+          }, 200);
           return true;
+        } else if (checkRes.data?.status === "expired" || checkRes.data?.status === "rejected") {
+          isPollingCompletedRef.current = true;
+          if (telegramPollIntervalRef.current) {
+            clearInterval(telegramPollIntervalRef.current);
+            telegramPollIntervalRef.current = null;
+          }
+          localStorage.removeItem("stech_pending_tg_handshake");
+          sessionStorage.removeItem("stech_pending_tg_handshake");
+          setError("ការផ្ទៀងផ្ទាត់ Telegram បានផុតកំណត់ ឬមិនត្រឹមត្រូវ។ សូមព្យាយាមម្តងទៀត។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return false;
         }
       } catch (e) {}
       return false;
     };
 
-    // Immediate check on trigger
+    // Immediate check on trigger (0ms delay)
     checkStatus();
 
+    // High-frequency snappy polling: 350ms (sub-second sync with bot)
     let attempts = 0;
     telegramPollIntervalRef.current = setInterval(async () => {
+      if (isPollingCompletedRef.current) {
+        clearInterval(telegramPollIntervalRef.current);
+        return;
+      }
       attempts++;
-      if (attempts > 50) {
+      if (attempts > 35) {
         if (telegramPollIntervalRef.current) {
           clearInterval(telegramPollIntervalRef.current);
           telegramPollIntervalRef.current = null;
         }
         localStorage.removeItem("stech_pending_tg_handshake");
         sessionStorage.removeItem("stech_pending_tg_handshake");
+        setError("ការផ្ទៀងផ្ទាត់ Telegram លើសកំណត់ពេល។ សូមចុចព្យាយាមម្តងទៀត។");
         setAuthOverlay({ show: false, title: "", subtitle: "" });
         return;
       }
       await checkStatus();
-    }, 1200);
+    }, 350);
   };
 
   // Mount & Visibility listener to lock page and resume login immediately upon return
   useEffect(() => {
-    const resumeIfPending = () => {
+    const resumeIfPending = (isReturning = true) => {
+      const now = Date.now();
+      if (now - lastResumeTimeRef.current < 300) return; // Debounce rapid focus + visibilitychange
+      lastResumeTimeRef.current = now;
+
+      if (isPollingCompletedRef.current) return;
+
       try {
         const saved = localStorage.getItem("stech_pending_tg_handshake") || sessionStorage.getItem("stech_pending_tg_handshake");
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.token && (Date.now() - (parsed.createdAt || 0)) < 600000) {
-            startOrResumeTelegramPolling(parsed.token);
+            startOrResumeTelegramPolling(parsed.token, isReturning);
           } else {
             localStorage.removeItem("stech_pending_tg_handshake");
             sessionStorage.removeItem("stech_pending_tg_handshake");
@@ -376,19 +458,23 @@ export default function RegisterPage() {
       } catch (e) {}
     };
 
-    resumeIfPending();
+    resumeIfPending(false);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        resumeIfPending();
+        resumeIfPending(true);
       }
     };
 
-    window.addEventListener("focus", resumeIfPending);
+    const handleFocus = () => {
+      resumeIfPending(true);
+    };
+
+    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      window.removeEventListener("focus", resumeIfPending);
+      window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
       if (telegramPollIntervalRef.current) {
         clearInterval(telegramPollIntervalRef.current);

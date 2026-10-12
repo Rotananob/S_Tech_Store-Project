@@ -59,9 +59,13 @@ export default function TelegramAuthBridge() {
             document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
             window.dispatchEvent(new Event("user_session_updated"));
 
-            // Clean URL query params without reloading
-            const cleanUrl = window.location.pathname;
-            window.history.replaceState({}, document.title, cleanUrl);
+            if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
+              window.location.href = "/";
+            } else {
+              // Clean URL query params without reloading
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+            }
           }
         })
         .catch(() => {});
@@ -157,6 +161,9 @@ export default function TelegramAuthBridge() {
               localStorage.removeItem("stech_pending_tg_handshake");
               sessionStorage.removeItem("stech_pending_tg_handshake");
               window.dispatchEvent(new Event("user_session_updated"));
+              if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
+                window.location.href = "/";
+              }
             }
           })
           .catch(() => {});

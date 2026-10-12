@@ -307,11 +307,19 @@ Route::post('/auth/telegram/handshake-init', function (Request $request) {
     $token = 'tgauth_' . strtolower(\Illuminate\Support\Str::random(24));
     $botUsername = env('TELEGRAM_AUTH_BOT_USERNAME', 'Stech_store_LoginBot');
 
-    \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", [
+    $initPayload = [
         'status' => 'pending',
         'created_at' => time(),
         'ip' => $request->ip() ?? '127.0.0.1',
-    ], 600); // 10 minutes
+    ];
+
+    \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $initPayload, 600); // 10 minutes
+    try {
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+            ['key' => "tg_handshake_{$token}"],
+            ['value' => json_encode($initPayload), 'updated_at' => now()]
+        );
+    } catch (\Throwable $t) {}
 
     return response()->json([
         'success' => true,
@@ -329,14 +337,31 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
     }
 
     $data = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
-    if (!$data || !is_array($data)) {
-        return response()->json(['success' => false, 'error' => 'Handshake session expired or invalid'], 404);
+    if (!$data) {
+        try {
+            $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
+            if ($row && !empty($row->value)) {
+                $data = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        } catch (\Throwable $t) {}
     }
 
-    if (($data['status'] ?? '') === 'completed' && !empty($data['user']) && !empty($data['token'])) {
+    if (!$data || !is_array($data)) {
+        return response()->json([
+            'success' => false,
+            'completed' => false,
+            'status' => 'expired',
+            'error' => 'Handshake session expired or invalid',
+        ], 200);
+    }
+
+    $status = $data['status'] ?? 'pending';
+
+    if ($status === 'completed' && !empty($data['user']) && !empty($data['token'])) {
         return response()->json([
             'success' => true,
             'completed' => true,
+            'status' => 'completed',
             'token' => $data['token'],
             'user' => $data['user'],
         ]);
@@ -345,7 +370,7 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
     return response()->json([
         'success' => true,
         'completed' => false,
-        'status' => 'pending',
+        'status' => $status,
     ]);
 });
 
