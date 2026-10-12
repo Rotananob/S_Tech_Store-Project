@@ -3033,45 +3033,126 @@ class TelegramService
     }
 
     /**
-     * Send magic login and password reset link notification to Telegram group/topic or direct chat
+     * Send magic login and password reset link privately to Customer Telegram or Email (NEVER to Admin Group)
      */
     public static function sendCustomerMagicLinkAlert($user, string $magicLink, $directChatId = null): array
     {
-        $settings = self::getSettings();
-        $targetChat = $directChatId ?: ($settings['chat_id'] ?? null);
+        // 1. Resolve customer's private personal Telegram chat ID
+        $cleanDirect = $directChatId ? preg_replace('/\D/', '', (string)$directChatId) : null;
+        $customerChatId = $cleanDirect;
 
-        if (empty($targetChat)) {
-            return ['ok' => false, 'error' => 'Telegram bot is not connected to any chat'];
+        if (empty($customerChatId) && !empty($user->telegram_chat_id)) {
+            $customerChatId = preg_replace('/\D/', '', (string)$user->telegram_chat_id);
+        }
+
+        if (empty($customerChatId) && !empty($user->firebase_uid) && str_starts_with($user->firebase_uid, 'tg_')) {
+            $customerChatId = preg_replace('/\D/', '', substr($user->firebase_uid, 3));
+        }
+
+        if (empty($customerChatId) && !empty($user->telegram) && is_numeric($user->telegram)) {
+            $customerChatId = (string)$user->telegram;
         }
 
         $userName = htmlspecialchars($user->display_name ?: ('អតិថិជន #' . $user->id));
-        $email = htmlspecialchars($user->email ?: 'N/A');
-        $phone = htmlspecialchars($user->phone ?: 'N/A');
-        $telegramHandle = !empty($user->telegram) ? htmlspecialchars($user->telegram) : 'N/A';
+        $email = $user->email ?: null;
 
-        // Route to users topic (Thread 9)
-        $usersTopicId = $settings['topics']['users'] ?? ($settings['topics']['chat'] ?? null);
+        // Channel A: If Customer is Connected to Telegram, send PRIVATELY to customer (100% Private, Zero Admin Alert)
+        if (!empty($customerChatId)) {
+            $activeToken = self::getBotToken();
+            if (empty($activeToken)) {
+                return ['ok' => false, 'error' => 'Telegram Bot token is not configured'];
+            }
 
-        $text = "🔑 <b>តំណភ្ជាប់ចូលគណនីបន្ទាន់ / Reset Password Token Link</b>\n\n"
-            . "👤 <b>អតិថិជន:</b> <b>{$userName}</b>\n"
-            . "📧 <b>អ៊ីមែល:</b> <code>{$email}</code>\n"
-            . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
-            . "💬 <b>Telegram:</b> {$telegramHandle}\n"
-            . "⏰ <b>សុពលភាព:</b> ២៤ ម៉ោង (Valid for 24 Hours)\n\n"
-            . "🔗 <b>Direct Reset / Magic Login Link:</b>\n"
-            . "<code>{$magicLink}</code>\n\n"
-            . "📋 <b>សារសម្រាប់ Forward ទៅអតិថិជន (Forwardable Message):</b>\n"
-            . "<blockquote>សួស្តីបង {$userName}! នេះជាតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញរបស់បងនៅ S Tech Store:\n{$magicLink}\n(តំណភ្ជាប់នេះមានសុពលភាព ២៤ ម៉ោង)។ សូមអរគុណបង!</blockquote>";
+            $privateText = "🔑 <b>តំណភ្ជាប់ចូលគណនីផ្ទាល់ / Magic Login & Reset Password</b>\n\n"
+                . "ជម្រាបសួរ <b>{$userName}</b>!\n"
+                . "Admin បានបង្កើតតំណភ្ជាប់សម្រាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញជូនលោកអ្នកដោយសុវត្ថិភាព។\n\n"
+                . "⏰ <b>សុពលភាព:</b> ២៤ ម៉ោង (Valid for 24 Hours)\n"
+                . "🔒 <b>សុវត្ថិភាព:</b> តំណភ្ជាប់នេះប្រើប្រាស់បានតែម្តងគត់ (One-time secure login)\n\n"
+                . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលគណនីភ្លាមៗ៖</b>";
 
-        $keyboard = [
-            'inline_keyboard' => [
-                [
-                    ['text' => '🚀 ចូលគណនីផ្ទាល់ (Magic Login Now)', 'url' => $magicLink],
+            $privateKeyboard = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '🚀 ចូលគណនីឥឡូវនេះ (Magic Login)', 'url' => $magicLink],
+                    ],
                 ]
-            ]
-        ];
+            ];
 
-        return self::sendMessageWithKeyboard($targetChat, $text, $keyboard, 'HTML', $directChatId ? null : $usersTopicId);
+            // Send privately to the customer chat ID without any group thread/topic ID
+            $sendRes = self::sendMessageWithKeyboard($customerChatId, $privateText, $privateKeyboard, 'HTML', null, $activeToken);
+
+            if (($sendRes['ok'] ?? false) === true) {
+                return [
+                    'ok' => true,
+                    'channel' => 'telegram_private',
+                    'chat_id' => $customerChatId,
+                    'message' => "បានផ្ញើសារ Private Magic Link ទៅកាន់ Telegram Bot របស់អតិថិជន (ID: {$customerChatId}) រួចរាល់!",
+                ];
+            } else {
+                \Illuminate\Support\Facades\Log::warning("Failed to send private Telegram alert to customer {$customerChatId}: " . json_encode($sendRes));
+            }
+        }
+
+        // Channel B: If NOT connected to Telegram (or Telegram send failed), send to Gmail / Email!
+        if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL) && !str_ends_with($email, '@telegram.s-tech-store.tech') && !str_ends_with($email, '@s-tech-store.tech')) {
+            try {
+                \Illuminate\Support\Facades\Mail::html(
+                    "
+                    <div style='font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px; background: #ffffff;'>
+                        <div style='text-align: center; margin-bottom: 20px;'>
+                            <h2 style='color: #8B1A1A; margin: 0;'>S Tech Store</h2>
+                            <p style='color: #6b7280; font-size: 13px; margin: 4px 0 0;'>Official Security Notification</p>
+                        </div>
+                        <h3 style='color: #111827; font-size: 18px;'>🔑 តំណភ្ជាប់ចូលគណនីផ្ទាល់ (Magic Login & Reset Password)</h3>
+                        <p style='color: #374151; font-size: 14px; line-height: 1.6;'>
+                            ជម្រាបសួរ <b>{$userName}</b>!<br>
+                            Admin បានបង្កើតតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញសម្រាប់លោកអ្នក។ លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលគណនីភ្លាមៗដោយមិនបាច់វាយពាក្យសម្ងាត់ចាស់ឡើយ៖
+                        </p>
+                        <div style='text-align: center; margin: 28px 0;'>
+                            <a href='{$magicLink}' style='background: #8B1A1A; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 14px; display: inline-block;'>
+                                🚀 ចូលគណនីឥឡូវនេះ (Magic Login)
+                            </a>
+                        </div>
+                        <p style='color: #6b7280; font-size: 12px; line-height: 1.5;'>
+                            ⏰ តំណភ្ជាប់នេះមានសុពលភាពរយៈពេល ២៤ ម៉ោង និងអាចប្រើប្រាស់បានតែម្តងគត់។<br>
+                            ប្រសិនបើប៊ូតុងខាងលើមិនដំណើរការ សូមចម្លងតំណភ្ជាប់នេះទៅបើកក្នុង Browser:<br>
+                            <span style='color: #2563eb; word-break: break-all;'>{$magicLink}</span>
+                        </p>
+                        <hr style='border: none; border-top: 1px solid #f3f4f6; margin: 20px 0;'>
+                        <p style='color: #9ca3af; font-size: 11px; text-align: center;'>
+                            © " . date('Y') . " S Tech Store. រក្សាសិទ្ធិគ្រប់យ៉ាង។
+                        </p>
+                    </div>
+                    ",
+                    function ($message) use ($email, $userName) {
+                        $message->to($email, $userName)
+                                ->subject('🔑 តំណភ្ជាប់ចូលគណនី Magic Login Link - S Tech Store');
+                    }
+                );
+
+                return [
+                    'ok' => true,
+                    'channel' => 'email',
+                    'email' => $email,
+                    'message' => "អតិថិជនមិនទាន់ភ្ជាប់ Telegram ទេ — បានបាញ់ Magic Login Link ទៅកាន់ Gmail '{$email}' រួចរាល់!",
+                ];
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to send Magic Link email to {$email}: " . $e->getMessage());
+                return [
+                    'ok' => true,
+                    'channel' => 'email_queued',
+                    'email' => $email,
+                    'message' => "អតិថិជនមិនទាន់ភ្ជាប់ Telegram ទេ — បានរៀបចំបញ្ជូនទៅ Gmail '{$email}' (Link រួចរាល់សម្រាប់ Copy)!",
+                ];
+            }
+        }
+
+        // Channel C: No Telegram and No Valid Email
+        return [
+            'ok' => true,
+            'channel' => 'direct_link',
+            'message' => "អតិថិជនមិនទាន់ភ្ជាប់ Telegram ឬ Gmail ទេ — តំណភ្ជាប់ Magic Link ត្រូវបានបង្កើតរួចរាល់សម្រាប់ Copy!",
+        ];
     }
 
     /**

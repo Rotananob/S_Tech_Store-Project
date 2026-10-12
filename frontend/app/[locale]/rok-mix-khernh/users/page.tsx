@@ -14,6 +14,7 @@ export interface AdminCustomerUser {
   id: number;
   firebase_uid: string;
   display_name: string;
+  username?: string | null;
   email: string;
   photo_url: string | null;
   phone: string | null;
@@ -23,6 +24,8 @@ export interface AdminCustomerUser {
   gps_lat: number | null;
   gps_lng: number | null;
   telegram: string | null;
+  telegram_chat_id?: string | null;
+  has_telegram?: boolean;
   profession: string | null;
   gender: string | null;
   birthday: string | null;
@@ -35,6 +38,8 @@ export interface AdminCustomerUser {
   created_at: string | null;
   last_password_reset_at: string | null;
 }
+
+const CACHE_KEY = "admin_cached_customer_users";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminCustomerUser[]>([]);
@@ -70,12 +75,33 @@ export default function AdminUsersPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchUsers = async () => {
+  // Database Caching: Fetch ONCE and cache in sessionStorage unless explicitly refreshed by admin
+  const fetchUsers = async (forceRefresh: boolean = false) => {
     try {
+      if (!forceRefresh && typeof window !== "undefined") {
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try {
+            const list = JSON.parse(cached);
+            if (Array.isArray(list) && list.length > 0) {
+              setUsers(list);
+              setLoading(false);
+              return;
+            }
+          } catch (e) {}
+        }
+      }
+
       setLoading(true);
       const res = await api.get("/admin/users");
       const list = Array.isArray(res.data) ? res.data : [];
       setUsers(list);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(list));
+      }
+      if (forceRefresh) {
+        showToast("បានទាញយកទិន្នន័យថ្មីពី Database ជោគជ័យ!");
+      }
     } catch (e: any) {
       showToast("បរាជ័យក្នុងការទាញយកបញ្ជីអតិថិជន", "error");
     } finally {
@@ -84,7 +110,7 @@ export default function AdminUsersPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(false);
   }, []);
 
   const handleToggleStatus = async (user: AdminCustomerUser) => {
@@ -92,10 +118,22 @@ export default function AdminUsersPage() {
     try {
       const res = await api.put(`/admin/users/${user.id}/toggle-status`);
       const updatedUser = res.data?.user;
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, is_active: updatedUser.is_active, status: updatedUser.status } : u))
-      );
-      showToast(res.data?.message || "បានផ្លាស់ប្តូរស្ថានភាពគណនីជោគជ័យ");
+      const newActive = updatedUser ? updatedUser.is_active : !user.is_active;
+      const newStatus = updatedUser ? updatedUser.status : (newActive ? "active" : "disabled");
+
+      setUsers((prev) => {
+        const updated = prev.map((u) => (u.id === user.id ? { ...u, is_active: newActive, status: newStatus } : u));
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+        }
+        return updated;
+      });
+
+      if (selectedUser?.id === user.id) {
+        setSelectedUser((prev) => (prev ? { ...prev, is_active: newActive, status: newStatus } : null));
+      }
+
+      showToast(res.data?.message || (newActive ? "បានបើកដំណើរការគណនីជោគជ័យ" : "បានផ្អាកដំណើរការគណនីជោគជ័យ"));
     } catch (e: any) {
       showToast("បរាជ័យក្នុងការផ្លាស់ប្តូរស្ថានភាពគណនី", "error");
     } finally {
@@ -142,7 +180,13 @@ export default function AdminUsersPage() {
       if (res.data?.success) {
         const newPoints = res.data.points;
         setSelectedUser((prev) => (prev ? { ...prev, points: newPoints } : null));
-        setUsers((prev) => prev.map((u) => (u.id === selectedUser.id ? { ...u, points: newPoints } : u)));
+        setUsers((prev) => {
+          const updated = prev.map((u) => (u.id === selectedUser.id ? { ...u, points: newPoints } : u));
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+          }
+          return updated;
+        });
         showToast(`បានកែសម្រួលពិន្ទុ ${delta > 0 ? "+" : ""}${delta} pts ដោយជោគជ័យ!`);
         setAdjustPointsDelta("");
         setAdjustPointsReason("");
@@ -175,7 +219,19 @@ export default function AdminUsersPage() {
           expires_at: res.data.expires_at,
         });
         showToast(res.data.message || "បានបង្កើត Magic Login Link ដោយជោគជ័យ");
-        fetchUsers();
+
+        // Update last_password_reset_at in-place without re-querying the database
+        const now = new Date().toISOString();
+        setUsers((prev) => {
+          const updated = prev.map((u) => (u.id === userToReset.id ? { ...u, last_password_reset_at: now } : u));
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+          }
+          return updated;
+        });
+        if (resetModalUser && resetModalUser.id === userToReset.id) {
+          setResetModalUser((prev) => (prev ? { ...prev, last_password_reset_at: now } : null));
+        }
       }
     } catch (e: any) {
       showToast(e.response?.data?.message || "បរាជ័យក្នុងការបង្កើត Magic Link", "error");
@@ -196,18 +252,26 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleSendTelegram = async () => {
+  // 100% PRIVATE: Send directly to Customer's private Telegram bot or Gmail (Never spam Admin group)
+  const handleSendMagicLinkPrivate = async () => {
     if (!resetModalUser) return;
     setIsSendingTelegram(true);
     try {
       const res = await api.post(`/admin/users/${resetModalUser.id}/send-magic-link-telegram`);
       if (res.data?.success) {
-        showToast("បានផ្ញើ Magic Link ទៅកាន់ Telegram ដោយជោគជ័យ!");
+        const channel = res.data?.channel;
+        if (channel === "telegram_private") {
+          showToast("🚀 បានបាញ់ Magic Link ទៅកាន់ Telegram Bot ឯកជនរបស់អតិថិជនជោគជ័យ!");
+        } else if (channel === "email") {
+          showToast(`📧 បានផ្ញើ Magic Link ទៅកាន់ Gmail (${resetModalUser.email}) របស់អតិថិជនជោគជ័យ!`);
+        } else {
+          showToast(res.data?.message || "បានបញ្ជូនតំណភ្ជាប់ជោគជ័យ!");
+        }
       } else {
-        showToast(res.data?.message || "មិនអាចផ្ញើទៅ Telegram បានទេ សូមពិនិត្យ Bot", "error");
+        showToast(res.data?.message || "មិនអាចបញ្ជូនបានទេ សូមសាកល្បងម្ដងទៀត", "error");
       }
     } catch (e: any) {
-      showToast("បរាជ័យក្នុងការផ្ញើទៅ Telegram", "error");
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការបញ្ជូន", "error");
     } finally {
       setIsSendingTelegram(false);
     }
@@ -217,7 +281,13 @@ export default function AdminUsersPage() {
     if (!confirm(`តើអ្នកពិតជាចង់លុបគណនី "${name}" មែនទេ?`)) return;
     try {
       await api.delete(`/admin/users/${id}`);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
+      setUsers((prev) => {
+        const updated = prev.filter((u) => u.id !== id);
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+        }
+        return updated;
+      });
       showToast(`បានលុបគណនី "${name}" ដោយជោគជ័យ`);
       if (selectedUser?.id === id) setSelectedUser(null);
     } catch (e: any) {
@@ -289,7 +359,7 @@ export default function AdminUsersPage() {
         </div>
 
         <button
-          onClick={fetchUsers}
+          onClick={() => fetchUsers(true)}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
         >
@@ -445,12 +515,17 @@ export default function AdminUsersPage() {
                           <Phone size={12} className="text-gray-400" />
                           <span>{u.phone || "—"}</span>
                         </div>
-                        {u.telegram && (
+                        {u.has_telegram ? (
+                          <div className="flex items-center gap-1 text-[11px] text-sky-600 font-bold" title="Connected to Telegram Bot">
+                            <Send size={11} />
+                            <span>{u.telegram ? `@${u.telegram.replace("@", "")}` : "Telegram Bot"}</span>
+                          </div>
+                        ) : u.telegram ? (
                           <div className="flex items-center gap-1 text-[11px] text-sky-600">
                             <Send size={11} />
                             <span>@{u.telegram.replace("@", "")}</span>
                           </div>
-                        )}
+                        ) : null}
                         {u.city && (
                           <div className="flex items-center gap-1 text-[11px] text-gray-400">
                             <MapPin size={11} />
@@ -971,6 +1046,19 @@ export default function AdminUsersPage() {
               <p className="text-xs sm:text-sm text-gray-500 leading-relaxed">
                 បង្កើតតំណភ្ជាប់ចូលគណនីផ្ទាល់សម្រាប់អតិថិជន <b>{resetModalUser.display_name}</b> ({resetModalUser.email})។ អតិថិជនអាចចុចចូលភ្លាមៗដោយមិនបាច់វាយពាក្យសម្ងាត់ចាស់។
               </p>
+              <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border">
+                {resetModalUser.has_telegram ? (
+                  <span className="flex items-center gap-1.5 text-sky-700 bg-sky-50 border-sky-200">
+                    <span className="w-2 h-2 rounded-full bg-[#229ED9] animate-pulse" />
+                    <span>ភ្ជាប់ Telegram រួចរាល់ (ផ្ញើទៅ Private Bot)</span>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-amber-800 bg-amber-50 border-amber-200">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span>មិនទាន់ភ្ជាប់ Telegram (ផ្ញើទៅកាន់ Gmail)</span>
+                  </span>
+                )}
+              </div>
             </div>
 
             {isResetting ? (
@@ -1013,21 +1101,38 @@ export default function AdminUsersPage() {
                 <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
                   <CheckCircle2 size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
-                    <b>សុពលភាព ២៤ ម៉ោង៖</b> តំណភ្ជាប់នេះមានសុវត្ថិភាពខ្ពស់ និងអាចប្រើប្រាស់បានតែម្តងប៉ុណ្ណោះ។ ពេលអតិថិជនចុចរួច វានឹងផុតកំណត់ដោយស្វ័យប្រវត្តិ។
+                    <b>សុពលភាព ២៤ ម៉ោង (100% Private)៖</b> តំណភ្ជាប់នេះបញ្ជូនផ្ទាល់ទៅអតិថិជនតែម្នាក់គត់ មិនលេចធ្លាយក្នុង Admin Group ឡើយ។ ពេលអតិថិជនចុចរួច វានឹងផុតកំណត់ដោយស្វ័យប្រវត្តិ។
                   </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                  {/* Send via Telegram */}
+                  {/* Send via Private Telegram Bot or Gmail */}
                   <button
                     type="button"
-                    onClick={handleSendTelegram}
+                    onClick={handleSendMagicLinkPrivate}
                     disabled={isSendingTelegram}
-                    className="py-2.5 px-3 rounded-xl bg-[#229ED9] hover:bg-[#1b8ec3] text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                    title={resetModalUser.has_telegram ? "ផ្ញើសារឯកជនទៅ Telegram Bot របស់អតិថិជន" : "ផ្ញើអ៊ីមែល Reset ទៅកាន់ Gmail របស់អតិថិជន"}
+                    className={`py-2.5 px-3 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-xs ${
+                      resetModalUser.has_telegram
+                        ? "bg-[#229ED9] hover:bg-[#1b8ec3]"
+                        : "bg-red-600 hover:bg-red-700"
+                    }`}
                   >
-                    <Send size={14} className={isSendingTelegram ? "animate-spin" : ""} />
-                    <span>{isSendingTelegram ? "កំពុងផ្ញើ..." : "ផ្ញើទៅ Telegram Group"}</span>
+                    {isSendingTelegram ? (
+                      <RefreshCw size={14} className="animate-spin" />
+                    ) : resetModalUser.has_telegram ? (
+                      <Send size={14} />
+                    ) : (
+                      <Mail size={14} />
+                    )}
+                    <span>
+                      {isSendingTelegram
+                        ? "កំពុងបញ្ជូន..."
+                        : resetModalUser.has_telegram
+                        ? "🚀 ផ្ញើទៅ Telegram ឯកជន (Bot)"
+                        : "📧 ផ្ញើទៅ Gmail អតិថិជន"}
+                    </span>
                   </button>
 
                   {/* Share to Telegram directly */}

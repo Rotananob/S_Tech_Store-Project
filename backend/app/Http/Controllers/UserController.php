@@ -64,6 +64,9 @@ class UserController extends Controller
                 'gps_lat' => $u->gps_lat,
                 'gps_lng' => $u->gps_lng,
                 'telegram' => $u->telegram,
+                'username' => $u->username ?: (!empty($u->telegram) ? $u->telegram : null),
+                'telegram_chat_id' => $u->telegram_chat_id ?: (str_starts_with($u->firebase_uid ?? '', 'tg_') ? str_replace('tg_', '', $u->firebase_uid) : null),
+                'has_telegram' => !empty($u->telegram_chat_id) || str_starts_with($u->firebase_uid ?? '', 'tg_') || (!empty($u->telegram) && $u->telegram !== 'N/A'),
                 'profession' => $u->profession,
                 'gender' => $u->gender,
                 'birthday' => $u->birthday,
@@ -89,10 +92,26 @@ class UserController extends Controller
         $user->status = $newActive ? 'active' : 'disabled';
         $user->save();
 
+        if (!$newActive) {
+            // Immediately purge any cached sessions for this user so they cannot make authenticated requests
+            if (!empty($user->firebase_uid)) {
+                \Illuminate\Support\Facades\Cache::forget("customer_sess_uid_{$user->firebase_uid}");
+            }
+            if (!empty($user->magic_login_token)) {
+                $user->magic_login_token = null;
+                $user->magic_token_expires_at = null;
+                $user->save();
+            }
+        }
+
         return response()->json([
             'success' => true,
-            'message' => $newActive ? "បានបើកដំណើរការគណនី '{$user->display_name}' ឡើងវិញ" : "បានផ្អាកដំណើរការគណនី '{$user->display_name}' (Disabled)",
-            'user' => $user,
+            'message' => $newActive ? "បានបើកដំណើរការគណនី '{$user->display_name}' ឡើងវិញ (Active 100%)" : "បានផ្អាកដំណើរការគណនី '{$user->display_name}' (Disabled 100%)",
+            'user' => [
+                'id' => $user->id,
+                'is_active' => (bool)$user->is_active,
+                'status' => $user->status,
+            ],
         ]);
     }
 
@@ -219,9 +238,10 @@ class UserController extends Controller
 
         return response()->json([
             'success' => ($alertRes['ok'] ?? false) === true,
-            'message' => ($alertRes['ok'] ?? false) === true ? "បានផ្ញើ Magic Link ទៅកាន់ Telegram ដោយជោគជ័យ!" : "មិនអាចផ្ញើទៅ Telegram បានទេ សូមពិនិត្យការតភ្ជាប់ Bot",
+            'channel' => $alertRes['channel'] ?? 'telegram_private',
+            'message' => $alertRes['message'] ?? (($alertRes['ok'] ?? false) === true ? "បានផ្ញើ Magic Link ដោយជោគជ័យ!" : "មិនអាចផ្ញើបានទេ"),
             'magic_link' => $magicLink,
-            'telegram_response' => $alertRes,
+            'details' => $alertRes,
         ]);
     }
 

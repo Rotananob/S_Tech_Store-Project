@@ -563,6 +563,13 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
         return response()->json(['success' => false, 'error' => 'User not found'], 404);
     }
 
+    if (!($user->is_active ?? true)) {
+        return response()->json([
+            'success' => false,
+            'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin។'
+        ], 403);
+    }
+
     return response()->json([
         'success' => true,
         'token' => $token,
@@ -599,6 +606,17 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         : ("tg_{$tgId}@s-tech-store.tech");
 
     $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+    if ($user->exists && !($user->is_active ?? true)) {
+        return response()->json([
+            'success' => false,
+            'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin តាមរយៈ Live Chat ឬទូរស័ព្ទ។'
+        ], 403);
+    }
+    $user->telegram_chat_id = $tgId;
+    if (!$user->exists) {
+        $user->is_active = true;
+        $user->status = 'active';
+    }
     $user->display_name = $fullName;
     if (empty($user->email)) $user->email = $email;
     $user->telegram = $tgUsername;
@@ -738,6 +756,10 @@ Route::get('/auth/session/token-login', function (Request $request) {
 
     if (!$user) {
         return response()->json(['success' => false, 'error' => 'User not found or token expired'], 404);
+    }
+
+    if (!($user->is_active ?? true) || ($user->status ?? '') === 'suspended') {
+        return response()->json(['success' => false, 'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin។'], 403);
     }
 
     return response()->json([

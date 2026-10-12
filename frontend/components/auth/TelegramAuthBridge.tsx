@@ -87,13 +87,26 @@ export default function TelegramAuthBridge() {
           || `Telegram User #${tgUser.id}`;
 
         const existingRaw = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
-        let existing = null;
+        let existing: any = null;
         try {
           if (existingRaw) existing = JSON.parse(existingRaw);
         } catch (e) {}
 
+        // Professional Multi-Telegram Account Isolation (1 device with 3-4 accounts)
+        const existingTgId = existing?.telegram_id || (typeof existing?.uid === "string" && existing.uid.startsWith("tg_") ? existing.uid.replace("tg_", "") : null);
+        const isDifferentAccount = existingTgId && String(existingTgId) !== String(tgUser.id);
+
+        if (isDifferentAccount) {
+          // Purge previous user data to prevent cross-account contamination
+          localStorage.removeItem("customer_token");
+          localStorage.removeItem("user_session");
+          localStorage.removeItem("stech_user_session");
+          document.cookie = "customer_token=; path=/; max-age=0";
+          existing = null;
+        }
+
         const sessionPayload = {
-          ...existing,
+          ...(existing || {}),
           id: `tg_${tgUser.id}`,
           uid: `tg_${tgUser.id}`,
           firebase_uid: `tg_${tgUser.id}`,
@@ -108,7 +121,10 @@ export default function TelegramAuthBridge() {
           provider: "telegram",
         };
 
-        const clientToken = localStorage.getItem("customer_token") || `tg_miniapp_${tgUser.id}_${Date.now()}`;
+        const clientToken = (!isDifferentAccount && localStorage.getItem("customer_token")) 
+          ? localStorage.getItem("customer_token")! 
+          : `tg_miniapp_${tgUser.id}_${Date.now()}`;
+
         localStorage.setItem("user_session", JSON.stringify(sessionPayload));
         localStorage.setItem("stech_user_session", JSON.stringify(sessionPayload));
         localStorage.setItem("customer_token", clientToken);
@@ -140,7 +156,17 @@ export default function TelegramAuthBridge() {
               }
             }
           })
-          .catch(() => {});
+          .catch((err) => {
+            if (err?.response?.status === 403) {
+              // Account has been suspended by Admin
+              localStorage.removeItem("user_session");
+              localStorage.removeItem("stech_user_session");
+              localStorage.removeItem("customer_token");
+              document.cookie = "customer_token=; path=/; max-age=0";
+              window.dispatchEvent(new Event("user_session_updated"));
+              alert(err?.response?.data?.error || "គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account disabled)។");
+            }
+          });
       }
     }
 
