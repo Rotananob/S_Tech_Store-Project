@@ -81,6 +81,10 @@ export function ProductDetailClient({ product }: { product: any }) {
   const router = useRouter();
 
   useEffect(() => {
+    import("@/lib/services/history.service").then(({ recordProductView }) => {
+      recordProductView(product);
+    }).catch(() => {});
+
     import("@/lib/services/user.service").then(({ getWishlist }) => {
       getWishlist().then(res => {
          if (res.data && res.data.some(p => p.id === product.id)) {
@@ -88,7 +92,7 @@ export function ProductDetailClient({ product }: { product: any }) {
          }
       }).catch(e => console.log("User not logged in or error fetching wishlist"));
     });
-  }, [product.id]);
+  }, [product]);
 
   // 0ms Optimistic Wishlist Toggle
   const toggleWishlist = () => {

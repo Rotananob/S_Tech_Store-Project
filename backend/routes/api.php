@@ -1112,6 +1112,10 @@ Route::get('/user/profile', [UserController::class, 'getProfile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
 Route::post('/user/claim-welcome-gift', [UserController::class, 'claimWelcomeGift']);
+Route::post('/user/send-welcome-email', [UserController::class, 'sendWelcomeEmail']);
+Route::post('/user/send-reset-email', [UserController::class, 'sendResetEmail']);
+Route::post('/user/request-2fa-otp', [UserController::class, 'requestTwoFactorOtp']);
+Route::post('/user/verify-2fa-otp', [UserController::class, 'verifyTwoFactorOtp']);
 
 // Real S-Tech Wallet & Coin Rewards System (Real Money Top-up & Daily/Activity Coins)
 Route::get('/user/wallet', [\App\Http\Controllers\WalletController::class, 'getWallet']);

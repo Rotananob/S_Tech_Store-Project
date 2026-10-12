@@ -11,11 +11,12 @@ import { toHumanKhmerError } from "@/lib/error-translator";
 import api from "@/lib/api";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [authOverlay, setAuthOverlay] = useState<{
@@ -220,7 +221,19 @@ export default function RegisterPage() {
 
     const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
     if (!cleanUsername) {
-      setError("សូមបញ្ចូល Username ឱ្យបានត្រឹមត្រូវ (Please enter a valid username: letters, numbers, _, -)");
+      setError("សូមបញ្ចូល Username ឱ្យបានត្រឹមត្រូវ (អក្សរ, លេខ, _ ឬ -)");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៨ ខ្ទង់ (Password must be at least 8 characters)");
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("ពាក្យសម្ងាត់ និងការបញ្ជាក់ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ (Passwords do not match)");
       setLoading(false);
       return;
     }
@@ -235,17 +248,17 @@ export default function RegisterPage() {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-      const realDisplayName = name.trim() ? `${name.trim()} (@${cleanUsername})` : `@${cleanUsername}`;
+      const realDisplayName = `@${cleanUsername}`;
       try {
         await updateProfile(cred.user, { displayName: realDisplayName });
       } catch (e) {
         console.warn("Failed to set Firebase displayName:", e);
       }
 
-      // Update backend user profile immediately with real username & display_name
+      // Update backend user profile immediately with real username
       try {
         await api.put("/user/profile", {
-          display_name: name.trim() || cleanUsername,
+          display_name: realDisplayName,
           username: cleanUsername,
           email: email.trim(),
         }, {
@@ -259,9 +272,9 @@ export default function RegisterPage() {
       const userSession = {
         uid: cred.user.uid,
         firebase_uid: cred.user.uid,
-        name: name.trim() || cleanUsername,
+        name: realDisplayName,
         username: cleanUsername,
-        display_name: name.trim() || cleanUsername,
+        display_name: realDisplayName,
         email: email.trim(),
         provider: "email",
       };
@@ -269,13 +282,27 @@ export default function RegisterPage() {
       localStorage.setItem("stech_user_session", JSON.stringify(userSession));
       window.dispatchEvent(new Event("user_session_updated"));
 
-      // Create real welcome notification in database
-      await api.post("/user/notifications", {
-        title: `Welcome @${cleanUsername}! 🎉`,
-        message: `Thank you ${name.trim() || cleanUsername} for joining Cambodia's #1 genuine tech store. Enjoy 1-year official warranty on all products!`,
-        type: "welcome",
-      });
-      useNotificationStore.getState().fetchNotifications();
+      // 1. Dispatch Warm Khmer Welcome Email with $5 WELCOME5 voucher
+      try {
+        await api.post("/user/send-welcome-email", {
+          email: email.trim(),
+          username: cleanUsername,
+        }, {
+          headers: { "X-Firebase-UID": cred.user.uid }
+        });
+      } catch (emailErr) {
+        console.warn("Auto welcome email notice:", emailErr);
+      }
+
+      // 2. Create real welcome notification in database
+      try {
+        await api.post("/user/notifications", {
+          title: `Welcome @${cleanUsername}! 🎉`,
+          message: `សូមស្វាគមន៍មកកាន់ S Tech Store! កាដូ $5 Voucher (WELCOME5) និងរង្វាន់កាក់ប្រចាំថ្ងៃបានត្រៀមរួចជាស្រេចសម្រាប់អ្នក។`,
+          type: "welcome",
+        });
+        useNotificationStore.getState().fetchNotifications();
+      } catch (notifErr) {}
 
       setAuthOverlay({
         show: true,
@@ -744,38 +771,12 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Name */}
+        <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          {/* Username (Primary Account Identity) */}
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
-              Full Name (ឈ្មោះពេញ)
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name (e.g. Sokha Chan)"
-              style={{
-                width: "100%",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "8px",
-                padding: "12px 16px",
-                color: "white",
-                fontSize: "14px",
-                outline: "none",
-                transition: "border-color 0.2s",
-              }}
-              onFocus={(e) => (e.target.style.borderColor = "#c0392b")}
-              onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
-            />
-          </div>
-
-          {/* Username */}
-          <div>
-            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
-              <span>Username (ឈ្មោះគណនី / សម្គាល់) *</span>
-              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>@username</span>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)", marginBottom: "8px" }}>
+              <span>ឈ្មោះគណនី (Username) *</span>
+              <span style={{ fontSize: "11px", color: "#60a5fa" }}>@username</span>
             </label>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", fontWeight: "bold", fontSize: "14px", pointerEvents: "none" }}>
@@ -786,12 +787,12 @@ export default function RegisterPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ""))}
-                placeholder="e.g. sokha99, tech_pro"
+                placeholder="ឧ. sokha_tech, rathana99"
                 style={{
                   width: "100%",
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   padding: "12px 16px 12px 34px",
                   color: "white",
                   fontSize: "14px",
@@ -802,26 +803,27 @@ export default function RegisterPage() {
                 onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
               />
             </div>
-            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "6px", marginInlineStart: "2px" }}>
-              ឈ្មោះនេះនឹងត្រូវយកទៅដាក់លើ Profile & Chat របស់អ្នកផ្ទាល់ (Will be used as your real profile username)
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "5px", marginInlineStart: "2px" }}>
+              ប្រព័ន្ធ និង AI នឹងប្រើប្រាស់ឈ្មោះ @{username || "username"} នេះសម្រាប់ស្វាគមន៍លោកអ្នកផ្ទាល់
             </p>
           </div>
 
           {/* Email */}
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
-              Email Address
+            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)", marginBottom: "8px" }}>
+              អាសយដ្ឋានអ៊ីមែល (Email) *
             </label>
             <input
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="example@gmail.com"
               style={{
                 width: "100%",
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "8px",
+                borderRadius: "10px",
                 padding: "12px 16px",
                 color: "white",
                 fontSize: "14px",
@@ -835,28 +837,35 @@ export default function RegisterPage() {
 
           {/* Password */}
           <div>
-            <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
-              Password
-            </label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)" }}>
+                ពាក្យសម្ងាត់ (Password) *
+              </label>
+              <span style={{ fontSize: "11px", color: password.length >= 8 ? "#4ade80" : "rgba(255,255,255,0.4)" }}>
+                យ៉ាងតិច ៨ ខ្ទង់ {password.length > 0 && `(${password.length}/8)`}
+              </span>
+            </div>
             <div style={{ position: "relative" }}>
               <input
                 type={showPassword ? "text" : "password"}
+                required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
+                placeholder="បង្កើតពាក្យសម្ងាត់ (យ៉ាងតិច ៨ ខ្ទង់)"
                 style={{
                   width: "100%",
                   background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
-                  padding: "12px 40px 12px 16px",
+                  border: `1px solid ${password && password.length < 8 ? "#ef4444" : "rgba(255,255,255,0.1)"}`,
+                  borderRadius: "10px",
+                  padding: "12px 48px 12px 16px",
                   color: "white",
                   fontSize: "14px",
                   outline: "none",
                   transition: "border-color 0.2s",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = "#c0392b")}
-                onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                onBlur={(e) => (e.target.style.borderColor = password && password.length < 8 ? "#ef4444" : "rgba(255,255,255,0.1)")}
               />
               <button
                 type="button"
@@ -868,15 +877,90 @@ export default function RegisterPage() {
                   transform: "translateY(-50%)",
                   background: "none",
                   border: "none",
-                  color: "rgba(255,255,255,0.4)",
+                  color: "rgba(255,255,255,0.5)",
                   cursor: "pointer",
-                  fontSize: "12px",
+                  fontSize: "11px",
+                  fontWeight: "bold",
                   padding: "4px",
                 }}
               >
                 {showPassword ? "HIDE" : "SHOW"}
               </button>
             </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <label style={{ fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.8)" }}>
+                បញ្ជាក់ពាក្យសម្ងាត់ (Confirm Password) *
+              </label>
+              {confirmPassword.length > 0 && (
+                <span style={{ fontSize: "11px", color: confirmPassword === password ? "#4ade80" : "#ef4444" }}>
+                  {confirmPassword === password ? "✓ ត្រូវគ្នា" : "✗ មិនទាន់ត្រូវគ្នា"}
+                </span>
+              )}
+            </div>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="វាយបញ្ជាក់ពាក្យសម្ងាត់ម្តងទៀត"
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.04)",
+                  border: `1px solid ${confirmPassword && confirmPassword !== password ? "#ef4444" : "rgba(255,255,255,0.1)"}`,
+                  borderRadius: "10px",
+                  padding: "12px 48px 12px 16px",
+                  color: "white",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#c0392b")}
+                onBlur={(e) => (e.target.style.borderColor = confirmPassword && confirmPassword !== password ? "#ef4444" : "rgba(255,255,255,0.1)")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "rgba(255,255,255,0.5)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  fontWeight: "bold",
+                  padding: "4px",
+                }}
+              >
+                {showConfirmPassword ? "HIDE" : "SHOW"}
+              </button>
+            </div>
+          </div>
+
+          {/* Reassuring badge */}
+          <div
+            style={{
+              background: "rgba(34, 197, 94, 0.08)",
+              border: "1px solid rgba(34, 197, 94, 0.25)",
+              borderRadius: "10px",
+              padding: "10px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span style={{ fontSize: "16px", flexShrink: 0 }}>⚡</span>
+            <span style={{ fontSize: "12px", color: "#4ade80", lineHeight: "1.4", fontWeight: "600" }}>
+              ចុះឈ្មោះភ្លាម ចូលប្រើប្រាស់បានភ្លាមៗ ដោយមិនបាច់រង់ចាំលេខកូដ Confirm ពី Email ឡើយ!
+            </span>
           </div>
 
           <button

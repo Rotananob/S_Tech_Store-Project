@@ -731,6 +731,187 @@ class UserController extends Controller
     }
 
     /**
+     * POST /api/user/send-welcome-email
+     * Sends the warm Khmer Welcome Email with $5 WELCOME5 voucher and exploration links.
+     */
+    public function sendWelcomeEmail(Request $request)
+    {
+        $email = $request->input('email');
+        $username = $request->input('username');
+
+        if (empty($email)) {
+            $uid = $this->getUid($request);
+            if ($uid) {
+                $user = UserProfile::where('firebase_uid', $uid)->first();
+                if ($user && !empty($user->email)) {
+                    $email = $user->email;
+                    if (empty($username)) {
+                        $username = $user->username ?: $user->display_name;
+                    }
+                }
+            }
+        }
+
+        if (empty($email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'សូមបញ្ជាក់អ៊ីមែលសម្រាប់ផ្ញើលិខិតស្វាគមន៍',
+            ], 422);
+        }
+
+        $res = \App\Services\EmailService::sendWelcomeEmail($email, $username);
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានផ្ញើអ៊ីមែលស្វាគមន៍ដោយជោគជ័យទៅកាន់ {$email}!",
+            'data' => $res,
+        ]);
+    }
+
+    /**
+     * POST /api/user/send-reset-email
+     * Sends the luxury password reset link email with domain https://www.s-tech-store.tech.
+     */
+    public function sendResetEmail(Request $request)
+    {
+        $email = $request->input('email');
+        $username = $request->input('username');
+
+        if (empty($email)) {
+            $uid = $this->getUid($request);
+            if ($uid) {
+                $user = UserProfile::where('firebase_uid', $uid)->first();
+                if ($user && !empty($user->email)) {
+                    $email = $user->email;
+                    if (empty($username)) {
+                        $username = $user->username ?: $user->display_name;
+                    }
+                }
+            }
+        }
+
+        if (empty($email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'សូមបញ្ជាក់អ៊ីមែលគណនីរបស់អ្នក',
+            ], 422);
+        }
+
+        $res = \App\Services\EmailService::sendPasswordResetEmail($email, $username);
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានផ្ញើតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ទៅកាន់ {$email} រួចរាល់ហើយ!",
+            'data' => $res,
+        ]);
+    }
+
+    /**
+     * POST /api/user/request-2fa-otp
+     * Sends a 6-digit OTP code to the user's email & Telegram to enable or verify 2FA.
+     */
+    public function requestTwoFactorOtp(Request $request)
+    {
+        $email = $request->input('email');
+        $username = $request->input('username');
+
+        if (empty($email)) {
+            $uid = $this->getUid($request);
+            if ($uid) {
+                $user = UserProfile::where('firebase_uid', $uid)->first();
+                if ($user && !empty($user->email)) {
+                    $email = $user->email;
+                    if (empty($username)) {
+                        $username = $user->username ?: $user->display_name;
+                    }
+                }
+            }
+        }
+
+        if (empty($email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនមានអ៊ីមែលសម្រាប់ផ្ញើលេខកូដ OTP ឡើយ',
+            ], 422);
+        }
+
+        $res = \App\Services\EmailService::sendTwoFactorOtpEmail($email, $username);
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានផ្ញើលេខកូដសុវត្ថិភាព OTP ទៅកាន់ {$email} និង Telegram រួចរាល់ហើយ (សុពលភាព 10 នាទី)",
+            'otp' => $res['otp'],
+        ]);
+    }
+
+    /**
+     * POST /api/user/verify-2fa-otp
+     * Validates the 6-digit OTP code and updates 2FA status in UserProfile.
+     */
+    public function verifyTwoFactorOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'otp' => 'required|string',
+            'enable' => 'nullable|boolean',
+            'email' => 'nullable|email',
+        ]);
+
+        $email = $validated['email'] ?? null;
+        $uid = $this->getUid($request);
+        $user = null;
+
+        if ($uid) {
+            $user = UserProfile::where('firebase_uid', $uid)->first();
+            if ($user && empty($email)) {
+                $email = $user->email;
+            }
+        } elseif (!empty($email)) {
+            $user = UserProfile::where('email', $email)->first();
+        }
+
+        if (empty($email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចកំណត់អត្តសញ្ញាណគណនីបានទេ',
+            ], 422);
+        }
+
+        $cachedOtp = \Illuminate\Support\Facades\Cache::get("2fa_otp_{$email}");
+        if (!$cachedOtp || trim((string)$cachedOtp) !== trim((string)$validated['otp'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់សុពលភាពហើយ សូមស្នើសុំលេខកូដថ្មី!',
+            ], 400);
+        }
+
+        // OTP verified - clear cache
+        \Illuminate\Support\Facades\Cache::forget("2fa_otp_{$email}");
+
+        $enable = $request->boolean('enable', true);
+
+        if ($user) {
+            $user->two_fa_enabled = $enable;
+            $user->save();
+
+            try {
+                UserNotification::create([
+                    'user_id' => $user->firebase_uid ?? (string)$user->id,
+                    'title' => $enable ? '🛡️ បានបើកប្រព័ន្ធ 2FA ជោគជ័យ' : '🔓 បានបិទប្រព័ន្ធ 2FA',
+                    'message' => $enable ? 'គណនីរបស់អ្នកឥឡូវនេះត្រូវបានការពារដោយប្រព័ន្ធ Two-Factor Authentication។' : 'ប្រព័ន្ធ Two-Factor Authentication ត្រូវបានបិទលើគណនីរបស់អ្នក។',
+                    'type' => 'security',
+                    'is_read' => false,
+                ]);
+            } catch (\Exception $e) {}
+        }
+
+        return response()->json([
+            'success' => true,
+            'two_fa_enabled' => $enable,
+            'message' => $enable ? 'អបអរសាទរ! បានផ្ទៀងផ្ទាត់ និងបើកប្រព័ន្ធ Two-Factor Authentication ដោយជោគជ័យ 🛡️' : 'បានបិទប្រព័ន្ធ Two-Factor Authentication រួចរាល់!',
+        ]);
+    }
+
+    /**
      * PUT /api/user/profile
      * Update profile info.
      */

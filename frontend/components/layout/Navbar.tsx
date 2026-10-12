@@ -23,6 +23,7 @@ import SlideOverCart from "@/components/cart/SlideOverCart";
 import { useVisualSearchStore } from "@/store/visualSearchStore";
 import VisualSearchModal from "@/components/search/VisualSearchModal";
 import NotificationPopupModal from "@/components/ui/NotificationPopupModal";
+import { recordSearchQuery } from "@/lib/services/history.service";
 
 export default function Navbar() {
   const openVisualSearch = useVisualSearchStore((s) => s.openVisualSearch);
@@ -189,6 +190,7 @@ export default function Navbar() {
     if (e) e.preventDefault();
     const q = search.trim();
     if (q) {
+      recordSearchQuery(q);
       setShowLiveDropdown(false);
       router.push(`/search?q=${encodeURIComponent(q)}`);
     }

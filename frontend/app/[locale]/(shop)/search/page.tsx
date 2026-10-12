@@ -7,6 +7,7 @@ import { Product } from "@/types";
 import { getProducts } from "@/lib/services/product.service";
 import ProductCard from "@/components/product/ProductCard";
 import { Link } from "@/i18n/routing";
+import { recordSearchQuery } from "@/lib/services/history.service";
 
 function SearchContent() {
   const t = useTranslations("Navigation");
@@ -23,6 +24,7 @@ function SearchContent() {
         setLoading(false);
         return;
       }
+      recordSearchQuery(q);
       setLoading(true);
       try {
         const res = await getProducts({ search: q });

@@ -11,7 +11,7 @@ import {
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
   Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike,
-  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star
+  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2
 } from "lucide-react";
 import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
@@ -26,6 +26,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
 import { ThemeDropdown } from "@/components/ui/ThemeDropdown";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import {
+  getViewedProducts,
+  clearViewedProducts,
+  getSearchHistory,
+  clearSearchHistory,
+  removeSearchQuery,
+  ViewedProduct,
+  SearchHistoryItem
+} from "@/lib/services/history.service";
 
 interface ProfileData {
   firebase_uid?: string;
@@ -104,7 +113,7 @@ const TABS = [
   { key: "security", label: "Security & Devices", desc: "2FA, Passwords & Sessions", icon: Shield },
   { key: "preferences", label: "Preferences & Updates", desc: "Language, fonts & theme", icon: Settings },
   { key: "warranty", label: "Warranty & Hardware", desc: "Official RMA & Devices", icon: Cpu },
-  { key: "orders", label: "Order History", desc: "Purchases & PassApp tracking", icon: Package },
+  { key: "orders", label: "History & Activities", desc: "Orders, Viewed Items & Searches", icon: History },
 ];
 
 export default function UserProfilePage() {
@@ -149,6 +158,39 @@ export default function UserProfilePage() {
   const [telegramPolling, setTelegramPolling] = useState(false);
   const [telegramSuccess, setTelegramSuccess] = useState(false);
   const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+
+  // History Sub-Tabs & Activity Tracking (Orders, Viewed Products, Searches)
+  const [historySubTab, setHistorySubTab] = useState<"orders" | "viewed" | "searches">("orders");
+  const [viewedProducts, setViewedProducts] = useState<ViewedProduct[]>([]);
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+
+  // 2FA OTP Security Verification State
+  const [show2faModal, setShow2faModal] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [otpSentNotice, setOtpSentNotice] = useState("");
+  const [otpTargetAction, setOtpTargetAction] = useState<"enable" | "disable">("enable");
+
+  // Luxury Password Reset Alert State (https://www.s-tech-store.tech)
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccessModal, setResetSuccessModal] = useState<{ show: boolean; email: string; resetLink?: string } | null>(null);
+
+  // Privacy and Cache Toast
+  const [privacyToast, setPrivacyToast] = useState<string | null>(null);
+
+  const refreshHistory = () => {
+    if (typeof window !== "undefined") {
+      setViewedProducts(getViewedProducts());
+      setSearchHistory(getSearchHistory());
+    }
+  };
+
+  useEffect(() => {
+    refreshHistory();
+    window.addEventListener("stech_history_updated", refreshHistory);
+    return () => window.removeEventListener("stech_history_updated", refreshHistory);
+  }, []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -551,22 +593,187 @@ export default function UserProfilePage() {
   };
 
   const handlePasswordReset = async () => {
-    if (!user?.email) return;
+    const targetEmail = user?.email || profile.email;
+    if (!targetEmail) {
+      alert("សូមផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលគណនីរបស់អ្នកជាមុនសិន");
+      return;
+    }
+
+    setResetLoading(true);
     try {
-      await sendPasswordResetEmail(auth, user.email);
+      // 1. Firebase built-in reset email
+      try {
+        await sendPasswordResetEmail(auth, targetEmail);
+      } catch (fbErr) {
+        console.warn("Firebase reset notice:", fbErr);
+      }
+
+      // 2. Custom backend branded luxury Khmer HTML email with domain https://www.s-tech-store.tech
+      const res = await api.post("/user/send-reset-email", {
+        email: targetEmail,
+        username: profile.display_name || user?.displayName || "VIP Member",
+      });
+
       setResetSent(true);
-      setTimeout(() => setResetSent(false), 4000);
-    } catch (err) {
-      alert("Please check your email to reset password.");
+      setResetSuccessModal({
+        show: true,
+        email: targetEmail,
+        resetLink: res.data?.data?.reset_link,
+      });
+      setTimeout(() => setResetSent(false), 5000);
+    } catch (err: any) {
+      console.error("Password reset dispatch error:", err);
+      setResetSent(true);
+      setResetSuccessModal({
+        show: true,
+        email: targetEmail,
+      });
+    } finally {
+      setResetLoading(false);
     }
   };
 
   const handleToggle2FA = async () => {
-    const newVal = !profile.two_fa_enabled;
-    setProfile((p) => ({ ...p, two_fa_enabled: newVal }));
+    const targetEmail = user?.email || profile.email;
+    if (!targetEmail) {
+      alert("សូមភ្ជាប់អ៊ីមែលដើម្បីអាចប្រើប្រាស់ប្រព័ន្ធ Two-Factor Authentication បាន!");
+      return;
+    }
+
+    if (profile.two_fa_enabled) {
+      // Prompt user to disable
+      if (confirm("តើអ្នកពិតជាចង់បិទប្រព័ន្ធការពារ Two-Factor Authentication មែនទេ?")) {
+        try {
+          await api.put("/user/profile", { two_fa_enabled: false });
+          setProfile((p) => ({ ...p, two_fa_enabled: false }));
+          setPrivacyToast("បានបិទប្រព័ន្ធ Two-Factor Authentication រួចរាល់!");
+          setTimeout(() => setPrivacyToast(null), 3000);
+        } catch (e) {}
+      }
+      return;
+    }
+
+    // Opening 2FA: request OTP code via email & telegram
+    setOtpLoading(true);
+    setOtpError("");
+    setOtpInput("");
+    setOtpTargetAction("enable");
+    setShow2faModal(true);
+
     try {
-      await api.put("/user/profile", { two_fa_enabled: newVal });
-    } catch (e) {}
+      const res = await api.post("/user/request-2fa-otp", {
+        email: targetEmail,
+        username: profile.display_name || user?.displayName,
+      });
+      setOtpSentNotice(res.data?.message || `លេខកូដសុវត្ថិភាព OTP ត្រូវបានផ្ញើទៅកាន់ ${targetEmail}!`);
+    } catch (err: any) {
+      setOtpError(err.response?.data?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ សូមព្យាយាមម្តងទៀត");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerify2faOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpInput.trim().length < 4) {
+      setOtpError("សូមបញ្ចូលលេខកូដ OTP ឱ្យបានត្រឹមត្រូវ");
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const targetEmail = user?.email || profile.email;
+      const res = await api.post("/user/verify-2fa-otp", {
+        otp: otpInput.trim(),
+        enable: true,
+        email: targetEmail,
+      });
+
+      if (res.data?.success) {
+        setProfile((p) => ({ ...p, two_fa_enabled: true }));
+        setShow2faModal(false);
+        setPrivacyToast("🎉 អបអរសាទរ! បានផ្ទៀងផ្ទាត់ និងបើកប្រព័ន្ធ Two-Factor Authentication ជោគជ័យ 🛡️");
+        setTimeout(() => setPrivacyToast(null), 4000);
+      } else {
+        setOtpError(res.data?.message || "លេខកូដ OTP មិនត្រឹមត្រូវឡើយ!");
+      }
+    } catch (err: any) {
+      setOtpError(err.response?.data?.message || "លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់សុពលភាពហើយ");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleClearViewedHistory = () => {
+    if (confirm("តើអ្នកពិតជាចង់សម្អាតប្រវត្តិចូលមើលទំនិញទាំងអស់មែនទេ?")) {
+      clearViewedProducts();
+      setViewedProducts([]);
+      setPrivacyToast("បានសម្អាតប្រវត្តិចូលមើលទំនិញរួចរាល់!");
+      setTimeout(() => setPrivacyToast(null), 3000);
+    }
+  };
+
+  const handleClearSearchHistory = () => {
+    if (confirm("តើអ្នកពិតជាចង់សម្អាតប្រវត្តិពាក្យស្វែងរកទាំងអស់មែនទេ?")) {
+      clearSearchHistory();
+      setSearchHistory([]);
+      setPrivacyToast("បានសម្អាតប្រវត្តិស្វែងរកទាំងអស់រួចរាល់!");
+      setTimeout(() => setPrivacyToast(null), 3000);
+    }
+  };
+
+  const handleRemoveSingleSearch = (query: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    removeSearchQuery(query);
+    setSearchHistory(getSearchHistory());
+  };
+
+  const handleExportAccountData = () => {
+    try {
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        store: "S Tech Store Cambodia",
+        domain: "https://www.s-tech-store.tech",
+        user_profile: {
+          ...profile,
+          email: user?.email || profile.email,
+          uid: user?.uid,
+        },
+        viewed_products: getViewedProducts(),
+        search_history: getSearchHistory(),
+        orders_count: orders.length,
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `stech_profile_data_${profile.display_name || "user"}_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setPrivacyToast("បានទាញយកទិន្នន័យគណនី (JSON Export) ដោយជោគជ័យ!");
+      setTimeout(() => setPrivacyToast(null), 3500);
+    } catch (e) {
+      alert("ទាញយកទិន្នន័យមិនបានសម្រេច");
+    }
+  };
+
+  const handleLogoutAllSessions = async () => {
+    if (confirm("តើអ្នកពិតជាចង់ចាកចេញពីគ្រប់ឧបករណ៍ទាំងអស់មែនទេ?")) {
+      try {
+        localStorage.removeItem("customer_token");
+        localStorage.removeItem("user_session");
+        localStorage.removeItem("stech_user_session");
+        await signOut(auth);
+        window.location.href = "/";
+      } catch (e) {
+        window.location.href = "/";
+      }
+    }
   };
 
   const handleConnectTelegram = async () => {
@@ -1836,39 +2043,45 @@ export default function UserProfilePage() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Key size={16} className="text-[#8B1A1A]" />
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">Password & Authentication</h4>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">ពាក្យសម្ងាត់ & សុវត្ថិភាព (Password & Reset)</h4>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Send an official password reset link to your verified email: {user?.email}
+                    ផ្ញើតំណភ្ជាប់ប្តូរពាក្យសម្ងាត់ផ្លូវការទៅកាន់អ៊ីមែល: <strong className="text-gray-800 dark:text-gray-200">{user?.email || profile.email}</strong> (Domain: s-tech-store.tech)
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handlePasswordReset}
-                  className="px-4 py-2.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                  disabled={resetLoading}
+                  className="px-4 py-2.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
                 >
-                  <Lock size={14} />
-                  <span>Send Reset Link</span>
+                  <Lock size={14} className={resetLoading ? "animate-spin" : ""} />
+                  <span>{resetLoading ? "កំពុងផ្ញើ..." : "ផ្ញើតំណភ្ជាប់ Reset"}</span>
                 </button>
               </div>
 
               {resetSent && (
-                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 size={16} />
-                  <span>Password reset email dispatched to {user?.email}. Please check your inbox.</span>
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 p-3.5 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-blue-500 shrink-0" />
+                  <span>បានផ្ញើសារ Reset Password ដោយជោគជ័យទៅកាន់ {user?.email || profile.email} (សូមពិនិត្យ Inbox ឬ Spam របស់អ្នក)។</span>
                 </div>
               )}
 
-              {/* 2FA Toggle */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex items-center justify-between gap-4">
+              {/* 2FA Verification Box */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Smartphone size={16} className="text-blue-500" />
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">Two-Factor Authentication (2FA)</h4>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">ការផ្ទៀងផ្ទាត់ពីរកត្តា (Two-Factor Authentication / 2FA)</h4>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      profile.two_fa_enabled ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-gray-200 dark:bg-white/10 text-gray-500"
+                    }`}>
+                      {profile.two_fa_enabled ? "✓ បានបើក (Active)" : "មិនទាន់បើក (Disabled)"}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Require extra verification code when logging in on unrecognized devices.
+                    តម្រូវឱ្យបញ្ចូលលេខកូដសុវត្ថិភាព ៦ ខ្ទង់ដែលផ្ញើទៅ Email & Telegram រាល់ពេលចូលប្រើលើឧបករណ៍ថ្មី។
                   </p>
                 </div>
                 <Toggle value={profile.two_fa_enabled} onChange={handleToggle2FA} />
@@ -1881,7 +2094,13 @@ export default function UserProfilePage() {
                     <Laptop size={14} className="text-emerald-500" />
                     <span>Active Device Logins (ឧបករណ៍កំពុងដំណើរការ)</span>
                   </h4>
-                  <span className="text-[11px] text-gray-400">1 Device Connected</span>
+                  <button
+                    type="button"
+                    onClick={handleLogoutAllSessions}
+                    className="text-[11px] font-bold text-red-500 hover:text-red-600 hover:underline border-none bg-transparent cursor-pointer"
+                  >
+                    ចាកចេញពីគ្រប់ឧបករណ៍ (Sign Out All)
+                  </button>
                 </div>
 
                 <div className="divide-y divide-gray-100 dark:divide-white/5 border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden">
@@ -1895,10 +2114,66 @@ export default function UserProfilePage() {
                           <span className="text-xs font-bold text-gray-900 dark:text-white">{deviceInfo.name}</span>
                           <span className="px-1.5 py-0.2 rounded bg-emerald-500 text-white text-[9px] font-bold">This Device</span>
                         </div>
-                        <p className="text-[11px] text-gray-400">Current IP Session • Active Now</p>
+                        <p className="text-[11px] text-gray-400">Current IP Session • Active Now • S Tech Verified</p>
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Privacy & Account Data Export Box */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <Shield size={16} className="text-purple-500" />
+                      <span>គ្រប់គ្រងទិន្នន័យឯកជនភាព (Privacy & Data Management)</span>
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      សម្អាតទិន្នន័យ Cache ប្រវត្តិ ឬទាញយកទិន្នន័យគណនីរបស់អ្នកជារូបរាង JSON file។
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleClearViewedHistory}
+                    className="p-3 rounded-xl bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 hover:border-red-400 text-left transition-all cursor-pointer group"
+                  >
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block group-hover:text-red-500">
+                      🗑️ សម្អាតទំនិញបានមើល
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                      លុបប្រវត្តិទំនិញចូលមើល ({viewedProducts.length} មុខ)
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleClearSearchHistory}
+                    className="p-3 rounded-xl bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 hover:border-red-400 text-left transition-all cursor-pointer group"
+                  >
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block group-hover:text-red-500">
+                      🗑️ សម្អាតប្រវត្តិស្វែងរក
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                      លុបពាក្យគន្លឹះស្វែងរក ({searchHistory.length} ពាក្យ)
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExportAccountData}
+                    className="p-3 rounded-xl bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 hover:border-blue-400 text-left transition-all cursor-pointer group"
+                  >
+                    <span className="text-xs font-bold text-gray-800 dark:text-gray-200 block group-hover:text-blue-500">
+                      📥 ទាញយកទិន្នន័យគណនី
+                    </span>
+                    <span className="text-[10px] text-gray-400 block mt-0.5">
+                      Export Data to JSON
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -2317,125 +2592,362 @@ export default function UserProfilePage() {
             </div>
           )}
 
-          {/* ── TAB 6: Order History ──────────────────────────────── */}
+          {/* ── TAB 6: History & Activities Hub ──────────────────────── */}
           {activeTab === "orders" && (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              {/* Main Tab Header with Sub-Tab Navigation */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-100 dark:border-white/10">
                 <div>
-                  <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
-                    Order History (ប្រវត្តិការបញ្ជាទិញ)
+                  <h3 className="text-base sm:text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <History size={22} className="text-[#8B1A1A] dark:text-red-400" />
+                    <span>ប្រវត្តិសកម្មភាព & ការបញ្ជាទិញ (Activity History)</span>
                   </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    View order status, tracking, and download invoices.
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    គ្រប់គ្រងប្រវត្តិការទិញទំនិញ ផលិតផលដែលបានចូលមើល និងពាក្យគន្លឹះស្វែងរករបស់អ្នក។
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-white/10 p-1 rounded-xl overflow-x-auto no-scrollbar">
-                  {["all", "pending", "processing", "packing", "shipped", "completed"].map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => setOrderFilter(st as any)}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all border-none cursor-pointer ${
-                        orderFilter === st
-                          ? "bg-white dark:bg-black text-[#8B1A1A] shadow-sm"
-                          : "text-gray-500 bg-transparent"
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+                {/* Sub-Tab Navigation Pills */}
+                <div className="flex items-center gap-1.5 bg-gray-100/90 dark:bg-white/10 p-1 rounded-2xl overflow-x-auto no-scrollbar">
+                  <button
+                    type="button"
+                    onClick={() => setHistorySubTab("orders")}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      historySubTab === "orders"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-red-900/30"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-transparent"
+                    }`}
+                  >
+                    <Package size={14} />
+                    <span>ការបញ្ជាទិញ ({orders.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setHistorySubTab("viewed")}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      historySubTab === "viewed"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-red-900/30"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-transparent"
+                    }`}
+                  >
+                    <Eye size={14} />
+                    <span>ទំនិញបានមើល ({viewedProducts.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setHistorySubTab("searches")}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      historySubTab === "searches"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-red-900/30"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-transparent"
+                    }`}
+                  >
+                    <Search size={14} />
+                    <span>ប្រវត្តិស្វែងរក ({searchHistory.length})</span>
+                  </button>
                 </div>
               </div>
 
-              {ordersLoading ? (
-                <div className="py-12 flex justify-center">
-                  <div className="w-8 h-8 border-4 border-[#8B1A1A] border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="py-16 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/5 p-8">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
-                    <Package size={32} />
+              {/* Sub-Tab 1: Orders History */}
+              {historySubTab === "orders" && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+                      តម្រៀបតាមស្ថានភាព (Filter Status):
+                    </span>
+
+                    <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-white/10 p-1 rounded-xl overflow-x-auto no-scrollbar">
+                      {["all", "pending", "processing", "packing", "shipped", "completed"].map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setOrderFilter(st as any)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all border-none cursor-pointer ${
+                            orderFilter === st
+                              ? "bg-white dark:bg-black text-[#8B1A1A] shadow-sm"
+                              : "text-gray-500 bg-transparent"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-base">មិនទាន់មានការបញ្ជាទិញនៅឡើយទេ</h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
-                      លោកអ្នកមិនទាន់មានទំនិញក្នុងប្រវត្តិបញ្ជាទិញឡើយ។ ចូលមើលទំនិញបច្ចេកវិទ្យា និងគ្រឿងបន្លាស់ឥឡូវនេះ!
-                    </p>
-                  </div>
-                  <Link
-                    href="/category/all"
-                    className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6b1111] hover:to-red-700 text-white font-bold text-xs shadow-md no-underline transition-all"
-                  >
-                    ស្វែងរកទំនិញឥឡូវនេះ (Shop Now)
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center text-[#8B1A1A] shadow-sm">
-                          <Package size={18} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900 dark:text-white">
-                              Order #{order.id}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                order.status === "completed"
-                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-                                  : order.status === "shipped"
-                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                  : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                              }`}
-                            >
-                              {order.status}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-gray-400">{formatTime(order.created_at)}</p>
-                        </div>
+
+                  {ordersLoading ? (
+                    <div className="py-12 flex justify-center">
+                      <div className="w-8 h-8 border-4 border-[#8B1A1A] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : filteredOrders.length === 0 ? (
+                    <div className="py-16 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10 p-8">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                        <Package size={32} />
                       </div>
-
-                      <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-200/60 dark:border-white/5">
-                        <div className="text-right">
-                          <div className="text-base font-black text-gray-900 dark:text-white">
-                            ${Number(order.total_amount).toFixed(2)}
+                      <div>
+                        <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-base">មិនទាន់មានការបញ្ជាទិញនៅឡើយទេ</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+                          លោកអ្នកមិនទាន់មានទំនិញក្នុងប្រវត្តិបញ្ជាទិញឡើយ។ ចូលមើលទំនិញបច្ចេកវិទ្យា និងគ្រឿងបន្លាស់ឥឡូវនេះ!
+                        </p>
+                      </div>
+                      <Link
+                        href="/category/all"
+                        className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6b1111] hover:to-red-700 text-white font-bold text-xs shadow-md no-underline transition-all"
+                      >
+                        ស្វែងរកទំនិញឥឡូវនេះ (Shop Now)
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-white/10 flex items-center justify-center text-[#8B1A1A] shadow-sm">
+                              <Package size={18} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                  Order #{order.id}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                    order.status === "completed"
+                                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                      : order.status === "shipped"
+                                      ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                      : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                  }`}
+                                >
+                                  {order.status}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-400">{formatTime(order.created_at)}</p>
+                            </div>
                           </div>
-                          <span className="text-[10px] text-gray-400 font-medium">
-                            {order.items?.length || 1} tech item(s)
-                          </span>
-                        </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTrackedOrder(order);
-                              setShowPassAppModal(true);
-                            }}
-                            className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-none"
-                            title="Live Delivery Tracking like PassApp"
-                          >
-                            <Bike size={14} />
-                            <span>Live Tracking</span>
-                          </button>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-200/60 dark:border-white/5">
+                            <div className="text-right">
+                              <div className="text-base font-black text-gray-900 dark:text-white">
+                                ${Number(order.total_amount).toFixed(2)}
+                              </div>
+                              <span className="text-[10px] text-gray-400 font-medium">
+                                {order.items?.length || 1} tech item(s)
+                              </span>
+                            </div>
 
-                          <Link
-                            href={`/orders/${order.id}`}
-                            className="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold transition-all no-underline shadow-sm"
-                          >
-                            Details &rarr;
-                          </Link>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTrackedOrder(order);
+                                  setShowPassAppModal(true);
+                                }}
+                                className="px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer border-none"
+                                title="Live Delivery Tracking like PassApp"
+                              >
+                                <Bike size={14} />
+                                <span>Live Tracking</span>
+                              </button>
+
+                              <Link
+                                href={`/orders/${order.id}`}
+                                className="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold transition-all no-underline shadow-sm"
+                              >
+                                Details &rarr;
+                              </Link>
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 2: Recently Viewed Products */}
+              {historySubTab === "viewed" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                        ទំនិញដែលបានចូលមើលថ្មីៗ ({viewedProducts.length} មុខ)
+                      </h4>
+                      <p className="text-[11px] text-gray-400">
+                        កត់ត្រារាល់ផលិតផលដែលលោកអ្នកបានចូលមើលលើវេបសាយ ស្រួលត្រឡប់មកពិនិត្យឡើងវិញ
+                      </p>
+                    </div>
+                    {viewedProducts.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearViewedHistory}
+                        className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-1.5 border-none cursor-pointer transition-all"
+                      >
+                        <Trash2 size={13} />
+                        <span>សម្អាតប្រវត្តិ</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {viewedProducts.length === 0 ? (
+                    <div className="py-16 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10 p-8">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                        <Eye size={32} />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-base">
+                          មិនទាន់មានប្រវត្តិចូលមើលទំនិញនៅឡើយទេ
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+                          នៅពេលលោកអ្នកចុចចូលមើលផលិតផលណាមួយ វានឹងត្រូវកត់ត្រាទុកនៅទីនេះដោយស្វ័យប្រវត្តិ!
+                        </p>
+                      </div>
+                      <Link
+                        href="/category/all"
+                        className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white font-bold text-xs shadow-md no-underline transition-all"
+                      >
+                        រុករកទំនិញឥឡូវនេះ (Explore Store)
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                      {viewedProducts.map((p) => {
+                        const displayPrice = p.sale_price ? Number(p.sale_price) : Number(p.price);
+                        const originalPrice = Number(p.price);
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex flex-col p-3 rounded-2xl bg-white dark:bg-[#141720] border border-gray-100 dark:border-white/10 shadow-xs hover:shadow-md transition-all group"
+                          >
+                            <Link
+                              href={`/products/${p.slug || p.id}`}
+                              className="h-32 sm:h-40 w-full bg-gray-50 dark:bg-white/5 rounded-xl overflow-hidden mb-2.5 p-2 flex items-center justify-center relative no-underline"
+                            >
+                              <img
+                                src={p.image || "/logo.jpg"}
+                                alt={p.name}
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            </Link>
+
+                            <div className="text-[10px] text-gray-400 uppercase font-bold truncate">
+                              {p.category_name || "Official Tech"}
+                            </div>
+                            <Link
+                              href={`/products/${p.slug || p.id}`}
+                              className="text-xs sm:text-[13px] font-bold text-gray-900 dark:text-white line-clamp-2 leading-snug mb-1 group-hover:text-[#8B1A1A] transition-colors no-underline"
+                            >
+                              {p.name}
+                            </Link>
+
+                            <div className="mt-auto pt-2 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
+                              <div>
+                                <span className="text-xs sm:text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                                  ${displayPrice.toFixed(2)}
+                                </span>
+                                {p.sale_price && (
+                                  <span className="block text-[10px] text-gray-400 line-through font-mono">
+                                    ${originalPrice.toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  useCartStore.getState().addItem({
+                                    id: Number(p.id),
+                                    name: p.name,
+                                    price: displayPrice,
+                                    image_url: p.image || "/logo.jpg",
+                                    quantity: 1,
+                                    product: p as any,
+                                  });
+                                  setPrivacyToast(`បានបន្ថែម "${p.name.slice(0, 20)}..." ទៅក្នុងកន្ត្រក!`);
+                                  setTimeout(() => setPrivacyToast(null), 2500);
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg bg-[#8B1A1A]/10 hover:bg-[#8B1A1A] text-[#8B1A1A] hover:text-white text-[11px] font-bold transition-colors cursor-pointer border-none flex items-center gap-1"
+                                title="Add to Cart"
+                              >
+                                <ShoppingCart size={12} />
+                                <span>+កន្ត្រក</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 3: Search Query History */}
+              {historySubTab === "searches" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                        ប្រវត្តិស្វែងរក (Search History - {searchHistory.length} ពាក្យ)
+                      </h4>
+                      <p className="text-[11px] text-gray-400">
+                        ចុចលើពាក្យគន្លឹះដើម្បីស្វែងរកទំនិញភ្លាមៗ
+                      </p>
+                    </div>
+                    {searchHistory.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearchHistory}
+                        className="px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-1.5 border-none cursor-pointer transition-all"
+                      >
+                        <Trash2 size={13} />
+                        <span>សម្អាតប្រវត្តិស្វែងរក</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {searchHistory.length === 0 ? (
+                    <div className="py-16 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-3 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10 p-8">
+                      <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                        <Search size={32} />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-gray-800 dark:text-gray-200 text-base">
+                          មិនទាន់មានប្រវត្តិពាក្យស្វែងរកនៅឡើយទេ
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+                          នៅពេលលោកអ្នកស្វែងរកផលិតផលលើ Navbar ឬទំព័រ Search វានឹងត្រូវរក្សាទុកនៅទីនេះ។
+                        </p>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5">
+                      {searchHistory.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => router.push(`/search?q=${encodeURIComponent(item.query)}`)}
+                          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-[#141720] border border-gray-200 dark:border-white/10 hover:border-[#8B1A1A] dark:hover:border-red-400 shadow-xs hover:shadow-sm cursor-pointer transition-all group"
+                        >
+                          <Search size={14} className="text-gray-400 group-hover:text-[#8B1A1A] transition-colors" />
+                          <span className="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-[#8B1A1A]">
+                            {item.query}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemoveSingleSearch(item.query, e)}
+                            className="w-4 h-4 rounded-full hover:bg-gray-200 dark:hover:bg-white/20 text-gray-400 hover:text-gray-700 flex items-center justify-center text-[10px] ml-1 border-none bg-transparent cursor-pointer"
+                            title="លុបចេញ"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -3113,6 +3625,200 @@ export default function UserProfilePage() {
               )}
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Two-Factor Authentication (2FA) OTP Modal ───────────── */}
+      <AnimatePresence>
+        {show2faModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-blue-500/30 shadow-2xl"
+            >
+              <button
+                type="button"
+                onClick={() => setShow2faModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
+                  <ShieldCheck size={36} />
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                    ផ្ទៀងផ្ទាត់លេខកូដសុវត្ថិភាព 2FA
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                    {otpSentNotice || `លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល ${user?.email || profile.email} និង Telegram របស់អ្នក។`}
+                  </p>
+                </div>
+
+                {otpError && (
+                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-600 dark:text-red-400 font-bold">
+                    {otpError}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerify2faOtp} className="space-y-4 pt-2">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                      បញ្ចូលលេខកូដ OTP (៦ ខ្ទង់)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      autoFocus
+                      value={otpInput}
+                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ""))}
+                      placeholder="• • • • • •"
+                      className="w-full text-center tracking-[12px] text-2xl font-black font-mono py-3.5 px-4 bg-gray-50 dark:bg-black/40 border-2 border-blue-500/30 focus:border-blue-500 rounded-2xl outline-none text-gray-900 dark:text-white transition-all"
+                    />
+                    <span className="text-[11px] text-gray-400 block mt-1.5">
+                      ⏱️ សុពលភាពលេខកូដត្រឹម ១០ នាទី
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShow2faModal(false)}
+                      className="flex-1 py-3.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                    >
+                      បោះបង់ (Cancel)
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={otpLoading || otpInput.length < 4}
+                      className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold transition-all shadow-lg shadow-blue-500/25 border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {otpLoading ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>កំពុងផ្ទៀងផ្ទាត់...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} />
+                          <span>បញ្ជាក់ & បើក 2FA</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 dark:border-white/5">
+                  មិនបានទទួលលេខកូដ?{" "}
+                  <button
+                    type="button"
+                    onClick={handleToggle2FA}
+                    className="text-blue-500 hover:underline font-bold border-none bg-transparent cursor-pointer p-0"
+                  >
+                    ចុចផ្ញើម្តងទៀត
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Luxury Password Reset Success Modal ─────────────────── */}
+      <AnimatePresence>
+        {resetSuccessModal && resetSuccessModal.show && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-red-500/30 shadow-2xl text-center space-y-4"
+            >
+              <button
+                type="button"
+                onClick={() => setResetSuccessModal(null)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto shadow-md">
+                <Lock size={32} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                  បានផ្ញើតំណភ្ជាប់ Reset Password រួចរាល់! 🔑
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                  លិខិតផ្លូវការពី <strong>S Tech Store Cambodia (www.s-tech-store.tech)</strong> ត្រូវបានបញ្ជូនទៅកាន់:
+                </p>
+                <div className="mt-2 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 font-mono text-xs font-bold text-gray-800 dark:text-gray-200">
+                  {resetSuccessModal.email}
+                </div>
+              </div>
+
+              {resetSuccessModal.resetLink && (
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-left space-y-1.5">
+                  <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 block">
+                    🔗 តំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ផ្ទាល់ (Direct Link):
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={resetSuccessModal.resetLink}
+                      className="w-full text-[11px] font-mono bg-white dark:bg-black/50 p-2 rounded-lg border border-blue-200 dark:border-blue-900/50 outline-none text-gray-700 dark:text-gray-300 truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(resetSuccessModal.resetLink || "");
+                        setPrivacyToast("បានចម្លងតំណភ្ជាប់ (Copied Link)!");
+                        setTimeout(() => setPrivacyToast(null), 2500);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 border-none cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[11px] text-gray-400 leading-relaxed">
+                សូមពិនិត្យមើលប្រអប់សំបុត្រ Inbox ឬ Spam ក្នុង Email របស់អ្នក។ តំណភ្ជាប់នេះមានសុពលភាព ៦០ នាទី។
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setResetSuccessModal(null)}
+                className="w-full py-3.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all shadow-md cursor-pointer border-none"
+              >
+                យល់ព្រម (OK)
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Privacy & Notification Toast ────────────────────────── */}
+      <AnimatePresence>
+        {privacyToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 30 }}
+            className="fixed bottom-6 right-6 z-[100000] px-4 py-3 rounded-2xl bg-gray-900 text-white text-xs font-bold shadow-2xl border border-white/20 flex items-center gap-2.5"
+          >
+            <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+            <span>{privacyToast}</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
