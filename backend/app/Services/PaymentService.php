@@ -42,55 +42,85 @@ class PaymentService
 
     /**
      * Generate authentic EMVCo standard NBC Bakong KHQR String
+     * Matches ABA Bank Dual Account Template (USD + KHR) perfectly down to the byte.
      */
-    public static function generateKHQRString(float $amount, string $orderId, string $currency = 'USD'): string
+    public static function generateKHQRString(float $amount, string $orderId = '', string $currency = 'USD', bool $isDynamic = true): string
     {
         $cfg = config('payment.bakong');
-        $merchantId = $cfg['merchant_id'] ?: 's_tech_store@bkng';
-        $accountName = $cfg['account_name'] ?: 'S TECH STORE';
+        $merchantId = $cfg['merchant_id'] ?: 'abaakhppxxx@abaa';
+        $accountName = $cfg['account_name'] ?: 'ROTANA NOB';
+        $accountUsd = $cfg['account_usd'] ?: '014579634';
+        $accountKhr = $cfg['account_khr'] ?: '006822995';
+        $abaP2pId = $cfg['aba_p2p_id'] ?: '81AF51D8FAFE';
+        $bankName = $cfg['bank_name'] ?: 'ABA Bank';
         $city = $cfg['merchant_city'] ?: 'Phnom Penh';
 
-        // 1. Tag 29: Merchant Account Information (Bakong)
-        $subTag00 = self::tlv('00', 'bakong');
-        $subTag01 = self::tlv('01', $merchantId);
-        $tag29 = self::tlv('29', $subTag00 . $subTag01);
+        $isUSD = strtoupper($currency) === 'USD';
+        $currCode = $isUSD ? '840' : '116';
+        $primaryAccount = $isUSD ? $accountUsd : $accountKhr;
 
-        // 2. Tag 53: Currency (840 = USD, 116 = KHR)
-        $currCode = strtoupper($currency) === 'KHR' ? '116' : '840';
+        // 1. Tag 29: Merchant Account Information (Acquirer Bank Template)
+        $sub29_00 = self::tlv('00', $merchantId);
+        $sub29_01 = self::tlv('01', $primaryAccount);
+        $sub29_02 = self::tlv('02', $bankName);
+        $tag29 = self::tlv('29', $sub29_00 . $sub29_01 . $sub29_02);
+
+        // 2. Tag 40: ABA Bank Dual Account Template
+        $sub40_00 = self::tlv('00', 'abaP2P');
+        $sub40_01 = self::tlv('01', $abaP2pId);
+        $sub40_02 = self::tlv('02', $accountKhr); // KHR Account (006822995)
+        $sub40_03 = self::tlv('03', $accountUsd); // USD Account (014579634)
+        $sub40_04 = self::tlv('04', 'Dual');
+        $tag40 = self::tlv('40', $sub40_00 . $sub40_01 . $sub40_02 . $sub40_03 . $sub40_04);
+
+        // 3. Tag 52: Merchant Category Code (0000 for standard P2P/merchant)
+        $tag52 = self::tlv('52', '0000');
+
+        // 4. Tag 53: Transaction Currency (840 = USD, 116 = KHR)
         $tag53 = self::tlv('53', $currCode);
 
-        // 3. Tag 54: Transaction Amount
-        $formattedAmount = strtoupper($currency) === 'KHR' ? (string)round($amount) : number_format($amount, 2, '.', '');
-        $tag54 = self::tlv('54', $formattedAmount);
+        // 5. Tag 54: Transaction Amount (Present in dynamic QR with amount > 0)
+        $tag54 = '';
+        if ($isDynamic && $amount > 0) {
+            $formattedAmount = $isUSD ? number_format($amount, 2, '.', '') : (string)round($amount);
+            $tag54 = self::tlv('54', $formattedAmount);
+        }
 
-        // 4. Tag 58: Country Code (KH)
+        // 6. Tag 58: Country Code (KH)
         $tag58 = self::tlv('58', 'KH');
 
-        // 5. Tag 59: Merchant Name (Up to 25 chars)
+        // 7. Tag 59: Merchant/Recipient Name (Up to 25 chars)
         $tag59 = self::tlv('59', substr($accountName, 0, 25));
 
-        // 6. Tag 60: Merchant City
+        // 8. Tag 60: Merchant City (Up to 15 chars)
         $tag60 = self::tlv('60', substr($city, 0, 15));
 
-        // 7. Tag 62: Additional Data Field Template (Bill/Invoice number)
-        $sub62_01 = self::tlv('01', substr($orderId, 0, 25));
-        $sub62_07 = self::tlv('07', 'STECH01');
-        $tag62 = self::tlv('62', $sub62_01 . $sub62_07);
+        // 9. Tag 62: Additional Data Field (Bill/Order Reference)
+        $tag62 = '';
+        if (!empty($orderId)) {
+            $sub62_01 = self::tlv('01', substr($orderId, 0, 25));
+            $sub62_07 = self::tlv('07', 'STECH01');
+            $tag62 = self::tlv('62', $sub62_01 . $sub62_07);
+        }
 
-        // Assemble without CRC
-        $rawPayload = self::tlv('00', '01') // Payload Format Indicator
-            . self::tlv('01', '12')         // Dynamic QR (12)
-            . $tag29                        // Merchant Account
-            . self::tlv('52', '5999')       // Merchant Category Code
-            . $tag53                        // Currency
-            . $tag54                        // Amount
-            . $tag58                        // Country
-            . $tag59                        // Merchant Name
-            . $tag60                        // Merchant City
-            . $tag62                        // Additional Data
-            . '6304';                       // CRC Tag header
+        // Point of Initiation Method: 12 = Dynamic QR (with amount), 11 = Static QR
+        $pointOfInitiation = ($isDynamic && $amount > 0) ? '12' : '11';
 
-        // Calculate and append CRC16
+        // Assemble EMVCo payload without CRC
+        $rawPayload = self::tlv('00', '01')
+            . self::tlv('01', $pointOfInitiation)
+            . $tag29
+            . $tag40
+            . $tag52
+            . $tag53
+            . $tag54
+            . $tag58
+            . $tag59
+            . $tag60
+            . $tag62
+            . '6304';
+
+        // Compute NBC mandated CRC16-CCITT checksum
         $crc = self::calculateCRC16($rawPayload);
         return $rawPayload . $crc;
     }
@@ -105,42 +135,84 @@ class PaymentService
         $amountKhr = round($amount * $rate);
 
         $orderId = $order->order_id ?: ('ORD-' . $order->id);
-        $khqrString = self::generateKHQRString($amount, $orderId, $currency);
-        $md5Hash = md5($khqrString);
+        
+        // Generate both USD & KHR KHQR Strings
+        $khqrUsd = self::generateKHQRString($amount, $orderId, 'USD');
+        $khqrKhr = self::generateKHQRString($amountKhr, $orderId, 'KHR');
+        
+        $isKhr = strtoupper($currency) === 'KHR';
+        $activeKhqr = $isKhr ? $khqrKhr : $khqrUsd;
+        $activeMd5 = md5($activeKhqr);
+        $md5Usd = md5($khqrUsd);
+        $md5Khr = md5($khqrKhr);
 
-        // High resolution QR code URL with S Tech branding
-        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=10&data=" . urlencode($khqrString);
+        // Store active hashes in order payment details for instant verification
+        try {
+            $details = json_decode($order->payment_details ?: '{}', true) ?: [];
+            $details['md5_usd'] = $md5Usd;
+            $details['md5_khr'] = $md5Khr;
+            $details['active_md5'] = $activeMd5;
+            $details['khqr_usd'] = $khqrUsd;
+            $details['khqr_khr'] = $khqrKhr;
+            $order->payment_details = json_encode($details);
+            $order->save();
+        } catch (\Throwable $e) {
+            Log::warning("Failed to store payment MD5 hashes in order: " . $e->getMessage());
+        }
+
+        // High resolution QR code URL
+        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&format=png&data=" . urlencode($activeKhqr);
+
+        // Universal Deeplink from Bakong Open API
+        $bakongToken = config('payment.bakong.api_token');
+        $universalDeeplink = null;
+        if (!empty($bakongToken)) {
+            try {
+                $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
+                $dRes = Http::withToken($bakongToken)
+                    ->timeout(4)
+                    ->post($apiUrl . '/generate_deeplink_by_qr', [
+                        'qr' => $activeKhqr,
+                    ]);
+                if ($dRes->successful() && $dRes->json('responseCode') == 0) {
+                    $universalDeeplink = $dRes->json('data.shortLink') ?: $dRes->json('data.fullLink');
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Bakong universal deeplink generation warning: " . $e->getMessage());
+            }
+        }
 
         // Real Cambodia Banking App Deeplinks
-        $bakongDeeplink = "bakong://qr?data=" . urlencode($khqrString);
-        $abaDeeplink = "aba://pay?tran_id=" . urlencode($orderId) . "&amount=" . urlencode((string)$amount) . "&currency=USD";
-        $wingDeeplink = "wing://qr?data=" . urlencode($khqrString);
-        $acledaDeeplink = "acledamb://pay?qr=" . urlencode($khqrString);
-
-        // ABA PayWay checkout web link if merchant credentials configured
-        $abaPayWayUrl = null;
-        if (!empty(config('payment.aba.merchant_id')) && !empty(config('payment.aba.api_key'))) {
-            $abaPayWayUrl = config('payment.aba.deeplink_base') . '/checkout?tran_id=' . urlencode($orderId);
-        }
+        $bakongDeeplink = "bakong://qr?data=" . urlencode($activeKhqr);
+        $abaDeeplink = "aba://qr?data=" . urlencode($activeKhqr);
+        $wingDeeplink = "wing://qr?data=" . urlencode($activeKhqr);
+        $acledaDeeplink = "acledamb://pay?qr=" . urlencode($activeKhqr);
 
         return [
             'order_id' => $orderId,
             'amount_usd' => $amount,
             'amount_khr' => $amountKhr,
             'currency' => $currency,
-            'khqr_string' => $khqrString,
+            'khqr_string' => $activeKhqr,
+            'khqr_usd' => $khqrUsd,
+            'khqr_khr' => $khqrKhr,
             'qr_image_url' => $qrImageUrl,
-            'md5_hash' => $md5Hash,
+            'md5_hash' => $activeMd5,
+            'md5_usd' => $md5Usd,
+            'md5_khr' => $md5Khr,
             'deeplinks' => [
-                'bakong' => $bakongDeeplink,
-                'aba' => $abaPayWayUrl ?: $abaDeeplink,
+                'universal' => $universalDeeplink,
+                'bakong' => $universalDeeplink ?: $bakongDeeplink,
+                'aba' => $universalDeeplink ?: $abaDeeplink,
                 'wing' => $wingDeeplink,
                 'acleda' => $acledaDeeplink,
             ],
             'merchant' => [
-                'name' => config('payment.bakong.account_name'),
-                'account' => config('payment.bakong.merchant_id'),
-                'city' => config('payment.bakong.merchant_city'),
+                'name' => config('payment.bakong.account_name', 'ROTANA NOB'),
+                'bank' => config('payment.bakong.bank_name', 'ABA Bank'),
+                'usd_account' => '014 579 634',
+                'khr_account' => '006 822 995',
+                'city' => config('payment.bakong.merchant_city', 'Phnom Penh'),
             ],
             'expires_at' => now()->addMinutes(15)->toIso8601String(),
         ];
@@ -240,7 +312,11 @@ class PaymentService
      */
     public static function checkTransactionStatus(string $orderId): array
     {
-        $order = Order::where('order_id', $orderId)->orWhere('id', $orderId)->first();
+        $orderQuery = Order::where('order_id', $orderId);
+        if (is_numeric($orderId)) {
+            $orderQuery->orWhere('id', (int)$orderId);
+        }
+        $order = $orderQuery->first();
         if (!$order) {
             return ['status' => 'not_found', 'paid' => false];
         }
@@ -285,23 +361,49 @@ class PaymentService
         $bakongToken = config('payment.bakong.api_token');
         if (!empty($bakongToken)) {
             try {
-                $khqr = self::generateKHQRString((float)$order->total_amount, $order->order_id);
-                $md5 = md5($khqr);
-                $response = Http::withToken($bakongToken)
-                    ->timeout(8)
-                    ->post(config('payment.bakong.api_url') . '/check_transaction_by_md5', [
-                        'md5' => $md5,
-                    ]);
+                $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
+                $details = json_decode($order->payment_details ?: '{}', true) ?: [];
+                $rate = config('payment.currency.usd_to_khr_rate', 4060);
+                $amountKhr = round((float)$order->total_amount * $rate);
 
-                if ($response->successful() && ($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
-                    $tranId = $response->json('data.hash') ?: ('BKG_' . $order->order_id);
-                    self::markOrderAsPaid($order, $tranId, 'bakong', $response->json());
-                    return [
-                        'status' => 'paid',
-                        'paid' => true,
-                        'order' => $order->fresh(),
-                        'transaction_id' => $tranId,
-                    ];
+                // Collect all candidate MD5 hashes to check
+                $md5List = array_values(array_filter(array_unique([
+                    $details['active_md5'] ?? null,
+                    $details['md5_usd'] ?? null,
+                    $details['md5_khr'] ?? null,
+                    md5(self::generateKHQRString((float)$order->total_amount, $order->order_id, 'USD')),
+                    md5(self::generateKHQRString($amountKhr, $order->order_id, 'KHR')),
+                ])));
+
+                foreach ($md5List as $md5) {
+                    $response = Http::withToken($bakongToken)
+                        ->timeout(6)
+                        ->post($apiUrl . '/check_transaction_by_md5', [
+                            'md5' => $md5,
+                        ]);
+
+                    if ($response->successful() && ($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
+                        $txData = $response->json('data') ?: [];
+                        $tranId = $txData['hash'] ?? ('BKG_' . $order->order_id);
+
+                        self::markOrderAsPaid($order, $tranId, 'bakong', [
+                            'gateway' => 'Bakong Open API (Live)',
+                            'verified_md5' => $md5,
+                            'from_account' => $txData['fromAccountId'] ?? null,
+                            'to_account' => $txData['toAccountId'] ?? null,
+                            'currency' => $txData['currency'] ?? null,
+                            'amount' => $txData['amount'] ?? null,
+                            'raw' => $response->json(),
+                        ]);
+
+                        return [
+                            'status' => 'paid',
+                            'paid' => true,
+                            'order' => $order->fresh(),
+                            'transaction_id' => $tranId,
+                            'verified_by' => 'bakong_open_api',
+                        ];
+                    }
                 }
             } catch (\Throwable $e) {
                 Log::warning("Bakong status check: " . $e->getMessage());

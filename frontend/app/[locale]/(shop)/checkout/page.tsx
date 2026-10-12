@@ -224,10 +224,18 @@ export default function CheckoutPage() {
     khqr_string: string;
     qr_image_url: string;
     deeplinks: {
+      universal?: string;
       bakong?: string;
       aba?: string;
       wing?: string;
       acleda?: string;
+    };
+    merchant?: {
+      name?: string;
+      bank?: string;
+      usd_account?: string;
+      khr_account?: string;
+      city?: string;
     };
     amount_usd: number;
     amount_khr: number;
@@ -1801,40 +1809,70 @@ export default function CheckoutPage() {
                 <X size={20} />
               </button>
 
-              {/* KHQR Header Banner */}
-              <div className="bg-[#E1251B] text-white py-1.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 mb-3 shadow-xs">
-                <QrCode size={16} />
-                <span>NBC BAKONG KHQR</span>
+              {/* Authentic ABA KHQR Card Header */}
+              <div className="bg-[#E1251B] text-white py-2 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-between mb-3 shadow-md">
+                <div className="flex items-center gap-1.5">
+                  <QrCode size={16} />
+                  <span>KHQR • NBC BAKONG</span>
+                </div>
+                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+                  UNIVERSAL
+                </span>
               </div>
 
-              <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
-                S TECH STORE CAMBODIA
-              </h3>
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
-                ស្កេនទូទាត់ជាមួយ ABA Mobile, Bakong, Wing, ACLEDA ឬ App ធនាគារណាមួយនៅកម្ពុជា
-              </p>
+              {/* Account Holder Name */}
+              <div className="text-center mb-2">
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                  {khqrSession.merchant?.bank || "ABA Bank"}
+                </div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-wide">
+                  {khqrSession.merchant?.name || "ROTANA NOB"}
+                </h3>
+              </div>
 
-              {/* QR Code Container */}
-              <div className="p-3 bg-white rounded-2xl border-2 border-red-500 inline-block shadow-md mb-3 relative">
+              {/* QR Code Container with ABA/Bakong Emblem */}
+              <div className="p-3 bg-white rounded-2xl border-2 border-red-500 inline-block shadow-lg mb-3 relative">
                 <img
                   src={khqrSession.qr_image_url}
-                  alt="KHQR Payment"
-                  className="w-44 h-44 object-contain mx-auto"
+                  alt="ABA KHQR Payment"
+                  className="w-48 h-48 object-contain mx-auto rounded-lg"
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-9 h-9 rounded-full bg-white p-1 shadow-md flex items-center justify-center border">
-                    <img src="/logo.jpg" alt="" className="w-full h-full object-contain rounded-full" />
+                  <div className="w-10 h-10 rounded-full bg-white p-1 shadow-lg flex items-center justify-center border-2 border-red-600">
+                    <div className="w-full h-full rounded-full bg-[#E1251B] flex items-center justify-center text-white text-[9px] font-black">
+                      ABA
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Authentic Bank Account Details from Flyer */}
+              <div className="grid grid-cols-2 gap-2 text-left bg-gray-50 dark:bg-white/5 p-2.5 rounded-xl border border-gray-100 dark:border-white/5 mb-3 text-[11px]">
+                <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                  <span className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">៛</span>
+                  <div>
+                    <div className="text-[9px] text-gray-400">KHR account:</div>
+                    <div className="font-mono font-bold">{khqrSession.merchant?.khr_account || "006 822 995"}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300">
+                  <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">$</span>
+                  <div>
+                    <div className="text-[9px] text-gray-400">USD account:</div>
+                    <div className="font-mono font-bold">{khqrSession.merchant?.usd_account || "014 579 634"}</div>
                   </div>
                 </div>
               </div>
 
               {/* Amount Display */}
-              <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-white/5">
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">Total Payable Amount ទឹកប្រាក់សរុប</div>
+              <div className="bg-red-50/60 dark:bg-red-950/20 rounded-2xl p-3 mb-3 border border-red-200/60 dark:border-red-900/30">
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Total Payable Amount ទឹកប្រាក់ត្រូវបង់</div>
                 <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
                   {fmtUSD(khqrSession.amount_usd)}
                 </div>
-                <div className="text-[11px] text-gray-400 font-medium">{fmtKHR(khqrSession.amount_usd)}</div>
+                <div className="text-xs font-bold text-gray-500 font-mono">
+                  ~ {fmtKHR(khqrSession.amount_usd)}
+                </div>
                 <div className="flex items-center justify-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono">
                   <Clock size={11} />
                   <span>Expires in: {formatTimer(timeLeft)}</span>
@@ -1842,27 +1880,35 @@ export default function CheckoutPage() {
               </div>
 
               {/* 1-Click Mobile Banking Deeplinks */}
-              <div className="space-y-2 mb-4">
-                <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider text-left pl-1">
-                  Or Pay Directly on Mobile:
-                </div>
+              <div className="space-y-2 mb-3">
+                {khqrSession.deeplinks?.universal && (
+                  <a
+                    href={khqrSession.deeplinks.universal}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-[#E1251B] to-rose-600 hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all text-center no-underline shadow-md"
+                  >
+                    <Smartphone size={14} />
+                    <span>Open Bank App ស្កេនស្វ័យប្រវត្ត (1-Tap Pay)</span>
+                  </a>
+                )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <a
-                    href={khqrSession.deeplinks.aba || `aba://pay?tran_id=${khqrSession.order_id}`}
+                    href={khqrSession.deeplinks?.universal || khqrSession.deeplinks?.aba || `aba://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
+                    className="py-2 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
                   >
                     <Smartphone size={13} />
                     <span>ABA Mobile</span>
                   </a>
 
                   <a
-                    href={khqrSession.deeplinks.bakong || `bakong://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
+                    href={khqrSession.deeplinks?.universal || khqrSession.deeplinks?.bakong || `bakong://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
+                    className="py-2 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
                   >
                     <Smartphone size={13} />
                     <span>Bakong App</span>
@@ -1871,10 +1917,10 @@ export default function CheckoutPage() {
               </div>
 
               {/* Polling Radar Indicator */}
-              <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-4">
+              <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-3">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                  កំពុងរង់ចាំការទូទាត់ពីធនាគាររបស់អ្នក...
+                  {pollStatus === "checking" ? "កំពុងរង់ចាំការទូទាត់ពីធនាគារ Real-time..." : "ការទូទាត់ទទួលបានជោគជ័យ!"}
                 </span>
               </div>
 
@@ -1894,7 +1940,7 @@ export default function CheckoutPage() {
                     setShowKHQRModal(false);
                     if (pollingRef.current) clearInterval(pollingRef.current);
                   }}
-                  className="w-full py-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                  className="w-full py-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
                 >
                   ផ្លាស់ប្តូរវិធីទូទាត់ (Change Method)
                 </button>

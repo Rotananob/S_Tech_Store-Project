@@ -39,10 +39,17 @@ export interface TopupSessionResponse {
   khqr_string: string;
   qr_image_url: string;
   deeplinks: {
+    universal?: string;
     bakong?: string;
     aba?: string;
     wing?: string;
     acleda?: string;
+  };
+  merchant?: {
+    name?: string;
+    bank?: string;
+    usd_account?: string;
+    khr_account?: string;
   };
   method: string;
 }

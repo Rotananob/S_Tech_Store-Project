@@ -9,6 +9,15 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
+    private function findOrder(string $idOrOrderId): Order
+    {
+        $query = Order::where('order_id', $idOrOrderId);
+        if (is_numeric($idOrOrderId)) {
+            $query->orWhere('id', (int)$idOrOrderId);
+        }
+        return $query->firstOrFail();
+    }
+
     /**
      * POST /api/payment/session
      * Generates dynamic KHQR string, QR code image, and banking app deeplinks
@@ -21,9 +30,7 @@ class PaymentController extends Controller
             'currency' => 'nullable|string|in:USD,KHR',
         ]);
 
-        $order = Order::where('order_id', $validated['order_id'])
-            ->orWhere('id', $validated['order_id'])
-            ->firstOrFail();
+        $order = $this->findOrder($validated['order_id']);
 
         $session = PaymentService::createPaymentSession(
             $order,
@@ -52,9 +59,7 @@ class PaymentController extends Controller
             'name' => 'nullable|string|max:100',
         ]);
 
-        $order = Order::where('order_id', $validated['order_id'])
-            ->orWhere('id', $validated['order_id'])
-            ->firstOrFail();
+        $order = $this->findOrder($validated['order_id']);
 
         if ($order->payment_status === 'paid') {
             return response()->json([
@@ -89,9 +94,7 @@ class PaymentController extends Controller
      */
     public function confirmManual(Request $request, $orderId)
     {
-        $order = Order::where('order_id', $orderId)
-            ->orWhere('id', $orderId)
-            ->firstOrFail();
+        $order = $this->findOrder($orderId);
 
         // Ownership Verification: Ensure caller is authorized to confirm this order
         $clientUid = $request->header('X-Firebase-UID');

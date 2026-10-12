@@ -289,14 +289,34 @@ class WalletController extends Controller
 
         // Generate authentic EMVCo Bakong KHQR String using standard PaymentService
         $khqrString = PaymentService::generateKHQRString($amount, $depositId, $currency);
-        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($khqrString);
+        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&format=png&data=' . urlencode($khqrString);
+
+        // Universal Deeplink from Bakong Open API
+        $bakongToken = config('payment.bakong.api_token');
+        $universalDeeplink = null;
+        if (!empty($bakongToken)) {
+            try {
+                $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
+                $dRes = \Illuminate\Support\Facades\Http::withToken($bakongToken)
+                    ->timeout(4)
+                    ->post($apiUrl . '/generate_deeplink_by_qr', [
+                        'qr' => $khqrString,
+                    ]);
+                if ($dRes->successful() && $dRes->json('responseCode') == 0) {
+                    $universalDeeplink = $dRes->json('data.shortLink') ?: $dRes->json('data.fullLink');
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Wallet topup deeplink generation warning: " . $e->getMessage());
+            }
+        }
 
         // Prepare banking app deeplinks
         $deeplinks = [
-            'bakong' => "bakong://qr?data=" . urlencode($khqrString),
-            'aba' => "aba://qr?data=" . urlencode($khqrString),
+            'universal' => $universalDeeplink,
+            'bakong' => $universalDeeplink ?: ("bakong://qr?data=" . urlencode($khqrString)),
+            'aba' => $universalDeeplink ?: ("aba://qr?data=" . urlencode($khqrString)),
             'wing' => "wing://qr?data=" . urlencode($khqrString),
-            'acleda' => "acleda://qr?data=" . urlencode($khqrString),
+            'acleda' => "acledamb://pay?qr=" . urlencode($khqrString),
         ];
 
         // Store pending deposit transaction in ledger
@@ -312,6 +332,7 @@ class WalletController extends Controller
             'metadata' => [
                 'currency' => $currency,
                 'khqr_string' => $khqrString,
+                'md5' => md5($khqrString),
             ],
         ]);
 
@@ -332,6 +353,12 @@ class WalletController extends Controller
             'qr_image_url' => $qrImageUrl,
             'deeplinks' => $deeplinks,
             'method' => $method,
+            'merchant' => [
+                'name' => config('payment.bakong.account_name', 'ROTANA NOB'),
+                'bank' => config('payment.bakong.bank_name', 'ABA Bank'),
+                'usd_account' => '014 579 634',
+                'khr_account' => '006 822 995',
+            ],
         ]);
     }
 
@@ -375,15 +402,33 @@ class WalletController extends Controller
             $bakongToken = config('payment.bakong.api_token');
             if (!empty($bakongToken)) {
                 try {
-                    $khqrString = $tx->metadata['khqr_string'] ?? \App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId);
-                    $md5 = md5($khqrString);
-                    $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
-                        ->timeout(8)
-                        ->post(config('payment.bakong.api_url') . '/check_transaction_by_md5', [
-                            'md5' => $md5,
-                        ]);
+                    $txMeta = $tx->metadata ?: [];
+                    $rate = config('payment.currency.usd_to_khr_rate', 4060);
+                    $amountKhr = round((float)$tx->amount * $rate);
 
-                    if (!$response->successful() || !($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
+                    $md5List = array_values(array_filter(array_unique([
+                        $txMeta['md5'] ?? null,
+                        !empty($txMeta['khqr_string']) ? md5($txMeta['khqr_string']) : null,
+                        md5(\App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId, 'USD')),
+                        md5(\App\Services\PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR')),
+                    ])));
+
+                    $verified = false;
+                    $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
+                    foreach ($md5List as $md5) {
+                        $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
+                            ->timeout(6)
+                            ->post($apiUrl . '/check_transaction_by_md5', [
+                                'md5' => $md5,
+                            ]);
+
+                        if ($response->successful() && ($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
+                            $verified = true;
+                            break;
+                        }
+                    }
+
+                    if (!$verified) {
                         return response()->json([
                             'success' => false,
                             'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការទូទាត់ពីធនាគារ Bakong នៅឡើយទេ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នកឡើងវិញ។',

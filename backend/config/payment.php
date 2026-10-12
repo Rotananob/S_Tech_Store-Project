@@ -8,8 +8,12 @@ return [
     */
 
     'bakong' => [
-        'merchant_id' => env('BAKONG_MERCHANT_ID', 's_tech_store@bkng'),
-        'account_name' => env('BAKONG_ACCOUNT_NAME', 'S TECH STORE CO., LTD'),
+        'merchant_id' => env('BAKONG_MERCHANT_ID', 'abaakhppxxx@abaa'),
+        'account_name' => env('BAKONG_ACCOUNT_NAME', 'ROTANA NOB'),
+        'account_usd' => env('BAKONG_ACCOUNT_USD', '014579634'),
+        'account_khr' => env('BAKONG_ACCOUNT_KHR', '006822995'),
+        'aba_p2p_id' => env('BAKONG_ABA_P2P_ID', '81AF51D8FAFE'),
+        'bank_name' => env('BAKONG_BANK_NAME', 'ABA Bank'),
         'merchant_city' => env('BAKONG_MERCHANT_CITY', 'Phnom Penh'),
         'currency' => env('BAKONG_CURRENCY', 'USD'), // 'USD' (840) or 'KHR' (116)
         'api_token' => env('BAKONG_API_TOKEN', ''),

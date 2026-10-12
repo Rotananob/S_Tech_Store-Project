@@ -324,67 +324,102 @@ export default function WalletTopupModal({
                 <div className="max-w-xs mx-auto p-4 rounded-3xl bg-white text-gray-900 shadow-2xl border-4 border-red-700 space-y-3">
                   <div className="flex items-center justify-between border-b pb-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[10px] tracking-tight">
+                      <span className="px-2 py-0.5 rounded bg-[#E1251B] text-white font-black text-[11px] tracking-tight">
                         KHQR
                       </span>
-                      <span className="text-[11px] font-black text-gray-800">S TECH STORE</span>
+                      <span className="text-[11px] font-black text-gray-800">
+                        {session.merchant?.name || "ROTANA NOB"}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                      USD / KHR
+                    <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                      {session.merchant?.bank || "ABA Bank"}
                     </span>
                   </div>
 
-                  {/* QR Image */}
-                  <div className="bg-gray-50 p-2.5 rounded-2xl flex items-center justify-center shadow-inner">
+                  {/* QR Image with ABA badge */}
+                  <div className="bg-gray-50 p-2.5 rounded-2xl flex items-center justify-center shadow-inner relative">
                     <img
                       src={session.qr_image_url}
                       alt="KHQR Deposit Code"
                       className="w-48 h-48 object-contain rounded-lg"
                     />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-9 h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 border-red-600">
+                        <div className="w-full h-full rounded-full bg-[#E1251B] flex items-center justify-center text-white text-[8px] font-black">
+                          ABA
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bank Accounts */}
+                  <div className="grid grid-cols-2 gap-1.5 text-left bg-gray-50 p-2 rounded-xl text-[10px] border">
+                    <div>
+                      <span className="text-gray-400">៛ KHR acc:</span>
+                      <div className="font-mono font-bold text-gray-800">{session.merchant?.khr_account || "006 822 995"}</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">$ USD acc:</span>
+                      <div className="font-mono font-bold text-gray-800">{session.merchant?.usd_account || "014 579 634"}</div>
+                    </div>
                   </div>
 
                   {/* Amount display */}
                   <div className="text-center pt-1 border-t">
-                    <div className="text-lg font-black text-red-700">
+                    <div className="text-lg font-black text-red-700 font-mono">
                       ${session.amount.toFixed(2)} USD
                     </div>
-                    <div className="text-[11px] font-bold text-gray-500">
+                    <div className="text-[11px] font-bold text-gray-500 font-mono">
                       ~ {session.amount_khr.toLocaleString()} KHR
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-1">
+                    <div className="text-[10px] text-gray-400 mt-0.5">
                       Ref: {session.deposit_id}
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Deeplink Buttons */}
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                  {session.deeplinks?.aba && (
+                <div className="space-y-2 pt-1">
+                  {session.deeplinks?.universal && (
                     <a
-                      href={session.deeplinks.aba}
-                      className="px-3 py-2 rounded-xl bg-[#004B87] hover:bg-blue-900 text-white text-[11px] font-bold flex items-center gap-1.5 no-underline transition-all shadow-sm"
+                      href={session.deeplinks.universal}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs font-black flex items-center justify-center gap-1.5 no-underline transition-all shadow-md"
                     >
-                      <ExternalLink size={12} />
-                      <span>Open ABA Mobile</span>
+                      <ExternalLink size={14} />
+                      <span>Open Banking App (1-Tap Pay)</span>
                     </a>
                   )}
-                  {session.deeplinks?.bakong && (
-                    <a
-                      href={session.deeplinks.bakong}
-                      className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold flex items-center gap-1.5 no-underline transition-all shadow-sm"
+
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {session.deeplinks?.aba && (
+                      <a
+                        href={session.deeplinks?.universal || session.deeplinks.aba}
+                        className="px-3 py-2 rounded-xl bg-[#004B87] hover:bg-blue-900 text-white text-[11px] font-bold flex items-center gap-1.5 no-underline transition-all shadow-sm"
+                      >
+                        <ExternalLink size={12} />
+                        <span>Open ABA Mobile</span>
+                      </a>
+                    )}
+                    {session.deeplinks?.bakong && (
+                      <a
+                        href={session.deeplinks?.universal || session.deeplinks.bakong}
+                        className="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold flex items-center gap-1.5 no-underline transition-all shadow-sm"
+                      >
+                        <ExternalLink size={12} />
+                        <span>Open Bakong App</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(session.khqr_string)}
+                      className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-[11px] font-bold flex items-center gap-1.5 transition-all border-none cursor-pointer"
                     >
-                      <ExternalLink size={12} />
-                      <span>Open Bakong App</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleCopy(session.khqr_string)}
-                    className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-gray-200 text-[11px] font-bold flex items-center gap-1.5 transition-all border-none cursor-pointer"
-                  >
-                    {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                    <span>{copied ? "បានចម្លង!" : "Copy KHQR"}</span>
-                  </button>
+                      {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                      <span>{copied ? "បានចម្លង!" : "Copy KHQR"}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
