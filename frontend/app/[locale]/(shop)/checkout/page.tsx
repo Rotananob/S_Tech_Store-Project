@@ -1018,40 +1018,40 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-28 lg:pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_430px] gap-8 items-start">
           
           {/* ── LEFT COLUMN: Shipping & Payment ─────────────────────────────── */}
           <div className="space-y-6">
 
             {/* 1. DELIVERY OPTIONS SECTION */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs">
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
                     <Truck size={19} />
                   </div>
                   <div>
                     <h2 className="text-base font-black text-gray-900 dark:text-white">
-                      វិធីសាស្ត្រដឹកជញ្ជូន • Delivery Options
+                      តំបន់ដឹកជញ្ជូន • Delivery Options
                     </h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      ជ្រើសរើសតំបន់ទទួលទំនិញរបស់អ្នក ដើម្បីទទួលបានសេវាកម្មរហ័ស
+                      ជ្រើសរើសទីតាំងដើម្បីទទួលបានរយៈពេល និងថ្លៃដឹកជញ្ជូនច្បាស់លាស់
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Delivery Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-6">
+              {/* Delivery Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                 {[
                   { 
                     id: "pnompenh", 
                     icon: "🛵",
                     label: "រាជធានីភ្នំពេញ (Phnom Penh)", 
-                    sub: "ដឹកជញ្ជូនរហ័សក្នុងថ្ងៃតែមួយ (2–4 Hours Express)", 
+                    sub: "ដឹករហ័សដល់មាត់ទ្វារ (2–4 Hours Express)", 
                     fee: 2.00,
-                    tag: "Fast Express" 
+                    tag: "Express" 
                   },
                   { 
                     id: "province", 
@@ -1068,37 +1068,37 @@ export default function CheckoutPage() {
                       key={opt.id}
                       type="button"
                       onClick={() => setDelivery(opt.id as typeof delivery)}
-                      className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
+                      className={`p-4 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3 ${
                         isSelected
-                          ? "border-[#8B1A1A] bg-red-50/40 dark:bg-red-950/20 dark:border-red-500 shadow-xs"
-                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
+                          ? "border-[#8B1A1A] bg-red-50/25 dark:bg-red-950/20 dark:border-red-500/80 ring-1 ring-[#8B1A1A]/20 shadow-xs"
+                          : "border-gray-200/90 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">{opt.icon}</span>
-                          <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                          <span className="text-xl">{opt.icon}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
                             {opt.tag}
                           </span>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white" : "border-gray-300"
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white shadow-xs" : "border-gray-300 dark:border-white/20"
                         }`}>
-                          {isSelected && <Check size={12} strokeWidth={3} />}
+                          {isSelected && <Check size={11} strokeWidth={3} />}
                         </div>
                       </div>
 
                       <div>
-                        <div className="text-sm font-black text-gray-900 dark:text-white mb-0.5">
+                        <div className="text-sm font-black text-gray-900 dark:text-white">
                           {opt.label}
                         </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {opt.sub}
                         </div>
                       </div>
 
-                      <div className="mt-3 pt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-[11px] text-gray-500 font-medium">តម្លៃដឹកជញ្ជូន Fee</span>
+                      <div className="pt-2.5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-medium">ថ្លៃដឹកជញ្ជូន Fee</span>
                         <span className="text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
                           ${opt.fee.toFixed(2)}
                         </span>
@@ -1107,36 +1107,50 @@ export default function CheckoutPage() {
                   );
                 })}
               </div>
+            </section>
 
-              {/* 2. RECIPIENT INFORMATION FORM */}
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                    <User size={14} className="text-[#8B1A1A]" />
-                    <span>ព័ត៌មានអ្នកទទួលទំនិញ • Recipient Details</span>
-                  </span>
-                  {profileAutoFilled && (
-                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <CheckCircle2 size={12} />
-                      <span>Auto-filled from profile</span>
-                    </span>
-                  )}
+            {/* 2. RECIPIENT INFORMATION FORM */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                      ព័ត៌មានអ្នកទទួលទំនិញ • Recipient Details
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      បំពេញឈ្មោះ លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូនឱ្យបានច្បាស់លាស់
+                    </p>
+                  </div>
                 </div>
+                {profileAutoFilled && (
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0">
+                    <CheckCircle2 size={12} />
+                    <span className="hidden sm:inline">Auto-filled from profile</span>
+                    <span className="sm:hidden">Auto-filled</span>
+                  </span>
+                )}
+              </div>
 
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
                       ឈ្មោះអ្នកទទួល (Full Name) *
                     </label>
                     <div className="relative">
-                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                        <User size={16} />
+                      </div>
                       <input
                         type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="ឧ. សុខា ចាន់ (Sokha Chan)"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all"
+                        className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all placeholder:text-gray-400"
                       />
                     </div>
                   </div>
@@ -1169,14 +1183,16 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     <div className="relative">
-                      <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                        <Phone size={16} />
+                      </div>
                       <input
                         type="tel"
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="012 345 678"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all font-mono"
+                        className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all font-mono placeholder:text-gray-400"
                       />
                     </div>
                   </div>
@@ -1188,48 +1204,47 @@ export default function CheckoutPage() {
                       អាសយដ្ឋានដឹកជញ្ជូនលម្អិត (Delivery Address) *
                     </label>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      {/* Live GPS Auto-Locate Button */}
                       <button
                         type="button"
                         onClick={handleGetLiveGPS}
                         disabled={gpsLoading}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-300 dark:border-emerald-800/50 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-300/80 dark:border-emerald-800/50 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs disabled:opacity-60"
                         title="ចាប់យកទីតាំងផ្ទាល់ (Live GPS)"
                       >
                         {gpsLoading ? (
-                          <Loader2 size={13} className="animate-spin text-emerald-600 dark:text-emerald-400" />
+                          <Loader2 size={12} className="animate-spin text-emerald-600 dark:text-emerald-400" />
                         ) : (
-                          <LocateFixed size={13} className="text-emerald-600 dark:text-emerald-400" />
+                          <LocateFixed size={12} className="text-emerald-600 dark:text-emerald-400" />
                         )}
-                        <span>{gpsLoading ? "កំពុងចាប់ទីតាំង..." : "📍 ចាប់យកទីតាំងផ្ទាល់ (Live GPS)"}</span>
+                        <span>{gpsLoading ? "កំពុងចាប់..." : "📍 ចាប់យកទីតាំង GPS"}</span>
                       </button>
 
-                      {/* Telegram Pin Sync Button */}
                       <button
                         type="button"
                         onClick={() => setShowTelegramPinModal(true)}
-                        className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-800 dark:text-sky-300 text-xs font-bold border border-sky-300 dark:border-sky-800/50 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-800 dark:text-sky-300 text-xs font-bold border border-sky-300/80 dark:border-sky-800/50 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                         title="យកពី Telegram Pin / Google Maps"
                       >
-                        <Send size={12} className="text-sky-600 dark:text-sky-400 rotate-[-20deg]" />
-                        <span>✈️ យកពី Telegram Pin</span>
+                        <Send size={11} className="text-sky-600 dark:text-sky-400 rotate-[-20deg]" />
+                        <span>✈️ Telegram Pin</span>
                       </button>
                     </div>
                   </div>
 
                   <div className="relative">
-                    <MapPin size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <div className="absolute top-3.5 left-3.5 pointer-events-none text-gray-400 dark:text-gray-500">
+                      <MapPin size={16} />
+                    </div>
                     <textarea
                       rows={2}
                       required
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="ផ្ទះលេខ, ផ្លូវលេខ, សង្កាត់/ឃុំ, ខណ្ឌ/ស្រុក, រាជធានី ឬ ខេត្ត..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all resize-none shadow-2xs"
+                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all resize-none shadow-2xs placeholder:text-gray-400"
                     />
                   </div>
 
-                  {/* GPS & Pin Verified Map Link Pill */}
                   {gpsCoords && (
                     <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200 shadow-2xs">
                       <div className="flex items-center gap-2 truncate">
@@ -1253,7 +1268,6 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* Error Notification */}
                   {gpsError && (
                     <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
                       <AlertCircle size={14} className="shrink-0" />
@@ -1261,7 +1275,6 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* Success Notification */}
                   {locationSuccessMsg && !gpsError && (
                     <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle2 size={12} />
@@ -1275,23 +1288,25 @@ export default function CheckoutPage() {
                     កំណត់ចំណាំសម្រាប់អ្នកដឹក (Delivery Note / Landmark - Optional)
                   </label>
                   <div className="relative">
-                    <FileText size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                      <FileText size={16} />
+                    </div>
                     <input
                       type="text"
                       value={deliveryNote}
                       onChange={(e) => setDeliveryNote(e.target.value)}
                       placeholder="ឧ. ផ្ទះរបងពណ៌ស ក្បែរផ្សារទួលទំពូង ឬ ហៅទូរស័ព្ទមុនមកដល់..."
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all shadow-2xs"
+                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all shadow-2xs placeholder:text-gray-400"
                     />
                   </div>
 
-                  {/* 1-Click Smart Delivery Note Suggestions Chips */}
+                  {/* Horizontal Scrollable Clean Chips (Taobao / Meituan style) */}
                   <div className="mt-2.5">
-                    <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
-                      <Sparkles size={12} className="text-amber-500" />
+                    <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                      <Sparkles size={12} className="text-amber-500 shrink-0" />
                       <span>កំណត់ចំណាំរហ័ស (Quick Tap Suggestions):</span>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 -mx-1 px-1">
                       {DELIVERY_NOTE_SUGGESTIONS.map((sug) => {
                         const isSelected = deliveryNote.includes(sug.text);
                         return (
@@ -1299,10 +1314,10 @@ export default function CheckoutPage() {
                             key={sug.id}
                             type="button"
                             onClick={() => handleToggleNoteSuggestion(sug.text)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 active:scale-95 border ${
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 active:scale-95 border ${
                               isSelected
                                 ? "bg-[#8B1A1A] text-white border-[#8B1A1A] shadow-xs"
-                                : "bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10"
+                                : "bg-gray-100/80 dark:bg-white/5 hover:bg-gray-200/80 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border-gray-200/60 dark:border-white/10"
                             }`}
                           >
                             {isSelected && <Check size={11} strokeWidth={3} />}
@@ -1317,11 +1332,11 @@ export default function CheckoutPage() {
             </section>
 
             {/* 3. PAYMENT METHOD SELECTOR */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs">
-                    <CreditCard size={19} />
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
+                    <CreditCard size={18} />
                   </div>
                   <div>
                     <h2 className="text-base font-black text-gray-900 dark:text-white">
@@ -1333,13 +1348,14 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/50">
-                  Real Bank Gateways
-                </span>
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 px-3 py-1 rounded-full font-bold">
+                  <Lock size={12} />
+                  <span>256-Bit SSL Protected</span>
+                </div>
               </div>
 
               {/* Payment Method Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 {PAYMENT_METHODS.map((pm) => {
                   const isSelected = payment === pm.id;
                   return (
@@ -1347,22 +1363,22 @@ export default function CheckoutPage() {
                       key={pm.id}
                       type="button"
                       onClick={() => setPayment(pm.id)}
-                      className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
+                      className={`p-4 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3 ${
                         isSelected
-                          ? `${pm.theme} shadow-xs border-opacity-100`
-                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
+                          ? "border-[#8B1A1A] bg-red-50/25 dark:bg-red-950/20 dark:border-red-500/80 ring-1 ring-[#8B1A1A]/20 shadow-xs"
+                          : "border-gray-200/90 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between">
                         {pm.icon}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
                             {pm.badge}
                           </span>
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                            isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white" : "border-gray-300"
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                            isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white shadow-xs" : "border-gray-300 dark:border-white/20"
                           }`}>
-                            {isSelected && <Check size={10} strokeWidth={3} />}
+                            {isSelected && <Check size={11} strokeWidth={3} />}
                           </div>
                         </div>
                       </div>
@@ -1371,7 +1387,7 @@ export default function CheckoutPage() {
                         <div className="text-sm font-black text-gray-900 dark:text-white">
                           {pm.label}
                         </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
                           {pm.sub}
                         </div>
                       </div>
@@ -2054,6 +2070,37 @@ export default function CheckoutPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Mobile Sticky Bottom Checkout Bar (Taobao / Amazon standard) ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#151922]/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/10 p-3 px-4 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
+        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+          <div>
+            <div className="text-[11px] text-gray-500 font-medium leading-none mb-1">ទឹកប្រាក់សរុប Total</div>
+            <div className="text-xl font-black text-[#8B1A1A] dark:text-red-400 font-mono leading-none">
+              {fmtUSD(total)}
+            </div>
+            <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+              {fmtKHR(total)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handlePlaceOrderClick}
+            disabled={loading || items.length === 0}
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] via-red-700 to-red-600 hover:brightness-110 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+          >
+            <span>
+              {payment === "cod" 
+                ? "បញ្ជាក់ការកុម្ម៉ង់ (COD)" 
+                : payment === "visa" 
+                ? "ទូទាត់ជាមួយ Card" 
+                : "ទូទាត់ជាមួយ KHQR"}
+            </span>
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </div>
+
       {/* ── S-Tech Real Wallet Topup Modal ── */}
       <WalletTopupModal
         isOpen={showWalletTopupModal}
