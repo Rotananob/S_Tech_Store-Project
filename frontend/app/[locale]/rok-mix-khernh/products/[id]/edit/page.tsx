@@ -6,7 +6,8 @@ import api from "@/lib/api";
 import { invalidateProductCache } from "@/lib/services/product.service";
 import { 
   Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, 
-  ArrowLeft, CheckCircle2, Sparkles, LayoutDashboard, Tag, UploadCloud, RefreshCw, AlertCircle
+  ArrowLeft, CheckCircle2, Sparkles, LayoutDashboard, Tag, UploadCloud, RefreshCw, AlertCircle,
+  ChevronDown
 } from "lucide-react";
 
 type Category = {
@@ -22,6 +23,20 @@ type MediaItem = {
   url?: string;
   preview?: string;
 };
+
+const BRAND_SUGGESTIONS = [
+  "Apple",
+  "ASUS",
+  "MSI",
+  "Lenovo",
+  "Dell",
+  "Acer",
+  "Razer",
+  "Logitech",
+  "Samsung",
+  "Corsair",
+  "Gigabyte",
+];
 
 export default function EditProductPage(props: {
   params?: Promise<{ id: string; locale: string }> | { id: string; locale: string };
@@ -257,8 +272,43 @@ export default function EditProductPage(props: {
     }
   };
 
+  const handleCategorySelect = (idStr: string) => {
+    setCategoryId(idStr);
+    const selectedCat = categories.find((c) => c.id.toString() === idStr);
+    if (
+      selectedCat &&
+      (selectedCat.slug === "secondhand" ||
+        selectedCat.name.toLowerCase().includes("second") ||
+        selectedCat.name.includes("មួយទឹក"))
+    ) {
+      setCondition("Second-Hand / Used");
+    }
+  };
+
+  const khrEquivalent =
+    price && !isNaN(Number(price)) && Number(price) > 0
+      ? Math.round(Number(price) * 4100).toLocaleString()
+      : null;
+
+  const shopByCategories = categories.filter((c) =>
+    [
+      "laptops",
+      "desktops",
+      "parts",
+      "gaming",
+      "monitors",
+      "accessories",
+      "secondhand",
+      "services",
+    ].includes(c.slug || "")
+  );
+
+  const pcComponents = categories.filter((c) =>
+    ["cpu", "motherboard", "ram", "gpu", "storage", "psu", "case"].includes(c.slug || "")
+  );
+
   return (
-    <div className="font-sans max-w-6xl mx-auto pb-12 relative">
+    <div className="font-sans max-w-6xl mx-auto pb-28 md:pb-16 relative">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[99999] px-5 py-3 rounded-xl shadow-xl font-medium text-sm text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} animate-in fade-in slide-in-from-top-4 duration-200`}>
@@ -488,7 +538,8 @@ export default function EditProductPage(props: {
 
       {/* Main Form (Rendered once loaded) */}
       {!loadingProduct && !fetchError && (
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <>
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Left Column */}
           <div className="w-full lg:w-2/3 flex flex-col gap-6">
             {/* Basic Information */}
@@ -518,50 +569,94 @@ export default function EditProductPage(props: {
                 </p>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Category <span className="text-red-500">*</span>
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Category (ប្រភេទផលិតផល) <span className="text-rose-500">*</span>
                   </label>
-                  <select 
-                    value={categoryId} 
-                    onChange={e => {
-                      const newId = e.target.value;
-                      setCategoryId(newId);
-                      const selectedCat = categories.find(c => c.id.toString() === newId);
-                      if (selectedCat && (selectedCat.slug === "secondhand" || selectedCat.name.toLowerCase().includes("second") || selectedCat.name.includes("មួយទឹក"))) {
-                        setCondition("Used (មួយទឹក)");
-                      }
-                    }} 
+                  <span className="text-[11px] text-gray-400">ចុចជ្រើសរើស ឬរើសពី Dropdown</span>
+                </div>
+
+                {/* Quick Select Category Pills (Shop By Category) */}
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {shopByCategories.map((c) => {
+                    const isSelected = categoryId === c.id.toString();
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleCategorySelect(c.id.toString())}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          isSelected
+                            ? "bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white shadow-sm"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200/80"
+                        }`}
+                      >
+                        {isSelected && <Check size={12} strokeWidth={3} />}
+                        <span>{c.name.split("(")[0].trim()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Full Category Dropdown with Clear Optgroups */}
+                <div className="relative">
+                  <select
+                    value={categoryId}
+                    onChange={(e) => handleCategorySelect(e.target.value)}
                     disabled={loadingCats}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white font-medium"
+                    className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all bg-white font-semibold text-gray-800"
                   >
-                    <optgroup label="Shop by Category (ប្រភេទពេញនិយម)">
-                      {categories.filter(c => ["laptops", "desktops", "parts", "gaming", "monitors", "accessories", "secondhand", "services"].includes(c.slug || "") || !["cpu","motherboard","ram","gpu","storage","psu","case","smartphones"].includes(c.slug || "")).map(c => (
+                    <optgroup label="🌟 Shop by Category (ប្រភេទពេញនិយម)">
+                      {shopByCategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
                     </optgroup>
-                    <optgroup label="PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
-                      {categories.filter(c => ["cpu", "motherboard", "ram", "gpu", "storage", "psu", "case"].includes(c.slug || "")).map(c => (
+                    <optgroup label="⚙️ PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
+                      {pcComponents.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
                     </optgroup>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Brand / Manufacturer</label>
-                  <input 
-                    type="text" 
-                    value={brand} 
-                    onChange={e => setBrand(e.target.value)} 
-                    placeholder="e.g. ASUS, Apple, MSI, Lenovo" 
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
                   />
+                </div>
+              </div>
+
+              {/* Brand with suggestion chips */}
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Brand / Manufacturer (ម៉ាកផលិតផល)
+                </label>
+                <input
+                  type="text"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="e.g. ASUS, Apple, MSI, Lenovo..."
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all bg-gray-50/30 focus:bg-white"
+                />
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">ម៉ាកពេញនិយម:</span>
+                  {BRAND_SUGGESTIONS.map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setBrand(b)}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                        brand.toLowerCase() === b.toLowerCase()
+                          ? "bg-red-50 text-[#8B1A1A] font-bold border border-red-200"
+                          : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -621,6 +716,12 @@ export default function EditProductPage(props: {
                       className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono font-bold" 
                     />
                   </div>
+                  {khrEquivalent && (
+                    <div className="mt-1.5 text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center justify-between">
+                      <span>សមមូល:</span>
+                      <span>~ {khrEquivalent} KHR</span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -884,7 +985,64 @@ export default function EditProductPage(props: {
             </div>
           </div>
         </div>
-      )}
+
+        {/* ─── Dedicated Bottom Action Footer Card ─── */}
+        <div className="mt-8 bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-[#8B1A1A] flex items-center justify-center shrink-0">
+              <Package size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-gray-900">
+                កែប្រែព័ត៌មានទំនិញ #{originalProduct?.id || productId}
+              </div>
+              <div className="text-xs text-gray-500">
+                សូមផ្ទៀងផ្ទាត់ការកែប្រែទាំងអស់ មុនពេលចុចរក្សាទុកទិន្នន័យ
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <Link
+              href="/rok-mix-khernh/products"
+              className="flex-1 sm:flex-none text-center px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-colors no-underline cursor-pointer"
+            >
+              បោះបង់ (Cancel)
+            </Link>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loadingProduct}
+              className="flex-1 sm:flex-none min-h-[46px] px-8 py-3 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-[#6B1010] hover:to-red-700 active:scale-98 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Package size={17} />
+              <span>រក្សាទុកការកែប្រែ (Update Product)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Mobile Sticky Floating Bottom Action Bar ─── */}
+        <div className="block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md p-3 border-t border-gray-200/90 shadow-2xl">
+          <div className="flex items-center gap-2 max-w-lg mx-auto">
+            <Link
+              href="/rok-mix-khernh/products"
+              className="py-3 px-4 bg-gray-100 active:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs text-center no-underline cursor-pointer min-h-[46px] flex items-center justify-center"
+            >
+              Cancel
+            </Link>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loadingProduct}
+              className="flex-1 min-h-[46px] py-3 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 active:scale-98 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-900/25 cursor-pointer disabled:opacity-50"
+            >
+              <Package size={16} />
+              <span>Update Product (រក្សាទុក)</span>
+            </button>
+          </div>
+        </div>
+      </>
+    )}
     </div>
   );
 }
