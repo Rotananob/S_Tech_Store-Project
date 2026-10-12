@@ -1206,21 +1206,21 @@ export default function UserProfilePage() {
               <div className="space-y-0.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-1.5">
-                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "Telegram Companion" : "ភ្ជាប់ Telegram Bot"}</span>
+                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "Official Telegram Bot" : "Telegram Bot ផ្លូវការ"}</span>
                     <BadgeCheck size={16} className="text-[#229ED9] fill-[#229ED9]/20" />
                   </h3>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     isTelegramAuthUser || profile.telegram_chat_id
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                      : "bg-[#229ED9]/20 text-sky-300 border border-[#229ED9]/30"
+                      : "bg-white/10 text-gray-300 border border-white/10"
                   }`}>
-                    {isTelegramAuthUser || profile.telegram_chat_id ? "Connected" : "@S_TECH_ASSISTANTBOT"}
+                    {isTelegramAuthUser || profile.telegram_chat_id ? "Active • ភ្ជាប់រួចរាល់" : "ជម្រើសបន្ថែម (Optional)"}
                   </span>
                 </div>
                 <p className="text-xs text-gray-300/90 leading-relaxed max-w-xl">
                   {isTelegramAuthUser || profile.telegram_chat_id
                     ? `ទទួលបានវិក្កយបត្រ (E-Receipts) ដំណឹងបញ្ជាទិញ និង Login 1-Click ផ្ទាល់ខ្លួន (${profile.telegram ? `@${profile.telegram.replace('@', '')}` : ""} ${profile.telegram_chat_id ? `• ID: ${profile.telegram_chat_id}` : ""})`
-                    : "ទទួលវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts), ដំណឹងដឹកជញ្ជូនរហ័ស និង Login 1-Click តាម Telegram 24/7"}
+                    : "ភ្ជាប់ជាមួយ Telegram Bot ផ្លូវការរបស់ S Tech ដើម្បីទទួលវិក្កយបត្រ (E-Receipts) និងដំណឹងកុម្ម៉ង់ 24/7 (🛡️ សុវត្ថិភាព 100% មិនទាមទារលេខសម្ងាត់ ឬព័ត៌មានផ្ទាល់ខ្លួន Telegram ឡើយ)"}
                 </p>
               </div>
             </div>
@@ -1253,7 +1253,7 @@ export default function UserProfilePage() {
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
                 >
                   <Send size={14} className="shrink-0" />
-                  <span>{telegramLinking ? "Connecting..." : "ភ្ជាប់ Telegram (Connect)"}</span>
+                  <span>{telegramLinking ? "កំពុងរៀបចំ..." : "ភ្ជាប់ Official Bot"}</span>
                 </button>
               )}
             </div>
@@ -1782,10 +1782,10 @@ export default function UserProfilePage() {
                         type="button"
                         onClick={handleConnectTelegram}
                         disabled={telegramLinking}
-                        className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-800 dark:text-amber-300 border border-amber-400/50 text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all animate-pulse"
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/40 border border-sky-200 dark:border-sky-800/60 text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                       >
-                        <AlertTriangle size={11} className="text-amber-600 dark:text-amber-400" />
-                        <span>{telegramLinking ? "Connecting..." : "⚠️ មិនទាន់ភ្ជាប់ • ចុចភ្ជាប់ Telegram"}</span>
+                        <Send size={11} />
+                        <span>{telegramLinking ? "កំពុងរៀបចំ..." : "+ ភ្ជាប់ Bot ទទួលដំណឹង (Optional)"}</span>
                       </button>
                     )}
                   </div>
@@ -2186,16 +2186,16 @@ export default function UserProfilePage() {
                             <span>បានភ្ជាប់ជោគជ័យ (Linked)</span>
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/30 flex items-center gap-1">
-                            <AlertTriangle size={12} />
-                            <span>មិនទាន់ភ្ជាប់ (Not Connected)</span>
+                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-gray-300 text-[10px] font-semibold border border-slate-200 dark:border-white/10 flex items-center gap-1">
+                            <Send size={11} className="text-sky-500" />
+                            <span>ជម្រើសបន្ថែម (Optional)</span>
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 leading-relaxed">
                         {isTelegramAuthUser
                           ? "គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយ S Tech Store ដោយស្វ័យប្រវត្តិតាំងពីដំបូងពេល Sign-in។ រាល់វិក្កយបត្រ (Digital Invoices/Receipts) និងដំណឹងការកុម្ម៉ង់ ត្រូវបានបញ្ជូនចូល Bot ផ្ទាល់ខ្លួនរបស់អ្នកដោយស្វ័យប្រវត្តិ!"
-                          : "សម្រាប់អតិថិជនទាំងអស់ (Google Gmail, Email/Password): ភ្ជាប់ Telegram ផ្ទាល់ខ្លួន ដើម្បីទទួលវិក្កយបត្រអេឡិចត្រូនិច (Digital Invoices/Receipts), តាមដានការដឹកជញ្ជូន និងដំណឹងផ្ទាល់ខ្លួនក្នុង Private Chat ដោយសុវត្ថិភាពខ្ពស់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ។"}
+                          : "សម្រាប់អតិថិជនទាំងអស់៖ ភ្ជាប់ជាមួយ Official Telegram Bot របស់ S Tech Store ដើម្បីទទួលវិក្កយបត្រ (Digital Invoices) និងដំណឹងកុម្ម៉ង់ទំនិញស្វ័យប្រវត្តិតាម Bot Chat។ 🛡️ ប្រព័ន្ធមានសុវត្ថិភាពខ្ពស់ មិនទាមទារលេខសម្ងាត់ ឬ Password Telegram របស់លោកអ្នកឡើយ (Bot Notification Only)។"}
                       </p>
                     </div>
                   </div>
@@ -2243,10 +2243,11 @@ export default function UserProfilePage() {
                   <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-sky-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-1">
                       <div className="text-xs font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-                        <span>⚡ ភ្ជាប់ត្រឹមតែ ១-Click ប៉ុណ្ណោះ គ្មានការពិបាកឡើយ!</span>
+                        <ShieldCheck size={14} className="text-emerald-500 shrink-0" />
+                        <span>សុវត្ថិភាព 100% • ភ្ជាប់ជាមួយ Official Bot ដើម្បីទទួលវិក្កយបត្រ</span>
                       </div>
                       <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                        ចុចប៊ូតុងខាងក្រោម នោះប្រព័ន្ធនឹងបើក Telegram Bot ស្វ័យប្រវត្តិ។ ចុច <strong>START</strong> ក្នុង Telegram ដើម្បីភ្ជាប់ភ្លាមៗ។
+                        ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Official Bot រួចចុច <strong>START</strong> ក្នុង Telegram ដើម្បីភ្ជាប់ភ្លាមៗ។
                       </p>
                     </div>
 
@@ -2254,10 +2255,10 @@ export default function UserProfilePage() {
                       type="button"
                       onClick={handleConnectTelegram}
                       disabled={telegramLinking}
-                      className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 text-xs sm:text-sm font-black transition-all border-2 border-amber-300 shadow-lg shadow-amber-500/30 ring-4 ring-amber-400/20 cursor-pointer flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 animate-pulse"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/20 cursor-pointer flex items-center justify-center gap-2 shrink-0 border-none disabled:opacity-50"
                     >
-                      {telegramLinking ? <RefreshCw size={14} className="animate-spin" /> : <AlertTriangle size={15} className="text-slate-950 shrink-0" />}
-                      <span>{telegramLinking ? "កំពុងរៀបចំ..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចភ្ជាប់ Bot ឥឡូវនេះ"}</span>
+                      {telegramLinking ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} className="shrink-0" />}
+                      <span>{telegramLinking ? "កំពុងរៀបចំ..." : "ភ្ជាប់ Official Telegram Bot"}</span>
                     </button>
                   </div>
                 )}
@@ -2379,23 +2380,23 @@ export default function UserProfilePage() {
                             Linked ({profile.telegram || "Bot Active"})
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-bold">
-                            Not Linked
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-gray-400 text-[10px] font-semibold">
+                            Optional
                           </span>
                         )}
                       </div>
                       <span className="text-[11px] text-gray-400 block">
-                        Send digital invoice & driver contact directly to your private Telegram chat (@S_TECH_ASSISTANTBOT).
+                        ទទួលវិក្កយបត្រអេឡិចត្រូនិច និងដំណឹងកុម្ម៉ង់ទំនិញតាម Official Bot (@S_TECH_ASSISTANTBOT)។
                       </span>
                       {(!profile.telegram_chat_id && !isTelegramAuthUser) && (
                         <button
                           type="button"
                           onClick={handleConnectTelegram}
                           disabled={telegramLinking}
-                          className="mt-1.5 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-800 dark:text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all animate-pulse w-fit"
+                          className="mt-1.5 px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/60 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all w-fit"
                         >
-                          <AlertTriangle size={12} className="text-amber-600 dark:text-amber-400" />
-                          <span>{telegramLinking ? "Connecting..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចដើម្បីភ្ជាប់ Bot"}</span>
+                          <Send size={12} />
+                          <span>{telegramLinking ? "កំពុងរៀបចំ..." : "+ ភ្ជាប់ Bot ទទួលដំណឹង (Optional)"}</span>
                         </button>
                       )}
                     </div>
@@ -3563,13 +3564,17 @@ export default function UserProfilePage() {
                     <Send size={28} className="rotate-[-20deg]" />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
-                      ភ្ជាប់ Telegram Companion Bot
+                      ភ្ជាប់ Telegram Bot ផ្លូវការ (Official Bot)
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Bot ក្នុងកម្មវិធី Telegram រួចចុច <strong>START</strong>
+                      ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Bot ក្នុង Telegram រួចចុច <strong>START</strong>
                     </p>
+                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 py-1 px-3 rounded-lg mx-auto w-fit">
+                      <ShieldCheck size={13} />
+                      <span>សុវត្ថិភាព 100% • មិនទាមទារលេខសម្ងាត់ ឬព័ត៌មានផ្ទាល់ខ្លួន Telegram ឡើយ</span>
+                    </div>
                   </div>
 
                   {telegramDeepLink && (

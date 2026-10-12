@@ -1169,6 +1169,16 @@ class TelegramService
 
         // 4.1 Handle 1-Click Telegram App Customer Login Handshake (tgauth_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
+            // ⚡ Instant Local Reply Back (< 50ms): immediate acknowledgment so the user never experiences lag
+            $initAck = self::sendMessageWithKeyboard($chatId, 
+                "⚡ <b>ទទួលបានសំណើ Login! កំពុងផ្ទៀងផ្ទាត់...</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "⏳ <i>ប្រព័ន្ធ S Tech Store បានទទួលការបញ្ជា /start រួចហើយ កំពុងតភ្ជាប់ទិន្នន័យ...</i>\n\n"
+                . "[ ▰▱▱▱▱▱▱▱▱▱ ] <b>15%</b>",
+                ['inline_keyboard' => []], 'HTML', null, $activeToken
+            );
+            $msgId = $initAck['result']['message_id'] ?? null;
+
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
             $handshake = Cache::get($handshakeKey);
@@ -1196,11 +1206,16 @@ class TelegramService
                     . "Token នេះមិនត្រឹមត្រូវ មិនមានក្នុងប្រព័ន្ធ ឬត្រូវបានប្រើប្រាស់រួចហើយ ដើម្បីការពារគណនីពីការវាយប្រហារ។\n\n"
                     . "👉 <b>សូមចូលទៅកាន់គេហទំព័រ ហើយចុច \"Sign in with Telegram\" ម្តងទៀត៖</b>";
 
-                self::sendMessageWithKeyboard($chatId, $invalidMsg, [
+                $invalidKb = [
                     'inline_keyboard' => [
                         [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
                     ]
-                ], 'HTML', null, $activeToken);
+                ];
+                if ($msgId) {
+                    self::editMessageText($chatId, $msgId, $invalidMsg, $invalidKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $invalidMsg, $invalidKb, 'HTML', null, $activeToken);
+                }
                 return;
             }
 
@@ -1292,8 +1307,12 @@ class TelegramService
                 . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n\n"
                 . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
 
-            $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
-            $msgId = $sentResp['result']['message_id'] ?? null;
+            if ($msgId) {
+                self::editMessageText($chatId, $msgId, $loadingMsg, null, 'HTML', $activeToken);
+            } else {
+                $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
+                $msgId = $sentResp['result']['message_id'] ?? null;
+            }
 
             if ($msgId) {
                 usleep(350000); // 0.35s lively tick
@@ -1356,6 +1375,16 @@ class TelegramService
 
         // 4.2 Handle Profile Setting Private Account Linkage Handshake (tglink_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tglink_') || str_starts_with($extractedCode, 'TGLINK_'))) {
+            // ⚡ Instant Local Reply Back (< 50ms): immediate acknowledgment so user never experiences lag
+            $initAck = self::sendMessageWithKeyboard($chatId, 
+                "⚡ <b>ទទួលបានសំណើភ្ជាប់គណនី! កំពុងដំណើរការ...</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "⏳ <i>ប្រព័ន្ធ S Tech Store បានទទួលការបញ្ជា /start រួចហើយ កំពុងតភ្ជាប់ Telegram Bot ជាមួយ Profile...</i>\n\n"
+                . "[ ▰▱▱▱▱▱▱▱▱▱ ] <b>15%</b>",
+                ['inline_keyboard' => []], 'HTML', null, $activeToken
+            );
+            $msgId = $initAck['result']['message_id'] ?? null;
+
             $cleanToken = strtolower(trim($extractedCode));
             $linkKey = "tg_link_{$cleanToken}";
             $linkData = Cache::get($linkKey);
@@ -1376,15 +1405,20 @@ class TelegramService
             if (!$linkData || !is_array($linkData) || ($linkData['status'] ?? '') !== 'pending') {
                 $invalidMsg = "⚠️ <b>កូដភ្ជាប់គណនីមិនត្រឹមត្រូវ ឬបានផុតកំណត់សុពលភាព!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព S Tech Store (Anti-Injection):</b>\n"
+                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព S Tech Store:</b>\n"
                     . "Link Token នេះមិនត្រឹមត្រូវ មិនមានក្នុងប្រព័ន្ធ ឬត្រូវបានផុតកំណត់ហើយ ដើម្បីការពារគណនីពីការ Hack ឬ Hijacking។\n\n"
                     . "👉 <b>សូមចូលទៅកាន់ Profile Setting លើគេហទំព័រ ហើយចុច 'ភ្ជាប់ Telegram' ម្តងទៀត៖</b>";
 
-                self::sendMessageWithKeyboard($chatId, $invalidMsg, [
+                $invalidKb = [
                     'inline_keyboard' => [
                         [['text' => '🌐 ចូលទៅកាន់ Profile Setting', 'url' => 'https://www.s-tech-store.tech/account/profile']],
                     ]
-                ], 'HTML', null, $activeToken);
+                ];
+                if ($msgId) {
+                    self::editMessageText($chatId, $msgId, $invalidMsg, $invalidKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $invalidMsg, $invalidKb, 'HTML', null, $activeToken);
+                }
                 return;
             }
 
@@ -1398,7 +1432,12 @@ class TelegramService
             }
 
             if (!$user) {
-                self::sendMessage($chatId, "⚠️ មិនអាចស្វែងរកគណនីអ្នកប្រើប្រាស់ដែលត្រូវភ្ជាប់បានទេ សូមព្យាយាមម្តងទៀតពី Profile Setting។", 'HTML', null, $activeToken);
+                $notFoundMsg = "⚠️ មិនអាចស្វែងរកគណនីអ្នកប្រើប្រាស់ដែលត្រូវភ្ជាប់បានទេ សូមព្យាយាមម្តងទៀតពី Profile Setting។";
+                if ($msgId) {
+                    self::editMessageText($chatId, $msgId, $notFoundMsg, null, 'HTML', $activeToken);
+                } else {
+                    self::sendMessage($chatId, $notFoundMsg, 'HTML', null, $activeToken);
+                }
                 return;
             }
 
@@ -1441,12 +1480,17 @@ class TelegramService
                     . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនីថ្មី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើ Website រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
                     . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីថ្មីនេះបាន។</i>";
 
-                self::sendMessageWithKeyboard($chatId, $conflictMsg, [
+                $conflictKb = [
                     'inline_keyboard' => [
                         [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
                         [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ]
-                ], 'HTML', null, $activeToken);
+                ];
+                if ($msgId) {
+                    self::editMessageText($chatId, $msgId, $conflictMsg, $conflictKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $conflictMsg, $conflictKb, 'HTML', null, $activeToken);
+                }
                 return;
             }
 
@@ -1489,8 +1533,12 @@ class TelegramService
                 . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>\n\n"
                 . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
 
-            $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
-            $msgId = $sentResp['result']['message_id'] ?? null;
+            if ($msgId) {
+                self::editMessageText($chatId, $msgId, $loadingMsg, null, 'HTML', $activeToken);
+            } else {
+                $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
+                $msgId = $sentResp['result']['message_id'] ?? null;
+            }
 
             if ($msgId) {
                 usleep(350000); // Snappy 0.35s
@@ -2827,7 +2875,7 @@ class TelegramService
         if (!$token || !$tgUserId) return null;
 
         try {
-            $resp = \Illuminate\Support\Facades\Http::timeout(5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
+            $resp = \Illuminate\Support\Facades\Http::timeout(1.5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
                 'user_id' => $tgUserId,
                 'limit' => 1,
             ]);
@@ -2841,7 +2889,7 @@ class TelegramService
                     $fileId = $bestPhoto['file_id'] ?? null;
 
                     if ($fileId) {
-                        $fileRes = \Illuminate\Support\Facades\Http::timeout(5)->get("https://api.telegram.org/bot{$token}/getFile", [
+                        $fileRes = \Illuminate\Support\Facades\Http::timeout(1.5)->get("https://api.telegram.org/bot{$token}/getFile", [
                             'file_id' => $fileId,
                         ]);
                         if ($fileRes->successful()) {
