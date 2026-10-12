@@ -32,7 +32,8 @@ import {
   getOrCreateVisitorId, 
   sendChatMessage, 
   subscribeToMessages, 
-  subscribeToChatMeta 
+  subscribeToChatMeta,
+  markChatReadByUser 
 } from "@/lib/services/chat.service";
 import { useRouter } from "next/navigation";
 
@@ -498,6 +499,13 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isAiThinking]);
+
+  // Mark chat as read by user whenever ChatBot is active and messages update
+  useEffect(() => {
+    if (chatId) {
+      markChatReadByUser(chatId).catch(() => {});
+    }
+  }, [chatId, messages]);
 
   // ─── Notify Telegram about active chat (throttled) ────────────────────────
   const triggerTelegramAlert = useCallback(

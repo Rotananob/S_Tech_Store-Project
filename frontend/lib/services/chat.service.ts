@@ -1,5 +1,6 @@
 import { rtdb } from "@/lib/firebase";
-import { ref, push, set, update, onValue, query, orderByChild } from "firebase/database";
+import { ref, push, set, update, get, onValue, query, orderByChild } from "firebase/database";
+import api from "@/lib/api";
 
 export interface ChatMessage {
   id: string;
@@ -96,12 +97,24 @@ export async function sendChatMessage(
   if (meta?.userPhone) updates.userPhone = meta.userPhone;
   if (meta?.sessionId) updates.activeSessionId = meta.sessionId;
 
-  if (message.sender === "user") {
-    // Increment admin unread count
-    updates.lastUserSender = message.senderName;
-  } else {
-    // Admin replied, reset unreadAdminCount
-    updates.unreadAdminCount = 0;
+  try {
+    const snap = await get(sessionRef);
+    const curr = snap.val() || {};
+    if (message.sender === "user") {
+      updates.unreadAdminCount = (curr.unreadAdminCount || 0) + 1;
+      updates.unreadUserCount = 0;
+      updates.lastUserSender = message.senderName;
+    } else {
+      // Admin or staff replied -> increment user's unread count for the website live chat icon badge!
+      updates.unreadAdminCount = 0;
+      updates.unreadUserCount = (curr.unreadUserCount || 0) + 1;
+    }
+  } catch (e) {
+    if (message.sender === "user") {
+      updates.lastUserSender = message.senderName;
+    } else {
+      updates.unreadAdminCount = 0;
+    }
   }
 
   await update(sessionRef, updates);
@@ -137,12 +150,25 @@ export async function setChatAiStatus(
   });
 }
 
+export interface ChatMeta {
+  ai_paused?: boolean;
+  paused_by?: string;
+  status?: string;
+  unreadAdminCount?: number;
+  unreadUserCount?: number;
+  userName?: string;
+  userEmail?: string;
+  userPhone?: string;
+  lastMessage?: string;
+  lastTimestamp?: number;
+}
+
 /**
- * Subscribe to chat meta (AI paused status, etc.) in real time
+ * Subscribe to chat meta (AI paused status, unread counts, etc.) in real time
  */
 export function subscribeToChatMeta(
   chatId: string,
-  callback: (meta: { ai_paused?: boolean; paused_by?: string; status?: string } | null) => void
+  callback: (meta: ChatMeta | null) => void
 ): () => void {
   if (!rtdb) {
     callback(null);
@@ -262,3 +288,37 @@ export async function markChatReadByAdmin(chatId: string): Promise<void> {
   const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
   await update(sessionRef, { unreadAdminCount: 0 });
 }
+
+/**
+ * Mark chat messages read by User (Customer)
+ */
+export async function markChatReadByUser(chatId: string): Promise<void> {
+  if (!rtdb) return;
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  await update(sessionRef, { unreadUserCount: 0 });
+}
+
+/**
+ * Notify customer on Telegram Bot when admin/staff replies in Live Chat
+ */
+export async function notifyCustomerOfAdminReply(data: {
+  chat_id: string;
+  reply_text: string;
+  staff_name?: string;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+}): Promise<{ success: boolean; telegram_alerted?: boolean; message?: string }> {
+  try {
+    const res = await api.post("/chat/admin-reply-alert", data);
+    return res.data;
+  } catch (err: any) {
+    console.warn("Failed to send Telegram alert for admin reply:", err?.message);
+    return {
+      success: false,
+      telegram_alerted: false,
+      message: err.response?.data?.message || "Failed to alert Telegram",
+    };
+  }
+}
+

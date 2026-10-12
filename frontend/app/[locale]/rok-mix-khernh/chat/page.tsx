@@ -28,6 +28,7 @@ import {
   markChatReadByAdmin,
   setChatAiStatus,
   subscribeToChatMeta,
+  notifyCustomerOfAdminReply,
   ChatSession, 
   ChatMessage 
 } from "@/lib/services/chat.service";
@@ -52,6 +53,13 @@ export default function AdminRealtimeChatPage() {
   const [togglingAi, setTogglingAi] = useState(false);
   const [activeChatMeta, setActiveChatMeta] = useState<{ ai_paused?: boolean; paused_by?: string } | null>(null);
   const [bypassNotice, setBypassNotice] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+
+  const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const [currentStaff, setCurrentStaff] = useState<{ name: string; role: string }>({
     name: "S Tech Support",
     role: "staff",
@@ -161,10 +169,13 @@ export default function AdminRealtimeChatPage() {
   const handleTakeoverChat = async () => {
     if (!selectedChatId || togglingAi) return;
     setTogglingAi(true);
+    showToast("កំពុងផ្អាក AI Bot...", "info");
     try {
       await setChatAiStatus(selectedChatId, true, currentStaff.name);
+      showToast("✅ បានផ្អាក AI Bot ជោគជ័យ! អ្នកអាចជជែកផ្ទាល់ជាមួយអតិថិជន", "success");
     } catch (err) {
       console.error("Failed to pause AI:", err);
+      showToast("❌ មិនអាចផ្អាក AI បានទេ", "error");
     } finally {
       setTogglingAi(false);
     }
@@ -174,10 +185,13 @@ export default function AdminRealtimeChatPage() {
   const handleResumeAi = async () => {
     if (!selectedChatId || togglingAi) return;
     setTogglingAi(true);
+    showToast("កំពុងបើកដំណើរការ AI Bot ឡើងវិញ...", "info");
     try {
       await setChatAiStatus(selectedChatId, false, currentStaff.name);
+      showToast("✅ បានបើកដំណើរការ AI Bot ឡើងវិញជោគជ័យ", "success");
     } catch (err) {
       console.error("Failed to resume AI:", err);
+      showToast("❌ មិនអាចបើកដំណើរការ AI ឡើងវិញបានទេ", "error");
     } finally {
       setTogglingAi(false);
     }
@@ -201,6 +215,7 @@ export default function AdminRealtimeChatPage() {
     if (!textToSend || !selectedChatId) return;
 
     setSending(true);
+    showToast("កំពុងផ្ញើសារឆ្លើយតប...", "info");
     try {
       // Auto-pause AI if not already paused when staff sends a message to prevent simultaneous replies
       if (!activeChatMeta?.ai_paused) {
@@ -226,8 +241,25 @@ export default function AdminRealtimeChatPage() {
       if (!customText) {
         setReplyInput("");
       }
+
+      // Notify customer via Telegram if connected
+      const alertRes = await notifyCustomerOfAdminReply({
+        chat_id: selectedChatId,
+        customer_email: activeChat?.userEmail,
+        customer_phone: activeChat?.userPhone,
+        customer_name: activeChat?.userName,
+        reply_text: textToSend,
+        staff_name: currentStaff.name,
+      });
+
+      if (alertRes.telegram_alerted) {
+        showToast("✅ បានឆ្លើយតប និងបាញ់ Alert ទៅ Telegram របស់អតិថិជនជោគជ័យ!", "success");
+      } else {
+        showToast("💬 បានឆ្លើយតបជោគជ័យ (អតិថិជនមិនទាន់ភ្ជាប់ Telegram ទេ - បានបង្ហាញ Unread Badge លើ Website)", "info");
+      }
     } catch (err) {
       console.error("Failed to send reply to RTDB:", err);
+      showToast("❌ បរាជ័យក្នុងការផ្ញើសារ! សូមព្យាយាមម្តងទៀត", "error");
     } finally {
       setSending(false);
     }
@@ -257,6 +289,30 @@ export default function AdminRealtimeChatPage() {
           <button
             onClick={() => setBypassNotice(null)}
             className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer"
+          >
+            បិទ
+          </button>
+        </div>
+      )}
+
+      {/* Real-time Action Toast Banner */}
+      {toast && (
+        <div
+          className={`px-4 py-3 rounded-2xl shadow-md font-bold text-sm flex items-center justify-between transition-all animate-in fade-in slide-in-from-top-2 ${
+            toast.type === "success"
+              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
+              : toast.type === "error"
+              ? "bg-gradient-to-r from-red-600 to-rose-600 text-white"
+              : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Bell size={18} className="animate-pulse shrink-0" />
+            <span>{toast.msg}</span>
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer ml-3"
           >
             បិទ
           </button>

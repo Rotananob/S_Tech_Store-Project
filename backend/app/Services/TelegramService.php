@@ -2641,6 +2641,42 @@ class TelegramService
     }
 
     /**
+     * Send instant direct alert to customer Telegram Bot when Admin/Staff replies in Live Chat
+     */
+    public static function sendAdminChatReplyAlertToCustomer($customerOrChatId, string $replyText, ?string $staffName = null): array
+    {
+        $chatId = self::resolveCustomerChatId($customerOrChatId);
+        if (!$chatId) {
+            return ['ok' => false, 'error' => 'No linked Telegram for customer'];
+        }
+
+        $staff = htmlspecialchars($staffName ?: 'បុគ្គលិក S Tech Store');
+        $cleanReply = htmlspecialchars($replyText);
+        if (mb_strlen($cleanReply) > 400) {
+            $cleanReply = mb_substr($cleanReply, 0, 397) . '...';
+        }
+
+        $sessionToken = self::generateCustomerSessionToken($chatId);
+        $directUrl = "https://www.s-tech-store.tech/?open_chat=1&tg_token={$sessionToken}";
+
+        $text = "💬 <b>មានសារឆ្លើយតបថ្មីពីបុគ្គលិក S Tech Store!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n\n"
+            . "👤 <b>{$staff}</b> បានឆ្លើយតបសាររបស់អ្នក៖\n\n"
+            . "<i>\"{$cleanReply}\"</i>\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "👉 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើកមើលការសន្ទនាផ្ទាល់ក្នុង Live Chat!</i>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [['text' => '💬 បើក Live Chat ពិនិត្យមើល', 'web_app' => ['url' => $directUrl]]],
+                [['text' => '🌐 ចូលគេហទំព័រហាង', 'url' => $directUrl]],
+            ]
+        ];
+
+        return self::sendMessageWithKeyboard($chatId, $text, $kb, 'HTML', null, self::getCustomerBotToken());
+    }
+
+    /**
      * Send direct repair ticket alert to customer 1-on-1 Telegram chat via Bot 2
      */
     public static function sendCustomerDirectRepairAlert($repair, string $event = 'status_updated'): array

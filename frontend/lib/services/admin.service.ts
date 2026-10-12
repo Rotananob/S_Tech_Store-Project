@@ -10,17 +10,37 @@ export interface AdminStats {
   monthlySales?: { name: string; sales: number }[];
 }
 
+export interface CustomerAccount {
+  id: number;
+  firebase_uid: string;
+  display_name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  photo_url?: string | null;
+  telegram?: string | null;
+  telegram_chat_id?: string | null;
+  has_telegram: boolean;
+}
+
 export interface Order {
   id: number;
   order_id: string;
+  user_id?: string | null;
   customer_name: string;
   customer_phone?: string;
+  customer_email?: string;
+  customer_account?: CustomerAccount | null;
   created_at: string;
   total_amount: number;
   status: string;
+  payment_status?: string;
   payment_method?: string;
   delivery_type?: string;
   shipping_address?: string;
+  tracking_number?: string;
+  admin_notes?: string;
+  items?: any[];
 }
 
 export const getAdminStats = async (): Promise<AdminStats> => {
@@ -58,7 +78,7 @@ export const getRecentOrders = async (limit?: number): Promise<Order[]> => {
 
 export const updateOrderStatus = async (orderId: number, status: string): Promise<boolean> => {
   try {
-    await api.patch(`/admin/orders/${orderId}`, { status });
+    await api.patch(`/admin/orders/${orderId}/status`, { status });
     return true;
   } catch (error) {
     console.error("Failed to update order status:", error);
@@ -66,16 +86,63 @@ export const updateOrderStatus = async (orderId: number, status: string): Promis
   }
 };
 
+export const updateOrder = async (
+  orderId: number,
+  data: {
+    status?: string;
+    payment_status?: string;
+    customer_name?: string;
+    customer_phone?: string;
+    customer_email?: string;
+    shipping_address?: string;
+    delivery_type?: string;
+    payment_method?: string;
+    total_amount?: number;
+    tracking_number?: string;
+    admin_notes?: string;
+    notify_customer?: boolean;
+  }
+): Promise<{ success: boolean; message?: string; order?: Order; sent_to_web?: boolean; sent_to_telegram?: boolean }> => {
+  try {
+    const res = await api.put(`/admin/orders/${orderId}`, data);
+    return {
+      success: true,
+      message: res.data?.message || "បានកែប្រែការបញ្ជាទិញជោគជ័យ!",
+      order: res.data?.order,
+      sent_to_web: res.data?.sent_to_web,
+      sent_to_telegram: res.data?.sent_to_telegram,
+    };
+  } catch (error: any) {
+    console.error("Failed to update order:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.response?.data?.error || "បរាជ័យក្នុងការកែប្រែការបញ្ជាទិញ",
+    };
+  }
+};
+
 export const pushOrderNotification = async (
   orderId: number,
   data: { title?: string; message: string; status?: string }
-): Promise<{ success: boolean; message?: string; has_customer?: boolean }> => {
+): Promise<{
+  success: boolean;
+  message?: string;
+  has_customer?: boolean;
+  sent_to_web?: boolean;
+  sent_to_telegram?: boolean;
+  has_telegram?: boolean;
+  customer?: any;
+}> => {
   try {
     const res = await api.post(`/admin/orders/${orderId}/notify`, data);
     return {
       success: true,
       message: res.data?.message || "បានផ្ញើការជូនដំណឹងជោគជ័យ!",
       has_customer: res.data?.has_customer,
+      sent_to_web: res.data?.sent_to_web,
+      sent_to_telegram: res.data?.sent_to_telegram,
+      has_telegram: res.data?.has_telegram,
+      customer: res.data?.customer,
     };
   } catch (error: any) {
     console.error("Failed to push order notification:", error);

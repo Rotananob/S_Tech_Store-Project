@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Order extends Model
 {
     protected $fillable = [
-        'order_id', 'user_id', 'customer_name', 'customer_phone', 
-        'shipping_address', 'delivery_type', 'payment_method', 'promo_code', 'discount_amount',
+        'order_id', 'user_id', 'customer_name', 'customer_phone', 'customer_email',
+        'shipping_address', 'delivery_type', 'tracking_number', 'payment_method', 'promo_code', 'discount_amount',
         'total_amount', 'status',
-        'payment_status', 'transaction_id', 'payment_currency', 'payment_details', 'paid_at',
+        'payment_status', 'transaction_id', 'payment_currency', 'payment_details', 'admin_notes', 'paid_at',
     ];
 
     protected $casts = [
@@ -22,5 +22,10 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(UserProfile::class, 'user_id', 'firebase_uid');
     }
 }

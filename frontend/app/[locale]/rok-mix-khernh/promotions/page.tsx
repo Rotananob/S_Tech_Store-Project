@@ -234,10 +234,11 @@ export default function PromotionManagementPage() {
 
   const handleTogglePopup = async (promo: Promotion) => {
     try {
+      showToast("កំពុងកែប្រែស្ថានភាព Popup...", "success");
       const nextVal = !promo.show_popup;
       await api.put(`/promo-codes/${promo.id}`, { show_popup: nextVal });
       setPromos(prev => prev.map(p => p.id === promo.id ? { ...p, show_popup: nextVal } : p));
-      showToast(nextVal ? "បានបើកបង្ហាញ Popup នៅលើ Website! • Popup enabled" : "បានបិទ Popup នៅលើ Website! • Popup disabled");
+      showToast(nextVal ? "✓ បានបើកបង្ហាញ Popup នៅលើ Website! • Popup enabled" : "✓ បានបិទ Popup នៅលើ Website! • Popup disabled");
     } catch (e) {
       showToast("បរាជ័យក្នុងការប្តូរស្ថានភាព Popup", "error");
     }
@@ -245,10 +246,11 @@ export default function PromotionManagementPage() {
 
   const handleDelete = async (id: string | number) => {
     if (!confirm("តើអ្នកពិតជាចង់លុបប្រូម៉ូសិននេះមែនទេ?")) return;
+    showToast("កំពុងលុបប្រូម៉ូសិន...", "success");
     try {
       await api.delete(`/promo-codes/${id}`);
       setPromos(prev => prev.filter(p => p.id !== id));
-      showToast("បានលុបប្រូម៉ូសិនដោយជោគជ័យ! • Promotion deleted.");
+      showToast("✓ បានលុបប្រូម៉ូសិនដោយជោគជ័យ! • Promotion deleted.");
     } catch (e) {
       showToast("បរាជ័យក្នុងការលុបប្រូម៉ូសិន", "error");
     }

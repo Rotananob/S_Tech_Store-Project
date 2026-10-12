@@ -106,6 +106,7 @@ export default function AdminProductsPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
+    showToast("កំពុងលុបទំនិញពីប្រព័ន្ធ...", "success");
     try {
       await api.delete(`/products/${deleteTarget.id}`);
       setProducts(prev => {
@@ -115,7 +116,7 @@ export default function AdminProductsPage() {
         } catch (e) {}
         return next;
       });
-      showToast(`បានលុបទំនិញ "${deleteTarget.name}" ចេញពី Neon DB ជោគជ័យ!`);
+      showToast(`✓ បានលុបទំនិញ "${deleteTarget.name}" ចេញពី Neon DB ជោគជ័យ!`);
     } catch (e) {
       showToast("បរាជ័យក្នុងការលុបទំនិញ សូមព្យាយាមម្តងទៀត។", "error");
     } finally {

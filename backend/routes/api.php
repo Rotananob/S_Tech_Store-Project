@@ -68,6 +68,67 @@ Route::post('/chat/request-agent', function (Request $request) {
     ]);
 });
 
+// Admin Live Chat Real-Time Reply Alert to Customer Telegram (Bot 2 Companion)
+Route::post('/chat/admin-reply-alert', function (Request $request) {
+    $validated = $request->validate([
+        'chat_id' => 'required|string',
+        'reply_text' => 'required|string',
+        'staff_name' => 'nullable|string|max:100',
+        'customer_name' => 'nullable|string|max:100',
+        'customer_email' => 'nullable|string|max:150',
+        'customer_phone' => 'nullable|string|max:50',
+    ]);
+
+    $chatId = $validated['chat_id'];
+    $user = null;
+
+    // Check if chat_id starts with tg_
+    if (str_starts_with($chatId, 'tg_')) {
+        $tgRaw = substr($chatId, 3);
+        $user = \App\Models\UserProfile::where('firebase_uid', $chatId)
+            ->orWhere('telegram_chat_id', $tgRaw)
+            ->first();
+    } elseif (!empty($chatId) && !str_starts_with($chatId, 'visitor_')) {
+        $user = \App\Models\UserProfile::where('firebase_uid', $chatId)->first();
+    }
+
+    // Fallback to phone / email
+    if (!$user && !empty($validated['customer_phone'])) {
+        $user = \App\Models\UserProfile::where('phone', $validated['customer_phone'])->first();
+    }
+    if (!$user && !empty($validated['customer_email'])) {
+        $user = \App\Models\UserProfile::where('email', $validated['customer_email'])->first();
+    }
+
+    $targetChatId = \App\Services\TelegramService::resolveCustomerChatId(
+        $user ?: $chatId,
+        $validated['customer_phone'] ?? null,
+        $validated['customer_email'] ?? null
+    );
+
+    if ($targetChatId) {
+        $res = \App\Services\TelegramService::sendAdminChatReplyAlertToCustomer(
+            $targetChatId,
+            $validated['reply_text'],
+            $validated['staff_name'] ?? 'S Tech Staff'
+        );
+
+        return response()->json([
+            'success' => true,
+            'telegram_alerted' => ($res['ok'] ?? false) === true,
+            'chat_id' => $targetChatId,
+            'message' => 'បានផ្ញើការជូនដំណឹងទៅកាន់ Telegram របស់អតិថិជនជោគជ័យ!',
+        ]);
+    }
+
+    return response()->json([
+        'success' => true,
+        'telegram_alerted' => false,
+        'reason' => 'not_connected',
+        'message' => 'អតិថិជនមិនទាន់ភ្ជាប់ Telegram ទេ (បានអាប់ដេតសារក្នុង Live Chat)',
+    ]);
+});
+
 // Admin Verify & Consume Live Chat Bypass Token (One-Click Telegram Redirect - Max 3 Uses)
 Route::post('/admin/verify-bypass-token', function (Request $request) {
     $token = trim((string)($request->input('bypass_token') ?: $request->input('token') ?: ''));
@@ -1022,7 +1083,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 
     // Order Fulfillment & Status Management
     Route::get('/admin/orders', [OrderController::class, 'index']);
-    Route::patch('/admin/orders/{id}', [OrderController::class, 'updateStatus']);
+    Route::match(['put', 'patch'], '/admin/orders/{id}', [OrderController::class, 'update']);
+    Route::patch('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
     Route::post('/admin/orders/{id}/notify', [OrderController::class, 'pushNotification']);
 
     // Staff & Account Management (Admin Role Only)

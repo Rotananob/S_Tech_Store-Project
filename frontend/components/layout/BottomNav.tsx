@@ -9,6 +9,8 @@ import { useCartStore } from '@/store/cartStore';
 import { useVisualSearchStore } from '@/store/visualSearchStore';
 import { useChatStore } from '@/store/chatStore';
 import ChatBot from '@/components/ui/ChatBot';
+import FloatingLiveChatButton from '@/components/ui/FloatingLiveChatButton';
+import { getOrCreateVisitorId, subscribeToChatMeta, markChatReadByUser } from '@/lib/services/chat.service';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BottomNav() {
@@ -63,6 +65,23 @@ export default function BottomNav() {
     };
   }, []);
 
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Subscribe to real-time unread messages for customer
+  useEffect(() => {
+    try {
+      const visitorId = getOrCreateVisitorId();
+      const unsub = subscribeToChatMeta(visitorId, (meta) => {
+        if (meta && typeof meta.unreadUserCount === "number") {
+          setUnreadChatCount(meta.unreadUserCount);
+        } else {
+          setUnreadChatCount(0);
+        }
+      });
+      return () => unsub();
+    } catch (e) {}
+  }, []);
+
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
     if (path !== '/' && path !== '#chat' && pathname.startsWith(path)) return true;
@@ -71,7 +90,18 @@ export default function BottomNav() {
 
   // Hide BottomNav on Product Detail and Checkout pages to allow for specific action bars
   if (pathname.includes('/products/') || pathname.includes('/checkout')) {
-    return null;
+    return (
+      <>
+        <FloatingLiveChatButton />
+        <AnimatePresence>
+          {isChatOpen && (
+            <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center pointer-events-auto">
+              <ChatBot onClose={closeChat} productInfo={productInfo || undefined} />
+            </div>
+          )}
+        </AnimatePresence>
+      </>
+    );
   }
 
   const tabs: Array<{
@@ -85,15 +115,16 @@ export default function BottomNav() {
     { label: 'Home', path: '/', icon: Home },
     { label: 'Category', path: '/category/all', icon: Layers },
     { label: 'Camera', path: '/scan', icon: Camera, isCenter: true },
-    { label: 'Chat', path: '#chat', icon: MessageSquare, isChat: true },
+    { label: 'Chat', path: '#chat', icon: MessageSquare, isChat: true, badge: isChatOpen ? 0 : unreadChatCount },
     { label: 'Account', path: '/account/profile', icon: User },
   ];
 
   return (
-    <nav 
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-t border-black/5 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]" 
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
+    <>
+      <nav 
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-t border-black/5 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]" 
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
       <div className="relative flex items-end justify-around h-[68px] max-w-[500px] mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -173,7 +204,14 @@ export default function BottomNav() {
                 id="bottom-nav-chat-icon"
                 key={tab.path}
                 type="button"
-                onClick={() => openChat()}
+                onClick={() => {
+                  try {
+                    const visitorId = getOrCreateVisitorId();
+                    markChatReadByUser(visitorId).catch(() => {});
+                  } catch (e) {}
+                  setUnreadChatCount(0);
+                  openChat();
+                }}
                 className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
                 aria-label="Open Customer Chat"
               >
@@ -279,7 +317,12 @@ export default function BottomNav() {
         )}
       </AnimatePresence>
 
-      {/* Global Interactive ChatBot Modal when opened from BottomNav */}
+      </nav>
+
+      {/* Desktop Floating Live Chat Button */}
+      <FloatingLiveChatButton />
+
+      {/* Global Interactive ChatBot Modal when opened */}
       <AnimatePresence>
         {isChatOpen && (
           <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center pointer-events-auto">
@@ -287,6 +330,6 @@ export default function BottomNav() {
           </div>
         )}
       </AnimatePresence>
-    </nav>
+    </>
   );
 }
