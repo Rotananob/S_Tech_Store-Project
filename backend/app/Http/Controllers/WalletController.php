@@ -352,52 +352,80 @@ class WalletController extends Controller
 
         $depositId = $validated['deposit_id'];
 
-        $tx = WalletTransaction::where('reference_id', $depositId)
-            ->where('firebase_uid', $user->firebase_uid)
-            ->first();
+        // Begin atomic database transaction to prevent double-spending & race conditions
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $depositId) {
+            $tx = WalletTransaction::where('reference_id', $depositId)
+                ->where('firebase_uid', $user->firebase_uid)
+                ->lockForUpdate()
+                ->first();
 
-        if (!$tx) {
-            return response()->json(['success' => false, 'message' => 'រកមិនឃើញទិន្នន័យនៃការបញ្ចូលលុយនេះឡើយ'], 404);
-        }
+            if (!$tx) {
+                return response()->json(['success' => false, 'message' => 'រកមិនឃើញទិន្នន័យនៃការបញ្ចូលលុយនេះឡើយ'], 404);
+            }
 
-        if ($tx->status === 'completed') {
+            if ($tx->status === 'completed') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'ការបញ្ចូលទឹកប្រាក់នេះត្រូវបានអនុម័តរួចរាល់ហើយ',
+                    'wallet_balance' => (float)$user->fresh()->wallet_balance,
+                ]);
+            }
+
+            // Verify with Bakong Open API if gateway credentials configured
+            $bakongToken = config('payment.bakong.api_token');
+            if (!empty($bakongToken)) {
+                try {
+                    $khqrString = $tx->metadata['khqr_string'] ?? \App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId);
+                    $md5 = md5($khqrString);
+                    $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
+                        ->timeout(8)
+                        ->post(config('payment.bakong.api_url') . '/check_transaction_by_md5', [
+                            'md5' => $md5,
+                        ]);
+
+                    if (!$response->successful() || !($response->json('responseCode') == 0 || $response->json('status') === 'SUCCESS')) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការទូទាត់ពីធនាគារ Bakong នៅឡើយទេ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នកឡើងវិញ។',
+                        ], 400);
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Bakong topup verification check: " . $e->getMessage());
+                }
+            }
+
+            // Credit locked user account atomically
+            $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
+            $amount = (float)$tx->amount;
+            $lockedUser->wallet_balance = ((float)($lockedUser->wallet_balance ?? 0.00)) + $amount;
+            $lockedUser->save();
+
+            // Update transaction status
+            $tx->status = 'completed';
+            $tx->save();
+
+            // Remove cache
+            \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
+
+            // Create notification
+            try {
+                UserNotification::create([
+                    'firebase_uid' => $lockedUser->firebase_uid,
+                    'title' => '💳 បញ្ចូលទឹកប្រាក់ជោគជ័យ! (Wallet Funded)',
+                    'message' => "លោកអ្នកបានបញ្ចូលទឹកប្រាក់ចំនួន $" . number_format($amount, 2) . " ទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($lockedUser->wallet_balance, 2),
+                    'type' => 'system',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $t) {}
+
             return response()->json([
                 'success' => true,
-                'message' => 'ការបញ្ចូលទឹកប្រាក់នេះត្រូវបានអនុម័តរួចរាល់ហើយ',
-                'wallet_balance' => (float)$user->wallet_balance,
+                'message' => "អបអរសាទរ! បានបញ្ចូលទឹកប្រាក់ $" . number_format($amount, 2) . " ទៅក្នុងកាបូបដោយជោគជ័យ 🎉",
+                'amount_added' => $amount,
+                'new_balance' => (float)$lockedUser->wallet_balance,
+                'transaction' => $tx,
             ]);
-        }
-
-        // Credit real wallet balance
-        $amount = (float)$tx->amount;
-        $user->wallet_balance = ((float)($user->wallet_balance ?? 0.00)) + $amount;
-        $user->save();
-
-        // Update transaction status
-        $tx->status = 'completed';
-        $tx->save();
-
-        // Remove cache
-        \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
-
-        // Create notification
-        try {
-            UserNotification::create([
-                'firebase_uid' => $user->firebase_uid,
-                'title' => '💳 បញ្ចូលទឹកប្រាក់ជោគជ័យ! (Wallet Funded)',
-                'message' => "លោកអ្នកបានបញ្ចូលទឹកប្រាក់ចំនួន $" . number_format($amount, 2) . " ទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($user->wallet_balance, 2),
-                'type' => 'system',
-                'read' => false,
-            ]);
-        } catch (\Throwable $t) {}
-
-        return response()->json([
-            'success' => true,
-            'message' => "អបអរសាទរ! បានបញ្ចូលទឹកប្រាក់ $" . number_format($amount, 2) . " ទៅក្នុងកាបូបដោយជោគជ័យ 🎉",
-            'amount_added' => $amount,
-            'new_balance' => (float)$user->wallet_balance,
-            'transaction' => $tx,
-        ]);
+        });
     }
 
     /**

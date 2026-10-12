@@ -25,7 +25,7 @@ Route::get('/categories', function () {
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::get('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewController::class, 'index']);
-Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewController::class, 'store']);
+Route::post('/products/{id}/reviews', [\App\Http\Controllers\ProductReviewController::class, 'store'])->middleware('throttle:10,1');
 
 // Public Store Branches & Shifts (Read Only)
 Route::get('/branches', [BranchController::class, 'index']);
@@ -1112,18 +1112,18 @@ Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
 Route::post('/user/claim-welcome-gift', [UserController::class, 'claimWelcomeGift']);
 Route::post('/user/send-welcome-email', [UserController::class, 'sendWelcomeEmail']);
-Route::post('/user/send-reset-email', [UserController::class, 'sendResetEmail']);
-Route::post('/user/request-2fa-otp', [UserController::class, 'requestTwoFactorOtp']);
-Route::post('/user/verify-2fa-otp', [UserController::class, 'verifyTwoFactorOtp']);
+Route::post('/user/send-reset-email', [UserController::class, 'sendResetEmail'])->middleware('throttle:5,1');
+Route::post('/user/request-2fa-otp', [UserController::class, 'requestTwoFactorOtp'])->middleware('throttle:5,1');
+Route::post('/user/verify-2fa-otp', [UserController::class, 'verifyTwoFactorOtp'])->middleware('throttle:10,1');
 
-// Real S-Tech Wallet & Coin Rewards System (Real Money Top-up & Daily/Activity Coins)
-Route::get('/user/wallet', [\App\Http\Controllers\WalletController::class, 'getWallet']);
-Route::post('/user/wallet/daily-checkin', [\App\Http\Controllers\WalletController::class, 'dailyCheckin']);
-Route::post('/user/wallet/activity-reward', [\App\Http\Controllers\WalletController::class, 'claimActivityReward']);
-Route::post('/user/wallet/topup/session', [\App\Http\Controllers\WalletController::class, 'createTopupSession']);
-Route::post('/user/wallet/topup/confirm', [\App\Http\Controllers\WalletController::class, 'confirmTopup']);
-Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins']);
-Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet']);
+// Real S-Tech Wallet & Coin Rewards System (Guarded by Atomic Throttle)
+Route::get('/user/wallet', [\App\Http\Controllers\WalletController::class, 'getWallet'])->middleware('throttle:60,1');
+Route::post('/user/wallet/daily-checkin', [\App\Http\Controllers\WalletController::class, 'dailyCheckin'])->middleware('throttle:10,1');
+Route::post('/user/wallet/activity-reward', [\App\Http\Controllers\WalletController::class, 'claimActivityReward'])->middleware('throttle:15,1');
+Route::post('/user/wallet/topup/session', [\App\Http\Controllers\WalletController::class, 'createTopupSession'])->middleware('throttle:10,1');
+Route::post('/user/wallet/topup/confirm', [\App\Http\Controllers\WalletController::class, 'confirmTopup'])->middleware('throttle:10,1');
+Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins'])->middleware('throttle:10,1');
+Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet'])->middleware('throttle:15,1');
 
 // Notifications
 Route::get('/notifications', [UserController::class, 'getNotifications']);

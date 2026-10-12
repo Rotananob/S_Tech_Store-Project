@@ -987,6 +987,13 @@ class UserController extends Controller
         $uid = $this->getUid($request);
         if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
 
+        // Strict File Validation: only allow verified raster image MIME types, max 5MB
+        $request->validate([
+            'avatar' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+            'photo' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+            'image' => 'nullable|file|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+        ]);
+
         $uploadedUrl = null;
 
         if ($request->hasFile('avatar')) {

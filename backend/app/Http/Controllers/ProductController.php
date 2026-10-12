@@ -68,8 +68,8 @@ class ProductController extends Controller
             'brand' => 'nullable|string|max:100',
             'badge' => 'nullable|string|max:50',
             'image_url' => 'nullable|string',
-            'image' => 'nullable|image|max:10240',
-            'images.*' => 'nullable|image|max:10240',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
             'image_urls' => 'nullable',
             'is_featured' => 'nullable',
             'condition' => 'nullable|string|max:100'
@@ -188,8 +188,8 @@ class ProductController extends Controller
             'brand' => 'nullable|string|max:100',
             'badge' => 'nullable|string|max:50',
             'image_url' => 'nullable|string',
-            'image' => 'nullable|image|max:10240',
-            'images.*' => 'nullable|image|max:10240',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
             'image_urls' => 'nullable',
             'is_featured' => 'nullable',
             'condition' => 'nullable|string|max:100'

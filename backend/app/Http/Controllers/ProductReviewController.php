@@ -54,17 +54,21 @@ class ProductReviewController extends Controller
         ]);
 
         $profile = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
-        $authorName = $validated['user_name'] 
+        $rawAuthorName = $validated['user_name'] 
             ?? $profile->display_name 
             ?? $request->header('X-Firebase-Name') 
             ?? ('User ' . substr($uid, 0, 6));
 
+        // Stored XSS Sanitization: strip dangerous HTML tags and scripts
+        $cleanAuthorName = htmlspecialchars(strip_tags(trim($rawAuthorName)), ENT_QUOTES, 'UTF-8');
+        $cleanComment = htmlspecialchars(strip_tags(trim($validated['comment'])), ENT_QUOTES, 'UTF-8');
+
         $review = ProductReview::create([
             'product_id' => $product->id,
             'firebase_uid' => $uid,
-            'user_name' => $authorName,
-            'rating' => $validated['rating'],
-            'comment' => $validated['comment'],
+            'user_name' => $cleanAuthorName,
+            'rating' => (int)$validated['rating'],
+            'comment' => $cleanComment,
         ]);
 
         $enrichedReview = [

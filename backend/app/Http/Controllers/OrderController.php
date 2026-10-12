@@ -90,13 +90,11 @@ class OrderController extends Controller
             $totalAmount = 0;
             $orderItemsData = [];
             
-            // Calculate delivery fee
+            // Calculate delivery fee server-side based on shipping location
             $deliveryFee = ($validated['delivery_type'] === 'province') ? 3.00 : 2.00;
-            if (!empty($validated['delivery_fee']) && (float)$validated['delivery_fee'] > 0) {
-                $deliveryFee = (float)$validated['delivery_fee'];
-            }
 
-            // Business Logic: Calculate total and check stock
+            // Business Logic: Calculate subtotal from database prices and check stock
+            $itemsSubtotal = 0;
             foreach ($validated['items'] as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
                 
@@ -104,12 +102,12 @@ class OrderController extends Controller
                     throw new \Exception("Insufficient stock for product: {$product->name}");
                 }
 
+                // Strict Server-Side Pricing: never trust client-supplied unit price
                 $dbPrice = ((float)($product->sale_price ?? 0) > 0) ? (float)$product->sale_price : (float)($product->price ?? 0);
-                $clientPrice = isset($item['price']) ? (float)$item['price'] : 0;
-                $actualPrice = ($dbPrice > 0) ? $dbPrice : (($clientPrice > 0) ? $clientPrice : 1.00);
+                $actualPrice = ($dbPrice > 0) ? $dbPrice : 1.00;
 
                 $subtotal = $actualPrice * $item['quantity'];
-                $totalAmount += $subtotal;
+                $itemsSubtotal += $subtotal;
 
                 // Prepare order item
                 $orderItemsData[] = [
@@ -122,10 +120,8 @@ class OrderController extends Controller
                 // Deduct stock
                 $product->decrement('stock', $item['quantity']);
             }
-            
-            $totalAmount += $deliveryFee;
 
-            // Handle Promo Code Discount
+            // Handle Promo Code Discount (Server-Side Only - Client cannot forge discount amount)
             $discountAmount = 0;
             $appliedPromoCode = null;
             if (!empty($validated['promo_code'])) {
@@ -133,27 +129,19 @@ class OrderController extends Controller
                 $promo = \App\Models\PromoCode::whereRaw('UPPER(code) = ?', [$cleanCode])->first();
                 if ($promo && $promo->status === 'active') {
                     $appliedPromoCode = $promo->code;
-                    if (!empty($validated['discount_amount']) && (float)$validated['discount_amount'] > 0) {
-                        $discountAmount = (float)$validated['discount_amount'];
-                    } elseif ($promo->type === 'percentage') {
-                        $discountAmount = ($totalAmount * (float)$promo->value) / 100;
+                    if ($promo->type === 'percentage') {
+                        $discountAmount = ($itemsSubtotal * (float)$promo->value) / 100;
                     } else {
                         $discountAmount = (float)$promo->value;
                     }
+                    // Discount cannot exceed items subtotal
+                    $discountAmount = min($itemsSubtotal, $discountAmount);
                     $promo->increment('usage_count');
                 }
-            } elseif (!empty($validated['discount_amount']) && (float)$validated['discount_amount'] > 0) {
-                $discountAmount = (float)$validated['discount_amount'];
             }
 
-            if ($discountAmount > 0) {
-                $totalAmount = max(0, $totalAmount - $discountAmount);
-            }
-
-            // Safeguard: If client supplied higher validated total_amount and calculated was just delivery fee, use total_amount
-            if (!empty($validated['total_amount']) && (float)$validated['total_amount'] > $deliveryFee && $totalAmount <= $deliveryFee && $discountAmount == 0) {
-                $totalAmount = (float)$validated['total_amount'];
-            }
+            // Calculate final validated total
+            $totalAmount = max(1.00, ($itemsSubtotal - $discountAmount) + $deliveryFee);
 
             // Resolve customer email
             $customerEmail = !empty($validated['email']) ? trim($validated['email']) : ($request->input('customer_email') ?: $request->header('X-Firebase-Email'));
