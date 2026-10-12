@@ -276,6 +276,13 @@ interface ChatBotProps {
   };
 }
 
+export interface AttachedImageItem {
+  id: string;
+  file?: File;
+  base64: string;
+  preview: string;
+}
+
 interface ChatItem {
   id?: string;
   sender: "bot" | "user" | "system" | "staff";
@@ -285,6 +292,7 @@ interface ChatItem {
   showGreetingButtons?: boolean;
   suggestAgent?: boolean;
   image?: string;
+  images?: string[];
 }
 
 type ToastType = "error" | "warning" | "info" | "success";
@@ -325,32 +333,76 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [showThoughtProcess, setShowThoughtProcess] = useState(true);
   const [currentThinkingStep, setCurrentThinkingStep] = useState<ThinkingStep | null>(null);
 
-  // ─── Image attachment for multimodal (Future ready) ───────────────────────
-  const [attachedImage, setAttachedImage] = useState<{ base64: string; preview: string } | null>(null);
+  // ─── Image attachment for multimodal vision (Limit 3 Images) ──────────────
+  const [attachedImages, setAttachedImages] = useState<AttachedImageItem[]>([]);
+  const [previewZoomImage, setPreviewZoomImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    if (!file.type.startsWith("image/")) {
-      showToast("សូមជ្រើសរើសឯកសាររូបភាព (JPG, PNG, WebP)!", "warning");
+    const remainingSlots = 3 - attachedImages.length;
+    if (remainingSlots <= 0) {
+      showToast("⚠️ អាចភ្ជាប់រូបភាពបានអតិបរមា ៣ សន្លឹកប៉ុណ្ណោះក្នុងមួយសារ!", "warning");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast("រូបភាពមានទំហំធំពេក (កម្រិតអតិបរមា 5MB)!", "warning");
+    if (files.length > remainingSlots) {
+      showToast(`⚠️ អាចភ្ជាប់បានត្រឹម ៣ រូបភាព (បានជ្រើសរើស ${remainingSlots} រូបភាពដំបូង)!`, "warning");
+    }
+
+    const validFiles = files.slice(0, remainingSlots).filter((file) => {
+      if (!file.type.startsWith("image/")) {
+        showToast(`ឯកសារ "${file.name}" មិនមែនជារូបភាពទេ!`, "warning");
+        return false;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        showToast(`រូបភាព "${file.name}" ធំជាង 5MB!`, "warning");
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setAttachedImage({ base64, preview: URL.createObjectURL(file) });
-      showToast("📷 បានភ្ជាប់រូបភាពរួចរាល់!", "info");
-    };
-    reader.readAsDataURL(file);
+    let loadedCount = 0;
+    const newItems: AttachedImageItem[] = [];
+
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        newItems.push({
+          id: "img_" + Math.random().toString(36).substring(2, 9),
+          file,
+          base64,
+          preview: URL.createObjectURL(file),
+        });
+        loadedCount++;
+        if (loadedCount === validFiles.length) {
+          setAttachedImages((prev) => [...prev, ...newItems].slice(0, 3));
+          showToast(`📷 បានភ្ជាប់រូបភាព ${newItems.length} សន្លឹកជោគជ័យ!`, "info");
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachedImage = (idToRemove: string) => {
+    setAttachedImages((prev) => {
+      const target = prev.find((img) => img.id === idToRemove);
+      if (target?.preview) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((img) => img.id !== idToRemove);
+    });
   };
 
   // ─── Agent modal state ─────────────────────────────────────────────────────
@@ -768,7 +820,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Send Message Handler ─────────────────────────────────────────────────
   const handleSend = async (overrideText?: string) => {
     const textToSend = (overrideText || input).trim();
-    if ((!textToSend && !attachedImage) || isAiThinking) return;
+    const currentImgs = [...attachedImages];
+    if ((!textToSend && currentImgs.length === 0) || isAiThinking) return;
 
     // Rate Limit Check
     const rateCheck = checkRateLimit();
@@ -777,17 +830,27 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       return;
     }
 
-    const currentImg = attachedImage;
-    setAttachedImage(null); // Clear image after capturing
+    // Clear previews right away
+    setAttachedImages([]);
 
-    // Set contextual dynamic thinking based on user's query
-    setCurrentThinkingStep(getContextualThinking(textToSend));
+    // Set contextual dynamic thinking based on user's query and attached images
+    if (currentImgs.length > 0) {
+      setCurrentThinkingStep({
+        phase1: `📷 S Tech AI កំពុងស្កេន និងពិនិត្យរូបភាព (${currentImgs.length} សន្លឹក)...`,
+        phase2: "🔍 វិភាគកូដ Error, ម៉ូឌែល Specs ឬលក្ខណៈបច្ចេកទេសក្នុងរូបភាព...",
+        phase3: "✍️ កំពុងរៀបចំការពន្យល់ និងដំណោះស្រាយបច្ចេកទេសយ៉ាងក្បោះក្បាយជូនបង...",
+      });
+    } else {
+      setCurrentThinkingStep(getContextualThinking(textToSend));
+    }
 
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const imgUrls = currentImgs.map((i) => i.preview || i.base64);
     const userMsg: ChatItem = {
       sender: "user",
       text: textToSend,
-      image: currentImg?.preview || currentImg?.base64,
+      image: imgUrls[0],
+      images: imgUrls,
       senderName: userName || "អតិថិជន",
       time: timeStr,
     };
@@ -803,7 +866,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         {
           sender: "user",
           senderName: userName || "អតិថិជន",
-          text: textToSend,
+          text: textToSend || (imgUrls.length > 0 ? `[User uploaded ${imgUrls.length} image(s)]` : ""),
           sessionId: activeSessionId,
           productInfo: productInfo || null,
         },
@@ -817,7 +880,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     }
 
     // 2. Alert Telegram so staff know customer is chatting
-    triggerTelegramAlert(textToSend);
+    triggerTelegramAlert(textToSend || `[រូបភាព ${currentImgs.length} សន្លឹក]`);
 
     // 3. Human Takeover Check (Meta/Instagram Direct style)
     // If Admin/Staff has taken over this chat and paused AI, do NOT invoke Gemini AI!
@@ -838,8 +901,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         aiPaused: isAiPaused,
       };
 
-      if (currentImg?.base64) {
-        apiPayload.image = { base64: currentImg.base64 };
+      if (currentImgs.length > 0) {
+        apiPayload.images = currentImgs.map((i) => ({
+          base64: i.base64,
+          mimeType: i.file?.type || "image/jpeg",
+        }));
+        // Backward compatibility
+        apiPayload.image = {
+          base64: currentImgs[0].base64,
+          mimeType: currentImgs[0].file?.type || "image/jpeg",
+        };
       }
 
       const res = await fetch("/api/ai/chat", {
@@ -888,7 +959,19 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           : "";
         const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || decodedFallback;
         const fallbackKeys = Array.from(new Set([primaryKey, decodedFallback])).filter((k): k is string => Boolean(k && k.trim().length > 10));
-        const fallbackModels = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.7-flash", "gemini-flash-latest"];
+        const fallbackModels = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"];
+
+        const directParts: any[] = [];
+        for (const img of currentImgs.slice(0, 3)) {
+          const cleanB64 = img.base64.replace(/^data:image\/[a-zA-Z0-9\+\-\.]+;base64,/, "");
+          directParts.push({
+            inlineData: {
+              mimeType: img.file?.type || "image/jpeg",
+              data: cleanB64,
+            },
+          });
+        }
+        directParts.push({ text: textToSend || "សូមជួយវិភាគរូបភាពនេះឱ្យខ្ញុំបន្តិចបាទ" });
 
         clientFallback: for (const keyToUse of fallbackKeys) {
           for (const modelToUse of fallbackModels) {
@@ -899,7 +982,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    contents: [{ role: "user", parts: [{ text: textToSend }] }],
+                    contents: [{ role: "user", parts: directParts }],
                   }),
                 }
               );
@@ -1177,10 +1260,36 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           >
             {msg.sender === "user" ? (
               // User Bubble
-              <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
-                {msg.image && (
-                  <div className="mb-1.5 rounded-2xl overflow-hidden border border-red-500/30 max-w-[220px] shadow-sm">
-                    <img src={msg.image} alt="User upload" className="w-full h-auto object-cover max-h-48" />
+              <div className="flex flex-col items-end max-w-[88%] sm:max-w-[75%]">
+                {/* ── Multi-image Uploads (Limit 3 images) ── */}
+                {((msg.images && msg.images.length > 0) || msg.image) && (
+                  <div
+                    className={`mb-2 grid gap-1.5 ${
+                      (msg.images?.length || 1) === 1
+                        ? "grid-cols-1 max-w-[240px]"
+                        : (msg.images?.length || 1) === 2
+                        ? "grid-cols-2 max-w-[280px]"
+                        : "grid-cols-3 max-w-[320px]"
+                    }`}
+                  >
+                    {(msg.images && msg.images.length > 0 ? msg.images : [msg.image!]).map((imgSrc, imgIdx) => (
+                      <div
+                        key={imgIdx}
+                        onClick={() => setPreviewZoomImage(imgSrc)}
+                        className="relative group rounded-xl overflow-hidden border border-red-500/30 bg-black/10 dark:bg-white/5 cursor-pointer shadow-sm aspect-square"
+                      >
+                        <img
+                          src={imgSrc}
+                          alt={`Upload ${imgIdx + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 text-white text-[10px] font-bold bg-black/70 px-2 py-0.5 rounded-full transition-opacity">
+                            ពង្រីក
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {msg.text && (
@@ -1396,29 +1505,58 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ))}
       </div>
 
-      {/* ── Image Attachment Preview (Multimodal Ready) ───────────────────────── */}
-      {attachedImage && (
-        <div className="px-4 py-2 bg-gray-50 dark:bg-[#161a25] border-t border-gray-100 dark:border-white/5 flex items-center justify-between flex-shrink-0 animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-red-300 dark:border-red-800 shadow-xs">
-              <img src={attachedImage.preview} alt="attached" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                📷 រូបភាពត្រូវបានភ្ជាប់
-              </span>
-              <span className="text-[10px] text-gray-400">
-                ត្រៀមផ្ញើទៅកាន់ AI សម្រាប់វិភាគរូបភាព (Multimodal)
-              </span>
-            </div>
+      {/* ── Multimodal Image Preview Strip (Max 3 Images) ───────────────────── */}
+      {attachedImages.length > 0 && (
+        <div className="px-3.5 py-2.5 bg-gray-50/95 dark:bg-[#151924] border-t border-gray-100 dark:border-white/10 flex items-center justify-between flex-shrink-0 animate-in fade-in">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+            {attachedImages.map((img, idx) => (
+              <div
+                key={img.id}
+                className="relative w-14 h-14 rounded-xl overflow-hidden border-2 border-red-500/40 dark:border-red-500/60 shadow-xs shrink-0 group"
+              >
+                <img src={img.preview} alt={`preview ${idx}`} className="w-full h-full object-cover" />
+                <span className="absolute bottom-0.5 left-0.5 px-1 py-0.2 bg-black/70 text-[9px] font-bold text-white rounded">
+                  {idx + 1}/3
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachedImage(img.id)}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/75 hover:bg-red-600 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="លុបរូបភាពនេះ"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+
+            {attachedImages.length < 3 && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-300 dark:border-white/20 hover:border-red-500 text-gray-500 hover:text-red-500 dark:hover:text-red-400 flex flex-col items-center justify-center text-[10px] font-bold shrink-0 transition-colors cursor-pointer gap-0.5"
+                title="ភ្ជាប់រូបភាពបន្ថែម (អតិបរមា ៣ សន្លឹក)"
+              >
+                <Plus size={15} />
+                <span>ថែមរូប</span>
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setAttachedImage(null)}
-            className="w-7 h-7 rounded-full bg-gray-200 dark:bg-white/10 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-600 hover:text-red-600 dark:text-gray-300 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X size={14} />
-          </button>
+
+          <div className="flex flex-col items-end pl-2 shrink-0">
+            <span className="text-[11px] font-extrabold text-[#8B1A1A] dark:text-red-400">
+              {attachedImages.length}/3 រូបភាព
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                attachedImages.forEach((i) => URL.revokeObjectURL(i.preview));
+                setAttachedImages([]);
+              }}
+              className="text-[10px] text-gray-500 hover:text-red-600 dark:hover:text-red-400 font-semibold cursor-pointer underline"
+            >
+              លុបទាំងអស់
+            </button>
+          </div>
         </div>
       )}
 
@@ -1436,24 +1574,32 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           <Headphones size={18} />
         </button>
 
-        {/* Hidden File Input for Image Attachment */}
+        {/* Hidden File Input for Image Attachment (up to 3 images) */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           onChange={handleImageSelect}
           className="hidden"
         />
 
         {/* Multimodal Screenshot / Specs Image Picker Button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          title="ភ្ជាប់រូបភាព (Multimodal Image Analysis)"
-          className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition-colors shrink-0 cursor-pointer"
-        >
-          <ImageIcon size={18} />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="ភ្ជាប់រូបភាព (អតិបរមា ៣ សន្លឹកសម្រាប់វិភាគ Specs ឬ Error)"
+            className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition-colors shrink-0 cursor-pointer"
+          >
+            <ImageIcon size={18} />
+          </button>
+          {attachedImages.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs pointer-events-none">
+              {attachedImages.length}
+            </span>
+          )}
+        </div>
 
         <input
           ref={inputRef}
@@ -1464,6 +1610,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           placeholder={
             isAiPaused
               ? `វាយសារទៅកាន់ ${pausedByStaff || "បុគ្គលិកផ្ទាល់"}... (AI ត្រូវបានផ្អាក)`
+              : attachedImages.length > 0
+              ? "សួរសំណួរអំពីរូបភាពដែលបានភ្ជាប់ ឬចុចផ្ញើ..."
               : "សួរសំណួរ ឬតម្លៃ Laptop, PC, សេវាកម្ម..."
           }
           className="flex-1 bg-gray-100 dark:bg-white/5 border border-transparent dark:border-white/10 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900/50 text-[14px] text-gray-900 dark:text-white"
@@ -1471,7 +1619,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
         <button
           onClick={() => handleSend()}
-          disabled={(!input.trim() && !attachedImage) || (isAiThinking && !isAiPaused)}
+          disabled={(!input.trim() && attachedImages.length === 0) || (isAiThinking && !isAiPaused)}
           title="ផ្ញើសារ"
           className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 shadow-sm cursor-pointer hover:shadow-md transition-all"
         >
@@ -1757,6 +1905,42 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Image Lightbox / Fullscreen Zoom Modal ────────────────────────────── */}
+      <AnimatePresence>
+        {previewZoomImage && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPreviewZoomImage(null)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-sm cursor-pointer"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-4xl max-h-[90vh] z-10 flex flex-col items-center"
+            >
+              <img
+                src={previewZoomImage}
+                alt="Zoomed view"
+                className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl border border-white/10"
+              />
+              <button
+                type="button"
+                onClick={() => setPreviewZoomImage(null)}
+                className="mt-3 px-5 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs font-bold backdrop-blur-md transition-all cursor-pointer flex items-center gap-1.5 shadow-lg active:scale-95"
+              >
+                <X size={15} />
+                <span>បិទផ្ទាំងរូបភាព</span>
+              </button>
             </motion.div>
           </div>
         )}
