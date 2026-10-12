@@ -882,14 +882,14 @@ export default function LoginPage() {
             Continue with Telegram
           </button>
 
-          {/* TikTok Sign In */}
+          {/* Official TikTok Sign In */}
           <button
             type="button"
             style={{
               width: "100%",
-              background: "#010101",
+              background: "#000000",
               color: "#ffffff",
-              border: "1px solid rgba(255,255,255,0.16)",
+              border: "1px solid rgba(255,255,255,0.18)",
               borderRadius: "8px",
               padding: "12px",
               fontSize: "14px",
@@ -903,24 +903,26 @@ export default function LoginPage() {
             }}
             onMouseEnter={(e) => {
               if (!loading) {
-                e.currentTarget.style.background = "#0d0d0d";
-                e.currentTarget.style.borderColor = "rgba(238, 29, 82, 0.7)";
-                e.currentTarget.style.boxShadow = "0 0 14px rgba(238, 29, 82, 0.28), 0 0 14px rgba(105, 201, 208, 0.28)";
+                e.currentTarget.style.background = "#0c0d12";
+                e.currentTarget.style.borderColor = "rgba(255, 0, 79, 0.7)";
+                e.currentTarget.style.boxShadow = "0 0 14px rgba(255, 0, 79, 0.35), 0 0 14px rgba(0, 242, 234, 0.35)";
               }
             }}
             onMouseLeave={(e) => {
               if (!loading) {
-                e.currentTarget.style.background = "#010101";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.16)";
+                e.currentTarget.style.background = "#000000";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)";
                 e.currentTarget.style.boxShadow = "none";
               }
             }}
             onClick={handleTikTokSignIn}
             disabled={loading}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.89 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1v-3.52a6.37 6.37 0 0 0-.79-.05A6.34 6.34 0 0 0 3 15.67 6.34 6.34 0 0 0 9.34 22a6.34 6.34 0 0 0 6.34-6.33V9.2a8.28 8.28 0 0 0 3.91 1.05v-3.56z"/>
-            </svg>
+            <img
+              src="/tiktok-icon.svg"
+              alt="TikTok"
+              style={{ width: "22px", height: "22px", display: "block" }}
+            />
             Continue with TikTok
           </button>
 

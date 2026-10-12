@@ -640,64 +640,72 @@ export default function VisualSearchModal() {
               </div>
             </div>
 
-            {/* Camera Actions Bar */}
-            <div className="flex items-center justify-between gap-3">
+            {/* Camera Actions Bar - Perfectly Centered Shutter Button */}
+            <div className="relative flex items-center justify-between w-full min-h-[68px]">
               {/* Photo Upload from Phone Album */}
-              <button
-                type="button"
-                onClick={() => albumInputRef.current?.click()}
-                className="flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-2xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white text-xs sm:text-sm font-bold transition-all cursor-pointer border border-blue-500/30 active:scale-95 shadow-sm"
-                title="ជ្រើសរូបពីអាល់ប៊ុមទូរស័ព្ទ (Photo Albums)"
-              >
-                <ImageIcon size={17} className="text-blue-400" />
-                <span>អាល់ប៊ុមរូបថត (Albums)</span>
-              </button>
+              <div className="flex justify-start">
+                <button
+                  type="button"
+                  onClick={() => albumInputRef.current?.click()}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white text-xs sm:text-sm font-bold transition-all cursor-pointer border border-blue-500/30 active:scale-95 shadow-sm"
+                  title="ជ្រើសរូបពីអាល់ប៊ុមទូរស័ព្ទ (Photo Albums)"
+                >
+                  <ImageIcon size={17} className="text-blue-400 shrink-0" />
+                  <span>អាល់ប៊ុម</span>
+                  <span className="hidden sm:inline">(Albums)</span>
+                </button>
+              </div>
 
-              {/* Shutter Button */}
-              {!capturedImage ? (
+              {/* Shutter Button - Absolute Centered (Guaranteed exact center on all viewports) */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-10 pointer-events-auto">
+                {!capturedImage ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (hasCameraPermission) {
+                        handleCapture();
+                      } else {
+                        cameraInputRef.current?.click();
+                      }
+                    }}
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-white/95 p-1 flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.5)] hover:scale-105 active:scale-90 transition-all cursor-pointer border-none ring-4 ring-white/20"
+                    aria-label="Capture photo to scan"
+                  >
+                    <div className="w-full h-full rounded-full border-2 border-black/20 bg-gradient-to-br from-[#8B1A1A] via-[#c0392b] to-[#e74c3c] flex items-center justify-center shadow-inner">
+                      <Camera size={26} className="text-white drop-shadow" />
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleRetake}
+                    className="px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-white/20 whitespace-nowrap active:scale-95 shadow-lg backdrop-blur-md"
+                  >
+                    <RefreshCw size={14} />
+                    <span>ថតម្ដងទៀត (Retake)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Flip Camera (Front / Rear) or Direct Camera Launcher */}
+              <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     if (hasCameraPermission) {
-                      handleCapture();
+                      setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
                     } else {
                       cameraInputRef.current?.click();
                     }
                   }}
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white p-1 flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border-none"
-                  aria-label="Capture photo to scan"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs sm:text-sm font-bold transition-colors cursor-pointer border border-white/15 active:scale-95 shadow-sm"
+                  title="Flip Camera or Switch"
                 >
-                  <div className="w-full h-full rounded-full border-2 border-black/20 bg-gradient-to-br from-[#8B1A1A] to-[#c0392b] flex items-center justify-center">
-                    <Camera size={24} className="text-white" />
-                  </div>
+                  <RefreshCw size={16} className="shrink-0" />
+                  <span>បង្វិល</span>
+                  <span className="hidden sm:inline">(Flip)</span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleRetake}
-                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border-none"
-                >
-                  <RefreshCw size={14} />
-                  <span>Retake</span>
-                </button>
-              )}
-
-              {/* Flip Camera (Front / Rear) or Direct Camera Launcher */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (hasCameraPermission) {
-                    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
-                  } else {
-                    cameraInputRef.current?.click();
-                  }
-                }}
-                className="flex items-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-bold transition-colors cursor-pointer border border-white/15 active:scale-95"
-                title="Flip Camera or Shutter"
-              >
-                <RefreshCw size={15} />
-                <span className="hidden sm:inline">Flip</span>
-              </button>
+              </div>
             </div>
           </div>
         </motion.div>
