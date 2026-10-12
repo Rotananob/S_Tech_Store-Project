@@ -1,5 +1,5 @@
 import { rtdb } from "@/lib/firebase";
-import { ref, push, set, update, get, onValue, query, orderByChild } from "firebase/database";
+import { ref, push, set, update, get, remove, onValue, query, orderByChild } from "firebase/database";
 import api from "@/lib/api";
 
 export interface ChatMessage {
@@ -26,9 +26,13 @@ export interface ChatSession {
   lastTimestamp: number;
   unreadAdminCount: number;
   unreadUserCount: number;
-  status: "active" | "resolved" | "closed";
+  status: "open" | "in_progress" | "resolved" | "active" | "closed" | "archived";
   ai_paused?: boolean;
   paused_by?: string;
+  is_archived?: boolean;
+  archived_at?: number | null;
+  status_updated_at?: number | null;
+  status_updated_by?: string | null;
 }
 
 /**
@@ -153,7 +157,11 @@ export async function setChatAiStatus(
 export interface ChatMeta {
   ai_paused?: boolean;
   paused_by?: string;
-  status?: string;
+  status?: "open" | "in_progress" | "resolved" | "active" | "closed" | "archived";
+  is_archived?: boolean;
+  archived_at?: number | null;
+  status_updated_at?: number | null;
+  status_updated_by?: string | null;
   unreadAdminCount?: number;
   unreadUserCount?: number;
   userName?: string;
@@ -252,18 +260,32 @@ export function subscribeToAllChats(
       const list: ChatSession[] = Object.keys(val).map((key) => {
         const item = val[key];
         const meta = item?.meta || {};
+
+        let resolvedUserName = meta.userName || "";
+        // If userName is generic "បង" or empty, try deriving real identity from userEmail or userId
+        if ((!resolvedUserName || resolvedUserName === "បង" || resolvedUserName === "អតិថិជន") && meta.userEmail) {
+          const emailPrefix = meta.userEmail.split("@")[0];
+          resolvedUserName = emailPrefix.replace(/[._-]+/g, " ");
+        } else if (!resolvedUserName) {
+          resolvedUserName = "ភ្ញៀវ • Visitor";
+        }
+
         return {
           id: key,
-          userName: meta.userName || "អតិថិជន • Customer",
+          userName: resolvedUserName,
           userEmail: meta.userEmail || "",
           userPhone: meta.userPhone || "",
           lastMessage: meta.lastMessage || "(សារថ្មី)",
           lastTimestamp: meta.lastTimestamp || 0,
           unreadAdminCount: meta.unreadAdminCount || 0,
           unreadUserCount: meta.unreadUserCount || 0,
-          status: meta.status || "active",
+          status: meta.status || "in_progress",
           ai_paused: !!meta.ai_paused,
           paused_by: meta.paused_by || "",
+          is_archived: !!meta.is_archived,
+          archived_at: meta.archived_at || null,
+          status_updated_at: meta.status_updated_at || null,
+          status_updated_by: meta.status_updated_by || null,
         };
       });
 
@@ -296,6 +318,60 @@ export async function markChatReadByUser(chatId: string): Promise<void> {
   if (!rtdb) return;
   const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
   await update(sessionRef, { unreadUserCount: 0 });
+}
+
+/**
+ * Update chat ticket status (In Progress, Resolved)
+ */
+export async function setChatTicketStatus(
+  chatId: string,
+  status: "in_progress" | "resolved",
+  staffName?: string
+): Promise<void> {
+  if (!rtdb) return;
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  const now = Date.now();
+  await update(sessionRef, {
+    status,
+    status_updated_at: now,
+    status_updated_by: staffName || "Staff",
+  });
+
+  // Push an audit system note into the thread
+  const messagesRef = ref(rtdb, `chats/${chatId}/messages`);
+  const newMsgRef = push(messagesRef);
+  await set(newMsgRef, {
+    sender: "system",
+    senderName: status === "resolved" ? "Ticket Resolved" : "Ticket In Progress",
+    text: status === "resolved"
+      ? `✅ Ticket ការសន្ទនាត្រូវបានបញ្ចប់ដោយ ${staffName || "Staff"}។ អរគុណសម្រាប់ការទាក់ទងមកកាន់ S Tech Store!`
+      : `🔄 Ticket ត្រូវបានបើកដំណើរការឡើងវិញដោយ ${staffName || "Staff"}`,
+    timestamp: now,
+  });
+}
+
+/**
+ * Archive or Unarchive a chat session
+ */
+export async function archiveChatSession(
+  chatId: string,
+  isArchived: boolean
+): Promise<void> {
+  if (!rtdb) return;
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  await update(sessionRef, {
+    is_archived: isArchived,
+    archived_at: isArchived ? Date.now() : null,
+  });
+}
+
+/**
+ * Permanently delete a chat session from Realtime Database
+ */
+export async function deleteChatSession(chatId: string): Promise<void> {
+  if (!rtdb) return;
+  const chatRef = ref(rtdb, `chats/${chatId}`);
+  await remove(chatRef);
 }
 
 /**

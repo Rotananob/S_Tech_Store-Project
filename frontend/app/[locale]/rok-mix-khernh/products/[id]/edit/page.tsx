@@ -12,6 +12,7 @@ import {
 type Category = {
   id: number;
   name: string;
+  slug?: string;
 };
 
 type MediaItem = {
@@ -88,16 +89,21 @@ export default function EditProductPage(props: {
       }
     } catch {
       setCategories([
-        { id: 1, name: "Laptops" },
-        { id: 2, name: "Smartphones" },
-        { id: 3, name: "Accessories" },
-        { id: 4, name: "CPU Processor" },
-        { id: 5, name: "Motherboard" },
-        { id: 6, name: "Memory" },
-        { id: 7, name: "Graphics Card" },
-        { id: 8, name: "Storage" },
-        { id: 9, name: "Power Supply" },
-        { id: 10, name: "PC Case" },
+        { id: 1, name: "Laptops (កុំព្យូទ័រយួរដៃ)", slug: "laptops" },
+        { id: 4, name: "Desktops (កុំព្យូទ័រលើតុ & Custom PC)", slug: "desktops" },
+        { id: 5, name: "Components (គ្រឿងបន្លាស់)", slug: "parts" },
+        { id: 6, name: "Gaming Gear (ឧបករណ៍ហ្គេម)", slug: "gaming" },
+        { id: 7, name: "Monitors (អេក្រង់)", slug: "monitors" },
+        { id: 3, name: "Accessories (គ្រឿងបន្ថែម)", slug: "accessories" },
+        { id: 8, name: "Second-Hand (ទំនិញមួយទឹក)", slug: "secondhand" },
+        { id: 9, name: "Services (សេវាកម្មជួសជុល)", slug: "services" },
+        { id: 10, name: "CPU Processor", slug: "cpu" },
+        { id: 11, name: "Motherboard", slug: "motherboard" },
+        { id: 12, name: "Memory (RAM)", slug: "ram" },
+        { id: 13, name: "Graphics Card (GPU)", slug: "gpu" },
+        { id: 14, name: "Storage (SSD/HDD)", slug: "storage" },
+        { id: 15, name: "Power Supply (PSU)", slug: "psu" },
+        { id: 16, name: "PC Case", slug: "case" },
       ]);
     } finally {
       setLoadingCats(false);
@@ -519,15 +525,31 @@ export default function EditProductPage(props: {
                   </label>
                   <select 
                     value={categoryId} 
-                    onChange={e => setCategoryId(e.target.value)} 
+                    onChange={e => {
+                      const newId = e.target.value;
+                      setCategoryId(newId);
+                      const selectedCat = categories.find(c => c.id.toString() === newId);
+                      if (selectedCat && (selectedCat.slug === "secondhand" || selectedCat.name.toLowerCase().includes("second") || selectedCat.name.includes("មួយទឹក"))) {
+                        setCondition("Used (មួយទឹក)");
+                      }
+                    }} 
                     disabled={loadingCats}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white font-medium"
                   >
-                    {categories.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
+                    <optgroup label="Shop by Category (ប្រភេទពេញនិយម)">
+                      {categories.filter(c => ["laptops", "desktops", "parts", "gaming", "monitors", "accessories", "secondhand", "services"].includes(c.slug || "") || !["cpu","motherboard","ram","gpu","storage","psu","case","smartphones"].includes(c.slug || "")).map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
+                      {categories.filter(c => ["cpu", "motherboard", "ram", "gpu", "storage", "psu", "case"].includes(c.slug || "")).map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
 

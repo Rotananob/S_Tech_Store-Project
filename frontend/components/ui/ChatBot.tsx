@@ -307,7 +307,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   // ─── Auth state ────────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userName, setUserName] = useState<string>("បង");
+  const [userName, setUserName] = useState<string>("អតិថិជន");
   const [authLoading, setAuthLoading] = useState(true);
 
   // ─── Chat state ───────────────────────────────────────────────────────────
@@ -538,45 +538,64 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   // ─── Initialize Auth, User Info & Sessions ─────────────────────────────────
   useEffect(() => {
+    // 1. Immediately detect if user is logged in via localStorage session
+    let localUser: any = null;
+    try {
+      const stored = typeof window !== "undefined" ? (localStorage.getItem("stech_user_session") || localStorage.getItem("user_session")) : null;
+      if (stored) localUser = JSON.parse(stored);
+    } catch {}
+
+    let initialDetectedName = localUser?.name || localUser?.username || localUser?.full_name || (localUser?.email ? localUser.email.split("@")[0] : "") || "អតិថិជន";
+    if (initialDetectedName && initialDetectedName !== "អតិថិជន") {
+      setUserName(initialDetectedName);
+      setAgentForm((prev) => ({
+        ...prev,
+        name: prev.name || initialDetectedName,
+        email: prev.email || localUser?.email || "",
+        phone: prev.phone || localUser?.phone || "",
+        telegram: prev.telegram || localUser?.telegram || "",
+      }));
+    }
+
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       setAuthLoading(false);
 
-      let detectedName = "បង";
-      let activeChatId = getOrCreateVisitorId();
-      const userKey = user ? user.uid : "guest";
+      let detectedName = initialDetectedName;
+      let activeChatId = localUser?.id ? `user_${localUser.id}` : (user ? user.uid : getOrCreateVisitorId());
+      const userKey = localUser?.id ? `user_${localUser.id}` : (user ? user.uid : "guest");
 
       if (user) {
         activeChatId = user.uid;
-        detectedName = user.displayName || user.email?.split("@")[0] || "បង";
-        setUserName(detectedName);
+        const fbName = user.displayName || user.email?.split("@")[0];
+        if (fbName && (detectedName === "អតិថិជន" || detectedName === "បង")) {
+          detectedName = fbName;
+        }
+      }
 
-        setAgentForm((prev) => ({
-          ...prev,
-          name: prev.name || user.displayName || "",
-          email: prev.email || user.email || "",
-        }));
-
+      // Check if user has active JWT or token to fetch latest profile
+      const token = typeof window !== "undefined" ? (localStorage.getItem("token") || localStorage.getItem("customer_token")) : null;
+      if (token || user) {
         try {
           const res = await api.get("/user/profile");
           if (res.data?.success && res.data.profile) {
             const p = res.data.profile;
-            const realFullName = p.full_name || p.name || user.displayName || "";
+            const realFullName = p.name || p.username || p.full_name || user?.displayName || "";
             if (realFullName) {
               detectedName = realFullName;
-              setUserName(realFullName);
             }
             setAgentForm((prev) => ({
               ...prev,
               name: prev.name || realFullName,
               phone: prev.phone || p.phone || "",
               telegram: prev.telegram || p.telegram || "",
-              email: prev.email || user.email || "",
+              email: prev.email || p.email || user?.email || "",
             }));
           }
         } catch {}
       }
 
+      setUserName(detectedName);
       setChatId(activeChatId);
 
       // Load sessions for this user / guest

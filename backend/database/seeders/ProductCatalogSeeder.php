@@ -11,7 +11,7 @@ class ProductCatalogSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Ensure Categories
+        // 1. Ensure Categories (Shop by Category & PC Components)
         $categoriesMap = [
             'laptops' => Category::firstOrCreate(['slug' => 'laptops'], ['name' => 'Laptops', 'description' => 'High performance ultrabooks & gaming laptops']),
             'desktops' => Category::firstOrCreate(['slug' => 'desktops'], ['name' => 'Desktops', 'description' => 'Custom PCs, workstations & prebuilts']),
@@ -19,6 +19,15 @@ class ProductCatalogSeeder extends Seeder
             'gaming' => Category::firstOrCreate(['slug' => 'gaming'], ['name' => 'Gaming Gear', 'description' => 'Keyboards, mice, headsets & streaming gear']),
             'monitors' => Category::firstOrCreate(['slug' => 'monitors'], ['name' => 'Monitors', 'description' => '4K, OLED, High Refresh Gaming Displays']),
             'accessories' => Category::firstOrCreate(['slug' => 'accessories'], ['name' => 'Accessories', 'description' => 'Docks, chargers, cables & peripherals']),
+            'secondhand' => Category::firstOrCreate(['slug' => 'secondhand'], ['name' => 'Second-Hand (មួយទឹក)', 'description' => 'Inspected pre-owned tech']),
+            'services' => Category::firstOrCreate(['slug' => 'services'], ['name' => 'Services (សេវាកម្ម)', 'description' => 'Repairs, upgrades & maintenance']),
+            'cpu' => Category::firstOrCreate(['slug' => 'cpu'], ['name' => 'CPU Processor', 'description' => 'Intel & AMD Processors']),
+            'motherboard' => Category::firstOrCreate(['slug' => 'motherboard'], ['name' => 'Motherboard', 'description' => 'Mainboards']),
+            'ram' => Category::firstOrCreate(['slug' => 'ram'], ['name' => 'Memory (RAM)', 'description' => 'DDR4 & DDR5 RAM Modules']),
+            'gpu' => Category::firstOrCreate(['slug' => 'gpu'], ['name' => 'Graphics Card', 'description' => 'NVIDIA & AMD Graphics Cards']),
+            'storage' => Category::firstOrCreate(['slug' => 'storage'], ['name' => 'Storage (SSD/HDD)', 'description' => 'NVMe SSDs & Hard Drives']),
+            'psu' => Category::firstOrCreate(['slug' => 'psu'], ['name' => 'Power Supply (PSU)', 'description' => 'Power Supply Units']),
+            'case' => Category::firstOrCreate(['slug' => 'case'], ['name' => 'PC Case', 'description' => 'Cases & Chassis']),
         ];
 
         // 2. Define 50+ Products
