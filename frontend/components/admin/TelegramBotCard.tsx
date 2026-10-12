@@ -99,6 +99,21 @@ export default function TelegramBotCard() {
     return () => clearInterval(interval);
   }, [pairData, status?.connected]);
 
+  // Snappy 0ms check upon returning from Telegram app to the browser tab
+  useEffect(() => {
+    const onReturn = () => {
+      if (document.visibilityState === "visible" && (wizardOpen || pairData) && !status?.connected) {
+        fetchStatus(true);
+      }
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [wizardOpen, pairData, status?.connected]);
+
   // Master UX 1-Click Connect (Opens Telegram App directly with pre-selected Admin & Topics permissions)
   const handleOneClickConnect = async () => {
     setConnecting(true);

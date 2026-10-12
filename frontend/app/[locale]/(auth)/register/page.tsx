@@ -22,14 +22,49 @@ export default function RegisterPage() {
     title: string;
     subtitle: string;
     isSuccess?: boolean;
+    canCancel?: boolean;
+    deepLink?: string;
   }>({
     show: false,
     title: "",
     subtitle: "",
     isSuccess: false,
+    canCancel: false,
+    deepLink: "",
   });
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Smart destination resolver (Preserves intended checkout, cart, or profile URL)
+  const getRedirectTarget = () => {
+    const fromQuery = searchParams?.get("redirect") || searchParams?.get("return_to");
+    if (fromQuery && fromQuery.startsWith("/")) return fromQuery;
+    const fromSession = typeof window !== "undefined" ? sessionStorage.getItem("stech_auth_redirect") : null;
+    if (fromSession && fromSession.startsWith("/")) return fromSession;
+    return "/";
+  };
+
+  const navigateToDestination = (delay = 200) => {
+    const target = getRedirectTarget();
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("stech_auth_redirect");
+    }
+    setTimeout(() => {
+      router.push(target);
+    }, delay);
+  };
+
+  const handleCancelAuth = () => {
+    if (telegramPollIntervalRef.current) {
+      clearInterval(telegramPollIntervalRef.current);
+      telegramPollIntervalRef.current = null;
+    }
+    isPollingCompletedRef.current = false;
+    localStorage.removeItem("stech_pending_tg_handshake");
+    sessionStorage.removeItem("stech_pending_tg_handshake");
+    setLoading(false);
+    setAuthOverlay({ show: false, title: "", subtitle: "", isSuccess: false, canCancel: false, deepLink: "" });
+  };
 
   // Load official Telegram Login Widget SDK dynamically
   useEffect(() => {
@@ -94,9 +129,7 @@ export default function RegisterPage() {
               isSuccess: true,
             });
 
-            setTimeout(() => {
-              router.push("/");
-            }, 200);
+            navigateToDestination(200);
           }
         })
         .catch(() => {
@@ -152,7 +185,7 @@ export default function RegisterPage() {
         .catch(() => {});
 
       setTimeout(() => {
-        router.push("/");
+        navigateToDestination(0);
       }, 1500);
     }
   }, [searchParams]);
@@ -252,7 +285,7 @@ export default function RegisterPage() {
 
       // 2 seconds delay as requested by user
       await new Promise((r) => setTimeout(r, 2000));
-      router.push("/");
+      navigateToDestination(0);
     } catch (err: any) {
       setError(err.message || "Failed to create an account.");
       setAuthOverlay({ show: false, title: "", subtitle: "" });
@@ -291,7 +324,7 @@ export default function RegisterPage() {
 
       // 2-3s delay as requested by user
       await new Promise((r) => setTimeout(r, 2200));
-      router.push("/");
+      navigateToDestination(0);
     } catch (err: any) {
       setError(err.message || "Failed to sign in with Google.");
       setAuthOverlay({ show: false, title: "", subtitle: "" });
@@ -360,7 +393,7 @@ export default function RegisterPage() {
         });
 
         await new Promise((r) => setTimeout(r, 1200));
-        router.push("/");
+        navigateToDestination(0);
       } else {
         throw new Error(res.data?.error || "ការផ្ទៀងផ្ទាត់ Telegram បរាជ័យ");
       }
@@ -378,7 +411,7 @@ export default function RegisterPage() {
   const isPollingCompletedRef = useRef<boolean>(false);
   const lastResumeTimeRef = useRef<number>(0);
 
-  const startOrResumeTelegramPolling = (token: string, isReturning = false) => {
+  const startOrResumeTelegramPolling = (token: string, isReturning = false, deepLinkUrl?: string) => {
     if (isPollingCompletedRef.current) return;
 
     if (telegramPollIntervalRef.current) {
@@ -395,6 +428,8 @@ export default function RegisterPage() {
         ? "សូមរង់ចាំមួយភ្លែត កំពុងឆែកមើលស្ថានភាពជោគជ័យពី Telegram..."
         : 'សូមចុចប៊ូតុង "START" លើ Telegram របស់លោកអ្នក ដើម្បីចុះឈ្មោះភ្លាមៗ...',
       isSuccess: false,
+      canCancel: true,
+      deepLink: deepLinkUrl || "",
     });
 
     const checkStatus = async () => {
@@ -429,12 +464,11 @@ export default function RegisterPage() {
             title: `ស្វាគមន៍ ${userObj.display_name || "អតិថិជន"}! 🎉`,
             subtitle: "ចុះឈ្មោះជាមួយ Telegram ជោគជ័យ! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...",
             isSuccess: true,
+            canCancel: false,
           });
 
-          // Ultra snappy 200ms entry transition
-          setTimeout(() => {
-            router.push("/");
-          }, 200);
+          // Snappy entry transition directly to intended destination
+          navigateToDestination(200);
           return true;
         } else if (checkRes.data?.status === "expired" || checkRes.data?.status === "rejected") {
           isPollingCompletedRef.current = true;
@@ -455,7 +489,7 @@ export default function RegisterPage() {
     // Immediate check on trigger (0ms delay)
     checkStatus();
 
-    // High-frequency snappy polling: 350ms (sub-second sync with bot)
+    // High-frequency snappy polling: 350ms up to 180 attempts (~65s duration)
     let attempts = 0;
     telegramPollIntervalRef.current = setInterval(async () => {
       if (isPollingCompletedRef.current) {
@@ -463,15 +497,17 @@ export default function RegisterPage() {
         return;
       }
       attempts++;
-      if (attempts > 35) {
+      if (attempts > 180) {
         if (telegramPollIntervalRef.current) {
           clearInterval(telegramPollIntervalRef.current);
           telegramPollIntervalRef.current = null;
         }
-        localStorage.removeItem("stech_pending_tg_handshake");
-        sessionStorage.removeItem("stech_pending_tg_handshake");
-        setError("ការផ្ទៀងផ្ទាត់ Telegram លើសកំណត់ពេល។ សូមចុចព្យាយាមម្តងទៀត។");
-        setAuthOverlay({ show: false, title: "", subtitle: "" });
+        setAuthOverlay((prev) => ({
+          ...prev,
+          title: "⏱️ ការរង់ចាំលើសកំណត់ពេល",
+          subtitle: "មិនទាន់ទទួលបានការបញ្ជាក់ពី Telegram នៅឡើយទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីព្យាយាមម្តងទៀត ឬត្រឡប់ក្រោយ។",
+          canCancel: true,
+        }));
         return;
       }
       await checkStatus();
@@ -492,7 +528,7 @@ export default function RegisterPage() {
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.token && (Date.now() - (parsed.createdAt || 0)) < 600000) {
-            startOrResumeTelegramPolling(parsed.token, isReturning);
+            startOrResumeTelegramPolling(parsed.token, isReturning, parsed.deepLink);
           } else {
             localStorage.removeItem("stech_pending_tg_handshake");
             sessionStorage.removeItem("stech_pending_tg_handshake");
@@ -532,11 +568,18 @@ export default function RegisterPage() {
     const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Stech_store_LoginBot";
     const deviceName = getDeviceName();
 
+    // Preserve intended destination page (e.g. /checkout, /cart)
+    const returnTarget = searchParams?.get("redirect") || searchParams?.get("return_to") || "/";
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("stech_auth_redirect", returnTarget);
+    }
+
     setAuthOverlay({
       show: true,
       title: "✈️ កំពុងភ្ជាប់ Telegram App...",
       subtitle: "សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងបើក Telegram ដើម្បី Confirm ចុះឈ្មោះ...",
       isSuccess: false,
+      canCancel: true,
     });
 
     try {
@@ -551,18 +594,21 @@ export default function RegisterPage() {
         const pendingSession = {
           token,
           createdAt: Date.now(),
+          deepLink,
         };
         localStorage.setItem("stech_pending_tg_handshake", JSON.stringify(pendingSession));
         sessionStorage.setItem("stech_pending_tg_handshake", JSON.stringify(pendingSession));
 
         const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-        if (isMobile) {
-          window.location.href = appLink || deepLink;
+        if (isMobile && appLink) {
+          // Native tg:// URL scheme opens Telegram app directly without navigating current browser tab away!
+          window.location.href = appLink;
         } else {
+          // Desktop or fallback opens in new tab so original tab stays active and listening
           window.open(deepLink, "_blank");
         }
 
-        startOrResumeTelegramPolling(token);
+        startOrResumeTelegramPolling(token, false, deepLink);
         return;
       }
     } catch (err: any) {
@@ -1027,9 +1073,81 @@ export default function RegisterPage() {
               {authOverlay.subtitle}
             </p>
 
-            <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "9999px", fontSize: "11px", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: "6px" }}>
-              <span>⚠️</span>
-              <span>សូមកុំចាកចេញ ឬចុចត្រឡប់ក្រោយ</span>
+            {authOverlay.deepLink && !authOverlay.isSuccess && (
+              <a
+                href={authOverlay.deepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 14px",
+                  background: "rgba(0, 136, 204, 0.2)",
+                  border: "1px solid rgba(0, 136, 204, 0.5)",
+                  borderRadius: "12px",
+                  color: "#38bdf8",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                  marginBottom: "14px",
+                }}
+              >
+                <span>🚀 បើក Telegram ដោយផ្ទាល់ (Open Bot)</span>
+              </a>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", alignItems: "center" }}>
+              <div style={{ padding: "6px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "9999px", fontSize: "11px", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: "6px" }}>
+                <span>{authOverlay.isSuccess ? "🎉" : "⚡"}</span>
+                <span>{authOverlay.isSuccess ? "ចុះឈ្មោះជោគជ័យ! កំពុងបញ្ជូន..." : "កំពុងដំណើរការផ្ទៀងផ្ទាត់ស្វ័យប្រវត្តិ"}</span>
+              </div>
+
+              {!authOverlay.isSuccess && (
+                <div style={{ display: "flex", gap: "8px", marginTop: "4px", width: "100%" }}>
+                  <button
+                    type="button"
+                    onClick={handleCancelAuth}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(255,255,255,0.18)",
+                      borderRadius: "12px",
+                      color: "rgba(255,255,255,0.9)",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    ✕ បោះបង់ (Cancel)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCancelAuth();
+                      const target = getRedirectTarget();
+                      router.push(target !== "/register" ? target : "/");
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      background: "rgba(192, 57, 43, 0.2)",
+                      border: "1px solid rgba(192, 57, 43, 0.4)",
+                      borderRadius: "12px",
+                      color: "#ff6b6b",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    ⬅️ ត្រឡប់ក្រោយ (Back)
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

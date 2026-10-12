@@ -144,6 +144,7 @@ export default function UserProfilePage() {
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramDeepLink, setTelegramDeepLink] = useState<string | null>(null);
   const [telegramToken, setTelegramToken] = useState<string | null>(null);
+  const [telegramBotUsername, setTelegramBotUsername] = useState<string>("Stech_store_LoginBot");
   const [telegramPolling, setTelegramPolling] = useState(false);
   const [telegramSuccess, setTelegramSuccess] = useState(false);
   const [telegramUnlinking, setTelegramUnlinking] = useState(false);
@@ -573,8 +574,22 @@ export default function UserProfilePage() {
       if (res.data?.success && res.data?.deep_link) {
         setTelegramDeepLink(res.data.deep_link);
         setTelegramToken(res.data.link_token);
+        if (res.data.bot_username) {
+          setTelegramBotUsername(res.data.bot_username);
+        }
         setTelegramModalOpen(true);
-        window.open(res.data.deep_link, "_blank");
+        setTelegramSuccess(false);
+
+        const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|Android/i.test(navigator.userAgent);
+        const appLink = res.data.app_link;
+
+        if (isMobile && appLink) {
+          // Open Telegram App directly without navigating browser tab away from S Tech Store
+          window.location.href = appLink;
+        } else {
+          window.open(res.data.deep_link, "_blank");
+        }
+
         startTelegramPolling(res.data.link_token);
       }
     } catch (err: any) {
@@ -588,12 +603,22 @@ export default function UserProfilePage() {
   const startTelegramPolling = (token: string) => {
     setTelegramPolling(true);
     let attempts = 0;
+    let pollInterval: any = null;
+
+    const cleanup = () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
 
     const checkLink = async () => {
       try {
         const res = await api.get(`/user/telegram/link-check?token=${encodeURIComponent(token)}`);
         if (res.data?.completed) {
-          clearInterval(interval);
+          cleanup();
           setTelegramPolling(false);
           setTelegramSuccess(true);
           setProfile((prev) => ({
@@ -606,30 +631,31 @@ export default function UserProfilePage() {
           if (res.data.photo_url) {
             setAvatarPreview(res.data.photo_url);
           }
+          // Snappy 1.5s celebration then return back to profile view
           setTimeout(() => {
             setTelegramModalOpen(false);
             setTelegramSuccess(false);
-          }, 2500);
+          }, 1500);
           return true;
         }
       } catch (e) {}
       return false;
     };
 
-    // Immediate check
+    // Immediate check on trigger
     checkLink();
 
-    const interval = setInterval(async () => {
+    pollInterval = setInterval(async () => {
       attempts++;
-      if (attempts > 60) {
-        clearInterval(interval);
+      if (attempts > 80) {
+        cleanup();
         setTelegramPolling(false);
         return;
       }
       await checkLink();
     }, 1200);
 
-    // Also check on tab return
+    // Immediate check on tab return from Telegram app
     const onReturn = () => {
       if (document.visibilityState === "visible") {
         checkLink();
@@ -2956,7 +2982,7 @@ export default function UserProfilePage() {
                         className="w-full py-3.5 px-4 rounded-2xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-extrabold transition-all no-underline flex items-center justify-center gap-2 shadow-lg shadow-sky-500/25 cursor-pointer"
                       >
                         <Send size={16} />
-                        <span>បើកកម្មវិធី Telegram (@Stech_store_LoginBot)</span>
+                        <span>បើកកម្មវិធី Telegram (@{telegramBotUsername})</span>
                         <ExternalLink size={14} />
                       </a>
 
@@ -2964,6 +2990,18 @@ export default function UserProfilePage() {
                         <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping"></span>
                         <span>កំពុងរង់ចាំលោកអ្នកចុច Start ក្នុង Telegram...</span>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTelegramModalOpen(false);
+                          setTelegramPolling(false);
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
+                      >
+                        <X size={14} />
+                        <span>✕ បោះបង់ ឬត្រឡប់ក្រោយ (Cancel & Return)</span>
+                      </button>
                     </div>
                   )}
 

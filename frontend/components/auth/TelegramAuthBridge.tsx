@@ -41,6 +41,15 @@ export default function TelegramAuthBridge() {
     const urlParams = new URLSearchParams(window.location.search);
     const tgToken = urlParams.get("tg_token");
 
+    const getResolvedTarget = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromQuery = urlParams.get("redirect") || urlParams.get("return_to");
+      if (fromQuery && fromQuery.startsWith("/")) return fromQuery;
+      const fromStorage = sessionStorage.getItem("stech_auth_redirect");
+      if (fromStorage && fromStorage.startsWith("/")) return fromStorage;
+      return "/";
+    };
+
     if (tgToken) {
       api.get(`/auth/telegram/token-login?token=${encodeURIComponent(tgToken)}`)
         .then((res) => {
@@ -60,7 +69,9 @@ export default function TelegramAuthBridge() {
             window.dispatchEvent(new Event("user_session_updated"));
 
             if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-              window.location.href = "/";
+              const target = getResolvedTarget();
+              sessionStorage.removeItem("stech_auth_redirect");
+              window.location.href = target;
             } else {
               // Clean URL query params without reloading
               const cleanUrl = window.location.pathname;
@@ -133,7 +144,8 @@ export default function TelegramAuthBridge() {
 
         // If user landed on login or register while inside Telegram Mini App, auto-navigate to home or checkout!
         if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-          const redirectTarget = new URLSearchParams(window.location.search).get("redirect") || "/";
+          const redirectTarget = getResolvedTarget();
+          sessionStorage.removeItem("stech_auth_redirect");
           window.location.href = redirectTarget;
         }
 
@@ -177,6 +189,12 @@ export default function TelegramAuthBridge() {
         if (existing) {
           localStorage.removeItem("stech_pending_tg_handshake");
           sessionStorage.removeItem("stech_pending_tg_handshake");
+          // If user returns to login or register page and is already authenticated, seamlessly redirect them!
+          if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
+            const dest = getResolvedTarget();
+            sessionStorage.removeItem("stech_auth_redirect");
+            window.location.href = dest;
+          }
           return;
         }
 
@@ -209,7 +227,9 @@ export default function TelegramAuthBridge() {
               sessionStorage.removeItem("stech_pending_tg_handshake");
               window.dispatchEvent(new Event("user_session_updated"));
               if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-                window.location.href = "/";
+                const dest = getResolvedTarget();
+                sessionStorage.removeItem("stech_auth_redirect");
+                window.location.href = dest;
               }
             }
           })
