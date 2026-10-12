@@ -154,7 +154,7 @@ export default function UserProfilePage() {
   const [telegramModalOpen, setTelegramModalOpen] = useState(false);
   const [telegramDeepLink, setTelegramDeepLink] = useState<string | null>(null);
   const [telegramToken, setTelegramToken] = useState<string | null>(null);
-  const [telegramBotUsername, setTelegramBotUsername] = useState<string>("Stech_store_LoginBot");
+  const [telegramBotUsername, setTelegramBotUsername] = useState<string>("S_TECH_ASSISTANTBOT");
   const [telegramPolling, setTelegramPolling] = useState(false);
   const [telegramSuccess, setTelegramSuccess] = useState(false);
   const [telegramUnlinking, setTelegramUnlinking] = useState(false);
@@ -1249,7 +1249,7 @@ export default function UserProfilePage() {
                 <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                   <button
                     type="button"
-                    onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Stech_store_LoginBot"}`, "_blank")}
+                    onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
                     className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-black transition-all shadow-lg shadow-[#0088cc]/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
                   >
                     <Send size={15} />
@@ -2187,7 +2187,7 @@ export default function UserProfilePage() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">
-                          Telegram Companion Bot (@Stech_store_LoginBot)
+                          Telegram Companion Bot (@S_TECH_ASSISTANTBOT)
                         </h4>
                         {isTelegramAuthUser ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
@@ -2230,13 +2230,13 @@ export default function UserProfilePage() {
 
                     <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 dark:border-white/5">
                       <a
-                        href="https://t.me/Stech_store_LoginBot"
+                        href="https://t.me/S_TECH_ASSISTANTBOT"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-4 py-2 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-bold transition-all no-underline flex items-center gap-2 shadow-xs cursor-pointer"
                       >
                         <Send size={13} />
-                        <span>បើកឆាត Telegram Bot (@Stech_store_LoginBot)</span>
+                        <span>បើកឆាត Telegram Bot (@S_TECH_ASSISTANTBOT)</span>
                         <ExternalLink size={12} />
                       </a>
 
@@ -2399,7 +2399,7 @@ export default function UserProfilePage() {
                         )}
                       </div>
                       <span className="text-[11px] text-gray-400 block">
-                        Send digital invoice & driver contact directly to your private Telegram chat (@Stech_store_LoginBot).
+                        Send digital invoice & driver contact directly to your private Telegram chat (@S_TECH_ASSISTANTBOT).
                       </span>
                       {(!profile.telegram_chat_id && !isTelegramAuthUser) && (
                         <button

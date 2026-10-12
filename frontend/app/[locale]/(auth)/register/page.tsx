@@ -593,8 +593,8 @@ export default function RegisterPage() {
   // ─── Trigger Real Telegram OAuth (1-Click App Handshake OR Widget) ───────────────
   const handleTelegramSignIn = async () => {
     setError("");
-    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8929556298";
-    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Stech_store_LoginBot";
+    const botId = process.env.NEXT_PUBLIC_TELEGRAM_BOT_ID || "8689597792";
+    const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT";
     const deviceName = getDeviceName();
 
     // Preserve intended destination page (e.g. /checkout, /cart)

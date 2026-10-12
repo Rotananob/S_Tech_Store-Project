@@ -2385,7 +2385,7 @@ class TelegramService
      */
     public static function getCustomerBotUsername(): string
     {
-        return env('TELEGRAM_AUTH_BOT_USERNAME') ?: 'Stech_store_LoginBot';
+        return env('TELEGRAM_AUTH_BOT_USERNAME') ?: 'S_TECH_ASSISTANTBOT';
     }
 
     /**
