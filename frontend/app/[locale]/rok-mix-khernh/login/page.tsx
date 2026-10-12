@@ -57,12 +57,6 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handleQuickFill = (targetEmail: string, targetPass: string) => {
-    setEmail(targetEmail);
-    setPassword(targetPass);
-    handleLogin(undefined, targetEmail, targetPass);
-  };
-
   return (
     <div className="admin-theme min-h-screen bg-[#0a0a0c] text-white flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden font-sans">
       {/* Background Ambient Glows */}
@@ -194,40 +188,6 @@ export default function AdminLoginPage() {
               </button>
             </div>
           </form>
-
-          {/* Quick Access Badges (For instant 1-click test) */}
-          <div className="mt-6 pt-5 border-t border-white/10">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider text-center mb-3">
-              គណនីសាកល្បងរហ័ស • Quick Login Accounts
-            </p>
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => handleQuickFill("admin@stechstore.com", "STech#Admin_98X$kQ29@2026!Sec")}
-                className="p-2.5 rounded-xl bg-red-950/30 hover:bg-red-900/40 border border-red-500/30 text-left transition-all group"
-              >
-                <div className="text-[11px] font-bold text-red-400 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-red-400" /> Admin Account</span>
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="text-[10px] text-gray-400 mt-0.5 truncate">admin@stechstore.com</div>
-                <div className="text-[9px] text-gray-500 mt-0.5">Ultra Secure • Full Access</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickFill("staff@stechstore.com", "STech#Staff_74Wp@81K!2026$Shift")}
-                className="p-2.5 rounded-xl bg-blue-950/30 hover:bg-blue-900/40 border border-blue-500/30 text-left transition-all group"
-              >
-                <div className="text-[11px] font-bold text-blue-400 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5"><Shield size={13} className="text-blue-400" /> Staff Account</span>
-                  <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="text-[10px] text-gray-400 mt-0.5 truncate">staff@stechstore.com</div>
-                <div className="text-[9px] text-gray-500 mt-0.5">Ultra Secure • Staff Ops</div>
-              </button>
-            </div>
-          </div>
 
           {/* Security Features Info */}
           <div className="mt-5 grid grid-cols-2 gap-2 text-[10px] text-gray-500">

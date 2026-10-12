@@ -62,7 +62,6 @@ Route::post('/chat/request-agent', function (Request $request) {
     return response()->json([
         'success' => true,
         'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
-        'bypass_token' => $bypassToken,
         'chat_id' => $chatId,
         'telegram_result' => $res,
     ]);
@@ -206,9 +205,9 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         'admin_token' => $apiToken,
         'admin_user' => $userData,
     ]);
-});
+})->middleware('throttle:5,1');
 
-// Admin Send Password Reset / Magic Login Token Link to Customer (Telegram & In-App)
+// Admin Send Password Reset / Magic Login Token Link to Customer (Telegram & In-App - Guarded by AdminMiddleware)
 Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $id) {
     $user = \App\Models\UserProfile::findOrFail($id);
 
@@ -245,7 +244,7 @@ Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $i
         'magic_link' => $magicLink,
         'telegram_alert' => $tgRes,
     ]);
-});
+})->middleware([AdminMiddleware::class, 'throttle:10,1']);
 
 // Real Telegram OAuth Signature Handshake & Automatic Account Login (Public)
 Route::post('/auth/telegram/verify', function (Request $request) {

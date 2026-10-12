@@ -17,17 +17,16 @@ class AdminSettingsController extends Controller
     private function resolveAdminUser(Request $request): ?User
     {
         $user = $request->attributes->get('auth_user') ?: $request->user();
-        if ($user) return $user;
+        if ($user && ($user->isAdmin() || $user->isStaff())) return $user;
 
         $authHeader = $request->header('Authorization', '');
         if (str_starts_with($authHeader, 'Bearer ')) {
             $token = substr($authHeader, 7);
             $found = User::where('api_token', $token)->first();
-            if ($found) return $found;
+            if ($found && ($found->isAdmin() || $found->isStaff())) return $found;
         }
 
-        // Fallback to first super admin / admin
-        return User::where('role', 'admin')->first() ?: User::first();
+        return null;
     }
 
     /**
