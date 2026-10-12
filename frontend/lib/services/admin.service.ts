@@ -174,15 +174,16 @@ export interface TelegramPairLink {
   pair_code: string;
   bot_username: string;
   group_url: string;
+  tg_app_url?: string;
   direct_url: string;
   expires_in: number;
   needs_config?: boolean;
   message?: string;
 }
 
-export const getTelegramStatus = async (): Promise<TelegramStatus> => {
+export const getTelegramStatus = async (checkNow: boolean = false): Promise<TelegramStatus> => {
   try {
-    const res = await api.get("/admin/telegram/status");
+    const res = await api.get(`/admin/telegram/status${checkNow ? "?check_now=1" : ""}`);
     return res.data;
   } catch (e) {
     return {

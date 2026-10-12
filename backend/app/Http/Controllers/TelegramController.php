@@ -15,10 +15,10 @@ class TelegramController extends Controller
     {
         $settings = TelegramService::getSettings();
 
-        // Only quick-poll updates if explicitly requested via ?check_now=1 with cooldown
+        // Quick-poll updates if explicitly requested via ?check_now=1 with short 2s cooldown for instant 1-click detection
         if ($request->boolean('check_now') && (empty($settings['connected']) || !empty($settings['pending_tokens']))) {
             $cacheKey = 'tg_poll_status_cooldown';
-            if (\Illuminate\Support\Facades\Cache::add($cacheKey, 1, 15)) {
+            if (\Illuminate\Support\Facades\Cache::add($cacheKey, 1, 2)) {
                 try {
                     TelegramService::pollPendingUpdates(0);
                     $settings = TelegramService::getSettings();
@@ -64,6 +64,7 @@ class TelegramController extends Controller
             'pair_code' => $data['pair_code'],
             'bot_username' => $data['bot_username'],
             'group_url' => $data['group_url'],
+            'tg_app_url' => $data['tg_app_url'] ?? null,
             'direct_url' => $data['direct_url'],
             'expires_in' => $data['expires_in'],
             'message' => 'Pairing link generated successfully. Add bot to group to auto-connect.',

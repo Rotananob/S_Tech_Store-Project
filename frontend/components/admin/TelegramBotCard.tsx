@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Send, CheckCircle2, AlertCircle, RefreshCw, Unlink, ExternalLink, 
   Copy, ShieldCheck, Bell, Smartphone, Sparkles, Layers, Key, Bot, 
-  Settings, Check, ArrowRight, Zap, QrCode
+  Settings, Check, ArrowRight, Zap, QrCode, X, ChevronRight, MessageSquare, Info
 } from "lucide-react";
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
@@ -24,6 +24,11 @@ export default function TelegramBotCard() {
   const [pairData, setPairData] = useState<TelegramPairLink | null>(null);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // Master UX Guided Wizard States
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
+  const [justConnected, setJustConnected] = useState(false);
 
   // Manual Direct Connect State
   const [manualChatId, setManualChatId] = useState("-1003967108799");
@@ -46,7 +51,7 @@ export default function TelegramBotCard() {
       const res = await pairTelegramGroup(manualChatId.trim(), undefined, manualChatTitle.trim() || "Store Group");
       if (res.success) {
         showToast("🎉 Telegram Group បានភ្ជាប់ជោគជ័យ ១០០%!");
-        fetchStatus();
+        fetchStatus(true);
       } else {
         showToast(res.message || "បរាជ័យក្នុងការភ្ជាប់", "error");
       }
@@ -57,13 +62,22 @@ export default function TelegramBotCard() {
     }
   };
 
-  const fetchStatus = async () => {
+  const fetchStatus = async (checkNow: boolean = false) => {
     try {
-      const data = await getTelegramStatus();
+      const data = await getTelegramStatus(checkNow);
       setStatus(data);
-      if (data.connected && pairData) {
-        setPairData(null);
-        showToast("🎉 Telegram Group បានភ្ជាប់ជោគជ័យ!");
+      if (data.connected && (pairData || wizardOpen) && !justConnected) {
+        setJustConnected(true);
+        setWizardStep(4); // Celebration Success Step
+        showToast("🎉 មហាជោគជ័យ! Telegram Group បានតភ្ជាប់ ១០០%!");
+        // Auto trigger setup topics if not all created yet
+        if (!data.topics || Object.keys(data.topics).length < 4) {
+          setupTelegramTopics().then((res) => {
+            if (res.success) {
+              getTelegramStatus(false).then(setStatus);
+            }
+          });
+        }
       }
     } catch (e) {
       console.error("Failed to fetch telegram status", e);
@@ -73,34 +87,37 @@ export default function TelegramBotCard() {
   };
 
   useEffect(() => {
-    fetchStatus();
+    fetchStatus(false);
   }, []);
 
-  // Poll for connection while awaiting group pairing
+  // Poll for connection while awaiting group pairing (Fast 1.8s radar polling with ?check_now=1)
   useEffect(() => {
     if (!pairData || status?.connected) return;
     const interval = setInterval(() => {
-      fetchStatus();
-    }, 2500);
+      fetchStatus(true);
+    }, 1800);
     return () => clearInterval(interval);
   }, [pairData, status?.connected]);
 
-  // ABA Merchant Style 1-Click Connect
+  // Master UX 1-Click Connect (Opens Telegram App directly with pre-selected Admin & Topics permissions)
   const handleOneClickConnect = async () => {
     setConnecting(true);
+    setWizardOpen(true);
+    setWizardStep(1);
+    setJustConnected(false);
     try {
       const res = await generateTelegramLink();
       setPairData(res);
       showToast("🚀 កំពុងបើកកម្មវិធី Telegram... សូមជ្រើសរើស Group របស់ហាង");
 
-      // Auto-launch Telegram App directly on Mobile or Desktop
-      if (res.group_url) {
-        const isMobile = typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile) {
-          window.location.href = res.group_url;
-        } else {
-          window.open(res.group_url, "_blank");
-        }
+      // Auto-launch Telegram App directly via native tg:// URL scheme first, fallback to https://t.me/
+      const tgApp = res.tg_app_url || `tg://resolve?domain=${res.bot_username}&startgroup=${res.pair_code}&admin=manage_topics+change_info+post_messages+edit_messages+delete_messages+pin_messages+promote_members+invite_users`;
+      const tgWeb = res.group_url;
+
+      try {
+        window.location.href = tgApp;
+      } catch (e) {
+        window.open(tgWeb, "_blank");
       }
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || "បរាជ័យក្នុងការបង្កើត Link";
@@ -593,14 +610,14 @@ export default function TelegramBotCard() {
               )}
             </div>
 
-            {/* Waiting Radar Modal/Panel if pairData is generated */}
-            {pairData && (
-              <div className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#0088cc] shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+            {/* Waiting Radar Panel (In-Card View) */}
+            {pairData && !status?.connected && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#0088cc] shadow-xl animate-in fade-in-0 zoom-in-95 duration-200">
                 <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                   <div className="flex items-center gap-2.5">
                     <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping" />
                     <span className="text-sm sm:text-base font-black text-gray-900">
-                      កំពុងរង់ចាំការភ្ជាប់ពី Telegram Group
+                      កំពុងរង់ចាំការភ្ជាប់ពី Telegram Group (Radar Active)
                     </span>
                   </div>
                   <span className="text-xs font-mono font-bold text-[#0088cc] bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
@@ -615,16 +632,15 @@ export default function TelegramBotCard() {
                     </h4>
 
                     <div className="flex flex-col gap-2.5">
-                      <a
-                        href={pairData.group_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all no-underline active:scale-98"
+                      <button
+                        type="button"
+                        onClick={() => setWizardOpen(true)}
+                        className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer border-none active:scale-98"
                       >
-                        <Smartphone size={18} />
-                        <span>បើកក្នុង Telegram App (@{pairData.bot_username})</span>
+                        <Sparkles size={18} className="text-amber-300" />
+                        <span>🚀 បើកផ្ទាំងណែនាំ 1-Click Guided Connect</span>
                         <ExternalLink size={16} />
-                      </a>
+                      </button>
 
                       <button
                         type="button"
@@ -658,6 +674,333 @@ export default function TelegramBotCard() {
           </div>
         )}
       </div>
+
+      {/* ── MASTER UX 1-CLICK GUIDED CONNECT MODAL ── */}
+      {wizardOpen && (
+        <div className="fixed inset-0 z-[99999] bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 overflow-hidden relative animate-in zoom-in-95 max-h-[92vh] flex flex-col">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                setWizardOpen(false);
+                if (status?.connected) setPairData(null);
+              }}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer z-10"
+            >
+              <X size={20} />
+            </button>
+
+            {/* If connected -> CELEBRATION SUCCESS SCREEN */}
+            {status?.connected && (wizardStep === 4 || justConnected) ? (
+              <div className="text-center py-4 space-y-5 animate-in zoom-in-95">
+                <div className="w-20 h-20 rounded-3xl bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                  <CheckCircle2 size={44} className="animate-bounce" />
+                </div>
+
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black uppercase tracking-wider mb-2">
+                    <Sparkles size={13} className="text-emerald-600" />
+                    <span>តភ្ជាប់ជោគជ័យ ១០០% • Auto Connected</span>
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                    Telegram Group & Bot បានភ្ជាប់ជោគជ័យ!
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-md mx-auto leading-relaxed">
+                    Bot <b>@{botUsername}</b> ត្រូវបានភ្ជាប់ជាមួយគ្រុប <b>{status.chat_title || "Team Group"}</b> រួចរាល់។ Forum Topics ទាំងអស់ត្រូវបានរៀបចំស្វ័យប្រវត្តិ!
+                  </p>
+                </div>
+
+                {/* Group Details Strip */}
+                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 text-left font-mono text-xs text-gray-700 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Group Name:</span>
+                    <span className="font-bold text-gray-900">{status.chat_title || "S Tech Store Group"}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Chat ID:</span>
+                    <span className="font-bold text-[#0088cc]">{status.chat_id}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Status:</span>
+                    <span className="text-emerald-600 font-bold">🟢 Active & Listening 24/7</span>
+                  </div>
+                </div>
+
+                {/* 4 Topic Badges */}
+                <div>
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 text-left">
+                    Forum Topics ត្រូវបានរៀបចំស្វ័យប្រវត្តិ៖
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-left">
+                    <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-xs font-bold text-sky-900 flex items-center justify-between">
+                      <span>🛒 ការបញ្ជាទិញថ្មី</span>
+                      <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">Ready ✓</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900 flex items-center justify-between">
+                      <span>🛠️ សេវាជួសជុល</span>
+                      <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">Ready ✓</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-xs font-bold text-red-900 flex items-center justify-between">
+                      <span>⚠️ ការជូនដំណឹងស្តុក</span>
+                      <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">Ready ✓</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-purple-50 border border-purple-200 text-xs font-bold text-purple-900 flex items-center justify-between">
+                      <span>💬 សេវាអតិថិជន</span>
+                      <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-black">Ready ✓</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleTestPing}
+                    disabled={testing}
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all border-none disabled:opacity-50"
+                  >
+                    <Send size={14} className={testing ? "animate-spin" : ""} />
+                    <span>{testing ? "កំពុងផ្ញើ..." : "🔔 ផ្ញើសារសាកល្បងទៅ Group"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWizardOpen(false);
+                      setPairData(null);
+                    }}
+                    className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all border-none"
+                  >
+                    <Check size={14} />
+                    <span>✓ រួចរាល់ • បិទផ្ទាំង</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* AWAITING CONNECTION GUIDED RADAR */
+              <div className="flex flex-col gap-5 overflow-y-auto pr-1">
+                {/* Header */}
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-[#0088cc] text-[11px] font-extrabold uppercase tracking-wider mb-1.5">
+                    <Sparkles size={12} className="text-amber-500" />
+                    <span>ABA Merchant 1-Click Connect Flow</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                    កំពូលវៃលុក UX • ភ្ជាប់ Telegram Bot
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto leading-relaxed">
+                    ធ្វើតាមជំហានងាយៗខាងក្រោម។ នៅពេល Add Bot ចូលក្នុងគ្រុប វានឹងស្គាល់ និងបង្កើត Forum Topics ដោយស្វ័យប្រវត្តិ!
+                  </p>
+                </div>
+
+                {/* Step Tabs Navigation */}
+                <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-2xl text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(1)}
+                    className={`flex-1 py-2 px-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 border-none ${
+                      wizardStep === 1 ? "bg-white text-gray-900 shadow-xs" : "bg-transparent text-gray-500 hover:text-gray-800"
+                    }`}
+                  >
+                    <span>1. 📱 រើស Group</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(2)}
+                    className={`flex-1 py-2 px-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 border-none ${
+                      wizardStep === 2 ? "bg-white text-gray-900 shadow-xs" : "bg-transparent text-gray-500 hover:text-gray-800"
+                    }`}
+                  >
+                    <span>2. ⚙️ បើក Topics</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(3)}
+                    className={`flex-1 py-2 px-2 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 border-none ${
+                      wizardStep === 3 ? "bg-white text-gray-900 shadow-xs" : "bg-transparent text-gray-500 hover:text-gray-800"
+                    }`}
+                  >
+                    <span>3. 🛡️ សិទ្ធិ Bot</span>
+                  </button>
+                </div>
+
+                {/* Step Content */}
+                {wizardStep === 1 && (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200">
+                      <div className="text-xs font-bold text-sky-900 mb-1 flex items-center gap-1.5">
+                        <Smartphone size={16} className="text-[#0088cc]" />
+                        <span>ជំហានទី១: បើក Telegram App ហើយជ្រើសរើស Group របស់ហាង</span>
+                      </div>
+                      <p className="text-xs text-sky-800/80 leading-relaxed m-0">
+                        តំណភ្ជាប់ខាងក្រោមបានបង្កប់លេខកូដ Pairing Code (<code>{pairData?.pair_code}</code>) និងសិទ្ធិ Manage Topics ស្រាប់។ គ្រាន់តែចុចបើក រួចជ្រើសរើស Group របស់ហាងអ្នក។
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <a
+                        href={pairData?.tg_app_url || pairData?.group_url || `https://t.me/${botUsername}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#0077b5] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all no-underline active:scale-98"
+                      >
+                        <Smartphone size={16} />
+                        <span>🚀 បើកក្នុង Telegram App (@{botUsername})</span>
+                        <ExternalLink size={14} />
+                      </a>
+
+                      {pairData?.group_url && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(pairData.group_url)}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-2 border border-gray-200 transition-colors cursor-pointer"
+                        >
+                          <Copy size={13} />
+                          <span>{copied ? "បានចម្លងរួចរាល់! ✓" : "Copy Direct Invitation Link"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 2 && (
+                  <div className="space-y-3 animate-in fade-in">
+                    <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200">
+                      <div className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                        <Layers size={16} className="text-amber-600" />
+                        <span>ជំហានទី២ (ក្បាច់សំខាន់): បើកមុខងារ Topics ក្នុង Group Settings</span>
+                      </div>
+                      <p className="text-xs text-amber-800/90 leading-relaxed m-0">
+                        ដើម្បីឱ្យ Telegram អនុញ្ញាតឱ្យបង្កើត Forum Topics បាន សូមបើកមុខងារនេះក្នុង Group របស់អ្នកជាមុន៖
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2.5 text-xs text-gray-700">
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">1</span>
+                        <div>ចុចលើឈ្មោះ Group (Group Profile) ➡️ ចុចលើសញ្ញាខ្មៅដៃ (<b>Edit ✏️</b>)</div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">2</span>
+                        <div>រកមើលពាក្យ <b>Topics</b> រួចចុចបើក (<b>Turn ON ✅</b>)</div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-[#0088cc] text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">3</span>
+                        <div>ចុច Done ឬ Save ដើម្បីរក្សាទុក</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {wizardStep === 3 && (
+                  <div className="space-y-3 animate-in fade-in">
+                    <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200">
+                      <div className="text-xs font-bold text-emerald-900 mb-1 flex items-center gap-1.5">
+                        <ShieldCheck size={16} className="text-emerald-600" />
+                        <span>ជំហានទី៣: ផ្តល់សិទ្ធិ Manage Topics ឱ្យ Bot</span>
+                      </div>
+                      <p className="text-xs text-emerald-800/90 leading-relaxed m-0">
+                        នៅពេលអ្នក Add Bot ចូលក្នុងគ្រុប ផ្ទាំង Telegram នឹង Popup សួរអំពីសិទ្ធិ Administrator ដោយស្វ័យប្រវត្តិ៖
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2 text-xs text-gray-700">
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
+                        <span>🛡️ Manage Topics</span>
+                        <span className="text-emerald-600 text-xs">Enabled ✓ (Auto Pre-selected)</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
+                        <span>✏️ Change Group Info</span>
+                        <span className="text-emerald-600 text-xs">Enabled ✓</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
+                        <span>📌 Pin Messages</span>
+                        <span className="text-emerald-600 text-xs">Enabled ✓</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Radar Real-time Listener Strip */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-gray-900 to-black text-white flex items-center justify-between gap-3 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex items-center justify-center w-8 h-8 shrink-0">
+                      <span className="absolute w-8 h-8 rounded-full bg-emerald-500/30 animate-ping" />
+                      <span className="w-3 h-3 rounded-full bg-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Radar Active • Auto-Detecting...</span>
+                      </div>
+                      <div className="text-[11px] text-gray-400">
+                        កំពុងរង់ចាំ Bot ចូលគ្រុប (ត្រួតពិនិត្យរៀងរាល់ 1.8 វិនាទី)
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-amber-400 bg-white/10 px-2.5 py-1 rounded-xl">
+                    {pairData?.pair_code}
+                  </span>
+                </div>
+
+                {/* Direct Connect Toggle inside Modal */}
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualConnect(!showManualConnect)}
+                    className="text-[11px] text-[#0088cc] hover:underline font-bold bg-transparent border-none cursor-pointer flex items-center gap-1"
+                  >
+                    <span>{showManualConnect ? "បិទជម្រើសបញ្ចូល Chat ID ▲" : "ឬបញ្ចូល Telegram Chat ID ដោយផ្ទាល់ (ប្រសិនបើដឹងស្រាប់) ▼"}</span>
+                  </button>
+
+                  {showManualConnect && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200 flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={manualChatId}
+                        onChange={(e) => setManualChatId(e.target.value)}
+                        placeholder="ឧ. -1003967108799"
+                        className="px-3 py-2 rounded-lg border border-gray-300 text-xs font-mono outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDirectConnect}
+                        disabled={manualConnecting}
+                        className="py-2 px-3 bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-bold rounded-lg cursor-pointer border-none flex items-center justify-center gap-1.5"
+                      >
+                        <Zap size={13} className={manualConnecting ? "animate-spin" : ""} />
+                        <span>{manualConnecting ? "កំពុងភ្ជាប់..." : "ភ្ជាប់ភ្លាមៗ (Instant Pair)"}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Navigation Buttons */}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(prev => prev > 1 ? (prev - 1 as any) : 1)}
+                    disabled={wizardStep === 1}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 cursor-pointer border-none"
+                  >
+                    ⬅️ ត្រឡប់
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setWizardStep(prev => prev < 3 ? (prev + 1 as any) : 3)}
+                    disabled={wizardStep === 3}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gray-900 hover:bg-black disabled:opacity-40 cursor-pointer border-none flex items-center gap-1"
+                  >
+                    <span>បន្ទាប់</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

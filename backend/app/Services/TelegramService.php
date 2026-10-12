@@ -192,9 +192,11 @@ class TelegramService
 
         $botUsername = $settings['bot_username'];
 
-        // Telegram deep links
-        // ?startgroup= launches Telegram on mobile/desktop and prompts to pick a group with admin rights for Manage Topics
-        $groupUrl = "https://t.me/{$botUsername}?startgroup={$pairCode}&admin=manage_topics+post_messages+change_info+pin_messages";
+        // Telegram deep links with full admin rights pre-requested
+        // 'manage_topics' is key: Telegram automatically requests Manage Topics administrator permission!
+        $adminRights = "manage_topics+change_info+post_messages+edit_messages+delete_messages+pin_messages+promote_members+invite_users";
+        $groupUrl = "https://t.me/{$botUsername}?startgroup={$pairCode}&admin={$adminRights}";
+        $tgAppUrl = "tg://resolve?domain={$botUsername}&startgroup={$pairCode}&admin={$adminRights}";
         $directUrl = "https://t.me/{$botUsername}?start={$pairCode}";
 
         return [
@@ -202,6 +204,7 @@ class TelegramService
             'pair_code' => $pairCode,
             'bot_username' => $botUsername,
             'group_url' => $groupUrl,
+            'tg_app_url' => $tgAppUrl,
             'direct_url' => $directUrl,
             'expires_in' => 1800, // 30 minutes
         ];
@@ -877,7 +880,7 @@ class TelegramService
 
         // 4. Extract Pairing Code / Hash / Handshake from incoming commands & deep links
         $extractedCode = null;
-        if (preg_match('/^\/start(?:@\w+)?(?:[\s=_]+|\?)(?:start(?:group)?=)?([A-Za-z0-9_-]+)/i', $text, $matches)) {
+        if (preg_match('/^\/start(?:group)?(?:@\w+)?(?:[\s=_]+|\?)(?:start(?:group)?=)?([A-Za-z0-9_-]+)/i', $text, $matches)) {
             $extractedCode = $matches[1];
         } elseif (preg_match('/start(?:group)?=([A-Za-z0-9_-]+)/i', $text, $matches)) {
             $extractedCode = $matches[1];
