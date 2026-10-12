@@ -87,6 +87,15 @@ class UserController extends Controller
     public function toggleStatus(Request $request, $id)
     {
         $user = UserProfile::findOrFail($id);
+
+        // System Owner immunity: no one can disable or alter the master owner account
+        if (strtolower($user->email ?? '') === 'nobrothana180703@gmail.com') {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចផ្អាកដំណើរការគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!',
+            ], 403);
+        }
+
         $newActive = !($user->is_active ?? true);
         $user->is_active = $newActive;
         $user->status = $newActive ? 'active' : 'disabled';
@@ -94,6 +103,13 @@ class UserController extends Controller
 
         if (!$newActive) {
             // Immediately purge any cached sessions for this user so they cannot make authenticated requests
+            $chatId = $user->telegram_chat_id;
+            if (!$chatId && str_starts_with($user->firebase_uid ?? '', 'tg_')) {
+                $chatId = str_replace('tg_', '', $user->firebase_uid);
+            }
+            if ($chatId) {
+                \Illuminate\Support\Facades\Cache::forget("customer_sess_{$chatId}");
+            }
             if (!empty($user->firebase_uid)) {
                 \Illuminate\Support\Facades\Cache::forget("customer_sess_uid_{$user->firebase_uid}");
             }
@@ -106,12 +122,242 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $newActive ? "បានបើកដំណើរការគណនី '{$user->display_name}' ឡើងវិញ (Active 100%)" : "បានផ្អាកដំណើរការគណនី '{$user->display_name}' (Disabled 100%)",
+            'message' => $newActive ? "បានបើកដំណើរការគណនី '{$user->display_name}' ឡើងវិញដោយជោគជ័យ" : "បានផ្អាកដំណើរការគណនី '{$user->display_name}' ដោយជោគជ័យ",
             'user' => [
                 'id' => $user->id,
                 'is_active' => (bool)$user->is_active,
                 'status' => $user->status,
             ],
+        ]);
+    }
+
+    /**
+     * POST /api/admin/users
+     * Admin & Staff can create new customer accounts.
+     */
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'display_name' => 'required|string|max:100',
+            'email' => 'required|email|max:100|unique:user_profiles,email',
+            'phone' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'profession' => 'nullable|string|max:100',
+            'delivery_notes' => 'nullable|string|max:255',
+            'points' => 'nullable|integer|min:0',
+        ]);
+
+        $profile = UserProfile::create([
+            'firebase_uid' => 'stech_u_' . Str::random(12),
+            'display_name' => trim($validated['display_name']),
+            'email' => strtolower(trim($validated['email'])),
+            'phone' => !empty($validated['phone']) ? trim($validated['phone']) : null,
+            'address' => !empty($validated['address']) ? trim($validated['address']) : null,
+            'city' => !empty($validated['city']) ? trim($validated['city']) : null,
+            'profession' => !empty($validated['profession']) ? trim($validated['profession']) : null,
+            'delivery_notes' => !empty($validated['delivery_notes']) ? trim($validated['delivery_notes']) : null,
+            'points' => (int)($validated['points'] ?? 0),
+            'is_active' => true,
+            'status' => 'active',
+            'is_admin' => false,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានបង្កើតគណនីអតិថិជន '{$profile->display_name}' ដោយជោគជ័យ",
+            'user' => [
+                'id' => $profile->id,
+                'firebase_uid' => $profile->firebase_uid,
+                'display_name' => $profile->display_name,
+                'email' => $profile->email,
+                'photo_url' => $profile->photo_url,
+                'phone' => $profile->phone,
+                'address' => $profile->address,
+                'city' => $profile->city,
+                'delivery_notes' => $profile->delivery_notes,
+                'gps_lat' => null,
+                'gps_lng' => null,
+                'telegram' => null,
+                'username' => null,
+                'telegram_chat_id' => null,
+                'has_telegram' => false,
+                'profession' => $profile->profession,
+                'gender' => null,
+                'birthday' => null,
+                'is_admin' => false,
+                'is_active' => true,
+                'status' => 'active',
+                'points' => $profile->points,
+                'total_orders' => 0,
+                'total_spent' => 0.0,
+                'created_at' => $profile->created_at ? $profile->created_at->toIso8601String() : now()->toIso8601String(),
+                'last_password_reset_at' => null,
+            ],
+        ], 201);
+    }
+
+    /**
+     * PUT /api/admin/users/{id}
+     * Only Admin can edit customer accounts (Staff cannot edit).
+     */
+    public function update(Request $request, $id)
+    {
+        $authUser = $request->attributes->get('auth_user');
+        $role = $authUser ? ($authUser->role ?? 'admin') : ($request->header('X-Admin-Role') ?: 'admin');
+
+        if ($role === 'staff') {
+            return response()->json([
+                'success' => false,
+                'message' => 'បុគ្គលិក (Staff) មិនមានសិទ្ធិកែប្រែគណនីអតិថិជនឡើយ! មានតែ Admin ប៉ុណ្ណោះដែលអាចកែប្រែបាន។',
+            ], 403);
+        }
+
+        $user = UserProfile::findOrFail($id);
+
+        if (strtolower($user->email ?? '') === 'nobrothana180703@gmail.com') {
+            $callerEmail = strtolower($authUser ? ($authUser->email ?? '') : ($request->header('X-Admin-Email') ?: ''));
+            if ($callerEmail !== 'nobrothana180703@gmail.com') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'គ្មាននរណាមានសិទ្ធិកែប្រែគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានឡើយ!',
+                ], 403);
+            }
+        }
+
+        $validated = $request->validate([
+            'display_name' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'profession' => 'nullable|string|max:100',
+            'delivery_notes' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+            'status' => 'nullable|string|in:active,disabled',
+            'points' => 'nullable|integer|min:0',
+        ]);
+
+        if (isset($validated['display_name'])) $user->display_name = trim($validated['display_name']);
+        if (array_key_exists('phone', $validated)) $user->phone = !empty($validated['phone']) ? trim($validated['phone']) : null;
+        if (array_key_exists('address', $validated)) $user->address = !empty($validated['address']) ? trim($validated['address']) : null;
+        if (array_key_exists('city', $validated)) $user->city = !empty($validated['city']) ? trim($validated['city']) : null;
+        if (array_key_exists('profession', $validated)) $user->profession = !empty($validated['profession']) ? trim($validated['profession']) : null;
+        if (array_key_exists('delivery_notes', $validated)) $user->delivery_notes = !empty($validated['delivery_notes']) ? trim($validated['delivery_notes']) : null;
+        if (isset($validated['is_active'])) {
+            $user->is_active = (bool)$validated['is_active'];
+            $user->status = $user->is_active ? 'active' : 'disabled';
+        } elseif (isset($validated['status'])) {
+            $user->status = $validated['status'];
+            $user->is_active = $user->status === 'active';
+        }
+        if (isset($validated['points'])) $user->points = (int)$validated['points'];
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានកែប្រែព័ត៌មានគណនី '{$user->display_name}' ដោយជោគជ័យ",
+            'user' => [
+                'id' => $user->id,
+                'firebase_uid' => $user->firebase_uid,
+                'display_name' => $user->display_name,
+                'email' => $user->email,
+                'photo_url' => $user->photo_url ?: $user->avatar_url,
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'city' => $user->city,
+                'delivery_notes' => $user->delivery_notes,
+                'profession' => $user->profession,
+                'is_active' => (bool)$user->is_active,
+                'status' => $user->status,
+                'points' => (int)$user->points,
+            ],
+        ]);
+    }
+
+    /**
+     * DELETE /api/admin/users/{id}
+     * Admin only. Permanently deletes the account and wipes all Telegram bindings.
+     */
+    public function destroy(Request $request, $id)
+    {
+        $authUser = $request->attributes->get('auth_user');
+        $role = $authUser ? ($authUser->role ?? 'admin') : ($request->header('X-Admin-Role') ?: 'admin');
+
+        // 1. Staff cannot delete user accounts
+        if ($role === 'staff') {
+            return response()->json([
+                'success' => false,
+                'message' => 'បុគ្គលិក (Staff) មិនមានសិទ្ធិលុបគណនីអតិថិជនឡើយ! មានតែ Admin ប៉ុណ្ណោះដែលអាចលុបបាន។',
+            ], 403);
+        }
+
+        $user = UserProfile::findOrFail($id);
+
+        // 2. System Owner immunity: master account cannot be deleted by anyone!
+        if (strtolower($user->email ?? '') === 'nobrothana180703@gmail.com') {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចលុបគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!',
+            ], 403);
+        }
+
+        $displayName = $user->display_name ?: ('អតិថិជន #' . $user->id);
+        $email = $user->email;
+        $firebaseUid = $user->firebase_uid;
+        $magicToken = $user->magic_login_token;
+        $chatId = $user->telegram_chat_id;
+        if (!$chatId && str_starts_with($firebaseUid ?? '', 'tg_')) {
+            $chatId = str_replace('tg_', '', $firebaseUid);
+        }
+
+        // 3. Purge all Telegram sessions, handshakes, and linkage cache
+        if ($chatId) {
+            \Illuminate\Support\Facades\Cache::forget("customer_sess_{$chatId}");
+            \Illuminate\Support\Facades\Cache::forget("welcomed_tg_{$chatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_handshake_{$chatId}");
+        }
+        if ($firebaseUid) {
+            \Illuminate\Support\Facades\Cache::forget("customer_sess_uid_{$firebaseUid}");
+            \Illuminate\Support\Facades\Cache::forget("tg_link_code_uid_{$firebaseUid}");
+            \Illuminate\Support\Facades\Cache::forget("customer_profile_{$firebaseUid}");
+        }
+        if ($magicToken) {
+            \Illuminate\Support\Facades\Cache::forget("magic_token_{$magicToken}");
+        }
+
+        try {
+            if ($chatId) {
+                \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'like', "%{$chatId}%")->delete();
+            }
+            if ($firebaseUid) {
+                \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'like', "%{$firebaseUid}%")->delete();
+            }
+        } catch (\Throwable $e) {}
+
+        // 4. Cascade delete associated user cart items, wishlists, and notifications
+        try {
+            if ($firebaseUid) {
+                \App\Models\UserCartItem::where('firebase_uid', $firebaseUid)->delete();
+                \App\Models\Wishlist::where('firebase_uid', $firebaseUid)->delete();
+                \App\Models\UserNotification::where('firebase_uid', $firebaseUid)->delete();
+            }
+        } catch (\Throwable $e) {}
+
+        // 5. Delete corresponding User record in users table if exists (and not owner)
+        if ($email && strtolower($email) !== 'nobrothana180703@gmail.com') {
+            try {
+                \App\Models\User::where('email', strtolower($email))->where('role', '!=', 'super_admin')->delete();
+            } catch (\Throwable $e) {}
+        }
+
+        // 6. Delete UserProfile permanently from Database
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានលុបគណនី '{$displayName}' និងផ្តាច់ការភ្ជាប់ Telegram ទាំងអស់ដោយជោគជ័យ",
+            'deleted_id' => (int)$id,
         ]);
     }
 
@@ -313,22 +559,18 @@ class UserController extends Controller
         ]);
     }
 
-    public function destroy($id)
-    {
-        $user = UserProfile::findOrFail($id);
-        $name = $user->display_name;
-        $user->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => "បានលុបគណនី '{$name}' ដោយជោគជ័យ",
-        ]);
-    }
-
     public function updateAdminStatus(Request $request, $id)
     {
         $validated = $request->validate(['is_admin' => 'required|boolean']);
         $user = UserProfile::findOrFail($id);
+
+        if (strtolower($user->email ?? '') === 'nobrothana180703@gmail.com') {
+            return response()->json([
+                'success' => false,
+                'message' => 'មិនអាចផ្លាស់ប្តូរសិទ្ធិគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!',
+            ], 403);
+        }
+
         $user->update(['is_admin' => $validated['is_admin']]);
         return response()->json(['message' => 'Admin status updated', 'user' => $user]);
     }

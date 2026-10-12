@@ -7,7 +7,8 @@ import {
   Users, Search, Filter, ShieldCheck, UserCheck, UserX, 
   Key, RefreshCw, MapPin, Phone, Mail, Send, Calendar, 
   ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X,
-  Copy, ExternalLink, MessageCircle, Check, Link2, Coins, MessageSquare, ChevronRight
+  Copy, ExternalLink, MessageCircle, Check, Link2, Coins, MessageSquare, ChevronRight,
+  UserPlus, Edit, AlertTriangle, ShieldAlert
 } from "lucide-react";
 
 export interface AdminCustomerUser {
@@ -40,12 +41,33 @@ export interface AdminCustomerUser {
 }
 
 const CACHE_KEY = "admin_cached_customer_users";
+const MASTER_OWNER_EMAIL = "nobrothana180703@gmail.com";
+const isSystemOwner = (email?: string | null) => (email || "").toLowerCase().trim() === MASTER_OWNER_EMAIL;
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminCustomerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+
+  // Current Admin user & Role
+  const [currentAdminRole, setCurrentAdminRole] = useState<string>("admin");
+  const [currentAdminEmail, setCurrentAdminEmail] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("stech_admin_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.role) setCurrentAdminRole(parsed.role);
+          if (parsed?.email) setCurrentAdminEmail((parsed.email || "").toLowerCase().trim());
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const isStaff = currentAdminRole === "staff";
   
   // Modals state
   const [selectedUser, setSelectedUser] = useState<AdminCustomerUser | null>(null);
@@ -59,6 +81,38 @@ export default function AdminUsersPage() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSendingTelegram, setIsSendingTelegram] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  // Add User Modal state
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    display_name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    profession: "",
+    delivery_notes: "",
+    points: 0,
+  });
+
+  // Edit User Modal state (Admin only)
+  const [editModalUser, setEditModalUser] = useState<AdminCustomerUser | null>(null);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    display_name: "",
+    phone: "",
+    address: "",
+    city: "",
+    profession: "",
+    delivery_notes: "",
+    status: "active",
+    points: 0,
+  });
+
+  // Delete User Modal state (Admin only, confirmation popup)
+  const [deleteModalUser, setDeleteModalUser] = useState<AdminCustomerUser | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Deep Drawer States for Customer
   const [activeTab, setActiveTab] = useState<"profile" | "orders" | "points" | "actions">("profile");
@@ -114,6 +168,11 @@ export default function AdminUsersPage() {
   }, []);
 
   const handleToggleStatus = async (user: AdminCustomerUser) => {
+    if (isSystemOwner(user.email)) {
+      showToast("មិនអាចផ្អាកដំណើរការគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!", "error");
+      return;
+    }
+
     setTogglingId(user.id);
     try {
       const res = await api.put(`/admin/users/${user.id}/toggle-status`);
@@ -135,7 +194,7 @@ export default function AdminUsersPage() {
 
       showToast(res.data?.message || (newActive ? "បានបើកដំណើរការគណនីជោគជ័យ" : "បានផ្អាកដំណើរការគណនីជោគជ័យ"));
     } catch (e: any) {
-      showToast("បរាជ័យក្នុងការផ្លាស់ប្តូរស្ថានភាពគណនី", "error");
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការផ្លាស់ប្តូរស្ថានភាពគណនី", "error");
     } finally {
       setTogglingId(null);
     }
@@ -252,7 +311,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  // 100% PRIVATE: Send directly to Customer's private Telegram bot or Gmail (Never spam Admin group)
+  // Send directly to Customer's private Telegram bot or Gmail
   const handleSendMagicLinkPrivate = async () => {
     if (!resetModalUser) return;
     setIsSendingTelegram(true);
@@ -261,9 +320,9 @@ export default function AdminUsersPage() {
       if (res.data?.success) {
         const channel = res.data?.channel;
         if (channel === "telegram_private") {
-          showToast("🚀 បានបាញ់ Magic Link ទៅកាន់ Telegram Bot ឯកជនរបស់អតិថិជនជោគជ័យ!");
+          showToast("បានផ្ញើតំណភ្ជាប់ Magic Link ទៅកាន់ Telegram ផ្ទាល់ខ្លួនរបស់អតិថិជនជោគជ័យ!");
         } else if (channel === "email") {
-          showToast(`📧 បានផ្ញើ Magic Link ទៅកាន់ Gmail (${resetModalUser.email}) របស់អតិថិជនជោគជ័យ!`);
+          showToast(`បានផ្ញើតំណភ្ជាប់ Magic Link ទៅកាន់ Gmail (${resetModalUser.email}) របស់អតិថិជនជោគជ័យ!`);
         } else {
           showToast(res.data?.message || "បានបញ្ជូនតំណភ្ជាប់ជោគជ័យ!");
         }
@@ -277,21 +336,141 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (id: number, name: string) => {
-    if (!confirm(`តើអ្នកពិតជាចង់លុបគណនី "${name}" មែនទេ?`)) return;
+  const handleOpenDeleteModal = (user: AdminCustomerUser) => {
+    if (isSystemOwner(user.email)) {
+      showToast("មិនអាចលុបគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!", "error");
+      return;
+    }
+    if (isStaff) {
+      showToast("បុគ្គលិកមិនមានសិទ្ធិលុបគណនីឡើយ! មានតែ Admin ប៉ុណ្ណោះដែលអាចលុបបាន", "error");
+      return;
+    }
+    setDeleteModalUser(user);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModalUser) return;
+    if (isSystemOwner(deleteModalUser.email)) {
+      showToast("មិនអាចលុបគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!", "error");
+      return;
+    }
+    if (isStaff) {
+      showToast("បុគ្គលិកមិនមានសិទ្ធិលុបគណនីឡើយ!", "error");
+      return;
+    }
+
+    setIsDeletingUser(true);
     try {
-      await api.delete(`/admin/users/${id}`);
+      const res = await api.delete(`/admin/users/${deleteModalUser.id}`);
       setUsers((prev) => {
-        const updated = prev.filter((u) => u.id !== id);
+        const updated = prev.filter((u) => u.id !== deleteModalUser.id);
         if (typeof window !== "undefined") {
           sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
         }
         return updated;
       });
-      showToast(`បានលុបគណនី "${name}" ដោយជោគជ័យ`);
-      if (selectedUser?.id === id) setSelectedUser(null);
+      showToast(res.data?.message || `បានលុបគណនី "${deleteModalUser.display_name}" ដោយជោគជ័យ`);
+      if (selectedUser?.id === deleteModalUser.id) setSelectedUser(null);
+      setDeleteModalUser(null);
     } catch (e: any) {
-      showToast("បរាជ័យក្នុងការលុបគណនី", "error");
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការលុបគណនី", "error");
+    } finally {
+      setIsDeletingUser(false);
+    }
+  };
+
+  const handleAddUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addFormData.display_name.trim() || !addFormData.email.trim()) {
+      showToast("សូមបញ្ចូលឈ្មោះពេញ និងអ៊ីមែល", "error");
+      return;
+    }
+
+    setIsAddingUser(true);
+    try {
+      const res = await api.post("/admin/users", addFormData);
+      if (res.data?.success && res.data.user) {
+        const newUser = res.data.user;
+        setUsers((prev) => {
+          const updated = [newUser, ...prev];
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated));
+          }
+          return updated;
+        });
+        showToast(res.data.message || "បានបង្កើតគណនីអតិថិជនថ្មីដោយជោគជ័យ");
+        setIsAddUserOpen(false);
+        setAddFormData({
+          display_name: "",
+          email: "",
+          phone: "",
+          address: "",
+          city: "",
+          profession: "",
+          delivery_notes: "",
+          points: 0,
+        });
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការបង្កើតគណនី", "error");
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  const handleOpenEditModal = (user: AdminCustomerUser) => {
+    if (isStaff) {
+      showToast("បុគ្គលិកមិនមានសិទ្ធិកែប្រែព័ត៌មានអតិថិជនឡើយ", "error");
+      return;
+    }
+    if (isSystemOwner(user.email) && currentAdminEmail !== MASTER_OWNER_EMAIL) {
+      showToast("មិនអាចកែប្រែគណនីម្ចាស់ប្រព័ន្ធបានឡើយ!", "error");
+      return;
+    }
+
+    setEditModalUser(user);
+    setEditFormData({
+      display_name: user.display_name || "",
+      phone: user.phone || "",
+      address: user.address || "",
+      city: user.city || "",
+      profession: user.profession || "",
+      delivery_notes: user.delivery_notes || "",
+      status: user.is_active ? "active" : "disabled",
+      points: user.points || 0,
+    });
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalUser) return;
+    if (isStaff) {
+      showToast("បុគ្គលិកមិនមានសិទ្ធិកែប្រែព័ត៌មានអតិថិជនឡើយ", "error");
+      return;
+    }
+
+    setIsEditingUser(true);
+    try {
+      const res = await api.put(`/admin/users/${editModalUser.id}`, editFormData);
+      if (res.data?.success && res.data.user) {
+        const updated = res.data.user;
+        setUsers((prev) => {
+          const list = prev.map((u) => (u.id === editModalUser.id ? { ...u, ...updated } : u));
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify(list));
+          }
+          return list;
+        });
+        if (selectedUser?.id === editModalUser.id) {
+          setSelectedUser((prev) => (prev ? { ...prev, ...updated } : null));
+        }
+        showToast(res.data.message || "បានកែប្រែព័ត៌មានគណនីដោយជោគជ័យ");
+        setEditModalUser(null);
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែគណនី", "error");
+    } finally {
+      setIsEditingUser(false);
     }
   };
 
@@ -358,14 +537,26 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => fetchUsers(true)}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw size={15} className={loading ? "animate-spin text-[#8B1A1A]" : ""} />
-          <span>ធ្វើបច្ចុប្បន្នភាព</span>
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsAddUserOpen(true)}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#8B1A1A] hover:bg-[#6e1414] text-white rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
+          >
+            <UserPlus size={16} />
+            <span>+ បន្ថែមអតិថិជន</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fetchUsers(true)}
+            disabled={loading}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin text-[#8B1A1A]" : ""} />
+            <span>ធ្វើបច្ចុប្បន្នភាព</span>
+          </button>
+        </div>
       </div>
 
       {/* Overview Stat Cards */}
@@ -471,7 +662,7 @@ export default function AdminUsersPage() {
                   <td colSpan={6} className="py-12 text-center text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw size={18} className="animate-spin text-[#8B1A1A]" />
-                      <span>កំពុងផ្ទុកបញ្ជីអតិថិជនពី Cloud Database...</span>
+                      <span>កំពុងផ្ទុកបញ្ជីទិន្នន័យអតិថិជន...</span>
                     </div>
                   </td>
                 </tr>
@@ -497,11 +688,15 @@ export default function AdminUsersPage() {
                         <div className="min-w-0">
                           <div className="font-bold text-gray-900 truncate flex items-center gap-1.5">
                             <span>{u.display_name}</span>
-                            {u.is_admin && (
+                            {isSystemOwner(u.email) ? (
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
+                                👑 ម្ចាស់ប្រព័ន្ធ (System Owner)
+                              </span>
+                            ) : u.is_admin ? (
                               <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-red-100 text-[#8B1A1A]">
                                 Admin
                               </span>
-                            )}
+                            ) : null}
                           </div>
                           <div className="text-[11px] text-gray-500 truncate">{u.email || "No email"}</div>
                         </div>
@@ -560,19 +755,29 @@ export default function AdminUsersPage() {
 
                     {/* Status Toggle */}
                     <td className="py-3.5 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(u)}
-                        disabled={togglingId === u.id}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer border ${
-                          u.is_active
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                            : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                        } disabled:opacity-50`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${u.is_active ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
-                        <span>{u.is_active ? "សកម្ម" : "បានផ្អាក"}</span>
-                      </button>
+                      {isSystemOwner(u.email) ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-xs cursor-default"
+                          title="គណនីម្ចាស់ប្រព័ន្ធសកម្មជានិច្ច មិនអាចផ្អាកដំណើរការបានឡើយ"
+                        >
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          <span>សកម្ម (ការពារ)</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(u)}
+                          disabled={togglingId === u.id}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                            u.is_active
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                          } disabled:opacity-50`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${u.is_active ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+                          <span>{u.is_active ? "សកម្ម" : "បានផ្អាក"}</span>
+                        </button>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -587,6 +792,22 @@ export default function AdminUsersPage() {
                           <Eye size={16} />
                         </button>
 
+                        {!isStaff && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(u)}
+                            disabled={isSystemOwner(u.email) && currentAdminEmail !== MASTER_OWNER_EMAIL}
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                              isSystemOwner(u.email) && currentAdminEmail !== MASTER_OWNER_EMAIL
+                                ? "text-gray-300 cursor-not-allowed opacity-40"
+                                : "text-gray-500 hover:text-amber-600 hover:bg-amber-50"
+                            }`}
+                            title={isSystemOwner(u.email) ? "គណនីម្ចាស់ប្រព័ន្ធមិនអាចកែប្រែបានឡើយ" : "កែប្រែព័ត៌មានគណនី • Edit Profile"}
+                          >
+                            <Edit size={16} />
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => handleOpenResetModal(u)}
@@ -596,14 +817,21 @@ export default function AdminUsersPage() {
                           <Key size={16} />
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteUser(u.id, u.display_name)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="លុបគណនី • Delete User"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        {!isStaff && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDeleteModal(u)}
+                            disabled={isSystemOwner(u.email)}
+                            className={`p-2 rounded-lg transition-colors cursor-pointer ${
+                              isSystemOwner(u.email)
+                                ? "text-gray-300 cursor-not-allowed opacity-40"
+                                : "text-gray-400 hover:text-red-600 hover:bg-red-50"
+                            }`}
+                            title={isSystemOwner(u.email) ? "គណនីម្ចាស់ប្រព័ន្ធត្រូវបានការពារ មិនអាចលុបបានឡើយ" : "លុបគណនី • Delete User"}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -931,6 +1159,20 @@ export default function AdminUsersPage() {
               {/* Tab 4: Direct Actions */}
               {activeTab === "actions" && (
                 <div className="space-y-3">
+                  {isSystemOwner(selectedUser.email) ? (
+                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black">👑 គណនីម្ចាស់ប្រព័ន្ធ (System Owner)</div>
+                        <div className="text-[11px] text-amber-800 mt-0.5">
+                          គណនីនេះត្រូវបានការពារកម្រិតខ្ពស់បំផុត មិនអាចផ្អាកដំណើរការ ឬលុបចេញពីប្រព័ន្ធបានឡើយ។
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   {/* Action 1: Live Chat */}
                   <div className="p-4 rounded-2xl bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/80 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -974,35 +1216,88 @@ export default function AdminUsersPage() {
                     </button>
                   </div>
 
-                  {/* Action 3: Suspend / Activate Account */}
-                  <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-xs shrink-0 ${
-                        selectedUser.is_active ? "bg-red-600" : "bg-emerald-600"
-                      }`}>
-                        {selectedUser.is_active ? <UserX size={18} /> : <UserCheck size={18} />}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-gray-900">
-                          {selectedUser.is_active ? "ផ្អាកដំណើរការគណនី (Suspend)" : "បើកដំណើរការគណនីឡើងវិញ (Activate)"}
+                  {!isSystemOwner(selectedUser.email) && (
+                    <>
+                      {/* Action 3: Suspend / Activate Account */}
+                      <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-xs shrink-0 ${
+                            selectedUser.is_active ? "bg-red-600" : "bg-emerald-600"
+                          }`}>
+                            {selectedUser.is_active ? <UserX size={18} /> : <UserCheck size={18} />}
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-gray-900">
+                              {selectedUser.is_active ? "ផ្អាកដំណើរការគណនី (Suspend)" : "បើកដំណើរការគណនីឡើងវិញ (Activate)"}
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {selectedUser.is_active ? "បិទមិនឱ្យអតិថិជននេះ Login ចូលប្រើប្រាស់" : "អនុញ្ញាតឱ្យអតិថិជន Login និងកម្ម៉ង់ទំនិញឡើងវិញ"}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[11px] text-gray-500">
-                          {selectedUser.is_active ? "បិទមិនឱ្យអតិថិជននេះ Login ចូលប្រើប្រាស់" : "អនុញ្ញាតឱ្យអតិថិជន Login និងកម្ម៉ង់ទំនិញឡើងវិញ"}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(selectedUser)}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0 ${
+                            selectedUser.is_active
+                              ? "bg-red-600 hover:bg-red-700 text-white"
+                              : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          }`}
+                        >
+                          <span>{selectedUser.is_active ? "ផ្អាកគណនី" : "បើកគណនី"}</span>
+                        </button>
                       </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleStatus(selectedUser)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0 ${
-                        selectedUser.is_active
-                          ? "bg-red-600 hover:bg-red-700 text-white"
-                          : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                      }`}
-                    >
-                      <span>{selectedUser.is_active ? "ផ្អាកគណនី" : "បើកគណនី"}</span>
-                    </button>
-                  </div>
+
+                      {/* Action 4: Edit Profile (Admin only) */}
+                      {!isStaff && (
+                        <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                              <Edit size={18} />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-gray-900">កែប្រែព័ត៌មានគណនី (Edit Profile)</div>
+                              <div className="text-[11px] text-gray-500">កែប្រែឈ្មោះ លេខទូរស័ព្ទ អាសយដ្ឋាន និងចំណាំដឹកជញ្ជូន</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleOpenEditModal(selectedUser);
+                              setSelectedUser(null);
+                            }}
+                            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0"
+                          >
+                            <span>កែប្រែ</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Action 5: Delete Account (Admin only) */}
+                      {!isStaff && (
+                        <div className="p-4 rounded-2xl bg-red-50/50 border border-red-200/80 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                              <Trash2 size={18} />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-gray-900">លុបគណនីអតិថិជនជាអចិន្ត្រៃយ៍ (Delete)</div>
+                              <div className="text-[11px] text-gray-500">លុបទិន្នន័យអតិថិជន និងផ្តាច់ការភ្ជាប់ Telegram ទាំងអស់</div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleOpenDeleteModal(selectedUser);
+                            }}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer shrink-0"
+                          >
+                            <span>លុបគណនី</span>
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1064,7 +1359,7 @@ export default function AdminUsersPage() {
             {isResetting ? (
               <div className="py-8 flex flex-col items-center justify-center gap-3">
                 <RefreshCw size={28} className="animate-spin text-amber-600" />
-                <span className="text-xs font-bold text-gray-500">កំពុងបង្កើតតំណភ្ជាប់សុវត្ថិភាពពី Neon DB...</span>
+                <span className="text-xs font-bold text-gray-500">កំពុងរៀបចំបង្កើតតំណភ្ជាប់សុវត្ថិភាព...</span>
               </div>
             ) : magicLinkResult ? (
               <div className="space-y-4">
@@ -1101,7 +1396,7 @@ export default function AdminUsersPage() {
                 <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2">
                   <CheckCircle2 size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   <div className="leading-relaxed">
-                    <b>សុពលភាព ២៤ ម៉ោង (100% Private)៖</b> តំណភ្ជាប់នេះបញ្ជូនផ្ទាល់ទៅអតិថិជនតែម្នាក់គត់ មិនលេចធ្លាយក្នុង Admin Group ឡើយ។ ពេលអតិថិជនចុចរួច វានឹងផុតកំណត់ដោយស្វ័យប្រវត្តិ។
+                    <b>សុពលភាព ២៤ ម៉ោង (សុវត្ថិភាពឯកជនភាព)៖</b> តំណភ្ជាប់នេះបញ្ជូនផ្ទាល់ទៅអតិថិជនតែម្នាក់គត់ មិនលេចធ្លាយក្នុង Admin Group ឡើយ។ ពេលអតិថិជនចុចរួច វានឹងផុតកំណត់ដោយស្វ័យប្រវត្តិ។
                   </div>
                 </div>
 
@@ -1130,8 +1425,8 @@ export default function AdminUsersPage() {
                       {isSendingTelegram
                         ? "កំពុងបញ្ជូន..."
                         : resetModalUser.has_telegram
-                        ? "🚀 ផ្ញើទៅ Telegram ឯកជន (Bot)"
-                        : "📧 ផ្ញើទៅ Gmail អតិថិជន"}
+                        ? "ផ្ញើទៅ Telegram ផ្ទាល់ខ្លួន"
+                        : "ផ្ញើទៅ Gmail អតិថិជន"}
                     </span>
                   </button>
 
@@ -1193,6 +1488,413 @@ export default function AdminUsersPage() {
                 បិទផ្ទាំង
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Confirmation Popup */}
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-[999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-gray-100 animate-in zoom-in-95 relative">
+            <button
+              onClick={() => setDeleteModalUser(null)}
+              disabled={isDeletingUser}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <AlertTriangle size={32} />
+            </div>
+
+            <div className="text-center mb-5">
+              <h3 className="text-xl font-black text-gray-900 mb-1.5">
+                បញ្ជាក់ការលុបគណនីអតិថិជន
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500">
+                តើអ្នកពិតជាចង់លុបគណនីរបស់អតិថិជននេះចេញពីប្រព័ន្ធមែនទេ?
+              </p>
+            </div>
+
+            {/* User Card */}
+            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200/80 mb-4 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-700 overflow-hidden shrink-0">
+                {deleteModalUser.photo_url ? (
+                  <img src={deleteModalUser.photo_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{deleteModalUser.display_name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-gray-900 text-sm truncate">{deleteModalUser.display_name}</div>
+                <div className="text-xs text-gray-500 truncate">{deleteModalUser.email}</div>
+                {deleteModalUser.phone && (
+                  <div className="text-[11px] text-gray-400 mt-0.5">{deleteModalUser.phone}</div>
+                )}
+              </div>
+            </div>
+
+            {/* Danger Warning Box */}
+            <div className="p-3.5 bg-red-50/70 border border-red-200 rounded-2xl text-red-900 text-xs mb-5 space-y-1">
+              <div className="font-bold flex items-center gap-1.5 text-red-700">
+                <ShieldAlert size={15} />
+                <span>ការព្រមានអំពីទិន្នន័យ (Data Cascade)៖</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-red-800">
+                ការលុបនេះនឹងលុបទិន្នន័យអតិថិជនជាអចិន្ត្រៃយ៍ចេញពី Database ព្រមទាំងផ្តាច់ការតភ្ជាប់ Telegram និង Session ទាំងអស់។ សកម្មភាពនេះមិនអាចត្រឡប់ក្រោយវិញបានឡើយ!
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteModalUser(null)}
+                disabled={isDeletingUser}
+                className="py-2.5 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+              >
+                បោះបង់
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeletingUser}
+                className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>កំពុងលុប...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>យល់ព្រមលុបគណនី</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Customer */}
+      {isAddUserOpen && (
+        <div className="fixed inset-0 z-[999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-gray-100 animate-in zoom-in-95 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsAddUserOpen(false)}
+              disabled={isAddingUser}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#8B1A1A] flex items-center justify-center shrink-0">
+                <UserPlus size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900">
+                  បន្ថែមគណនីអតិថិជនថ្មី
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  បង្កើតគណនីអតិថិជនផ្ទាល់ក្នុងប្រព័ន្ធ
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddUserSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  ឈ្មោះពេញ (Display Name) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={addFormData.display_name}
+                  onChange={(e) => setAddFormData({ ...addFormData, display_name: e.target.value })}
+                  placeholder="ឧ. សុខ សំបូរ"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  អាសយដ្ឋានអ៊ីមែល (Email) *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={addFormData.email}
+                  onChange={(e) => setAddFormData({ ...addFormData, email: e.target.value })}
+                  placeholder="ឧ. sambor.sok@gmail.com"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all font-mono"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    លេខទូរស័ព្ទ (Phone)
+                  </label>
+                  <input
+                    type="text"
+                    value={addFormData.phone}
+                    onChange={(e) => setAddFormData({ ...addFormData, phone: e.target.value })}
+                    placeholder="ឧ. 012 345 678"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    រាជធានី/ខេត្ត (City)
+                  </label>
+                  <input
+                    type="text"
+                    value={addFormData.city}
+                    onChange={(e) => setAddFormData({ ...addFormData, city: e.target.value })}
+                    placeholder="ឧ. ភ្នំពេញ"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    មុខរបរ (Profession)
+                  </label>
+                  <input
+                    type="text"
+                    value={addFormData.profession}
+                    onChange={(e) => setAddFormData({ ...addFormData, profession: e.target.value })}
+                    placeholder="ឧ. Graphic Designer"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    កាក់ភក្តីភាពដំបូង (Points)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={addFormData.points}
+                    onChange={(e) => setAddFormData({ ...addFormData, points: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  អាសយដ្ឋានដឹកជញ្ជូន (Address)
+                </label>
+                <input
+                  type="text"
+                  value={addFormData.address}
+                  onChange={(e) => setAddFormData({ ...addFormData, address: e.target.value })}
+                  placeholder="ឧ. ផ្ទះលេខ 12 ផ្លូវ 2004 សង្កាត់ទឹកថ្លា"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  ចំណាំទីតាំងដឹកជញ្ជូន (Delivery Notes)
+                </label>
+                <input
+                  type="text"
+                  value={addFormData.delivery_notes}
+                  onChange={(e) => setAddFormData({ ...addFormData, delivery_notes: e.target.value })}
+                  placeholder="ឧ. នៅជិតសាលាបឋមសិក្សា..."
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsAddUserOpen(false)}
+                  disabled={isAddingUser}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold transition-all cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingUser}
+                  className="px-5 py-2.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6e1414] text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+                >
+                  {isAddingUser ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>កំពុងបង្កើត...</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={14} />
+                      <span>បង្កើតគណនី</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Customer (Admin Only) */}
+      {editModalUser && (
+        <div className="fixed inset-0 z-[999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-gray-100 animate-in zoom-in-95 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setEditModalUser(null)}
+              disabled={isEditingUser}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Edit size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900">
+                  កែប្រែព័ត៌មានអតិថិជន
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {editModalUser.email}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleEditUserSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  ឈ្មោះពេញ (Display Name) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.display_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, display_name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    លេខទូរស័ព្ទ (Phone)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    រាជធានី/ខេត្ត (City)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.city}
+                    onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    មុខរបរ (Profession)
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.profession}
+                    onChange={(e) => setEditFormData({ ...editFormData, profession: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    ស្ថានភាពគណនី (Status)
+                  </label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all font-bold"
+                  >
+                    <option value="active">● សកម្ម (Active)</option>
+                    <option value="disabled">● បានផ្អាក (Disabled)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  អាសយដ្ឋានដឹកជញ្ជូន (Address)
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  ចំណាំទីតាំងដឹកជញ្ជូន (Delivery Notes)
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.delivery_notes}
+                  onChange={(e) => setEditFormData({ ...editFormData, delivery_notes: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-amber-600 focus:bg-white transition-all"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setEditModalUser(null)}
+                  disabled={isEditingUser}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs font-bold transition-all cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditingUser}
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-xs disabled:opacity-50"
+                >
+                  {isEditingUser ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>កំពុងរក្សាទុក...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={14} />
+                      <span>រក្សាទុកការកែប្រែ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

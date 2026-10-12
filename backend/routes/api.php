@@ -1212,6 +1212,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 
     // Customer Users Management (គ្រប់គ្រងអតិថិជន)
     Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index']);
+    Route::post('/admin/users', [\App\Http\Controllers\UserController::class, 'store']);
+    Route::put('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
     Route::patch('/admin/users/{id}/admin-status', [\App\Http\Controllers\UserController::class, 'updateAdminStatus']);
     Route::put('/admin/users/{id}/toggle-status', [\App\Http\Controllers\UserController::class, 'toggleStatus']);
     Route::post('/admin/users/{id}/reset-password', [\App\Http\Controllers\UserController::class, 'resetPassword']);
