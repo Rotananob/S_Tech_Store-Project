@@ -22,7 +22,10 @@ import {
   Search,
   CheckCheck,
   Zap,
-  MessageSquare
+  MessageSquare,
+  Image as ImageIcon,
+  Paperclip,
+  Phone
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { auth } from "@/lib/firebase";
@@ -52,6 +55,208 @@ export const STATIC_SYSTEM_PROMPTS = [
   { label: "📞 ជជែកផ្ទាល់ជាមួយក្រុមការងារ", isAgent: true, text: "" },
 ];
 
+export interface ThinkingStep {
+  phase1: string;
+  phase2: string;
+  phase3: string;
+}
+
+export function getContextualThinking(promptText: string): ThinkingStep {
+  const lower = (promptText || "").toLowerCase();
+
+  // Location / Branches / ទីតាំង / សាខា / ផែនទី
+  if (lower.includes("ទីតាំង") || lower.includes("កន្លែង") || lower.includes("ឯណា") || lower.includes("location") || lower.includes("សាខា") || lower.includes("map") || lower.includes("ផែនទី") || lower.includes("ជិត")) {
+    return {
+      phase1: "📍 S Tech AI កំពុងស្វែងរកទីតាំងហាង និងសាខាក្នុងភ្នំពេញ...",
+      phase2: "🗺️ ផ្ទៀងផ្ទាត់ផែនទី ម៉ោងបើក និងមធ្យោបាយធ្វើដំណើរមកកាន់ហាង...",
+      phase3: "✍️ កំពុងរៀបចំព័ត៌មានទីតាំងជាក់ស្តែងជូនបង...",
+    };
+  }
+
+  // PC Build / Specs / Custom PC / Gaming PC / គ្រឿងបន្លាស់
+  if (lower.includes("pc") || lower.includes("ដំឡើង") || lower.includes("build") || lower.includes("specs") || lower.includes("cpu") || lower.includes("gpu") || lower.includes("rtx") || lower.includes("graphic") || lower.includes("គ្រឿង") || lower.includes("កាត់ត")) {
+    return {
+      phase1: "💻 S Tech AI កំពុងវិភាគតម្រូវការដំឡើង PC & ថវិការបស់បង...",
+      phase2: "⚙️ ផ្ទៀងផ្ទាត់គ្រឿងបន្លាស់ CPU, GPU, RAM, SSD និង Power Supply...",
+      phase3: "🚀 កំពុងគណនាកម្លាំងម៉ាស៊ីន និងរៀបចំ Specs ឲ្យស៊ីគ្នា ១០០%...",
+    };
+  }
+
+  // Price / Promotion / Discount / តម្លៃ
+  if (lower.includes("តម្លៃ") || lower.includes("ថ្លៃ") || lower.includes("price") || lower.includes("ចុះថ្លៃ") || lower.includes("ប្រូម៉ូសិន") || lower.includes("promo") || lower.includes("discount") || lower.includes("$")) {
+    return {
+      phase1: "💵 S Tech AI កំពុងពិនិត្យតម្លៃផ្លូវការ និងប្រូម៉ូសិនពិសេស...",
+      phase2: "🎁 ផ្ទៀងផ្ទាត់កាដូថែម កាតបញ្ចុះតម្លៃ និងស្តុកចុងក្រោយ...",
+      phase3: "✨ កំពុងគណនាតម្លៃសមរម្យ និងសន្សំសំចៃបំផុតជូនបង...",
+    };
+  }
+
+  // Warranty / Repairs / Cleaning / ធានា / ជួសជុល / ខូច
+  if (lower.includes("ធានា") || lower.includes("warranty") || lower.includes("ជួសជុល") || lower.includes("repair") || lower.includes("ខូច") || lower.includes("clean") || lower.includes("សម្អាត") || lower.includes("upgrade")) {
+    return {
+      phase1: "🛡️ S Tech AI កំពុងពិនិត្យគោលការណ៍ធានា និងសេវាជួសជុល...",
+      phase2: "🔧 ពិនិត្យការធានាផ្លូវការ ១-៣ ឆ្នាំ និងការដោះដូរគ្រឿងបន្លាស់...",
+      phase3: "📋 កំពុងរៀបចំដំណោះស្រាយ និងការណែនាំបច្ចេកទេសជូនបង...",
+    };
+  }
+
+  // Delivery / ដឹក / ផ្ញើ / Shipping
+  if (lower.includes("ដឹក") || lower.includes("ផ្ញើ") || lower.includes("delivery") || lower.includes("shipping") || lower.includes("ខេត្ត")) {
+    return {
+      phase1: "🚚 S Tech AI កំពុងពិនិត្យសេវាដឹកជញ្ជូនរហ័ស (ភ្នំពេញ & ខេត្ត)...",
+      phase2: "📦 ផ្ទៀងផ្ទាត់តម្លៃដឹក ($2 ភ្នំពេញ / $3 ខេត្ត) និងពេលវេលាដល់ដៃ...",
+      phase3: "🛵 កំពុងរៀបចំព័ត៌មានដឹកជញ្ជូនលម្អិតជូនបង...",
+    };
+  }
+
+  // Payment / KHQR / ABA / COD
+  if (lower.includes("aba") || lower.includes("khqr") || lower.includes("bakong") || lower.includes("cod") || lower.includes("បង់") || lower.includes("លុយ") || lower.includes("payment")) {
+    return {
+      phase1: "💳 S Tech AI កំពុងពិនិត្យវិធីសាស្ត្រទូទាត់ប្រាក់ (ABA / Bakong / COD)...",
+      phase2: "🔐 ផ្ទៀងផ្ទាត់សុវត្ថិភាពការទូទាត់ និងលក្ខខណ្ឌបង់ប្រាក់...",
+      phase3: "✨ កំពុងរៀបចំការណែនាំទូទាត់ជូនបង...",
+    };
+  }
+
+  // Rotana Nob / Creator / Coding / IT
+  if (lower.includes("rotana") || lower.includes("creator") || lower.includes("បង្កើត") || lower.includes("code") || lower.includes("it") || lower.includes("រៀន")) {
+    return {
+      phase1: "👨‍💻 កំពុងភ្ជាប់ទៅទិន្នន័យស្ថាបត្យករប្រព័ន្ធ (Lead Dev Rotana NOB)...",
+      phase2: "💡 ពិនិត្យបទពិសោធន៍ IT, ការរៀន Coding និងម៉ាស៊ីន Developer...",
+      phase3: "✨ កំពុងរៀបចំការចែករំលែកបទពិសោធន៍ដ៏ល្អជូនបង...",
+    };
+  }
+
+  // Laptop / MacBook / Ultrabook
+  if (lower.includes("laptop") || lower.includes("macbook") || lower.includes("asus") || lower.includes("lenovo") || lower.includes("dell") || lower.includes("acer") || lower.includes("rog")) {
+    return {
+      phase1: "💻 S Tech AI កំពុងស្វែងរកម៉ូឌែល Laptop ដែលស៊ីនឹងតម្រូវការបង...",
+      phase2: "🔍 ផ្ទៀងផ្ទាត់ទំហំអេក្រង់ ថាមពលថ្ម និងកម្លាំង Chipset...",
+      phase3: "🎯 កំពុងជ្រើសរើសម៉ូឌែលដែលអេម និងធន់បំផុតជូនបង...",
+    };
+  }
+
+  // Default / General
+  return {
+    phase1: "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បងយ៉ាងយកចិត្តទុកដាក់...",
+    phase2: "🧠 ស្វែងរកទិន្នន័យបច្ចេកវិទ្យា និងព័ត៌មានហាងដែលសមស្រប...",
+    phase3: "✍️ កំពុងរៀបចំចម្លើយយ៉ាងកក់ក្តៅ និងត្រឹមត្រូវជូនបង...",
+  };
+}
+
+// ─── High-Tech Khmer Markdown & Typography Formatter ─────────────────────────
+export function FormattedMessageText({ text }: { text: string }) {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+
+  const renderInlineFormatted = (raw: string) => {
+    // Regex splits: bold **...**, inline code `...`, currency amounts ($350, 1,200$, 50,000៛)
+    const tokens = raw.split(/(\*\*[^*]+\*\*|`[^`]+`|\$\d+(?:,\d+)*(?:\.\d+)?|\b\d+(?:,\d+)*\$(?!\w)|\b\d+(?:,\d+)*\s*៛)/g);
+
+    return tokens.map((token, idx) => {
+      if (!token) return null;
+
+      // Bold **...** (strip raw asterisks and apply bold/highlight accents)
+      if (token.startsWith("**") && token.endsWith("**") && token.length >= 4) {
+        const inner = token.slice(2, -2);
+        const hasPrice = /\$\d+|\d+\$|\d+\s*៛/.test(inner);
+        return (
+          <strong
+            key={idx}
+            className={`font-black ${
+              hasPrice
+                ? "text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/10 px-1 py-0.5 rounded"
+                : "text-[#8B1A1A] dark:text-red-400 font-extrabold"
+            }`}
+          >
+            {inner}
+          </strong>
+        );
+      }
+
+      // Inline code `...`
+      if (token.startsWith("`") && token.endsWith("`") && token.length >= 2) {
+        const inner = token.slice(1, -1);
+        return (
+          <code
+            key={idx}
+            className="font-mono text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-pink-600 dark:text-pink-400 font-bold border border-gray-200/50 dark:border-white/5"
+          >
+            {inner}
+          </code>
+        );
+      }
+
+      // Standalone price $... or ...$ or ...៛
+      if (/^(\$\d+(?:,\d+)*(?:\.\d+)?|\d+(?:,\d+)*\$|\d+(?:,\d+)*\s*៛)$/.test(token)) {
+        return (
+          <span
+            key={idx}
+            className="font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/10 px-1.5 py-0.5 rounded"
+          >
+            {token}
+          </span>
+        );
+      }
+
+      return <span key={idx}>{token}</span>;
+    });
+  };
+
+  return (
+    <div className="space-y-1.5 leading-relaxed text-[13.5px]">
+      {lines.map((line, lIdx) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <div key={lIdx} className="h-1.5" />;
+        }
+
+        // Bullet lists (* , - , • )
+        const bulletMatch = trimmed.match(/^([*\-•])\s+(.+)$/);
+        if (bulletMatch) {
+          return (
+            <div key={lIdx} className="flex items-start gap-2 pl-1 my-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8B1A1A] dark:bg-red-400 mt-2 shrink-0 shadow-xs" />
+              <div className="flex-1">{renderInlineFormatted(bulletMatch[2])}</div>
+            </div>
+          );
+        }
+
+        // Numbered lists (1. , 2. , ១. , ២. )
+        const numberedMatch = trimmed.match(/^([0-9០-៩]+[.)])\s+(.+)$/);
+        if (numberedMatch) {
+          return (
+            <div key={lIdx} className="flex items-start gap-2 pl-1 my-0.5">
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-red-100 dark:bg-red-950/80 text-[#8B1A1A] dark:text-red-400 text-[10.5px] font-black px-1 mt-0.5 shrink-0 border border-red-200/50 dark:border-red-900/40">
+                {numberedMatch[1].replace(/[.)]/, "")}
+              </span>
+              <div className="flex-1">{renderInlineFormatted(numberedMatch[2])}</div>
+            </div>
+          );
+        }
+
+        // Heading style (### or ## )
+        if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+          const headingText = trimmed.replace(/^#{2,3}\s+/, "");
+          return (
+            <div key={lIdx} className="font-black text-[14px] text-gray-900 dark:text-white pt-1 pb-0.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-3.5 rounded-full bg-[#8B1A1A] dark:bg-red-400" />
+              {renderInlineFormatted(headingText)}
+            </div>
+          );
+        }
+
+        return (
+          <div key={lIdx} className="break-words">
+            {renderInlineFormatted(line)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export interface ChatSessionItem {
   id: string;
   title: string;
@@ -79,6 +284,7 @@ interface ChatItem {
   time?: string;
   showGreetingButtons?: boolean;
   suggestAgent?: boolean;
+  image?: string;
 }
 
 type ToastType = "error" | "warning" | "info" | "success";
@@ -117,6 +323,35 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Live Thinking Preview State (Gemini Thinking UI) ─────────────────────
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const [showThoughtProcess, setShowThoughtProcess] = useState(true);
+  const [currentThinkingStep, setCurrentThinkingStep] = useState<ThinkingStep | null>(null);
+
+  // ─── Image attachment for multimodal (Future ready) ───────────────────────
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; preview: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("សូមជ្រើសរើសឯកសាររូបភាព (JPG, PNG, WebP)!", "warning");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("រូបភាពមានទំហំធំពេក (កម្រិតអតិបរមា 5MB)!", "warning");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setAttachedImage({ base64, preview: URL.createObjectURL(file) });
+      showToast("📷 បានភ្ជាប់រូបភាពរួចរាល់!", "info");
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   // ─── Agent modal state ─────────────────────────────────────────────────────
   const [showAgentModal, setShowAgentModal] = useState(false);
@@ -533,7 +768,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Send Message Handler ─────────────────────────────────────────────────
   const handleSend = async (overrideText?: string) => {
     const textToSend = (overrideText || input).trim();
-    if (!textToSend || isAiThinking) return;
+    if ((!textToSend && !attachedImage) || isAiThinking) return;
 
     // Rate Limit Check
     const rateCheck = checkRateLimit();
@@ -542,10 +777,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       return;
     }
 
+    const currentImg = attachedImage;
+    setAttachedImage(null); // Clear image after capturing
+
+    // Set contextual dynamic thinking based on user's query
+    setCurrentThinkingStep(getContextualThinking(textToSend));
+
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const userMsg: ChatItem = {
       sender: "user",
       text: textToSend,
+      image: currentImg?.preview || currentImg?.base64,
       senderName: userName || "អតិថិជន",
       time: timeStr,
     };
@@ -588,16 +830,22 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
     // 4. Call Gemini AI via Server-side Next.js route
     try {
+      const apiPayload: any = {
+        message: textToSend,
+        userName: userName,
+        history: messages.slice(-6),
+        productInfo: productInfo || null,
+        aiPaused: isAiPaused,
+      };
+
+      if (currentImg?.base64) {
+        apiPayload.image = { base64: currentImg.base64 };
+      }
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: textToSend,
-          userName: userName,
-          history: messages.slice(-6),
-          productInfo: productInfo || null,
-          aiPaused: isAiPaused,
-        }),
+        body: JSON.stringify(apiPayload),
       });
 
       const data = await res.json();
@@ -640,7 +888,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           : "";
         const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || decodedFallback;
         const fallbackKeys = Array.from(new Set([primaryKey, decodedFallback])).filter((k): k is string => Boolean(k && k.trim().length > 10));
-        const fallbackModels = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.5-flash"];
+        const fallbackModels = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.7-flash", "gemini-flash-latest"];
 
         clientFallback: for (const keyToUse of fallbackKeys) {
           for (const modelToUse of fallbackModels) {
@@ -930,9 +1178,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             {msg.sender === "user" ? (
               // User Bubble
               <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
-                <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white rounded-tr-sm">
-                  {msg.text}
-                </div>
+                {msg.image && (
+                  <div className="mb-1.5 rounded-2xl overflow-hidden border border-red-500/30 max-w-[220px] shadow-sm">
+                    <img src={msg.image} alt="User upload" className="w-full h-auto object-cover max-h-48" />
+                  </div>
+                )}
+                {msg.text && (
+                  <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white rounded-tr-sm">
+                    {msg.text}
+                  </div>
+                )}
                 {msg.time && (
                   <span className="text-[10px] text-gray-400 mt-1 font-medium pr-1 flex items-center gap-1">
                     <CheckCheck size={11} className="text-blue-400" />
@@ -960,8 +1215,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                       Live Staff
                     </span>
                   </div>
-                  <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-white rounded-tl-sm border border-emerald-200/50 dark:border-emerald-800/30">
-                    <div className="whitespace-pre-line">{msg.text}</div>
+                  <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-900 dark:text-white rounded-tl-sm border border-emerald-200/50 dark:border-emerald-800/30 w-full">
+                    <FormattedMessageText text={msg.text} />
                     {msg.time && (
                       <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
                         {msg.time}
@@ -978,7 +1233,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 </div>
                 <div className="flex flex-col items-start gap-1 flex-1">
                   <div className="p-3.5 rounded-2xl text-[13.5px] leading-relaxed shadow-sm bg-white dark:bg-[#151922] text-gray-800 dark:text-gray-100 rounded-tl-sm border border-gray-100 dark:border-white/5 w-full">
-                    <div className="whitespace-pre-line">{msg.text}</div>
+                    <FormattedMessageText text={msg.text} />
                     {msg.time && (
                       <div className="text-[10px] mt-1 text-right font-medium text-gray-400">
                         {msg.time}
@@ -1010,16 +1265,45 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                     </div>
                   )}
 
-                  {/* ── Action button when AI suggests human agent / busy ── */}
+                  {/* ── Interactive Live Human Support Card when AI suggests agent ── */}
                   {msg.suggestAgent && (
-                    <div className="pt-1">
-                      <button
-                        onClick={() => setShowAgentModal(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
-                      >
-                        <Headphones size={14} />
-                        <span>ស្នើសុំជជែកផ្ទាល់ជាមួយក្រុមការងារភ្លាមៗ</span>
-                      </button>
+                    <div className="pt-2 w-full">
+                      <div className="p-3 rounded-2xl bg-gradient-to-br from-red-50/80 via-white to-amber-50/50 dark:from-[#19141d] dark:via-[#131620] dark:to-[#17141f] border border-red-200/80 dark:border-red-900/40 shadow-sm flex flex-col gap-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-[#8B1A1A] text-white flex items-center justify-center text-xs font-black shadow-xs">
+                            <Headphones size={14} />
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-black text-gray-900 dark:text-white">
+                              ត្រូវការជំនួយផ្ទាល់ពីមនុស្ស (Live Human Support)?
+                            </h5>
+                            <p className="text-[10.5px] text-gray-500 dark:text-gray-400">
+                              បុគ្គលិកបច្ចេកទេស S Tech Store រង់ចាំជួយបងភ្លាមៗ
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setShowAgentModal(true)}
+                            className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-xs font-bold shadow-sm hover:opacity-95 transition-all cursor-pointer"
+                          >
+                            <Headphones size={13} />
+                            <span>ស្នើសុំជជែកផ្ទាល់</span>
+                          </button>
+
+                          <a
+                            href="https://t.me/StechStoreBot"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                          >
+                            <Send size={13} />
+                            <span>ឆាត Telegram Bot</span>
+                          </a>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1065,11 +1349,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 <div className="flex flex-col gap-1.5 pt-1.5 border-t border-red-100 dark:border-white/10 text-[12px] text-gray-700 dark:text-gray-300">
                   <div className="flex items-center gap-2 font-medium">
                     <span className="text-gray-700 dark:text-gray-200">
-                      {thinkingSeconds < 1.8
-                        ? "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បង..."
-                        : thinkingSeconds < 3.8
-                        ? "🔎 ផ្ទៀងផ្ទាត់ទិន្នន័យផលិតផល ស្តុក និងតម្លៃក្នុងហាង..."
-                        : "✍️ កំពុងរៀបចំចម្លើយយ៉ាងលម្អិតជូនបង..."}
+                      {thinkingSeconds < 1.6
+                        ? currentThinkingStep?.phase1 || "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បង..."
+                        : thinkingSeconds < 3.2
+                        ? currentThinkingStep?.phase2 || "🔎 ស្វែងរកទិន្នន័យបច្ចេកវិទ្យា និងព័ត៌មានហាងដែលសមស្រប..."
+                        : currentThinkingStep?.phase3 || "✍️ កំពុងរៀបចំចម្លើយយ៉ាងលម្អិតជូនបង..."}
                     </span>
                   </div>
 
@@ -1112,9 +1396,35 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ))}
       </div>
 
+      {/* ── Image Attachment Preview (Multimodal Ready) ───────────────────────── */}
+      {attachedImage && (
+        <div className="px-4 py-2 bg-gray-50 dark:bg-[#161a25] border-t border-gray-100 dark:border-white/5 flex items-center justify-between flex-shrink-0 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-red-300 dark:border-red-800 shadow-xs">
+              <img src={attachedImage.preview} alt="attached" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                📷 រូបភាពត្រូវបានភ្ជាប់
+              </span>
+              <span className="text-[10px] text-gray-400">
+                ត្រៀមផ្ញើទៅកាន់ AI សម្រាប់វិភាគរូបភាព (Multimodal)
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAttachedImage(null)}
+            className="w-7 h-7 rounded-full bg-gray-200 dark:bg-white/10 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-600 hover:text-red-600 dark:text-gray-300 flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* ── Input Area ───────────────────────────────────────────────────────── */}
       <div
-        className="bg-white dark:bg-[#12151e] border-t border-gray-100 dark:border-white/10 p-3 flex items-center gap-2.5 flex-shrink-0"
+        className="bg-white dark:bg-[#12151e] border-t border-gray-100 dark:border-white/10 p-3 flex items-center gap-2 sm:gap-2.5 flex-shrink-0"
         style={{ paddingBottom: "calc(14px + env(safe-area-inset-bottom))" }}
       >
         <button
@@ -1124,6 +1434,25 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center hover:bg-[#8B1A1A] hover:text-white transition-colors shrink-0 cursor-pointer"
         >
           <Headphones size={18} />
+        </button>
+
+        {/* Hidden File Input for Image Attachment */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageSelect}
+          className="hidden"
+        />
+
+        {/* Multimodal Screenshot / Specs Image Picker Button */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          title="ភ្ជាប់រូបភាព (Multimodal Image Analysis)"
+          className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/20 transition-colors shrink-0 cursor-pointer"
+        >
+          <ImageIcon size={18} />
         </button>
 
         <input
@@ -1142,7 +1471,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
         <button
           onClick={() => handleSend()}
-          disabled={!input.trim() || (isAiThinking && !isAiPaused)}
+          disabled={(!input.trim() && !attachedImage) || (isAiThinking && !isAiPaused)}
           title="ផ្ញើសារ"
           className="w-10 h-10 rounded-full bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white flex items-center justify-center disabled:opacity-40 flex-shrink-0 shadow-sm cursor-pointer hover:shadow-md transition-all"
         >
