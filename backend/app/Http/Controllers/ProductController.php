@@ -176,7 +176,7 @@ class ProductController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $product = Product::findOrFail($id);
+        $product = is_numeric($id) ? Product::findOrFail($id) : Product::where('slug', $id)->firstOrFail();
         
         $validated = $request->validate([
             'category_id' => 'sometimes|exists:categories,id',
@@ -201,6 +201,20 @@ class ProductController extends Controller
 
         if (isset($validated['name']) && $validated['name'] !== $product->name) {
             $validated['slug'] = Str::slug($validated['name']) . '-' . time();
+        }
+
+        // Support explicitly clearing nullable fields
+        if ($request->has('sale_price') && ($request->input('sale_price') === '' || $request->input('sale_price') === null)) {
+            $validated['sale_price'] = null;
+        }
+        if ($request->has('badge') && ($request->input('badge') === '' || $request->input('badge') === null)) {
+            $validated['badge'] = null;
+        }
+        if ($request->has('brand') && ($request->input('brand') === '' || $request->input('brand') === null)) {
+            $validated['brand'] = null;
+        }
+        if ($request->has('description') && ($request->input('description') === '' || $request->input('description') === null)) {
+            $validated['description'] = null;
         }
 
         // Process images with existing product fallback
