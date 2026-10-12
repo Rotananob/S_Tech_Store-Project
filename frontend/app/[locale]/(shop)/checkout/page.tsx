@@ -16,7 +16,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, 
   ExternalLink, X, Smartphone, ArrowRight, CreditCard, 
-  Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText
+  Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText,
+  Truck, MapPin, User, Phone, ChevronRight, ArrowLeft, Shield, Award, HelpCircle,
+  Building, CheckSquare, Zap, BadgePercent, Store
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -33,9 +35,10 @@ const PAYMENT_METHODS = [
     id: "bakong",
     label: "Bakong KHQR • All Banks",
     sub: "Scan with ABA, Wing, ACLEDA, or any 36+ Cambodian banks",
-    badge: "Universal QR",
+    badge: "NBC Universal",
+    theme: "border-red-500 bg-red-50/40 dark:bg-red-950/20",
     icon: (
-      <div className="w-8 h-8 rounded-lg bg-[#E1251B] flex items-center justify-center text-white font-black text-[10px] shadow-sm tracking-tighter">
+      <div className="w-9 h-9 rounded-xl bg-[#E1251B] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter shrink-0">
         KHQR
       </div>
     ),
@@ -44,9 +47,10 @@ const PAYMENT_METHODS = [
     id: "aba",
     label: "ABA PAY • Direct Deeplink",
     sub: "Scan QR or launch ABA Mobile directly on your phone",
-    badge: "Direct Deeplink",
+    badge: "1-Tap Mobile Pay",
+    theme: "border-[#004B87] bg-blue-50/40 dark:bg-blue-950/20",
     icon: (
-      <div className="w-8 h-8 rounded-lg bg-[#004B87] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter">
+      <div className="w-9 h-9 rounded-xl bg-[#004B87] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter shrink-0">
         ABA
       </div>
     ),
@@ -55,10 +59,11 @@ const PAYMENT_METHODS = [
     id: "visa",
     label: "Visa & Mastercard • Credit/Debit",
     sub: "Pay securely with international or local bank card",
-    badge: "Card Gateway",
+    badge: "3D Secure",
+    theme: "border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20",
     icon: (
-      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-700 to-indigo-900 flex items-center justify-center text-white shadow-sm">
-        <CreditCard size={17} />
+      <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-800 to-indigo-950 flex items-center justify-center text-white shadow-sm shrink-0">
+        <CreditCard size={18} />
       </div>
     ),
   },
@@ -66,53 +71,64 @@ const PAYMENT_METHODS = [
     id: "cod",
     label: "Cash on Delivery • ទូទាត់ពេលទំនិញដល់",
     sub: "Pay in cash upon doorstep delivery by courier",
-    badge: "Doorstep",
+    badge: "Doorstep Cash",
+    theme: "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20",
     icon: (
-      <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-black text-xs shadow-sm">
+      <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-xs shadow-sm shrink-0">
         COD
       </div>
     ),
   },
 ];
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
+// ─── Step Indicator Component ──────────────────────────────────────────────────
 function StepBar({ step }: { step: number }) {
-  const t = useTranslations("Checkout");
-  const steps = [t("stepCart"), t("stepDeliveryPayment"), t("stepDone")];
+  const steps = [
+    { num: 1, label: "Cart", labelKm: "កន្ត្រកទំនិញ" },
+    { num: 2, label: "Delivery & Payment", labelKm: "ដឹកជញ្ជូន & ទូទាត់" },
+    { num: 3, label: "Order Done", labelKm: "ជោគជ័យ" },
+  ];
+
   return (
-    <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar">
-      {steps.map((label, i) => {
-        const idx = i + 1;
-        const active = idx === step;
-        const done = idx < step;
+    <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar py-1">
+      {steps.map((s, idx) => {
+        const isActive = s.num === step;
+        const isDone = s.num < step;
+
         return (
-          <div key={label} className="flex items-center gap-2 shrink-0">
+          <div key={s.num} className="flex items-center gap-2 sm:gap-3 shrink-0">
             <div className="flex items-center gap-2">
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                  active
-                    ? "bg-[#8B1A1A] text-white ring-2 ring-red-200 dark:ring-red-900/40"
-                    : done
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all shadow-xs ${
+                  isActive
+                    ? "bg-[#8B1A1A] text-white ring-4 ring-red-100 dark:ring-red-950/60 scale-105"
+                    : isDone
                     ? "bg-emerald-600 text-white"
-                    : "bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-500"
+                    : "bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-gray-500"
                 }`}
               >
-                {done ? "✓" : idx}
+                {isDone ? <Check size={14} strokeWidth={3} /> : s.num}
               </div>
-              <span
-                className={`text-xs font-bold transition-colors ${
-                  active
-                    ? "text-[#8B1A1A] dark:text-red-400"
-                    : done
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-gray-400 dark:text-gray-500"
-                }`}
-              >
-                {label}
-              </span>
+              <div className="flex flex-col">
+                <span
+                  className={`text-xs font-extrabold transition-colors leading-tight ${
+                    isActive
+                      ? "text-[#8B1A1A] dark:text-red-400"
+                      : isDone
+                      ? "text-emerald-700 dark:text-emerald-400"
+                      : "text-gray-400 dark:text-gray-500"
+                  }`}
+                >
+                  {s.labelKm}
+                </span>
+                <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
+                  {s.label}
+                </span>
+              </div>
             </div>
-            {i < steps.length - 1 && (
-              <span className="text-gray-300 dark:text-gray-700 mx-1 text-xs">/</span>
+
+            {idx < steps.length - 1 && (
+              <ChevronRight size={14} className="text-gray-300 dark:text-gray-700 shrink-0 mx-1" />
             )}
           </div>
         );
@@ -121,7 +137,7 @@ function StepBar({ step }: { step: number }) {
   );
 }
 
-// ─── Main Checkout Page ────────────────────────────────────────────────────────
+// ─── Main Checkout Page Component ──────────────────────────────────────────────
 export default function CheckoutPage() {
   const t = useTranslations("Checkout");
   const router = useRouter();
@@ -132,6 +148,7 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [deliveryNote, setDeliveryNote] = useState("");
   const [step, setStep] = useState(2);
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -140,6 +157,7 @@ export default function CheckoutPage() {
   const [transactionId, setTransactionId] = useState("");
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [profileAutoFilled, setProfileAutoFilled] = useState(false);
 
   // Card payment form state
   const [cardNumber, setCardNumber] = useState("");
@@ -191,9 +209,10 @@ export default function CheckoutPage() {
         router.push("/login?redirect=/checkout");
       } else {
         const u = user || (sessionStr ? JSON.parse(sessionStr) : null);
-        setName((prev) => prev || u?.displayName || u?.display_name || "");
-        if (u?.email) {
-          setCardHolder((prev) => prev || (u.displayName || u.display_name || "").toUpperCase());
+        const uName = u?.displayName || u?.display_name || u?.name || "";
+        if (uName) {
+          setName(uName);
+          setCardHolder(uName.toUpperCase());
         }
         api.get("/user/profile").then((res) => {
           if (res.data?.profile) {
@@ -201,6 +220,8 @@ export default function CheckoutPage() {
             if (p.display_name) setName(p.display_name);
             if (p.phone) setPhone(p.phone);
             if (p.address) setAddress(p.address);
+            if (p.delivery_notes) setDeliveryNote(p.delivery_notes);
+            setProfileAutoFilled(true);
           }
         }).catch(() => {});
       }
@@ -208,7 +229,7 @@ export default function CheckoutPage() {
     return () => unsub();
   }, [fetchCart, router]);
 
-  // Clean up polling & timers
+  // Clean up polling & timers on unmount
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
@@ -232,7 +253,7 @@ export default function CheckoutPage() {
     setPromoLoading(false);
     if (res.success && res.data) {
       setAppliedPromo(res.data);
-      setPromoSuccessMsg(res.message || `បានអនុវត្តកូដ ${res.data.code}`);
+      setPromoSuccessMsg(res.message || `បានអនុវត្តកូដ ${res.data.code} ជោគជ័យ!`);
     } else {
       setPromoError(res.message || "កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ");
     }
@@ -324,12 +345,16 @@ export default function CheckoutPage() {
     setLoading(true);
     setLoadingMsg("កំពុងបញ្ជូនការបញ្ជាទិញ... (Recording Order)");
 
+    const fullAddress = deliveryNote.trim() 
+      ? `${address.trim()} (Note: ${deliveryNote.trim()})` 
+      : address.trim();
+
     const payload = {
       delivery_type: delivery,
       payment_method: payment,
       name: name.trim(),
       phone: phone.trim(),
-      address: address.trim(),
+      address: fullAddress,
       promo_code: appliedPromo ? appliedPromo.code : undefined,
       discount_amount: discountAmount,
       items: items.map((item) => ({
@@ -359,12 +384,16 @@ export default function CheckoutPage() {
     setLoading(true);
     setLoadingMsg("កំពុងទូទាត់ជាមួយ Visa/Mastercard Gateway (Processing Card)...");
 
+    const fullAddress = deliveryNote.trim() 
+      ? `${address.trim()} (Note: ${deliveryNote.trim()})` 
+      : address.trim();
+
     const payload = {
       delivery_type: delivery,
       payment_method: "visa",
       name: name.trim(),
       phone: phone.trim(),
-      address: address.trim(),
+      address: fullAddress,
       promo_code: appliedPromo ? appliedPromo.code : undefined,
       discount_amount: discountAmount,
       items: items.map((item) => ({
@@ -413,12 +442,16 @@ export default function CheckoutPage() {
     setLoading(true);
     setLoadingMsg("កំពុងបង្កើត Dynamic KHQR និង Deeplink... (Generating KHQR Session)");
 
+    const fullAddress = deliveryNote.trim() 
+      ? `${address.trim()} (Note: ${deliveryNote.trim()})` 
+      : address.trim();
+
     const payload = {
       delivery_type: delivery,
       payment_method: payment,
       name: name.trim(),
       phone: phone.trim(),
-      address: address.trim(),
+      address: fullAddress,
       promo_code: appliedPromo ? appliedPromo.code : undefined,
       discount_amount: discountAmount,
       items: items.map((item) => ({
@@ -516,15 +549,18 @@ export default function CheckoutPage() {
 
   // ─── Finish Order & Show Done Screen ─────────────────────────────────────────
   const finishSuccessfulOrder = async (finalOrderId: string, txn: string) => {
-    // 1. Snapshot full receipt details BEFORE clearing cart store
     const currentPayment = payment;
     const isCOD = currentPayment === "cod";
+    const fullAddress = deliveryNote.trim() 
+      ? `${address.trim()} (Note: ${deliveryNote.trim()})` 
+      : address.trim();
+
     const snapshotReceipt: ReceiptData = {
       orderId: finalOrderId,
       transactionId: txn,
       customerName: name.trim() || "Customer",
       customerPhone: phone.trim(),
-      shippingAddress: address.trim(),
+      shippingAddress: fullAddress,
       deliveryType: delivery,
       paymentMethod: currentPayment,
       paymentStatus: isCOD ? "cod" : "paid",
@@ -533,7 +569,7 @@ export default function CheckoutPage() {
         name: (i as any).name || i.product?.name || "Tech Product",
         quantity: i.quantity,
         price: Number(i.product?.sale_price ?? i.product?.price ?? i.price ?? 0),
-        image: i.product?.image || (i as any).image,
+        image: i.image_url || i.product?.image || (i as any).image,
       })),
       subtotal: Number(subtotal),
       deliveryFee: Number(deliveryFee),
@@ -551,7 +587,7 @@ export default function CheckoutPage() {
     };
 
     setReceiptData(snapshotReceipt);
-    setShowReceiptModal(true); // Automatically popup official receipt / invoice!
+    setShowReceiptModal(true);
 
     await clearCart();
 
@@ -577,7 +613,6 @@ export default function CheckoutPage() {
   if (confirmed) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#0c0d12] text-gray-900 dark:text-gray-100 pb-20">
-        {/* ── Auto-Popup Official Receipt / Tax Invoice ── */}
         <OrderReceiptModal
           isOpen={showReceiptModal}
           onClose={() => setShowReceiptModal(false)}
@@ -663,143 +698,282 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-[#0c0d12] min-h-screen text-gray-900 dark:text-gray-100 pb-36 lg:pb-16">
-      {/* Header */}
-      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-white/10 pt-6 pb-2">
-        <div className="max-w-6xl mx-auto px-4">
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-2">{t("title")}</h1>
+    <div className="bg-[#f8f9fa] dark:bg-[#090a0f] min-h-screen text-gray-900 dark:text-gray-100 pb-36 lg:pb-20 font-sans">
+      {/* ── Top Header & Trust Banner ── */}
+      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200/80 dark:border-white/10 pt-6 pb-4 shadow-2xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-1">
+                <Link href="/cart" className="hover:text-[#8B1A1A] flex items-center gap-1 transition-colors no-underline">
+                  <ArrowLeft size={13} />
+                  <span>ត្រឡប់ទៅកន្ត្រក (Cart)</span>
+                </Link>
+                <span>/</span>
+                <span className="text-gray-800 dark:text-gray-300">ទូទាត់ប្រាក់ (Checkout)</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2.5">
+                <span>សុវត្ថិភាពការទូទាត់ប្រាក់ • Checkout</span>
+              </h1>
+            </div>
+
+            {/* Trust Assurance Pill */}
+            <div className="inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300 self-start sm:self-auto shadow-2xs">
+              <Lock size={13} className="text-emerald-600 dark:text-emerald-400" />
+              <span>256-Bit SSL Encrypted & Bank Guaranteed</span>
+            </div>
+          </div>
+
           <StepBar step={step} />
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-6 items-start">
-          {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_430px] gap-8 items-start">
+          
+          {/* ── LEFT COLUMN: Shipping & Payment ─────────────────────────────── */}
           <div className="space-y-6">
-            {/* Delivery Details */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                  🚚
-                </div>
-                <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{t("deliveryDetails")}</h2>
-              </div>
 
-              {/* Delivery Type Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-                {[
-                  { id: "pnompenh", label: t("deliveryPhnomPenh"), sub: "Express same-day (2–4 hours)", fee: 2 },
-                  { id: "province", label: t("deliveryProvince"), sub: "All 24 Provinces via Logistics (1–2 Days)", fee: 3 },
-                ].map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setDelivery(opt.id as typeof delivery)}
-                    className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer ${
-                      delivery === opt.id
-                        ? "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20 dark:border-red-500"
-                        : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{opt.label}</p>
-                      <span className="text-xs font-black text-[#8B1A1A] dark:text-red-400 font-mono">
-                        ${opt.fee.toFixed(2)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{opt.sub}</p>
-                  </button>
-                ))}
-              </div>
-
-              {/* Recipient Form Fields */}
-              <div className="space-y-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                      {t("fullName")} *
-                    </label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Sokha Chan"
-                      className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 outline-none text-gray-900 dark:text-white"
-                    />
+            {/* 1. DELIVERY OPTIONS SECTION */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs">
+                    <Truck size={19} />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                      {t("phoneNumber")} *
+                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                      វិធីសាស្ត្រដឹកជញ្ជូន • Delivery Options
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ជ្រើសរើសតំបន់ទទួលទំនិញរបស់អ្នក ដើម្បីទទួលបានសេវាកម្មរហ័ស
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delivery Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-6">
+                {[
+                  { 
+                    id: "pnompenh", 
+                    icon: "🛵",
+                    label: "រាជធានីភ្នំពេញ (Phnom Penh)", 
+                    sub: "ដឹកជញ្ជូនរហ័សក្នុងថ្ងៃតែមួយ (2–4 Hours Express)", 
+                    fee: 2.00,
+                    tag: "Fast Express" 
+                  },
+                  { 
+                    id: "province", 
+                    icon: "🚚",
+                    label: "បណ្តាខេត្តទាំងអស់ (24 Provinces)", 
+                    sub: "ផ្ញើតាមក្រុមហ៊ុនដឹកជញ្ជូនទូទាំងប្រទេស (1–2 Days)", 
+                    fee: 3.00,
+                    tag: "Nationwide" 
+                  },
+                ].map((opt) => {
+                  const isSelected = delivery === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setDelivery(opt.id as typeof delivery)}
+                      className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? "border-[#8B1A1A] bg-red-50/40 dark:bg-red-950/20 dark:border-red-500 shadow-xs"
+                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{opt.icon}</span>
+                          <span className="text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                            {opt.tag}
+                          </span>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white" : "border-gray-300"
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-black text-gray-900 dark:text-white mb-0.5">
+                          {opt.label}
+                        </div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {opt.sub}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-500 font-medium">តម្លៃដឹកជញ្ជូន Fee</span>
+                        <span className="text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                          ${opt.fee.toFixed(2)}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 2. RECIPIENT INFORMATION FORM */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <User size={14} className="text-[#8B1A1A]" />
+                    <span>ព័ត៌មានអ្នកទទួលទំនិញ • Recipient Details</span>
+                  </span>
+                  {profileAutoFilled && (
+                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <CheckCircle2 size={12} />
+                      <span>Auto-filled from profile</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                      ឈ្មោះអ្នកទទួល (Full Name) *
                     </label>
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="012 345 678"
-                      className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                    <div className="relative">
+                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="ឧ. សុខា ចាន់ (Sokha Chan)"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                      លេខទូរស័ព្ទ (Phone Number) *
+                    </label>
+                    <div className="relative">
+                      <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="012 345 678"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    អាសយដ្ឋានដឹកជញ្ជូនលម្អិត (Delivery Address) *
+                  </label>
+                  <div className="relative">
+                    <MapPin size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                    <textarea
+                      rows={2}
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="ផ្ទះលេខ, ផ្លូវលេខ, សង្កាត់/ឃុំ, ខណ្ឌ/ស្រុក, រាជធានី ឬ ខេត្ត..."
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all resize-none"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1">
-                    {t("addressMap")} *
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    កំណត់ចំណាំសម្រាប់អ្នកដឹក (Delivery Note / Landmark - Optional)
                   </label>
-                  <textarea
-                    rows={2}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Street address, House number, Khan/Sangkat, City or Province..."
-                    className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 outline-none text-gray-900 dark:text-white resize-none"
-                  />
+                  <div className="relative">
+                    <FileText size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={deliveryNote}
+                      onChange={(e) => setDeliveryNote(e.target.value)}
+                      placeholder="ឧ. ផ្ទះរបងពណ៌ស ក្បែរផ្សារទួលទំពូង ឬ ហៅទូរស័ព្ទមុនមកដល់..."
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             </section>
 
-            {/* Payment Method Selector */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
+            {/* 3. PAYMENT METHOD SELECTOR */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center font-bold">
-                    💳
+                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs">
+                    <CreditCard size={19} />
                   </div>
-                  <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">{t("paymentMethod")}</h2>
+                  <div>
+                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                      វិធីសាស្ត្រទូទាត់ប្រាក់ • Payment Method
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      ទូទាត់រហ័សតាមធនាគារក្នុងស្រុក កាតអន្តរជាតិ ឬសាច់ប្រាក់សុទ្ធ
+                    </p>
+                  </div>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full">
+
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200/50">
                   Real Bank Gateways
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                {PAYMENT_METHODS.map((pm) => (
-                  <button
-                    key={pm.id}
-                    type="button"
-                    onClick={() => setPayment(pm.id)}
-                    className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
-                      payment === pm.id
-                        ? "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20 dark:border-red-500 shadow-sm"
-                        : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      {pm.icon}
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
-                        {pm.badge}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900 dark:text-white">{pm.label}</div>
-                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{pm.sub}</div>
-                    </div>
-                  </button>
-                ))}
+              {/* Payment Method Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
+                {PAYMENT_METHODS.map((pm) => {
+                  const isSelected = payment === pm.id;
+                  return (
+                    <button
+                      key={pm.id}
+                      type="button"
+                      onClick={() => setPayment(pm.id)}
+                      className={`p-4 rounded-xl text-left transition-all relative border-2 cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? `${pm.theme} shadow-xs border-opacity-100`
+                          : "border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        {pm.icon}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                            {pm.badge}
+                          </span>
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white" : "border-gray-300"
+                          }`}>
+                            {isSelected && <Check size={10} strokeWidth={3} />}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-black text-gray-900 dark:text-white">
+                          {pm.label}
+                        </div>
+                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                          {pm.sub}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* ── Visa / Mastercard Interactive Card Form ───────────────────────── */}
+              {/* ── Interactive Credit/Debit Card Form (when VISA selected) ── */}
               {payment === "visa" && (
                 <div className="mt-5 p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      Credit / Debit Card Details
+                    <span className="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      ព័ត៌មានកាតធនាគារ (Card Details)
                     </span>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
                       <Lock size={12} className="text-emerald-500" />
@@ -807,8 +981,8 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* Interactive Card Visualizer */}
-                  <div className="mb-5 p-5 rounded-2xl bg-gradient-to-tr from-[#1a1c29] via-[#11131c] to-[#252839] text-white shadow-xl relative overflow-hidden border border-white/10 max-w-sm mx-auto">
+                  {/* 3D-Styled Metallic Card Visualizer */}
+                  <div className="mb-5 p-5 rounded-2xl bg-gradient-to-tr from-[#151824] via-[#0d0f18] to-[#1f2438] text-white shadow-xl relative overflow-hidden border border-white/10 max-w-sm mx-auto">
                     <div className="flex items-center justify-between mb-6">
                       <div className="w-10 h-8 rounded-md bg-gradient-to-br from-amber-300 to-amber-500 shadow-inner flex items-center justify-center opacity-90">
                         <div className="w-6 h-5 border border-black/30 rounded-xs" />
@@ -841,11 +1015,11 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* Card Form Inputs */}
+                  {/* Form Inputs */}
                   <div className="space-y-3.5">
                     <div>
                       <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Card Number (លេខកាត)
+                        Card Number (លេខកាត ១៦ ខ្ទង់)
                       </label>
                       <input
                         type="text"
@@ -902,75 +1076,110 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Digital Payment Note */}
+              {/* KHQR Info Note Banner */}
               {(payment === "aba" || payment === "bakong") && (
-                <div className="mt-4 p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 flex items-center gap-3">
-                  <QrCode size={20} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                  <div className="text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
-                    <span className="font-bold">Dynamic KHQR & Deeplink: </span>
-                    Scan with any banking app or click direct mobile launcher. Total: <b>{fmtUSD(total)}</b> ({fmtKHR(total)}).
+                <div className="mt-4 p-4 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                    <QrCode size={18} />
+                  </div>
+                  <div className="text-xs text-blue-950 dark:text-blue-300 leading-relaxed">
+                    <span className="font-bold">Dynamic NBC KHQR: </span>
+                    ប្រព័ន្ធនឹងបង្កើត QR Code សុពលភាព ១៥ នាទីសម្រាប់ស្កេនទូទាត់ជាមួយគ្រប់ App ធនាគារ ឬចុចប៊ូតុង Deeplink បើក ABA Mobile ភ្លាមៗ។
                   </div>
                 </div>
               )}
             </section>
           </div>
 
-          {/* ── RIGHT COLUMN — Sticky Order Summary ─────────────────────────────────── */}
-          <div className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-2xl p-5 sm:p-6 shadow-sm sticky top-24">
-            <h2 className="text-base font-extrabold text-gray-900 dark:text-white mb-4">
-              {t("orderSummary")} ({items.length})
-            </h2>
+          {/* ── RIGHT COLUMN: Order Summary & Review ────────────────────────── */}
+          <div className="space-y-4 sticky top-24">
+            <div className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-white/5">
+                <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <span>បញ្ជីទំនិញកុម្ម៉ង់ • Summary</span>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400">
+                    {items.length} មុខ
+                  </span>
+                </h2>
+              </div>
 
-            {/* Item list */}
-            <div className="space-y-3 max-h-60 overflow-y-auto no-scrollbar mb-4">
-              {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between text-xs">
-                  <div className="truncate pr-3 flex-1">
-                    <div className="font-bold text-gray-900 dark:text-white truncate">{item.name}</div>
-                    <div className="text-gray-400">Qty: {item.quantity} × {fmtUSD(item.price)}</div>
-                  </div>
-                  <div className="font-mono font-bold text-gray-900 dark:text-white shrink-0">
-                    {fmtUSD(item.price * item.quantity)}
-                  </div>
-                </div>
-              ))}
-            </div>
+              {/* Items List with Real Images */}
+              <div className="space-y-3.5 max-h-72 overflow-y-auto no-scrollbar mb-5 pr-1">
+                {items.map((item) => {
+                  const itemImg = item.image_url || item.product?.image || item.product?.image_url || (Array.isArray(item.product?.images) ? item.product?.images[0] : null) || "/logo.jpg";
 
-            {/* Promo Code Input Section */}
-            <div className="border-t border-gray-100 dark:border-white/10 pt-3 pb-3">
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <Ticket size={13} className="text-[#8B1A1A] dark:text-red-400" />
-                <span>Promotion Code (កូដបញ្ចុះតម្លៃ)</span>
-              </label>
-
-              {appliedPromo ? (
-                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
-                      ✓
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-emerald-900 dark:text-emerald-300">
-                        {appliedPromo.code}
+                  return (
+                    <div key={item.id} className="flex items-center gap-3 text-xs py-1">
+                      <div className="relative w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden shrink-0 border border-gray-200 dark:border-white/10">
+                        <img 
+                          src={itemImg} 
+                          alt={item.name} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        />
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#8B1A1A] text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
+                          {item.quantity}
+                        </span>
                       </div>
-                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                        {appliedPromo.type === "percentage" ? `${appliedPromo.value}% OFF` : `$${appliedPromo.value} OFF`} • Saved {fmtUSD(appliedPromo.discount_amount)}
+
+                      <div className="truncate flex-1 min-w-0">
+                        <div className="font-bold text-gray-900 dark:text-white truncate text-xs mb-0.5">
+                          {item.name}
+                        </div>
+                        <div className="text-[11px] text-gray-400 font-medium">
+                          {fmtUSD(item.price)} × {item.quantity}
+                        </div>
+                      </div>
+
+                      <div className="font-mono font-black text-gray-900 dark:text-white text-xs shrink-0">
+                        {fmtUSD(item.price * item.quantity)}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Promo Code Section ── */}
+              <div className="border-t border-gray-100 dark:border-white/10 pt-4 pb-4">
+                <label className="block text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Ticket size={14} className="text-[#8B1A1A]" />
+                    <span>កូដប្រូម៉ូសិន • Promo Code</span>
+                  </span>
+                  {appliedPromo && (
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                      Applied!
+                    </span>
+                  )}
+                </label>
+
+                {appliedPromo ? (
+                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                        ✓
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-emerald-950 dark:text-emerald-300 font-mono">
+                          {appliedPromo.code}
+                        </div>
+                        <div className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                          {appliedPromo.type === "percentage" ? `${appliedPromo.value}% OFF` : `$${appliedPromo.value} OFF`} • ចំណេញ {fmtUSD(appliedPromo.discount_amount)}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemovePromo}
+                      className="p-1.5 rounded-lg text-emerald-700 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                      title="Remove Promo Code"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRemovePromo}
-                    className="p-1 rounded-md text-emerald-700 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
-                    title="Remove Promo Code"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
                       <input
                         type="text"
                         value={promoInput}
@@ -979,104 +1188,131 @@ export default function CheckoutPage() {
                           setPromoError("");
                         }}
                         placeholder="e.g. STECH20, PROMO"
-                        className="w-full px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                        className="flex-1 px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
                       />
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPromo()}
+                        disabled={promoLoading || !promoInput.trim()}
+                        className="px-4 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                      >
+                        {promoLoading ? "..." : "Apply"}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleApplyPromo()}
-                      disabled={promoLoading || !promoInput.trim()}
-                      className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0"
-                    >
-                      {promoLoading ? "..." : "Apply"}
-                    </button>
-                  </div>
 
-                  {/* Quick-Apply Promo Suggestions */}
-                  <div className="mt-2.5">
-                    <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-                      <Sparkles size={11} className="text-amber-500" />
-                      <span>កូដប្រូម៉ូសិនដែលអាចប្រើបាន (Tap to Apply):</span>
+                    {/* 1-Click Interactive Promo Suggestions */}
+                    <div className="mt-2.5">
+                      <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                        <Sparkles size={11} className="text-amber-500" />
+                        <span>កូដពិសេសចុចយកភ្លាមៗ (Tap to Apply):</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { code: "STECH20", label: "STECH20 (20%)" },
+                          { code: "PROMO", label: "PROMO (20%)" },
+                          { code: "PCHUM", label: "PCHUM (30%)" },
+                          { code: "WELCOME", label: "WELCOME ($10)" },
+                        ].map((item) => (
+                          <button
+                            key={item.code}
+                            type="button"
+                            onClick={() => handleApplyPromo(item.code)}
+                            disabled={promoLoading}
+                            className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                          >
+                            <Tag size={10} />
+                            <span>{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {[
-                        { code: "STECH20", label: "STECH20 (20% OFF)" },
-                        { code: "PROMO", label: "PROMO (20% OFF)" },
-                        { code: "PCHUM", label: "PCHUM (30% OFF)" },
-                        { code: "WELCOME", label: "WELCOME ($10 OFF)" },
-                      ].map((item) => (
-                        <button
-                          key={item.code}
-                          type="button"
-                          onClick={() => handleApplyPromo(item.code)}
-                          disabled={promoLoading}
-                          className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                        >
-                          <Tag size={10} />
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
-                  {promoError && (
-                    <div className="mt-2 text-[11px] text-red-500 font-medium flex items-center gap-1">
-                      <AlertCircle size={12} />
-                      <span>{promoError}</span>
-                    </div>
-                  )}
-                  {promoSuccessMsg && (
-                    <div className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                      <CheckCircle2 size={12} />
-                      <span>{promoSuccessMsg}</span>
-                    </div>
-                  )}
+                    {promoError && (
+                      <div className="mt-2 text-[11px] text-red-500 font-medium flex items-center gap-1">
+                        <AlertCircle size={12} />
+                        <span>{promoError}</span>
+                      </div>
+                    )}
+                    {promoSuccessMsg && (
+                      <div className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <CheckCircle2 size={12} />
+                        <span>{promoSuccessMsg}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="border-t border-gray-100 dark:border-white/10 pt-4 space-y-2.5 text-xs">
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>តម្លៃទំនិញសរុប (Subtotal)</span>
+                  <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(subtotal)}</span>
                 </div>
-              )}
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>សេវាដឹកជញ្ជូន (Delivery Fee)</span>
+                  <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(deliveryFee)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span className="flex items-center gap-1">
+                      <Tag size={12} />
+                      <span>បញ្ចុះតម្លៃ Promo ({appliedPromo?.code})</span>
+                    </span>
+                    <span className="font-mono">-{fmtUSD(discountAmount)}</span>
+                  </div>
+                )}
+                
+                <div className="pt-3 border-t border-gray-100 dark:border-white/10">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-sm font-black text-gray-900 dark:text-white">ទឹកប្រាក់ត្រូវទូទាត់សរុប</span>
+                    <div className="text-right">
+                      <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono tracking-tight">
+                        {fmtUSD(total)}
+                      </div>
+                      <div className="text-xs font-bold text-gray-500 font-mono mt-0.5">
+                        {fmtKHR(total)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Primary Place Order CTA */}
+              <button
+                type="button"
+                onClick={handlePlaceOrderClick}
+                disabled={loading || items.length === 0}
+                className="mt-6 w-full py-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] via-red-700 to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+              >
+                <ShieldCheck size={19} />
+                <span>
+                  {payment === "cod" 
+                    ? "បញ្ជាក់ការបញ្ជាទិញ • Place Order COD" 
+                    : payment === "visa" 
+                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Card` 
+                    : `ទូទាត់ ${fmtUSD(total)} ជាមួយ KHQR`}
+                </span>
+              </button>
             </div>
 
-            <div className="border-t border-gray-100 dark:border-white/10 pt-3 space-y-2 text-xs">
-              <div className="flex justify-between text-gray-500 dark:text-gray-400">
-                <span>{t("subtotal")}</span>
-                <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(subtotal)}</span>
+            {/* Store Assurances Trust Box */}
+            <div className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
+                <Shield size={16} className="text-[#8B1A1A] shrink-0" />
+                <span>ធានាផលិតផលសុទ្ធ ១០០% ជាមួយការធានាផ្លូវការ ១ ឆ្នាំពេញ</span>
               </div>
-              <div className="flex justify-between text-gray-500 dark:text-gray-400">
-                <span>{t("deliveryFee")}</span>
-                <span className="font-bold text-gray-900 dark:text-white font-mono">{fmtUSD(deliveryFee)}</span>
+              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
+                <RefreshCw size={16} className="text-blue-600 shrink-0" />
+                <span>គោលការណ៍ប្តូរទំនិញថ្មីក្នុង ៧ ថ្ងៃ ប្រសិនបើមានបញ្ហាបច្ចេកទេស</span>
               </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
-                  <span className="flex items-center gap-1">
-                    <Tag size={12} />
-                    <span>Discount ({appliedPromo?.code})</span>
-                  </span>
-                  <span className="font-mono">-{fmtUSD(discountAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-base font-extrabold text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-white/10">
-                <span>{t("orderTotal")}</span>
-                <span className="text-[#8B1A1A] dark:text-red-400 font-mono">{fmtUSD(total)}</span>
+              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
+                <Smartphone size={16} className="text-emerald-600 shrink-0" />
+                <span>ទទួលវិក្កយបត្រ & ដំណឹងតាម Telegram និង SMS Real-time</span>
               </div>
-              <div className="text-right text-[11px] text-gray-400">{fmtKHR(total)}</div>
             </div>
-
-            {/* Checkout CTA */}
-            <button
-              type="button"
-              onClick={handlePlaceOrderClick}
-              disabled={loading || items.length === 0}
-              className="mt-5 w-full py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <ShieldCheck size={18} />
-              <span>
-                {payment === "cod" 
-                  ? "Place Order • បញ្ជាទិញ" 
-                  : payment === "visa" 
-                  ? `Pay ${fmtUSD(total)} with Card` 
-                  : `Pay ${fmtUSD(total)} with KHQR`}
-              </span>
-            </button>
           </div>
+
         </div>
       </div>
 
@@ -1095,13 +1331,13 @@ export default function CheckoutPage() {
                   setShowKHQRModal(false);
                   if (pollingRef.current) clearInterval(pollingRef.current);
                 }}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1 rounded-lg hover:bg-gray-100"
               >
                 <X size={20} />
               </button>
 
               {/* KHQR Header Banner */}
-              <div className="bg-[#E1251B] text-white py-1.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 mb-3 shadow-sm">
+              <div className="bg-[#E1251B] text-white py-1.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 mb-3 shadow-xs">
                 <QrCode size={16} />
                 <span>NBC BAKONG KHQR</span>
               </div>
@@ -1110,7 +1346,7 @@ export default function CheckoutPage() {
                 S TECH STORE CAMBODIA
               </h3>
               <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
-                Scan with ABA Mobile, Bakong, Wing, ACLEDA, or any Cambodian banking app
+                ស្កេនទូទាត់ជាមួយ ABA Mobile, Bakong, Wing, ACLEDA ឬ App ធនាគារណាមួយនៅកម្ពុជា
               </p>
 
               {/* QR Code Container */}
@@ -1129,7 +1365,7 @@ export default function CheckoutPage() {
 
               {/* Amount Display */}
               <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-3 mb-4 border border-gray-100 dark:border-white/5">
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">Total Payable Amount</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">Total Payable Amount ទឹកប្រាក់សរុប</div>
                 <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
                   {fmtUSD(khqrSession.amount_usd)}
                 </div>
@@ -1140,30 +1376,28 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* ── 1-Click Mobile Banking Deeplinks ── */}
+              {/* 1-Click Mobile Banking Deeplinks */}
               <div className="space-y-2 mb-4">
                 <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider text-left pl-1">
                   Or Pay Directly on Mobile:
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  {/* ABA Mobile Deeplink */}
                   <a
                     href={khqrSession.deeplinks.aba || `aba://pay?tran_id=${khqrSession.order_id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-sm"
+                    className="py-2.5 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
                   >
                     <Smartphone size={13} />
                     <span>ABA Mobile</span>
                   </a>
 
-                  {/* Bakong App Deeplink */}
                   <a
                     href={khqrSession.deeplinks.bakong || `bakong://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="py-2.5 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-sm"
+                    className="py-2.5 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
                   >
                     <Smartphone size={13} />
                     <span>Bakong App</span>
@@ -1175,7 +1409,7 @@ export default function CheckoutPage() {
               <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                  Waiting for your bank settlement...
+                  កំពុងរង់ចាំការទូទាត់ពីធនាគាររបស់អ្នក...
                 </span>
               </div>
 
@@ -1187,7 +1421,7 @@ export default function CheckoutPage() {
                   className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
-                  <span>I Have Completed Payment</span>
+                  <span>ខ្ញុំបានទូទាត់រួចរាល់ (I Have Paid)</span>
                 </button>
                 <button
                   type="button"
@@ -1197,7 +1431,7 @@ export default function CheckoutPage() {
                   }}
                   className="w-full py-2 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
                 >
-                  Change Payment Method
+                  ផ្លាស់ប្តូរវិធីទូទាត់ (Change Method)
                 </button>
               </div>
             </motion.div>

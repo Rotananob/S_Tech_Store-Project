@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
-import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
 import api from "@/lib/api";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -183,6 +184,13 @@ export default function RegisterPage() {
       }
     }
 
+    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    if (!cleanUsername) {
+      setError("សូមបញ្ចូល Username ឱ្យបានត្រឹមត្រូវ (Please enter a valid username: letters, numbers, _, -)");
+      setLoading(false);
+      return;
+    }
+
     setAuthOverlay({
       show: true,
       title: "កំពុងដំណើរការបង្កើតគណនី... / Creating Account...",
@@ -192,18 +200,53 @@ export default function RegisterPage() {
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+      const realDisplayName = name.trim() ? `${name.trim()} (@${cleanUsername})` : `@${cleanUsername}`;
+      try {
+        await updateProfile(cred.user, { displayName: realDisplayName });
+      } catch (e) {
+        console.warn("Failed to set Firebase displayName:", e);
+      }
+
+      // Update backend user profile immediately with real username & display_name
+      try {
+        await api.put("/user/profile", {
+          display_name: name.trim() || cleanUsername,
+          username: cleanUsername,
+          email: email.trim(),
+        }, {
+          headers: { "X-Firebase-UID": cred.user.uid }
+        });
+      } catch (e) {
+        console.warn("Failed to sync profile to backend:", e);
+      }
+
+      // Store in local sessions so profile & navbar immediately display user's real username
+      const userSession = {
+        uid: cred.user.uid,
+        firebase_uid: cred.user.uid,
+        name: name.trim() || cleanUsername,
+        username: cleanUsername,
+        display_name: name.trim() || cleanUsername,
+        email: email.trim(),
+        provider: "email",
+      };
+      localStorage.setItem("user_session", JSON.stringify(userSession));
+      localStorage.setItem("stech_user_session", JSON.stringify(userSession));
+      window.dispatchEvent(new Event("user_session_updated"));
+
       // Create real welcome notification in database
       await api.post("/user/notifications", {
-        title: "Welcome to S Tech Store! 🎉",
-        message: "Thank you for joining Cambodia's #1 genuine tech store. Enjoy 1-year official warranty on all products!",
+        title: `Welcome @${cleanUsername}! 🎉`,
+        message: `Thank you ${name.trim() || cleanUsername} for joining Cambodia's #1 genuine tech store. Enjoy 1-year official warranty on all products!`,
         type: "welcome",
       });
       useNotificationStore.getState().fetchNotifications();
 
       setAuthOverlay({
         show: true,
-        title: "បង្កើតគណនីបានជោគជ័យ! 🎉",
-        subtitle: "សូមស្វាគមន៍មកកាន់ S Tech Store កំពុងបញ្ជូនទៅកាន់ទំព័រដើម... (Redirecting...)",
+        title: `បង្កើតគណនីបានជោគជ័យ! 🎉`,
+        subtitle: `សូមស្វាគមន៍ @${cleanUsername}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម... (Redirecting...)`,
         isSuccess: true,
       });
 
@@ -657,13 +700,13 @@ export default function RegisterPage() {
           {/* Name */}
           <div>
             <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
-              Full Name
+              Full Name (ឈ្មោះពេញ)
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter your full name"
+              placeholder="Enter your full name (e.g. Sokha Chan)"
               style={{
                 width: "100%",
                 background: "rgba(255,255,255,0.04)",
@@ -678,6 +721,42 @@ export default function RegisterPage() {
               onFocus={(e) => (e.target.style.borderColor = "#c0392b")}
               onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
             />
+          </div>
+
+          {/* Username */}
+          <div>
+            <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", fontWeight: "600", color: "rgba(255,255,255,0.7)", marginBottom: "8px" }}>
+              <span>Username (ឈ្មោះគណនី / សម្គាល់) *</span>
+              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>@username</span>
+            </label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", fontWeight: "bold", fontSize: "14px", pointerEvents: "none" }}>
+                @
+              </span>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ""))}
+                placeholder="e.g. sokha99, tech_pro"
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "8px",
+                  padding: "12px 16px 12px 34px",
+                  color: "white",
+                  fontSize: "14px",
+                  outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#c0392b")}
+                onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+              />
+            </div>
+            <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "6px", marginInlineStart: "2px" }}>
+              ឈ្មោះនេះនឹងត្រូវយកទៅដាក់លើ Profile & Chat របស់អ្នកផ្ទាល់ (Will be used as your real profile username)
+            </p>
           </div>
 
           {/* Email */}

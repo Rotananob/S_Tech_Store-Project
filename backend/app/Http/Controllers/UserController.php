@@ -385,6 +385,8 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'display_name' => 'nullable|string|max:255',
+            'username' => 'nullable|string|max:100',
+            'email' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:30',
             'address' => 'nullable|string|max:500',
             'city' => 'nullable|string|max:100',
@@ -403,6 +405,10 @@ class UserController extends Controller
             'notif_telegram' => 'nullable|boolean',
             'telegram_chat_id' => 'nullable|string|max:100',
         ]);
+
+        if (empty($validated['display_name']) && !empty($validated['username'])) {
+            $validated['display_name'] = $validated['username'];
+        }
 
         $profile = UserProfile::firstOrCreate(['firebase_uid' => $uid]);
         $profile->update($validated);

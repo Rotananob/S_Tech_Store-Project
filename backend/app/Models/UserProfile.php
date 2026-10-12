@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserProfile extends Model
 {
     protected $fillable = [
-        'firebase_uid', 'display_name', 'email', 'photo_url',
+        'firebase_uid', 'display_name', 'username', 'email', 'photo_url',
         'phone', 'address', 'city', 'delivery_notes',
         'gps_lat', 'gps_lng', 'telegram', 'telegram_chat_id', 'notif_telegram', 'profession', 'gender', 'birthday',
         'two_fa_enabled', 'notif_orders', 'notif_promos', 'notif_builds',
