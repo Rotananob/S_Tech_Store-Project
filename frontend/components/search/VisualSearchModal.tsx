@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Camera, RefreshCw, Upload, Sparkles, ShoppingCart, Check, Zap, AlertCircle, ArrowRight } from "lucide-react";
+import { X, Camera, RefreshCw, Upload, Sparkles, ShoppingCart, Check, Zap, AlertCircle, ArrowRight, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVisualSearchStore } from "@/store/visualSearchStore";
 import { useCartStore } from "@/store/cartStore";
@@ -68,11 +68,13 @@ export default function VisualSearchModal() {
     confidence: string;
   } | null>(null);
   const [matchedProducts, setMatchedProducts] = useState<Product[]>([]);
+  const [isExactMatch, setIsExactMatch] = useState<boolean>(true);
   const [addedId, setAddedId] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const albumInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Stop camera helper
   const stopCamera = useCallback(() => {
@@ -119,6 +121,7 @@ export default function VisualSearchModal() {
       setCapturedImage(null);
       setAnalyzedItem(null);
       setMatchedProducts([]);
+      setIsExactMatch(true);
       startCamera();
     } else {
       stopCamera();
@@ -154,13 +157,21 @@ export default function VisualSearchModal() {
       const result = reader.result as string;
       setCapturedImage(result);
       stopCamera();
-      runVisualAnalysis(file.name.replace(/\.[^/.]+$/, "") || "Uploaded Tech Item", "រូបភាពដែលបានបញ្ចូល");
+      const rawName = file.name.replace(/\.[^/.]+$/, "");
+      runVisualAnalysis(rawName || "Uploaded Tech Item", "រូបភាពដែលបានបញ្ចូល", undefined, undefined, rawName);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // Run visual recognition & product matching
-  const runVisualAnalysis = async (label: string, labelKh: string, presetKeywords?: string[], presetConfidence?: string) => {
+  const runVisualAnalysis = async (
+    label: string, 
+    labelKh: string, 
+    presetKeywords?: string[], 
+    presetConfidence?: string,
+    fileNameHint?: string
+  ) => {
     setIsAnalyzing(true);
     setMatchedProducts([]);
 
@@ -169,24 +180,54 @@ export default function VisualSearchModal() {
       const allProductsRes = await getProducts();
       const allProducts: Product[] = Array.isArray(allProductsRes) ? allProductsRes : (allProductsRes?.data || []);
 
-      // Simulate Taobao-like neural analysis timing (1.2s)
-      await new Promise((r) => setTimeout(r, 1200));
+      // Simulate neural analysis timing (1.0s)
+      await new Promise((r) => setTimeout(r, 1000));
 
-      const keywords = presetKeywords || ["laptop", "desktop", "gaming", "parts", "monitor"];
-      const matched = allProducts.filter((p) => {
-        const text = `${p.name} ${p.description || ""} ${typeof p.category === "object" ? p.category?.name : p.category || ""}`.toLowerCase();
-        return keywords.some((kw) => text.includes(kw));
-      });
+      let matched: Product[] = [];
+      let exact = false;
 
-      // If no direct keyword match, fallback to top featured products
-      const finalMatches = matched.length > 0 ? matched : allProducts;
+      if (presetKeywords && presetKeywords.length > 0) {
+        // Preset sample item click
+        matched = allProducts.filter((p) => {
+          const text = `${p.name} ${p.description || ""} ${typeof p.category === "object" ? p.category?.name : p.category || ""}`.toLowerCase();
+          return presetKeywords.some((kw) => text.includes(kw.toLowerCase()));
+        });
+        exact = matched.length > 0;
+      } else if (fileNameHint) {
+        // Filename keyword extraction
+        const cleanHint = fileNameHint.toLowerCase().replace(/[^a-z0-9]/g, " ");
+        const words = cleanHint.split(/\s+/).filter((w) => w.length > 2 && !["image", "img", "photo", "pic", "screenshot", "camera", "uploaded"].includes(w));
+        
+        if (words.length > 0) {
+          matched = allProducts.filter((p) => {
+            const text = `${p.name} ${p.description || ""} ${typeof p.category === "object" ? p.category?.name : p.category || ""}`.toLowerCase();
+            return words.some((w) => text.includes(w));
+          });
+        }
+        exact = matched.length > 0;
+      } else {
+        // Live camera scan without specific hints
+        exact = false;
+      }
 
-      setAnalyzedItem({
-        name: label,
-        labelKh,
-        confidence: presetConfidence || "97.8%",
-      });
-      setMatchedProducts(finalMatches);
+      setIsExactMatch(exact);
+
+      if (exact && matched.length > 0) {
+        setAnalyzedItem({
+          name: label,
+          labelKh,
+          confidence: presetConfidence || "98.2%",
+        });
+        setMatchedProducts(matched);
+      } else {
+        // When item not found yet, show clear Khmer notice and store products as alternatives
+        setAnalyzedItem({
+          name: label || "Scan Item",
+          labelKh: "មិនទាន់មានម៉ូឌែលដូចគ្នានេះទេ",
+          confidence: "ជម្រើសជំនួស",
+        });
+        setMatchedProducts(allProducts.slice(0, 12));
+      }
     } catch (err) {
       console.error("Visual search matching error:", err);
     } finally {
@@ -206,6 +247,7 @@ export default function VisualSearchModal() {
     setCapturedImage(null);
     setAnalyzedItem(null);
     setMatchedProducts([]);
+    setIsExactMatch(true);
     startCamera();
   };
 
@@ -293,21 +335,40 @@ export default function VisualSearchModal() {
                 <p className="text-xs text-gray-400 mb-5 leading-relaxed">
                   សូមអនុញ្ញាត Camera ឬជ្រើសរើសរូបភាពពី Gallery ដើម្បីស្កេនរកផលិតផល។
                 </p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:brightness-110 cursor-pointer border-none"
-                >
-                  <Upload size={16} />
-                  <span>Upload Image from Gallery</span>
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => albumInputRef.current?.click()}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-lg cursor-pointer border-none"
+                  >
+                    <ImageIcon size={16} />
+                    <span>ជ្រើសរូបពីអាល់ប៊ុមទូរស័ព្ទ (Photo Album)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-xs font-bold flex items-center gap-2 shadow-lg hover:brightness-110 cursor-pointer border-none"
+                  >
+                    <Camera size={16} />
+                    <span>ថតរូបផ្ទាល់ (Take Photo)</span>
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Hidden File Input for Native Camera / Photo Gallery */}
+            {/* Hidden File Input for Device Photo Album (NO capture attr -> opens phone album/gallery) */}
             <input
               type="file"
-              ref={fileInputRef}
+              ref={albumInputRef}
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+
+            {/* Hidden File Input for Native Camera Shutter */}
+            <input
+              type="file"
+              ref={cameraInputRef}
               accept="image/*"
               capture="environment"
               onChange={handleFileUpload}
@@ -382,28 +443,80 @@ export default function VisualSearchModal() {
               className="bg-[#161920] border-t border-white/10 p-4 sm:p-5 max-h-[70vh] sm:max-h-[520px] overflow-y-auto"
             >
               {/* Analysis Result Banner */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-black text-white">
-                      Matched: {analyzedItem?.name}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[11px] font-extrabold border border-emerald-500/30">
-                      {analyzedItem?.confidence} Accuracy
-                    </span>
+              {!isExactMatch ? (
+                <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm sm:text-base font-black text-amber-300">
+                          🔍 មិនទាន់រកឃើញទំនិញដូចគ្នាបេះបិទនេះទេ (Item Not Found Yet)
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-500/40">
+                          ជម្រើសជំនួស (Alternatives)
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-200/80 mt-1 leading-relaxed">
+                        យើងមិនទាន់មានម៉ូឌែលដូចគ្នានេះនៅក្នុងស្តុកទេ ប៉ុន្តែខាងក្រោមនេះជាផលិតផលពេញនិយម និងស្រដៀងគ្នាដែលលោកអ្នកប្រហែលជាចាប់អារម្មណ៍ជំនួសវិញ៖
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {analyzedItem?.labelKh} — រកឃើញ <b className="text-white">{matchedProducts.length} ផលិតផល</b> (Scroll ចុះក្រោមដើម្បីមើលទាំងអស់)
-                  </p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => albumInputRef.current?.click()}
+                      className="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer border border-blue-500/30 flex items-center gap-1.5 active:scale-95"
+                    >
+                      <ImageIcon size={13} />
+                      <span>ជ្រើសរូបពីអាល់ប៊ុម</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRetake}
+                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 active:scale-95"
+                    >
+                      <RefreshCw size={13} />
+                      <span>ថតម្ដងទៀត</span>
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleRetake}
-                  className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 active:scale-95 shrink-0"
-                >
-                  <RefreshCw size={13} />
-                  <span>Scan Again</span>
-                </button>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm sm:text-base font-black text-white">
+                        Matched: {analyzedItem?.name}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 text-[11px] font-extrabold border border-emerald-500/30">
+                        {analyzedItem?.confidence} Accuracy
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {analyzedItem?.labelKh} — រកឃើញ <b className="text-white">{matchedProducts.length} ផលិតផលត្រូវគ្នា</b> (Scroll ចុះក្រោមដើម្បីមើលទាំងអស់)
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => albumInputRef.current?.click()}
+                      className="px-3 py-2 bg-white/10 hover:bg-white/20 text-gray-200 rounded-xl text-xs font-bold transition-all cursor-pointer border border-white/10 flex items-center gap-1.5 active:scale-95"
+                    >
+                      <ImageIcon size={13} />
+                      <span className="hidden sm:inline">អាល់ប៊ុម</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRetake}
+                      className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border-none flex items-center gap-1.5 active:scale-95 shrink-0"
+                    >
+                      <RefreshCw size={13} />
+                      <span>Scan Again</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Matched Product Cards Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 pb-6">
@@ -428,8 +541,10 @@ export default function VisualSearchModal() {
                           ) : (
                             <div className="text-gray-500 text-xs">No image</div>
                           )}
-                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-emerald-500 text-[10px] font-bold text-white shadow-sm">
-                            In Stock
+                          <span className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-sm ${
+                            isExactMatch ? "bg-emerald-500" : "bg-amber-600"
+                          }`}>
+                            {isExactMatch ? "In Stock" : "ជម្រើសជំនួស (Alternative)"}
                           </span>
                         </div>
 
@@ -500,11 +615,11 @@ export default function VisualSearchModal() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => albumInputRef.current?.click()}
                   className="text-xs text-red-400 hover:text-red-300 font-bold flex items-center gap-1 cursor-pointer border-none bg-transparent"
                 >
-                  <Upload size={13} />
-                  <span>Upload Photo</span>
+                  <ImageIcon size={13} />
+                  <span>ជ្រើសរូបពីអាល់ប៊ុម (Albums)</span>
                 </button>
               </div>
               <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar pb-1.5 pt-0.5">
@@ -527,21 +642,28 @@ export default function VisualSearchModal() {
 
             {/* Camera Actions Bar */}
             <div className="flex items-center justify-between gap-3">
-              {/* Photo Upload from Gallery */}
+              {/* Photo Upload from Phone Album */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-bold transition-all cursor-pointer border border-white/15 active:scale-95 shadow-sm"
+                onClick={() => albumInputRef.current?.click()}
+                className="flex items-center gap-2 px-3.5 sm:px-4 py-3 rounded-2xl bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 hover:text-white text-xs sm:text-sm font-bold transition-all cursor-pointer border border-blue-500/30 active:scale-95 shadow-sm"
+                title="ជ្រើសរូបពីអាល់ប៊ុមទូរស័ព្ទ (Photo Albums)"
               >
-                <Upload size={17} className="text-red-400" />
-                <span>Upload (Album)</span>
+                <ImageIcon size={17} className="text-blue-400" />
+                <span>អាល់ប៊ុមរូបថត (Albums)</span>
               </button>
 
               {/* Shutter Button */}
               {!capturedImage ? (
                 <button
                   type="button"
-                  onClick={handleCapture}
+                  onClick={() => {
+                    if (hasCameraPermission) {
+                      handleCapture();
+                    } else {
+                      cameraInputRef.current?.click();
+                    }
+                  }}
                   className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white p-1 flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer border-none"
                   aria-label="Capture photo to scan"
                 >
@@ -560,14 +682,18 @@ export default function VisualSearchModal() {
                 </button>
               )}
 
-              {/* Flip Camera (Front / Rear) */}
+              {/* Flip Camera (Front / Rear) or Direct Camera Launcher */}
               <button
                 type="button"
                 onClick={() => {
-                  setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+                  if (hasCameraPermission) {
+                    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+                  } else {
+                    cameraInputRef.current?.click();
+                  }
                 }}
                 className="flex items-center gap-2 px-3.5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-bold transition-colors cursor-pointer border border-white/15 active:scale-95"
-                title="Flip Camera"
+                title="Flip Camera or Shutter"
               >
                 <RefreshCw size={15} />
                 <span className="hidden sm:inline">Flip</span>

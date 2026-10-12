@@ -221,12 +221,14 @@ export default function CheckoutPage() {
   const discountAmount = appliedPromo ? Number(appliedPromo.discount_amount) : 0;
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);
 
-  const handleApplyPromo = async () => {
-    if (!promoInput.trim()) return;
+  const handleApplyPromo = async (codeToApply?: string) => {
+    const targetCode = (typeof codeToApply === "string" ? codeToApply : promoInput).trim().toUpperCase();
+    if (!targetCode) return;
+    setPromoInput(targetCode);
     setPromoLoading(true);
     setPromoError("");
     setPromoSuccessMsg("");
-    const res = await validatePromoCode(promoInput.trim(), subtotal);
+    const res = await validatePromoCode(targetCode, subtotal);
     setPromoLoading(false);
     if (res.success && res.data) {
       setAppliedPromo(res.data);
@@ -982,21 +984,49 @@ export default function CheckoutPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={handleApplyPromo}
+                      onClick={() => handleApplyPromo()}
                       disabled={promoLoading || !promoInput.trim()}
                       className="px-3.5 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-40 shrink-0"
                     >
                       {promoLoading ? "..." : "Apply"}
                     </button>
                   </div>
+
+                  {/* Quick-Apply Promo Suggestions */}
+                  <div className="mt-2.5">
+                    <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                      <Sparkles size={11} className="text-amber-500" />
+                      <span>កូដប្រូម៉ូសិនដែលអាចប្រើបាន (Tap to Apply):</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { code: "STECH20", label: "STECH20 (20% OFF)" },
+                        { code: "PROMO", label: "PROMO (20% OFF)" },
+                        { code: "PCHUM", label: "PCHUM (30% OFF)" },
+                        { code: "WELCOME", label: "WELCOME ($10 OFF)" },
+                      ].map((item) => (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => handleApplyPromo(item.code)}
+                          disabled={promoLoading}
+                          className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                        >
+                          <Tag size={10} />
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {promoError && (
-                    <div className="mt-1.5 text-[11px] text-red-500 font-medium flex items-center gap-1">
+                    <div className="mt-2 text-[11px] text-red-500 font-medium flex items-center gap-1">
                       <AlertCircle size={12} />
                       <span>{promoError}</span>
                     </div>
                   )}
                   {promoSuccessMsg && (
-                    <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <div className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
                       <CheckCircle2 size={12} />
                       <span>{promoSuccessMsg}</span>
                     </div>

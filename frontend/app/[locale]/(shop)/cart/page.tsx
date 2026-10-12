@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { Trash2, Lock, Truck, ArrowRight, Check, ShieldCheck } from "lucide-react";
+import { Trash2, Lock, Truck, ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
@@ -201,6 +201,17 @@ export default function CartPage() {
                   <div className="text-xs text-gray-400 font-bold text-right mb-6">
                     {formatKHR(subtotal)}
                   </div>
+                </div>
+
+                {/* Promo Code Teaser */}
+                <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs">
+                  <div className="font-extrabold flex items-center gap-1.5 mb-1 text-amber-800 dark:text-amber-300">
+                    <Sparkles size={13} className="text-amber-500" />
+                    <span>កូដប្រូម៉ូសិនពិសេស (Promo Codes Available)</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
+                    ប្រើកូដ <span className="font-mono font-black text-red-600 dark:text-red-400 bg-white dark:bg-black/40 px-1 py-0.5 rounded border border-amber-500/30">STECH20</span> ឬ <span className="font-mono font-black text-red-600 dark:text-red-400 bg-white dark:bg-black/40 px-1 py-0.5 rounded border border-amber-500/30">PROMO</span> នៅទំព័រ Checkout ដើម្បីបញ្ចុះតម្លៃ ២០% ភ្លាមៗ!
+                  </p>
                 </div>
 
                 <Link
