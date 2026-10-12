@@ -103,6 +103,9 @@ export const metadata: Metadata = {
     shortcut: '/logo.jpg',
     apple: '/icons/icon-192.png',
   },
+  verification: {
+    google: '3660d58f4e2bffb0',
+  },
 };
 
 const organizationSchema = {
