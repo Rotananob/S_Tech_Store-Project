@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { ArrowUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePathname } from "@/i18n/routing";
 
 export default function ScrollToTopButton() {
   const [isVisible, setIsVisible] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const toggleVisibility = () => {
@@ -19,6 +21,15 @@ export default function ScrollToTopButton() {
     window.addEventListener("scroll", toggleVisibility);
     return () => window.removeEventListener("scroll", toggleVisibility);
   }, []);
+
+  // Hide on admin/management routes to avoid colliding with action bars & form docks
+  if (
+    pathname?.startsWith("/rok-mix-khernh") ||
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/stech-hq-portal")
+  ) {
+    return null;
+  }
 
   const scrollToTop = () => {
     window.scrollTo({

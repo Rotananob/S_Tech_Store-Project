@@ -308,7 +308,7 @@ export default function EditProductPage(props: {
   );
 
   return (
-    <div className="font-sans max-w-6xl mx-auto pb-28 md:pb-16 relative">
+    <div className="font-sans max-w-6xl mx-auto pb-36 sm:pb-20 relative">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-6 right-6 z-[99999] px-5 py-3 rounded-xl shadow-xl font-medium text-sm text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} animate-in fade-in slide-in-from-top-4 duration-200`}>
@@ -701,23 +701,24 @@ export default function EditProductPage(props: {
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Regular Price (USD) <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign size={16} className="text-gray-400" />
-                    </div>
+                  <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-300 focus-within:border-[#8B1A1A] focus-within:ring-2 focus-within:ring-red-500/20 rounded-xl transition-all px-3.5">
+                    <span className="font-extrabold text-[#8B1A1A] bg-red-50 px-2 py-0.5 rounded-md text-xs mr-2">
+                      $
+                    </span>
                     <input 
                       type="text" 
                       value={price} 
                       onChange={e => setPrice(e.target.value)} 
-                      placeholder="e.g. 1199.00" 
-                      className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono font-bold" 
+                      placeholder="1199.00" 
+                      className="w-full bg-transparent outline-none font-mono font-bold text-base text-gray-900" 
                     />
+                    <span className="text-xs font-bold text-gray-400 uppercase">USD</span>
                   </div>
                   {khrEquivalent && (
-                    <div className="mt-1.5 text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100 flex items-center justify-between">
+                    <div className="mt-2 text-[11px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100 flex items-center justify-between">
                       <span>សមមូល:</span>
                       <span>~ {khrEquivalent} KHR</span>
                     </div>
@@ -725,35 +726,62 @@ export default function EditProductPage(props: {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Sale Price (USD)
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign size={16} className="text-gray-400" />
-                    </div>
+                  <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl transition-all px-3.5">
+                    <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-xs mr-2">
+                      $
+                    </span>
                     <input 
                       type="text" 
                       value={salePrice} 
                       onChange={e => setSalePrice(e.target.value)} 
-                      placeholder="e.g. 999.00 (Optional)" 
-                      className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono font-bold text-emerald-700" 
+                      placeholder="999.00 (Optional)" 
+                      className="w-full bg-transparent outline-none font-mono font-bold text-base text-emerald-700" 
                     />
+                    <span className="text-xs font-bold text-gray-400 uppercase">USD</span>
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Stock Quantity <span className="text-red-500">*</span>
                   </label>
-                  <input 
-                    type="number" 
-                    value={stock} 
-                    onChange={e => setStock(e.target.value)} 
-                    placeholder="0" 
-                    min="0"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono font-bold" 
-                  />
+                  <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-300 focus-within:border-[#8B1A1A] focus-within:ring-2 focus-within:ring-red-500/20 rounded-xl transition-all px-3.5">
+                    <input 
+                      type="number" 
+                      value={stock} 
+                      onChange={e => setStock(e.target.value)} 
+                      placeholder="0" 
+                      min="0"
+                      className="w-full bg-transparent outline-none font-mono font-bold text-base text-gray-900" 
+                    />
+                    <span className="text-xs font-bold text-gray-400 uppercase">Units</span>
+                  </div>
+
+                  {/* Quick Add Stock Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-gray-400 font-bold mr-0.5">រហ័ស:</span>
+                    {[5, 10, 20, 50].map((qty) => (
+                      <button
+                        key={qty}
+                        type="button"
+                        onClick={() => setStock(qty.toString())}
+                        className="h-7 px-2 rounded-lg bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-mono font-bold transition-all cursor-pointer border border-gray-200/50"
+                      >
+                        +{qty}
+                      </button>
+                    ))}
+                    <button
+                      key="clear"
+                      type="button"
+                      onClick={() => setStock("0")}
+                      className="h-7 px-2.5 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-600 text-xs font-bold transition-all cursor-pointer border border-rose-200/60"
+                    >
+                      អស់ស្តុក
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -986,8 +1014,8 @@ export default function EditProductPage(props: {
           </div>
         </div>
 
-        {/* ─── Dedicated Bottom Action Footer Card ─── */}
-        <div className="mt-8 bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* ─── Dedicated Bottom Action Footer Card (Desktop & Tablets Only) ─── */}
+        <div className="mt-8 hidden md:flex bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-50 text-[#8B1A1A] flex items-center justify-center shrink-0">
               <Package size={20} />
@@ -1021,23 +1049,23 @@ export default function EditProductPage(props: {
           </div>
         </div>
 
-        {/* ─── Mobile Sticky Floating Bottom Action Bar ─── */}
-        <div className="block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md p-3 border-t border-gray-200/90 shadow-2xl">
+        {/* ─── Mobile Sticky Floating Bottom Action Bar (Native Mobile App Quality) ─── */}
+        <div className="block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl px-3.5 pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)] border-t border-gray-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
           <div className="flex items-center gap-2 max-w-lg mx-auto">
             <Link
               href="/rok-mix-khernh/products"
-              className="py-3 px-4 bg-gray-100 active:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs text-center no-underline cursor-pointer min-h-[46px] flex items-center justify-center"
+              className="h-11 px-4 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 rounded-xl font-bold text-xs text-center no-underline cursor-pointer flex items-center justify-center shrink-0 border border-gray-200/60"
             >
-              Cancel
+              បោះបង់
             </Link>
             <button
               type="button"
               onClick={handleSave}
               disabled={loadingProduct}
-              className="flex-1 min-h-[46px] py-3 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 active:scale-98 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-900/25 cursor-pointer disabled:opacity-50"
+              className="flex-1 h-11 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-[#6B1010] hover:to-red-700 active:scale-98 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-950/25 cursor-pointer disabled:opacity-50"
             >
-              <Package size={16} />
-              <span>Update Product (រក្សាទុក)</span>
+              <Package size={17} />
+              <span>រក្សាទុកការកែប្រែ (Update)</span>
             </button>
           </div>
         </div>

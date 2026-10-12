@@ -269,7 +269,7 @@ export default function AddNewProductPage() {
   );
 
   return (
-    <div className="font-sans max-w-6xl mx-auto pb-28 md:pb-16 relative">
+    <div className="font-sans max-w-6xl mx-auto pb-36 sm:pb-20 relative">
       {/* ─── UX Popup Modal for Adding Product ─── */}
       {modalState !== "idle" && (
         <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -698,7 +698,7 @@ export default function AddNewProductPage() {
               </div>
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                  តម្លៃ និងស្តុកទំនិញ (Pricing & Inventory)
+                  តម្លៃ និងស្តុកទំនិញ (Pricing &amp; Inventory)
                 </h2>
                 <p className="text-[11px] text-gray-400">
                   កំណត់តម្លៃលក់ជាដុល្លារ ($) និងចំនួនទំនិញក្នុងស្តុក
@@ -709,13 +709,13 @@ export default function AddNewProductPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Price USD */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Price (USD) <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <span className="font-bold text-gray-500 text-sm">$</span>
-                  </div>
+                <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-200 focus-within:border-[#8B1A1A] focus-within:ring-2 focus-within:ring-red-500/20 rounded-xl transition-all px-3.5">
+                  <span className="font-extrabold text-[#8B1A1A] bg-red-50 px-2 py-0.5 rounded-md text-xs mr-2">
+                    $
+                  </span>
                   <input
                     type="number"
                     step="any"
@@ -723,50 +723,52 @@ export default function AddNewProductPage() {
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-9 pr-14 py-2.5 border border-gray-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all font-mono font-bold text-gray-900 bg-gray-50/30 focus:bg-white"
+                    className="w-full bg-transparent outline-none font-mono font-bold text-base sm:text-lg text-gray-900"
                   />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-xs font-bold text-gray-400">USD</span>
-                  </div>
+                  <span className="text-xs font-extrabold text-gray-400 shrink-0 uppercase tracking-wider">
+                    USD
+                  </span>
                 </div>
 
                 {/* Live KHR Riel conversion badge */}
                 {khrEquivalent && (
-                  <div className="mt-2 text-xs font-mono text-emerald-700 font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center justify-between">
-                    <span>សមមូលប្រាក់រៀល:</span>
-                    <span>~ {khrEquivalent} KHR</span>
+                  <div className="mt-2.5 text-xs font-mono text-emerald-700 font-bold bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-100 flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Sparkles size={12} className="text-emerald-600" /> សមមូលប្រាក់រៀល:
+                    </span>
+                    <span className="text-emerald-800">~ {khrEquivalent} KHR</span>
                   </div>
                 )}
               </div>
 
               {/* Stock Quantity */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Stock Quantity (ចំនួនក្នុងស្តុក) <span className="text-rose-500">*</span>
                 </label>
-                <div className="relative">
+                <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-200 focus-within:border-[#8B1A1A] focus-within:ring-2 focus-within:ring-red-500/20 rounded-xl transition-all px-3.5">
                   <input
                     type="number"
                     min="0"
                     value={stock}
                     onChange={(e) => setStock(e.target.value)}
                     placeholder="0"
-                    className="w-full px-4 py-2.5 pr-14 border border-gray-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all font-mono font-bold text-gray-900 bg-gray-50/30 focus:bg-white"
+                    className="w-full bg-transparent outline-none font-mono font-bold text-base sm:text-lg text-gray-900"
                   />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-xs font-bold text-gray-400">Units</span>
-                  </div>
+                  <span className="text-xs font-extrabold text-gray-400 shrink-0 uppercase tracking-wider">
+                    Units
+                  </span>
                 </div>
 
                 {/* Quick Add Stock Pills */}
-                <div className="flex items-center gap-1.5 mt-2">
-                  <span className="text-[10px] text-gray-400 font-bold">រហ័ស:</span>
+                <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                  <span className="text-[11px] text-gray-400 font-bold mr-1">រហ័ស:</span>
                   {[5, 10, 20, 50].map((qty) => (
                     <button
                       key={qty}
                       type="button"
                       onClick={() => setStock(qty.toString())}
-                      className="px-2 py-0.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 text-[11px] font-mono font-bold transition-colors cursor-pointer"
+                      className="h-8 px-2.5 rounded-lg bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-xs font-mono font-bold transition-all cursor-pointer border border-gray-200/50"
                     >
                       +{qty}
                     </button>
@@ -775,7 +777,7 @@ export default function AddNewProductPage() {
                     key="clear"
                     type="button"
                     onClick={() => setStock("0")}
-                    className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold transition-colors cursor-pointer"
+                    className="h-8 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-600 text-xs font-bold transition-all cursor-pointer border border-rose-200/60"
                   >
                     អស់ស្តុក
                   </button>
@@ -786,18 +788,58 @@ export default function AddNewProductPage() {
 
           {/* 3. Description & Specs */}
           <div className="bg-white p-5 sm:p-7 rounded-2xl border border-gray-200/80 shadow-xs">
-            <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-gray-100">
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-                <Tag size={17} />
+            <div className="flex items-center justify-between gap-2.5 mb-4 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                  <Tag size={17} />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                    ការពិពណ៌នាទំនិញ (Description &amp; Specifications)
+                  </h2>
+                  <p className="text-[11px] text-gray-400">
+                    លក្ខណៈបច្ចេកទេស ការធានា និងព័ត៌មានបន្ថែមសម្រាប់អតិថិជន
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                  ការពិពណ៌នាទំនិញ (Description &amp; Specifications)
-                </h2>
-                <p className="text-[11px] text-gray-400">
-                  លក្ខណៈបច្ចេកទេស ការធានា និងព័ត៌មានបន្ថែមសម្រាប់អតិថិជន
-                </p>
-              </div>
+            </div>
+
+            {/* Quick Specs Helper Templates */}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">គំរូ Specs:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const tpl = `• CPU: Intel Core i7 / AMD Ryzen 7\n• RAM: 16GB DDR5 5600MHz\n• Storage: 512GB PCIe 4.0 NVMe SSD\n• Display: 15.6" FHD 144Hz IPS\n• GPU: NVIDIA GeForce RTX\n• OS: Windows 11 License\n• ការធានា៖ ១ ឆ្នាំពេញពី S Tech Store\n• ថែមជូន៖ Mouse Gaming, Mousepad, កាបូបស្ពាយ`;
+                  setDescription((prev) => (prev ? prev + "\n\n" + tpl : tpl));
+                  showToast("បានបញ្ចូលគំរូ Laptop Specs!");
+                }}
+                className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold transition-all cursor-pointer border border-purple-200/60 active:scale-95"
+              >
+                + Laptop Specs
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tpl = `• CPU: Intel Core i5 / AMD Ryzen 5\n• Motherboard: B760 / B650 Gaming\n• RAM: 32GB RGB (16GBx2)\n• Storage: 1TB NVMe Gen4\n• GPU: RTX 4060 / 4070 8GB\n• PSU: 650W 80+ Bronze\n• Case: Gaming Case + 4 ARGB Fans\n• ការធានា៖ ២ ឆ្នាំលើគ្រឿងបន្លាស់`;
+                  setDescription((prev) => (prev ? prev + "\n\n" + tpl : tpl));
+                  showToast("បានបញ្ចូលគំរូ PC Builder Specs!");
+                }}
+                className="px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-[11px] font-bold transition-all cursor-pointer border border-sky-200/60 active:scale-95"
+              >
+                + PC Specs
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const tpl = `• ការធានា៖ រយៈពេល ១ ឆ្នាំពេញ ពីហាង S Tech Store\n• ផ្តល់ជូនការដំឡើង Windows និងកម្មវិធីប្រើប្រាស់ដោយឥតគិតថ្លៃ\n• សេវាដឹកជញ្ជូនរហ័សទូទាំង ២៥ ខេត្ត-ក្រុង`;
+                  setDescription((prev) => (prev ? prev + "\n\n" + tpl : tpl));
+                  showToast("បានបញ្ចូលព័ត៌មានការធានា!");
+                }}
+                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold transition-all cursor-pointer border border-emerald-200/60 active:scale-95"
+              >
+                + ការធានា &amp; ដឹកជញ្ជូន
+              </button>
             </div>
 
             <div>
@@ -805,11 +847,11 @@ export default function AddNewProductPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="រៀបរាប់ពីលក្ខណៈសម្បត្តិទំនិញ ឧ. CPU, RAM, Storage, ការធានារយៈពេល ១ ឆ្នាំ, របស់ដែលថែមជូន..."
-                className="w-full h-40 p-4 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all resize-y font-normal text-gray-800 leading-relaxed bg-gray-50/30 focus:bg-white"
+                className="w-full h-44 p-4 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all resize-y font-normal text-gray-800 leading-relaxed bg-gray-50/40 focus:bg-white"
               />
-              <div className="flex justify-between items-center text-[11px] text-gray-400 mt-1.5 px-1">
+              <div className="flex justify-between items-center text-[11px] text-gray-400 mt-2 px-1">
                 <span>គន្លឹះ៖ អាចសរសេរជាចំណុចៗ (Bullet points) ដើម្បីងាយស្រួលអាន</span>
-                <span>{description.length} តួអក្សរ</span>
+                <span className="font-mono">{description.length} តួអក្សរ</span>
               </div>
             </div>
           </div>
@@ -865,7 +907,7 @@ export default function AddNewProductPage() {
                   <button
                     type="button"
                     onClick={handlePasteClipboard}
-                    className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1 cursor-pointer bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100"
                   >
                     <Copy size={11} />
                     <span>Paste Link</span>
@@ -879,7 +921,7 @@ export default function AddNewProductPage() {
                     setImagePreviewError(false);
                   }}
                   placeholder="https://images.unsplash.com/... or https://res.cloudinary.com/..."
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono"
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all font-mono bg-gray-50/40 focus:bg-white"
                 />
 
                 {/* URL Live Preview Card */}
@@ -892,7 +934,7 @@ export default function AddNewProductPage() {
                       <button
                         type="button"
                         onClick={() => setPrimaryImageUrl("")}
-                        className="text-rose-600 hover:text-rose-800 font-bold"
+                        className="text-rose-600 hover:text-rose-800 font-bold cursor-pointer"
                       >
                         សម្អាត
                       </button>
@@ -985,7 +1027,7 @@ export default function AddNewProductPage() {
                         { id: Math.random().toString(), type: "file" },
                       ])
                     }
-                    className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <ImageIcon size={11} /> + File
                   </button>
@@ -997,7 +1039,7 @@ export default function AddNewProductPage() {
                         { id: Math.random().toString(), type: "url", url: "" },
                       ])
                     }
-                    className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <LinkIcon size={11} /> + URL
                   </button>
@@ -1138,8 +1180,8 @@ export default function AddNewProductPage() {
         </div>
       </div>
 
-      {/* ─── 6. Dedicated Bottom Action Footer Card (Always Visible on Page Bottom) ─── */}
-      <div className="mt-8 bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* ─── 6. Dedicated Bottom Action Footer Card (Visible on Desktop / Tablets Only to Prevent Mobile Duplication) ─── */}
+      <div className="mt-8 hidden md:flex bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-50 text-[#8B1A1A] flex items-center justify-center shrink-0">
             <Package size={20} />
@@ -1179,22 +1221,30 @@ export default function AddNewProductPage() {
         </div>
       </div>
 
-      {/* ─── 7. Mobile Sticky Floating Bottom Action Bar (Fixed above Safari/Chrome URL bar) ─── */}
-      <div className="block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md p-3 border-t border-gray-200/90 shadow-2xl">
+      {/* ─── 7. Mobile Sticky Floating Bottom Action Bar (Native Mobile E-Commerce App Quality) ─── */}
+      <div className="block md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl px-3.5 pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)] border-t border-gray-200/90 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
         <div className="flex items-center gap-2 max-w-lg mx-auto">
           <Link
             href="/rok-mix-khernh/products"
-            className="py-3 px-4 bg-gray-100 active:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs text-center no-underline cursor-pointer min-h-[46px] flex items-center justify-center"
+            className="h-11 px-3.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 rounded-xl font-bold text-xs text-center no-underline cursor-pointer flex items-center justify-center shrink-0 border border-gray-200/60"
           >
-            Cancel
+            បោះបង់
           </Link>
           <button
             type="button"
-            onClick={handleSave}
-            className="flex-1 min-h-[46px] py-3 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 active:scale-98 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-900/25 cursor-pointer"
+            onClick={handleResetForm}
+            className="h-11 w-11 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-600 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 border border-gray-200/60 cursor-pointer"
+            title="សម្អាត Form"
           >
-            <Package size={16} />
-            <span>Save Product (រក្សាទុកទំនិញ)</span>
+            <RefreshCw size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex-1 h-11 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-[#6B1010] hover:to-red-700 active:scale-98 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-950/25 cursor-pointer"
+          >
+            <Package size={17} />
+            <span>រក្សាទុកទំនិញ (Save Product)</span>
           </button>
         </div>
       </div>
