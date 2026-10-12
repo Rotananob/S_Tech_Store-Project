@@ -1000,17 +1000,57 @@ export default function UserProfilePage() {
           <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-amber-500/15 via-red-600/15 to-transparent rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
 
-          {/* Top-Right Quick Sign Out Button (Prominent & Accessible at Top) */}
-          <div className="absolute top-5 right-5 sm:top-7 sm:right-8 z-20">
+          {/* Top-Right Unified Controls (Theme Switcher + Sign Out) */}
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 flex items-center gap-2">
+            {/* Minimalist Segmented Theme Switcher */}
+            <div className="flex items-center bg-white/10 dark:bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setTheme("light")}
+                title="Light Mode"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                  theme === "light"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Sun size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("dark")}
+                title="Dark Mode"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                  theme === "dark"
+                    ? "bg-[#8B1A1A] text-white shadow-xs"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Moon size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme("system")}
+                title="System Mode"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                  theme === "system"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Monitor size={13} />
+              </button>
+            </div>
+
+            {/* Clean Sign Out Pill */}
             <button
               type="button"
               onClick={() => setShowLogoutModal(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-200 hover:text-white border border-red-500/35 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md"
-              title="Sign Out • ចាកចេញពីគណនី"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-200 hover:text-white border border-red-500/30 text-xs font-semibold transition-all shadow-xs active:scale-95 cursor-pointer backdrop-blur-md"
+              title="Sign Out • ចាកចេញ"
             >
-              <LogOut size={14} />
-              <span className="hidden xs:inline">Sign Out • </span>
-              <span>ចាកចេញ</span>
+              <LogOut size={13} />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
 
@@ -1095,16 +1135,6 @@ export default function UserProfilePage() {
                   <span className="flex items-center gap-1">
                     <Clock size={12} /> Joined {profile.created_at ? formatTime(profile.created_at) : "2025"}
                   </span>
-                  {/* Quick Sign Out Button in Meta Row */}
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutModal(true)}
-                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-red-500/20 hover:bg-red-500/35 text-red-300 hover:text-white transition-colors border border-red-500/30 cursor-pointer font-bold shadow-sm"
-                    title="Sign Out • ចាកចេញពីគណនី"
-                  >
-                    <LogOut size={11} />
-                    <span>Sign Out • ចាកចេញ</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1149,119 +1179,70 @@ export default function UserProfilePage() {
           </div>
 
           {/* Avatar Presets Selection Bar */}
-          <div className="mt-5 pt-4 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-semibold text-gray-400 shrink-0">Quick Tech Avatar:</span>
+          <div className="mt-4 pt-3.5 border-t border-white/10 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] uppercase font-bold text-gray-400 shrink-0">Avatars:</span>
             {PRESET_AVATARS.map((av) => (
               <button
                 key={av.label}
                 type="button"
                 onClick={() => handleSelectPresetAvatar(av.url)}
-                className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white text-[11px] font-medium transition-colors border border-white/10 whitespace-nowrap cursor-pointer flex items-center gap-1"
+                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white text-[10px] font-semibold transition-all border border-white/10 whitespace-nowrap cursor-pointer active:scale-95"
               >
                 <span>{av.label}</span>
               </button>
             ))}
           </div>
-
-          {/* Quick Theme Switcher Bar for Mobile & Desktop */}
-          <div className="mt-4 pt-3.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
-                <Sun size={13} className="text-amber-400" />
-                <span>ពន្លឺអេក្រង់ / Theme Mode:</span>
-              </span>
-            </div>
-            <div className="flex items-center bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                  theme === "light"
-                    ? "bg-amber-500 text-white shadow-sm"
-                    : "text-gray-300 hover:text-white"
-                }`}
-              >
-                <Sun size={13} />
-                <span>Light</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                  theme === "dark"
-                    ? "bg-[#8B1A1A] text-white shadow-sm"
-                    : "text-gray-300 hover:text-white"
-                }`}
-              >
-                <Moon size={13} />
-                <span>Dark</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setTheme("system")}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border-none ${
-                  theme === "system"
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-300 hover:text-white"
-                }`}
-              >
-                <Monitor size={13} />
-                <span>Auto</span>
-              </button>
-            </div>
-          </div>
         </div>
 
-        {/* ── 2. Official Telegram Account Linkage Card (Prominent & SuperApp Style) ────────────────── */}
-        <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border transition-all duration-300 shadow-xl bg-gradient-to-br from-[#17212b] via-[#0f1822] to-[#131b26] border-[#229ED9]/40 text-white">
-          {/* Ambient Telegram Blue Glow */}
+        {/* ── 2. Modern Telegram Smart Companion Card ────────────────── */}
+        <div className="relative overflow-hidden rounded-3xl p-4 sm:p-5 border transition-all duration-300 shadow-sm bg-gradient-to-br from-[#0e1621] via-[#111c2a] to-[#0e1621] border-[#229ED9]/30 text-white">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[#229ED9]/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            <div className="flex items-start sm:items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#229ED9] flex items-center justify-center text-white shadow-lg shadow-[#0088cc]/30 shrink-0 border border-white/20">
-                <Send size={28} className="-translate-x-0.5 translate-y-0.5" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#229ED9] flex items-center justify-center text-white shadow-md shadow-[#0088cc]/30 shrink-0 border border-white/20">
+                <Send size={22} className="-translate-x-0.5 translate-y-0.5" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-1.5">
-                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "គណនីបានភ្ជាប់ជាមួយ Telegram រួចរាល់" : "ភ្ជាប់គណនីជាមួយ Telegram Bot"}</span>
-                    <BadgeCheck size={18} className="text-[#229ED9] fill-[#229ED9]/20" />
+                  <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-1.5">
+                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "Telegram Companion" : "ភ្ជាប់ Telegram Bot"}</span>
+                    <BadgeCheck size={16} className="text-[#229ED9] fill-[#229ED9]/20" />
                   </h3>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     isTelegramAuthUser || profile.telegram_chat_id
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                      : "bg-[#229ED9]/20 text-sky-300 border border-[#229ED9]/40 animate-pulse"
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      : "bg-[#229ED9]/20 text-sky-300 border border-[#229ED9]/30"
                   }`}>
-                    {isTelegramAuthUser || profile.telegram_chat_id ? "✓ Connected • ភ្ជាប់ជោគជ័យ" : "⚡ Recommend • ណែនាំ"}
+                    {isTelegramAuthUser || profile.telegram_chat_id ? "Connected" : "@S_TECH_ASSISTANTBOT"}
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-2xl">
+                <p className="text-xs text-gray-300/90 leading-relaxed max-w-xl">
                   {isTelegramAuthUser || profile.telegram_chat_id
-                    ? `លោកអ្នកបានភ្ជាប់គណនី Telegram រួចរាល់ហើយ ទទួលបានវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts) ដំណឹងបញ្ជាទិញទាន់ចិត្ត និង Login 1-Click រួចស្រេច! (${profile.telegram ? `Username: ${profile.telegram}` : ""} ${profile.telegram_chat_id ? `• Chat ID: ${profile.telegram_chat_id}` : ""})`
-                    : "ភ្ជាប់គណនីជាមួយ Telegram Bot ឥឡូវនេះ ដើម្បីទទួលបានវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts), ដំណឹងដឹកជញ្ជូនរហ័សទាន់ចិត្តតាម Telegram 24/7 និង Login 1-Click លើកក្រោយ!"}
+                    ? `ទទួលបានវិក្កយបត្រ (E-Receipts) ដំណឹងបញ្ជាទិញ និង Login 1-Click ផ្ទាល់ខ្លួន (${profile.telegram ? `@${profile.telegram.replace('@', '')}` : ""} ${profile.telegram_chat_id ? `• ID: ${profile.telegram_chat_id}` : ""})`
+                    : "ទទួលវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts), ដំណឹងដឹកជញ្ជូនរហ័ស និង Login 1-Click តាម Telegram 24/7"}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
               {isTelegramAuthUser || profile.telegram_chat_id ? (
-                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
-                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-black transition-all shadow-lg shadow-[#0088cc]/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1b8fc5] text-white text-xs font-bold transition-all shadow-md shadow-[#0088cc]/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border-none"
                   >
-                    <Send size={15} />
-                    <span>បើក Telegram Bot</span>
+                    <Send size={13} />
+                    <span>បើក Bot</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleUnlinkTelegram}
                     disabled={telegramUnlinking}
-                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 hover:text-red-300 text-xs sm:text-sm font-semibold transition-colors border border-white/10 cursor-pointer"
+                    className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 hover:text-red-300 text-xs font-semibold transition-colors border border-white/10 cursor-pointer"
                   >
-                    <span>ផ្តាច់ការភ្ជាប់</span>
+                    <span>ផ្តាច់</span>
                   </button>
                 </div>
               ) : (
@@ -1269,104 +1250,109 @@ export default function UserProfilePage() {
                   type="button"
                   onClick={handleConnectTelegram}
                   disabled={telegramLinking}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 text-sm sm:text-base font-black transition-all shadow-xl shadow-amber-500/40 border-2 border-amber-300 ring-4 ring-amber-400/30 active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer animate-pulse"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
                 >
-                  <AlertTriangle size={18} className="text-slate-950 shrink-0" />
-                  <span>{telegramLinking ? "កំពុងដំណើរការ..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចភ្ជាប់ឥឡូវនេះ (Connect Telegram)"}</span>
+                  <Send size={14} className="shrink-0" />
+                  <span>{telegramLinking ? "Connecting..." : "ភ្ជាប់ Telegram (Connect)"}</span>
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* ── 3. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
-
-        {/* 2.0 $5 Welcome Gift Claim Banner (If not yet claimed) */}
-        {!profile.has_claimed_welcome_gift && (
-          <div 
-            onClick={() => {
-              sessionStorage.removeItem("stech_dismissed_gift_modal");
-              window.dispatchEvent(new Event("user_session_updated"));
-            }}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-amber-600 p-4 text-white shadow-lg border border-red-400/50 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]"
+        {/* ── 3. Executive Perks & Wallet Hub (Clean Bento Grid) ────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Card 1: Real Cash Wallet & Loyalty Coins */}
+          <Link
+            href="/account/wallet"
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-emerald-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between no-underline"
           >
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md text-amber-300 flex items-center justify-center font-black shadow-sm shrink-0">
-                <Gift size={22} />
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Wallet size={20} />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-black text-white uppercase tracking-wider">កាដូស្វាគមន៍ $5.00 OFF</span>
-                  <span className="text-[10px] font-black bg-amber-400 text-black px-2 py-0.5 rounded-full uppercase">ឥតគិតថ្លៃ</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-extrabold text-gray-900 dark:text-white">S-Tech Wallet</span>
+                  <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded-md">
+                    ${Number(stats.wallet_balance || 0).toFixed(2)}
+                  </span>
                 </div>
-                <p className="text-xs text-white/90 mt-0.5 font-medium line-clamp-1">
-                  ចែករំលែក Link ដើម្បីទទួលយក Voucher $5 ភ្លាមៗសម្រាប់ទិញទំនិញ!
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                  {stats.points || 0} Coins • បញ្ចូលលុយ KHQR
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#8B1A1A] text-xs font-black shrink-0 ml-2 shadow-sm">
-              <span>Claim $5 🎁</span>
+            <div className="flex items-center gap-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+              <span className="hidden xs:inline">បើក</span>
+              <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
-        )}
+          </Link>
 
-        {/* Real Cash Wallet & Loyalty Coins Quick Bar */}
-        <Link
-          href="/account/wallet"
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#180a0a] via-[#120808] to-[#1a1408] p-4 text-white shadow-md border border-red-900/40 hover:border-amber-500/50 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99] no-underline"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-amber-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-              <Wallet size={20} />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-black text-white">S-Tech Real Wallet & Coins</span>
-                <span className="text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                  ${Number(stats.wallet_balance || 0).toFixed(2)} USD
-                </span>
-                <span className="text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
-                  {stats.points || 0} Coins
-                </span>
+          {/* Card 2: Welcome Gift Voucher */}
+          <div 
+            onClick={() => {
+              if (!profile.has_claimed_welcome_gift) {
+                sessionStorage.removeItem("stech_dismissed_gift_modal");
+                window.dispatchEvent(new Event("user_session_updated"));
+              }
+            }}
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-rose-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Gift size={20} />
               </div>
-              <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                បញ្ចូលលុយពី Bank (KHQR) • ទទួល 1 Coin រាល់ថ្ងៃ • ប្តូរកាក់ជាសាច់ប្រាក់
-              </p>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-extrabold text-gray-900 dark:text-white">កាដូស្វាគមន៍ $5 OFF</span>
+                  <span className="text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 rounded-md">
+                    {profile.has_claimed_welcome_gift ? "បានទទួល" : "ឥតគិតថ្លៃ"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                  Voucher បញ្ចុះតម្លៃពិសេសសម្រាប់ទិញទំនិញ
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5 text-xs font-bold text-rose-600 dark:text-rose-400 shrink-0">
+              <span>{profile.has_claimed_welcome_gift ? "មើល" : "Claim"}</span>
+              <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs font-black text-amber-400 shrink-0 ml-2">
-            <span>បើកកាបូប &gt;</span>
-          </div>
-        </Link>
 
-        {/* 2.1 Saver Pass Golden VIP Banner */}
-        <div 
-          onClick={() => setShowCoinsModal(true)}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#ffe8ba] via-[#ffd591] to-[#ffa940] p-3.5 sm:p-4 text-[#873800] shadow-md border border-amber-300/60 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 text-white flex items-center justify-center font-black shadow-sm shrink-0">
-              <Gift size={20} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-[#612500] uppercase tracking-wide">Saver Pass</span>
-                <span className="text-[10px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">VIP Only</span>
+          {/* Card 3: Saver Pass VIP */}
+          <div 
+            onClick={() => setShowCoinsModal(true)}
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-amber-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Sparkles size={20} />
               </div>
-              <p className="text-xs font-semibold text-[#873800]/90 mt-0.5 line-clamp-1">
-                Save up to $10 on next PC build • 0$ Delivery & exclusive VIP vouchers
-              </p>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-extrabold text-gray-900 dark:text-white">Saver Pass</span>
+                  <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.2 rounded-md">
+                    VIP
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                  Save $10 on PC build • Free delivery
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-black text-[#612500] shrink-0 ml-2">
-            <span>Claim &gt;</span>
+            <div className="flex items-center gap-0.5 text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">
+              <span>អត្ថប្រយោជន៍</span>
+              <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+            </div>
           </div>
         </div>
 
-        {/* 2.2 "My Orders" 5-Status Row (Pinduoduo / Taobao style) */}
-        <div className="bg-white dark:bg-[#141720] rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-white/5">
-            <div className="flex items-center gap-2">
+        {/* ── 4. My Orders (Order Status Matrix) ────────────────── */}
+        <div className="bg-white dark:bg-[#12141a] rounded-3xl p-5 border border-gray-100 dark:border-white/5 shadow-xs">
+          <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-gray-100 dark:border-white/5">
+            <div className="flex items-center gap-2.5">
               <Package size={18} className="text-[#8B1A1A] dark:text-red-400" />
               <h2 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">My Orders</h2>
             </div>
@@ -1385,116 +1371,116 @@ export default function UserProfilePage() {
             <button
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("pending"); }}
-              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
-              <div className="relative mb-1.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <CreditCard size={20} />
+              <div className="relative mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-gray-700 dark:text-gray-300 flex items-center justify-center group-hover:scale-105 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 group-hover:bg-[#8B1A1A]/5 dark:group-hover:bg-red-500/10 transition-all">
+                  <CreditCard size={19} />
                 </div>
                 {toPayCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     {toPayCount}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">To Pay</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">To Pay</span>
             </button>
 
             {/* 2. Processing */}
             <button
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("processing"); }}
-              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
-              <div className="relative mb-1.5">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Users size={20} />
+              <div className="relative mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-gray-700 dark:text-gray-300 flex items-center justify-center group-hover:scale-105 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 group-hover:bg-[#8B1A1A]/5 dark:group-hover:bg-red-500/10 transition-all">
+                  <Users size={19} />
                 </div>
                 {processingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     {processingCount}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Processing</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Processing</span>
             </button>
 
             {/* 3. Packing */}
             <button
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("packing"); }}
-              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
-              <div className="relative mb-1.5">
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Package size={20} />
+              <div className="relative mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-gray-700 dark:text-gray-300 flex items-center justify-center group-hover:scale-105 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 group-hover:bg-[#8B1A1A]/5 dark:group-hover:bg-red-500/10 transition-all">
+                  <Package size={19} />
                 </div>
                 {packingCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     {packingCount}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Packing</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Packing</span>
             </button>
 
             {/* 4. Shipped */}
             <button
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("shipped"); }}
-              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
-              <div className="relative mb-1.5">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Truck size={20} />
+              <div className="relative mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-gray-700 dark:text-gray-300 flex items-center justify-center group-hover:scale-105 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 group-hover:bg-[#8B1A1A]/5 dark:group-hover:bg-red-500/10 transition-all">
+                  <Truck size={19} />
                 </div>
                 {shippedCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     {shippedCount}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Shipped</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Shipped</span>
             </button>
 
             {/* 5. Reviews */}
             <button
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("completed"); }}
-              className="flex flex-col items-center justify-center p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all cursor-pointer border-none bg-transparent group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
-              <div className="relative mb-1.5">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <MessageSquare size={20} />
+              <div className="relative mb-2">
+                <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-gray-700 dark:text-gray-300 flex items-center justify-center group-hover:scale-105 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 group-hover:bg-[#8B1A1A]/5 dark:group-hover:bg-red-500/10 transition-all">
+                  <MessageSquare size={19} />
                 </div>
                 {reviewsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     {reviewsCount}
                   </span>
                 )}
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Reviews</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Reviews</span>
             </button>
           </div>
         </div>
 
-        {/* 2.3 "Quick Tools & Services" 8-Grid (Pinduoduo Style) */}
-        <div className="bg-white dark:bg-[#141720] rounded-2xl p-4 sm:p-5 border border-gray-100 dark:border-white/5 shadow-sm">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-white/5">
+        {/* ── 5. Quick Tools & Services (Unified Luxury Suite) ────────────────── */}
+        <div className="bg-white dark:bg-[#12141a] rounded-3xl p-5 border border-gray-100 dark:border-white/5 shadow-xs">
+          <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-gray-100 dark:border-white/5">
             <h2 className="text-sm sm:text-base font-extrabold text-gray-900 dark:text-white">Quick Tools & Services</h2>
-            <span className="text-[11px] font-medium text-gray-400">Essential Tech Suite</span>
+            <span className="text-[11px] font-medium text-gray-400">Essential Suite</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 text-center">
+          <div className="grid grid-cols-4 gap-2.5 sm:gap-4 text-center">
             {/* Wishlist */}
             <Link 
               href="/wishlist" 
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all no-underline text-gray-800 dark:text-gray-200 group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all no-underline text-gray-800 dark:text-gray-200 group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <Heart size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-rose-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-rose-500/10 transition-all">
+                <Heart size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Wishlist</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Wishlist</span>
               <span className="text-[9px] text-gray-400 font-medium">{wishlistCount || stats.wishlist} items</span>
             </Link>
 
@@ -1502,63 +1488,63 @@ export default function UserProfilePage() {
             <button 
               type="button"
               onClick={() => setShowCoinsModal(true)}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <Wallet size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-amber-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-amber-500/10 transition-all">
+                <Wallet size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Tech Wallet</span>
-              <span className="text-[9px] text-amber-600 font-bold">{stats.points} pts</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Tech Wallet</span>
+              <span className="text-[9px] text-gray-400 font-medium">{stats.points} pts</span>
             </button>
 
             {/* Coupons */}
             <Link 
               href="/promotions" 
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all no-underline text-gray-800 dark:text-gray-200 group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all no-underline text-gray-800 dark:text-gray-200 group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <Ticket size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-red-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-red-500/10 transition-all">
+                <Ticket size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Coupons</span>
-              <span className="text-[9px] text-red-600 font-bold">25% OFF</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Coupons</span>
+              <span className="text-[9px] text-gray-400 font-medium">Offers</span>
             </Link>
 
             {/* Warranty */}
             <button 
               type="button"
               onClick={() => setActiveTab("warranty")}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <ShieldCheck size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-emerald-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-emerald-500/10 transition-all">
+                <ShieldCheck size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Warranty</span>
-              <span className="text-[9px] text-emerald-600 font-medium">100% Genuine</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Warranty</span>
+              <span className="text-[9px] text-gray-400 font-medium">Hardware RMA</span>
             </button>
 
             {/* Delivery Address & GPS */}
             <button 
               type="button"
               onClick={() => setActiveTab("address")}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <MapPin size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-sky-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-sky-500/10 transition-all">
+                <MapPin size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Address</span>
-              <span className="text-[9px] text-gray-400 font-medium">GPS Pin</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Address</span>
+              <span className="text-[9px] text-gray-400 font-medium">GPS Location</span>
             </button>
 
             {/* Browsing History */}
             <button 
               type="button"
               onClick={() => { setActiveTab("orders"); setOrderFilter("all"); }}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <History size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-purple-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-purple-500/10 transition-all">
+                <History size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">History</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">History</span>
               <span className="text-[9px] text-gray-400 font-medium">Activity</span>
             </button>
 
@@ -1570,25 +1556,25 @@ export default function UserProfilePage() {
                   useChatStore.getState().openChat();
                 });
               }}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <Headphones size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-teal-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-teal-500/10 transition-all">
+                <Headphones size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Support</span>
-              <span className="text-[9px] text-teal-600 font-medium">Live 24/7</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Support</span>
+              <span className="text-[9px] text-gray-400 font-medium">Live Chat</span>
             </button>
 
             {/* Settings & Security */}
             <button 
               type="button"
               onClick={() => setActiveTab("security")}
-              className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all border-none bg-transparent cursor-pointer group"
+              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                <Settings size={20} />
+              <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-zinc-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-zinc-500/10 transition-all">
+                <Settings size={19} />
               </div>
-              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">Settings</span>
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Settings</span>
               <span className="text-[9px] text-gray-400 font-medium">2FA & Security</span>
             </button>
           </div>
