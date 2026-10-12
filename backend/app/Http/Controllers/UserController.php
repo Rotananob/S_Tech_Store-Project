@@ -840,7 +840,6 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => "បានផ្ញើលេខកូដសុវត្ថិភាព OTP ទៅកាន់ {$email} និង Telegram រួចរាល់ហើយ (សុពលភាព 10 នាទី)",
-            'otp' => $res['otp'],
         ]);
     }
 
