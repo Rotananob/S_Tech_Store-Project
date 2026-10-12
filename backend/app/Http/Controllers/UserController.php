@@ -347,6 +347,17 @@ class UserController extends Controller
             }
         }
 
+        // Auto-fetch genuine Telegram profile avatar if connected and missing photo
+        $tgChatId = $profile->telegram_chat_id ?: (str_starts_with($uid, 'tg_') ? substr($uid, 3) : null);
+        if (empty($profile->photo_url) && !empty($tgChatId)) {
+            $realPhoto = \App\Services\TelegramService::getUserAvatarUrl((string)$tgChatId);
+            if ($realPhoto) {
+                $profile->photo_url = $realPhoto;
+                $profile->avatar_url = $realPhoto;
+                $profile->save();
+            }
+        }
+
         // Count real stats
         $orderCount = Order::where('user_id', $uid)->count();
         $wishlistCount = Wishlist::where('firebase_uid', $uid)->count();

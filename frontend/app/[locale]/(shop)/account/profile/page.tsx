@@ -261,6 +261,9 @@ export default function UserProfilePage() {
               photoURL: sUser.photo_url || sUser.avatar,
             } as any;
             setUser(pseudoUser);
+            if (sUser.photo_url || sUser.avatar) {
+              setAvatarPreview(sUser.photo_url || sUser.avatar);
+            }
             setProfile((prev) => ({
               ...prev,
               firebase_uid: uid,
@@ -268,6 +271,7 @@ export default function UserProfilePage() {
               display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech VIP Member",
               email: sUser.email || prev.email,
               phone: sUser.phone || prev.phone,
+              photo_url: sUser.photo_url || sUser.avatar || prev.photo_url,
               telegram: sUser.telegram || prev.telegram,
               telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || prev.telegram_chat_id,
             }));
@@ -311,7 +315,11 @@ export default function UserProfilePage() {
     try {
       const res = await api.get("/user/profile");
       if (res.data?.profile) {
-        setProfile((prev) => ({ ...prev, ...res.data.profile }));
+        setProfile((prev) => ({
+          ...prev,
+          ...res.data.profile,
+          photo_url: res.data.profile.photo_url || prev.photo_url,
+        }));
         if (res.data.profile.photo_url) {
           setAvatarPreview(res.data.profile.photo_url);
         }
@@ -326,7 +334,7 @@ export default function UserProfilePage() {
           ...prev,
           display_name: currentUser.displayName || prev.display_name,
           email: currentUser.email || prev.email,
-          photo_url: currentUser.photoURL || undefined,
+          photo_url: currentUser.photoURL || prev.photo_url,
         }));
         if (currentUser.photoURL) {
           setAvatarPreview(currentUser.photoURL);
@@ -592,8 +600,12 @@ export default function UserProfilePage() {
             ...prev,
             telegram: res.data.telegram || prev.telegram,
             telegram_chat_id: res.data.telegram_id || prev.telegram_chat_id,
+            photo_url: res.data.photo_url || prev.photo_url,
             notif_telegram: true,
           }));
+          if (res.data.photo_url) {
+            setAvatarPreview(res.data.photo_url);
+          }
           setTimeout(() => {
             setTelegramModalOpen(false);
             setTelegramSuccess(false);
@@ -722,6 +734,20 @@ export default function UserProfilePage() {
           <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-amber-500/15 via-red-600/15 to-transparent rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
 
+          {/* Top-Right Quick Sign Out Button (Prominent & Accessible at Top) */}
+          <div className="absolute top-5 right-5 sm:top-7 sm:right-8 z-20">
+            <button
+              type="button"
+              onClick={() => setShowLogoutModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-200 hover:text-white border border-red-500/35 text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md"
+              title="Sign Out • ចាកចេញពីគណនី"
+            >
+              <LogOut size={14} />
+              <span className="hidden xs:inline">Sign Out • </span>
+              <span>ចាកចេញ</span>
+            </button>
+          </div>
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             {/* Left: User Profile Identity */}
             <div className="flex items-center gap-4 sm:gap-6">
@@ -750,6 +776,16 @@ export default function UserProfilePage() {
                     )}
                   </div>
                 </div>
+
+                {/* Telegram Verified Avatar Badge */}
+                {(isTelegramAuthUser || profile.telegram_chat_id) && (
+                  <div
+                    className="absolute -top-1.5 -left-1.5 w-7 h-7 rounded-full bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-[#12141a] z-10"
+                    title="Telegram Verified Account"
+                  >
+                    <Send size={12} className="-translate-x-0.5 translate-y-0.5" />
+                  </div>
+                )}
 
                 {/* Upload Camera Trigger */}
                 <label
@@ -793,6 +829,16 @@ export default function UserProfilePage() {
                   <span className="flex items-center gap-1">
                     <Clock size={12} /> Joined {profile.created_at ? formatTime(profile.created_at) : "2025"}
                   </span>
+                  {/* Quick Sign Out Button in Meta Row */}
+                  <button
+                    type="button"
+                    onClick={() => setShowLogoutModal(true)}
+                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-red-500/20 hover:bg-red-500/35 text-red-300 hover:text-white transition-colors border border-red-500/30 cursor-pointer font-bold shadow-sm"
+                    title="Sign Out • ចាកចេញពីគណនី"
+                  >
+                    <LogOut size={11} />
+                    <span>Sign Out • ចាកចេញ</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -900,7 +946,74 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* ── 2. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
+        {/* ── 2. Official Telegram Account Linkage Card (Prominent & SuperApp Style) ────────────────── */}
+        <div className="relative overflow-hidden rounded-3xl p-5 sm:p-6 border transition-all duration-300 shadow-xl bg-gradient-to-br from-[#17212b] via-[#0f1822] to-[#131b26] border-[#229ED9]/40 text-white">
+          {/* Ambient Telegram Blue Glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[#229ED9]/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#229ED9] flex items-center justify-center text-white shadow-lg shadow-[#0088cc]/30 shrink-0 border border-white/20">
+                <Send size={28} className="-translate-x-0.5 translate-y-0.5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-1.5">
+                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "គណនីបានភ្ជាប់ជាមួយ Telegram រួចរាល់" : "ភ្ជាប់គណនីជាមួយ Telegram Bot"}</span>
+                    <BadgeCheck size={18} className="text-[#229ED9] fill-[#229ED9]/20" />
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    isTelegramAuthUser || profile.telegram_chat_id
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                      : "bg-[#229ED9]/20 text-sky-300 border border-[#229ED9]/40 animate-pulse"
+                  }`}>
+                    {isTelegramAuthUser || profile.telegram_chat_id ? "✓ Connected • ភ្ជាប់ជោគជ័យ" : "⚡ Recommend • ណែនាំ"}
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-2xl">
+                  {isTelegramAuthUser || profile.telegram_chat_id
+                    ? `លោកអ្នកបានភ្ជាប់គណនី Telegram រួចរាល់ហើយ ទទួលបានវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts) ដំណឹងបញ្ជាទិញទាន់ចិត្ត និង Login 1-Click រួចស្រេច! (${profile.telegram ? `Username: ${profile.telegram}` : ""} ${profile.telegram_chat_id ? `• Chat ID: ${profile.telegram_chat_id}` : ""})`
+                    : "ភ្ជាប់គណនីជាមួយ Telegram Bot ឥឡូវនេះ ដើម្បីទទួលបានវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts), ដំណឹងដឹកជញ្ជូនរហ័សទាន់ចិត្តតាម Telegram 24/7 និង Login 1-Click លើកក្រោយ!"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              {isTelegramAuthUser || profile.telegram_chat_id ? (
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Stech_store_LoginBot"}`, "_blank")}
+                    className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#229ED9] to-[#0088cc] hover:from-[#1b8fc5] hover:to-[#0077b5] text-white text-xs sm:text-sm font-black transition-all shadow-lg shadow-[#0088cc]/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-none"
+                  >
+                    <Send size={15} />
+                    <span>បើក Telegram Bot</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUnlinkTelegram}
+                    disabled={telegramUnlinking}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 hover:text-red-300 text-xs sm:text-sm font-semibold transition-colors border border-white/10 cursor-pointer"
+                  >
+                    <span>ផ្តាច់ការភ្ជាប់</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConnectTelegram}
+                  disabled={telegramLinking}
+                  className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#229ED9] via-[#0088cc] to-[#0077b5] hover:brightness-110 text-white text-sm sm:text-base font-black transition-all shadow-xl shadow-[#0088cc]/30 active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer border-none"
+                >
+                  <Send size={18} className="-translate-x-0.5" />
+                  <span>{telegramLinking ? "កំពុងដំណើរការ..." : "✈️ ភ្ជាប់ជាមួយ Telegram ឥឡូវនេះ (Connect Now)"}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
 
         {/* 2.1 Saver Pass Golden VIP Banner */}
         <div 

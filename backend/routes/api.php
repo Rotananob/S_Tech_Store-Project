@@ -544,6 +544,12 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     if (!empty($tgUser['photo_url'])) {
         $user->photo_url = $tgUser['photo_url'];
         $user->avatar_url = $tgUser['photo_url'];
+    } else {
+        $realPhoto = \App\Services\TelegramService::getUserAvatarUrl($tgId);
+        if ($realPhoto) {
+            $user->photo_url = $realPhoto;
+            $user->avatar_url = $realPhoto;
+        }
     }
     $user->is_active = true;
     $user->status = 'active';

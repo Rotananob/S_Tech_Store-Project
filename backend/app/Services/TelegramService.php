@@ -882,6 +882,14 @@ class TelegramService
             $user->notif_telegram = true;
             $user->is_active = true;
             $user->status = 'active';
+
+            // Fetch genuine profile photo from Telegram Bot API
+            $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
+            if (!empty($tgAvatar)) {
+                $user->photo_url = $tgAvatar;
+                $user->avatar = $tgAvatar;
+            }
+
             $user->save();
 
             $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
@@ -1035,6 +1043,14 @@ class TelegramService
             $user->telegram = $tgUsername ?: ("ID: {$tgId}");
             $user->telegram_chat_id = $tgId;
             $user->notif_telegram = true;
+
+            // Fetch genuine profile photo from Telegram Bot API if user has no avatar or to update it
+            $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
+            if (!empty($tgAvatar)) {
+                $user->photo_url = $tgAvatar;
+                $user->avatar = $tgAvatar;
+            }
+
             $user->save();
 
             Cache::put($linkKey, [
@@ -1043,6 +1059,7 @@ class TelegramService
                 'telegram_id' => $tgId,
                 'telegram_username' => $tgUsername ?: $fullName,
                 'display_name' => $user->display_name,
+                'photo_url' => $user->photo_url,
             ], 600);
 
             // 2. SEND INSTANT DEFAULT RESPONSE (ZERO DELAY)
@@ -2151,6 +2168,48 @@ class TelegramService
     public static function getCustomerBotUsername(): string
     {
         return env('TELEGRAM_AUTH_BOT_USERNAME') ?: 'Stech_store_LoginBot';
+    }
+
+    /**
+     * Fetch user's genuine profile photo directly from Telegram Bot API
+     */
+    public static function getUserAvatarUrl(string $tgUserId, ?string $botToken = null): ?string
+    {
+        $token = $botToken ?: self::getCustomerBotToken();
+        if (!$token || !$tgUserId) return null;
+
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
+                'user_id' => $tgUserId,
+                'limit' => 1,
+            ]);
+
+            if ($resp->successful()) {
+                $json = $resp->json();
+                $photos = $json['result']['photos'] ?? [];
+                if (!empty($photos) && !empty($photos[0])) {
+                    $photoSizes = $photos[0];
+                    $bestPhoto = end($photoSizes);
+                    $fileId = $bestPhoto['file_id'] ?? null;
+
+                    if ($fileId) {
+                        $fileRes = \Illuminate\Support\Facades\Http::timeout(5)->get("https://api.telegram.org/bot{$token}/getFile", [
+                            'file_id' => $fileId,
+                        ]);
+                        if ($fileRes->successful()) {
+                            $filePath = $fileRes->json()['result']['file_path'] ?? null;
+                            if ($filePath) {
+                                return "https://api.telegram.org/file/bot{$token}/{$filePath}";
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Telegram getUserAvatarUrl error: " . $e->getMessage());
+        }
+
+        return null;
     }
 
     /**
