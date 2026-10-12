@@ -30,6 +30,8 @@ class RepairController extends Controller
             'status' => 'nullable|string|in:Pending Assessment,In Progress,Ready,Completed',
             'notes' => 'nullable|string|max:2000',
             'send_email' => 'nullable|boolean',
+            'send_telegram' => 'nullable|boolean',
+            'send_web' => 'nullable|boolean',
         ]);
 
         $count = Repair::count() + 1;
@@ -53,29 +55,63 @@ class RepairController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        // Push email to customer if requested or if customer_email present
+        $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : true;
+        $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
+        $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : true;
+
         $emailSent = false;
-        if (!empty($customerEmail) && ($request->boolean('send_email') || $request->has('customer_email'))) {
+        $telegramSent = false;
+        $webSent = false;
+
+        // 1. Email notification
+        if ($wantEmail && !empty($customerEmail)) {
             $emailSent = self::sendTicketEmail($repair, $customerEmail);
         }
 
-        // Auto alert Telegram repairs forum topic
+        // 2. Telegram Shop Forum Topic Alert
         try {
             TelegramService::sendTicketAlert($repair);
         } catch (\Throwable $t) {
-            Log::warning("Telegram ticket alert failed: " . $t->getMessage());
+            Log::warning("Telegram ticket forum alert failed: " . $t->getMessage());
         }
 
-        // Auto alert customer 1-on-1 Telegram Bot 2 Companion
-        try {
-            TelegramService::sendCustomerDirectRepairAlert($repair, 'created');
-        } catch (\Throwable $t) {
-            Log::warning("Customer direct telegram ticket alert failed: " . $t->getMessage());
+        // 3. Customer 1-on-1 Telegram Bot Alert
+        if ($wantTelegram) {
+            try {
+                $tgRes = TelegramService::sendCustomerDirectRepairAlert($repair, 'created');
+                $telegramSent = ($tgRes['ok'] ?? false) === true;
+            } catch (\Throwable $t) {
+                Log::warning("Customer direct telegram ticket alert failed: " . $t->getMessage());
+            }
+        }
+
+        // 4. In-App Website Account Notification
+        if ($wantWeb) {
+            $uid = UserProfile::where(function($q) use ($customerEmail, $repair) {
+                if (!empty($customerEmail)) $q->where('email', $customerEmail);
+                if (!empty($repair->customer_phone)) $q->orWhere('phone', $repair->customer_phone);
+            })->value('firebase_uid');
+
+            if ($uid) {
+                try {
+                    UserNotification::create([
+                        'firebase_uid' => $uid,
+                        'title' => "🔧 បង្កើតប័ណ្ណជួសជុល {$repair->ticket_code}",
+                        'message' => "ឧបករណ៍ {$repair->device_name} ត្រូវបានកត់ត្រាជួសជុល។ ស្ថានភាព: {$repair->status}",
+                        'type' => 'repair',
+                        'link' => '/warranty',
+                        'read' => false,
+                    ]);
+                    $webSent = true;
+                } catch (\Throwable $e) {}
+            }
         }
 
         return response()->json([
-            'message' => 'Repair ticket created successfully' . ($emailSent ? ' & email sent to user' : ''),
+            'message' => 'Repair ticket created successfully',
             'email_sent' => $emailSent,
+            'telegram_sent' => $telegramSent,
+            'web_sent' => $webSent,
             'data' => $repair,
         ], 201);
     }
@@ -95,31 +131,65 @@ class RepairController extends Controller
             'status' => 'sometimes|string|in:Pending Assessment,In Progress,Ready,Completed',
             'notes' => 'nullable|string|max:2000',
             'send_email' => 'nullable|boolean',
+            'send_telegram' => 'nullable|boolean',
+            'send_web' => 'nullable|boolean',
         ]);
 
         $oldStatus = $repair->status;
         $repair->update($validated);
 
+        $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : ($oldStatus !== $repair->status);
+        $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : ($oldStatus !== $repair->status);
+        $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : ($oldStatus !== $repair->status);
+
+        $targetEmail = $repair->customer_email ?: UserProfile::where('phone', $repair->customer_phone)->value('email');
+
         $emailSent = false;
-        if ($request->boolean('send_email') || ($oldStatus !== $repair->status && !empty($repair->customer_email))) {
-            $targetEmail = $repair->customer_email ?: UserProfile::where('phone', $repair->customer_phone)->value('email');
-            if ($targetEmail) {
-                $emailSent = self::sendTicketEmail($repair, $targetEmail);
-            }
+        $telegramSent = false;
+        $webSent = false;
+
+        // 1. Email notification
+        if ($wantEmail && !empty($targetEmail)) {
+            $emailSent = self::sendTicketEmail($repair, $targetEmail);
         }
 
-        // Auto alert customer 1-on-1 Telegram Bot 2 Companion if status changed
-        if ($oldStatus !== $repair->status) {
+        // 2. Customer 1-on-1 Telegram Bot Alert
+        if ($wantTelegram) {
             try {
-                TelegramService::sendCustomerDirectRepairAlert($repair, 'status_updated');
+                $tgRes = TelegramService::sendCustomerDirectRepairAlert($repair, 'status_updated');
+                $telegramSent = ($tgRes['ok'] ?? false) === true;
             } catch (\Throwable $t) {
                 Log::warning("Customer direct telegram ticket status alert failed: " . $t->getMessage());
             }
         }
 
+        // 3. In-App Website Account Notification
+        if ($wantWeb) {
+            $uid = UserProfile::where(function($q) use ($targetEmail, $repair) {
+                if (!empty($targetEmail)) $q->where('email', $targetEmail);
+                if (!empty($repair->customer_phone)) $q->orWhere('phone', $repair->customer_phone);
+            })->value('firebase_uid');
+
+            if ($uid) {
+                try {
+                    UserNotification::create([
+                        'firebase_uid' => $uid,
+                        'title' => "🔧 បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
+                        'message' => "ឧបករណ៍ {$repair->device_name} របស់អ្នកស្ថិតក្នុងស្ថានភាព: {$repair->status}។",
+                        'type' => 'repair',
+                        'link' => '/warranty',
+                        'read' => false,
+                    ]);
+                    $webSent = true;
+                } catch (\Throwable $e) {}
+            }
+        }
+
         return response()->json([
-            'message' => 'Repair ticket updated' . ($emailSent ? ' & status email sent' : ''),
+            'message' => 'Repair ticket updated successfully',
             'email_sent' => $emailSent,
+            'telegram_sent' => $telegramSent,
+            'web_sent' => $webSent,
             'data' => $repair,
         ]);
     }
@@ -127,30 +197,78 @@ class RepairController extends Controller
     public function sendEmail(Request $request, $id)
     {
         $repair = Repair::findOrFail($id);
-        $email = $request->input('email') ?: $repair->customer_email;
+        
+        $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : true;
+        $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
+        $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : true;
 
+        $email = $request->input('email') ?: $repair->customer_email;
         if (empty($email) && !empty($repair->customer_phone)) {
             $email = UserProfile::where('phone', $repair->customer_phone)->value('email');
         }
 
-        if (empty($email)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'មិនមាន Email របស់អតិថិជនឡើយ សូមបញ្ចូល Email ជាមុនសិន (No customer email found).',
-            ], 400);
+        if (!empty($request->input('email')) && $repair->customer_email !== $request->input('email')) {
+            $repair->update(['customer_email' => $request->input('email')]);
         }
 
-        if (!$repair->customer_email) {
-            $repair->update(['customer_email' => $email]);
+        $sentEmail = false;
+        $sentTelegram = false;
+        $sentWeb = false;
+
+        // 1. Email Channel
+        if ($wantEmail) {
+            if (!empty($email)) {
+                $sentEmail = self::sendTicketEmail($repair, $email);
+            }
         }
 
-        $sent = self::sendTicketEmail($repair, $email);
+        // 2. Telegram Direct Bot Channel
+        if ($wantTelegram) {
+            try {
+                $tgRes = TelegramService::sendCustomerDirectRepairAlert($repair, 'manual_alert');
+                $sentTelegram = ($tgRes['ok'] ?? false) === true;
+            } catch (\Throwable $t) {
+                Log::warning("Telegram repair alert failed: " . $t->getMessage());
+            }
+        }
+
+        // 3. Web Website Account Channel
+        if ($wantWeb) {
+            $uid = UserProfile::where(function($q) use ($email, $repair) {
+                if (!empty($email)) $q->where('email', $email);
+                if (!empty($repair->customer_phone)) $q->orWhere('phone', $repair->customer_phone);
+            })->value('firebase_uid');
+
+            if ($uid) {
+                try {
+                    UserNotification::create([
+                        'firebase_uid' => $uid,
+                        'title' => "🔧 បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
+                        'message' => "ឧបករណ៍ {$repair->device_name} របស់អ្នកស្ថិតក្នុងស្ថានភាព: {$repair->status}។ តម្លៃប៉ាន់ស្មាន: $" . number_format((float)$repair->estimated_cost, 2),
+                        'type' => 'repair',
+                        'link' => '/warranty',
+                        'read' => false,
+                    ]);
+                    $sentWeb = true;
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        $delivered = [];
+        if ($sentEmail) $delivered[] = "Email ({$email})";
+        if ($sentTelegram) $delivered[] = "Telegram Direct Bot";
+        if ($sentWeb) $delivered[] = "Account Website";
+
+        $msg = !empty($delivered)
+            ? "ការជូនដំណឹងត្រូវបានបញ្ជូនជោគជ័យទៅកាន់: " . implode(" + ", $delivered)
+            : "បានកត់ត្រាការជូនដំណឹង (គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង)";
 
         return response()->json([
-            'success' => $sent,
-            'message' => $sent 
-                ? "បានផ្ញើ Email ជូនដំណឹង Ticket ទៅកាន់ {$email} ដោយជោគជ័យ!" 
-                : "បានកត់ត្រាការផ្ញើជូនដំណឹងទៅកាន់ {$email} (Email processed).",
+            'success' => $sentEmail || $sentTelegram || $sentWeb,
+            'message' => $msg,
+            'sent_to_email' => $sentEmail,
+            'sent_to_telegram' => $sentTelegram,
+            'sent_to_web' => $sentWeb,
             'email' => $email,
             'ticket' => $repair,
         ]);

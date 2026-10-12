@@ -111,8 +111,18 @@ export const updateOrder = async (
     tracking_number?: string;
     admin_notes?: string;
     notify_customer?: boolean;
+    send_email?: boolean;
+    send_telegram?: boolean;
+    send_web?: boolean;
   }
-): Promise<{ success: boolean; message?: string; order?: Order; sent_to_web?: boolean; sent_to_telegram?: boolean }> => {
+): Promise<{ 
+  success: boolean; 
+  message?: string; 
+  order?: Order; 
+  sent_to_web?: boolean; 
+  sent_to_telegram?: boolean;
+  sent_to_email?: boolean;
+}> => {
   try {
     const res = await api.put(`/admin/orders/${orderId}`, data);
     return {
@@ -121,6 +131,7 @@ export const updateOrder = async (
       order: res.data?.order,
       sent_to_web: res.data?.sent_to_web,
       sent_to_telegram: res.data?.sent_to_telegram,
+      sent_to_email: res.data?.sent_to_email,
     };
   } catch (error: any) {
     console.error("Failed to update order:", error);
@@ -133,14 +144,25 @@ export const updateOrder = async (
 
 export const pushOrderNotification = async (
   orderId: number,
-  data: { title?: string; message: string; status?: string }
+  data: { 
+    title?: string; 
+    message: string; 
+    status?: string;
+    send_email?: boolean;
+    send_telegram?: boolean;
+    send_web?: boolean;
+    email?: string;
+  }
 ): Promise<{
   success: boolean;
   message?: string;
   has_customer?: boolean;
   sent_to_web?: boolean;
   sent_to_telegram?: boolean;
+  sent_to_email?: boolean;
   has_telegram?: boolean;
+  has_email?: boolean;
+  customer_email?: string;
   customer?: any;
 }> => {
   try {
@@ -151,7 +173,10 @@ export const pushOrderNotification = async (
       has_customer: res.data?.has_customer,
       sent_to_web: res.data?.sent_to_web,
       sent_to_telegram: res.data?.sent_to_telegram,
+      sent_to_email: res.data?.sent_to_email,
       has_telegram: res.data?.has_telegram,
+      has_email: res.data?.has_email,
+      customer_email: res.data?.customer_email,
       customer: res.data?.customer,
     };
   } catch (error: any) {
@@ -159,6 +184,35 @@ export const pushOrderNotification = async (
     return {
       success: false,
       message: error.response?.data?.message || "បរាជ័យក្នុងការផ្ញើការជូនដំណឹង",
+    };
+  }
+};
+
+export const sendRepairAlert = async (
+  repairId: number,
+  data?: {
+    send_email?: boolean;
+    send_telegram?: boolean;
+    send_web?: boolean;
+    email?: string;
+  }
+): Promise<{
+  success: boolean;
+  message?: string;
+  sent_to_email?: boolean;
+  sent_to_telegram?: boolean;
+  sent_to_web?: boolean;
+  email?: string;
+  ticket?: any;
+}> => {
+  try {
+    const res = await api.post(`/admin/repairs/${repairId}/send-email`, data || {});
+    return res.data;
+  } catch (error: any) {
+    console.error("Failed to send repair alert:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "បរាជ័យក្នុងការបញ្ជូនការជូនដំណឹង",
     };
   }
 };

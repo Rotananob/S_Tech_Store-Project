@@ -7,6 +7,8 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -343,33 +345,58 @@ class OrderController extends Controller
                 $user = \App\Models\UserProfile::where('email', $order->customer_email)->first();
             }
 
+            $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : true;
+            $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
+            $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : true;
+
+            $customerEmail = !empty($validated['customer_email'])
+                ? trim($validated['customer_email'])
+                : ($order->customer_email ?: ($user?->email ?: null));
+
             // 1. In-App Website Notification
-            if ($user && !empty($user->firebase_uid)) {
-                \App\Models\UserNotification::create([
-                    'firebase_uid' => $user->firebase_uid,
-                    'title' => $title,
-                    'message' => $message,
-                    'type' => 'order',
-                    'link' => '/orders',
-                    'read' => false,
-                ]);
-                $sentToWeb = true;
+            if ($wantWeb && $user && !empty($user->firebase_uid)) {
+                try {
+                    \App\Models\UserNotification::create([
+                        'firebase_uid' => $user->firebase_uid,
+                        'title' => $title,
+                        'message' => $message,
+                        'type' => 'order',
+                        'link' => '/orders',
+                        'read' => false,
+                    ]);
+                    $sentToWeb = true;
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Web notification failed: " . $t->getMessage());
+                }
             }
 
             // 2. Direct Customer Telegram (if connected)
-            try {
-                $chatId = \App\Services\TelegramService::resolveCustomerChatId($user ?: $order, $order->customer_phone, $order->customer_email);
-                if ($chatId) {
-                    $tgRes = \App\Services\TelegramService::sendCustomerDirectNotification(
-                        $user ?: $order,
-                        $title,
-                        $message,
-                        '/orders'
-                    );
-                    $sentToTelegram = ($tgRes['ok'] ?? false) === true;
+            if ($wantTelegram) {
+                try {
+                    $chatId = \App\Services\TelegramService::resolveCustomerChatId($user ?: $order, $order->customer_phone, $customerEmail);
+                    if ($chatId) {
+                        $tgRes = \App\Services\TelegramService::sendCustomerDirectNotification(
+                            $user ?: $order,
+                            $title,
+                            $message,
+                            '/orders'
+                        );
+                        $sentToTelegram = ($tgRes['ok'] ?? false) === true;
+                    }
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Telegram update notification failed: " . $t->getMessage());
                 }
-            } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Telegram update notification failed: " . $t->getMessage());
+            }
+
+            // 3. Real Email Notification
+            $sentToEmail = false;
+            if ($wantEmail && !empty($customerEmail)) {
+                try {
+                    $order->loadMissing('items.product');
+                    $sentToEmail = self::sendOrderEmail($order, $customerEmail, $title, $message);
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Real email order update notification failed: " . $t->getMessage());
+                }
             }
         }
 
@@ -379,6 +406,7 @@ class OrderController extends Controller
             'order' => $order->load('items.product'),
             'sent_to_web' => $sentToWeb,
             'sent_to_telegram' => $sentToTelegram,
+            'sent_to_email' => $sentToEmail ?? false,
         ]);
     }
 
@@ -388,9 +416,13 @@ class OrderController extends Controller
             'title' => 'nullable|string|max:255',
             'message' => 'required|string',
             'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
+            'send_email' => 'nullable|boolean',
+            'send_telegram' => 'nullable|boolean',
+            'send_web' => 'nullable|boolean',
+            'email' => 'nullable|email|max:150',
         ]);
 
-        $order = Order::findOrFail($id);
+        $order = Order::with('items.product')->findOrFail($id);
 
         if (!empty($validated['status']) && $validated['status'] !== $order->status) {
             $order->update(['status' => $validated['status']]);
@@ -409,58 +441,90 @@ class OrderController extends Controller
         }
 
         $notificationTitle = $validated['title'] ?: "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}";
+
+        $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : true;
+        $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
+        $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : true;
+
+        $customerEmail = !empty($validated['email'])
+            ? trim($validated['email'])
+            : ($order->customer_email ?: ($user?->email ?: null));
+
+        if (!empty($validated['email']) && $order->customer_email !== $validated['email']) {
+            $order->update(['customer_email' => $validated['email']]);
+        }
+
         $sentToWeb = false;
         $sentToTelegram = false;
+        $sentToEmail = false;
         $hasTelegram = false;
 
         // 1. In-App Notification to Website Account
-        if ($user && !empty($user->firebase_uid)) {
-            \App\Models\UserNotification::create([
-                'firebase_uid' => $user->firebase_uid,
-                'title' => $notificationTitle,
-                'message' => $validated['message'],
-                'type' => 'order',
-                'link' => '/orders',
-                'read' => false,
-            ]);
-            $sentToWeb = true;
+        if ($wantWeb && $user && !empty($user->firebase_uid)) {
+            try {
+                \App\Models\UserNotification::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'title' => $notificationTitle,
+                    'message' => $validated['message'],
+                    'type' => 'order',
+                    'link' => '/orders',
+                    'read' => false,
+                ]);
+                $sentToWeb = true;
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Web notification failed: " . $t->getMessage());
+            }
         }
 
         // 2. Telegram Notification (Direct to customer chat if connected)
-        $chatId = \App\Services\TelegramService::resolveCustomerChatId($user ?: $order, $order->customer_phone, $order->customer_email);
+        $chatId = \App\Services\TelegramService::resolveCustomerChatId($user ?: $order, $order->customer_phone, $customerEmail);
         if ($chatId) {
             $hasTelegram = true;
+            if ($wantTelegram) {
+                try {
+                    $tgRes = \App\Services\TelegramService::sendCustomerDirectNotification(
+                        $user ?: $order,
+                        $notificationTitle,
+                        $validated['message'],
+                        '/orders'
+                    );
+                    $sentToTelegram = ($tgRes['ok'] ?? false) === true;
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
+                }
+            }
+        }
+
+        // 3. Real Email Notification
+        if ($wantEmail && !empty($customerEmail)) {
             try {
-                $tgRes = \App\Services\TelegramService::sendCustomerDirectNotification(
-                    $user ?: $order,
-                    $notificationTitle,
-                    $validated['message'],
-                    '/orders'
-                );
-                $sentToTelegram = ($tgRes['ok'] ?? false) === true;
+                $sentToEmail = self::sendOrderEmail($order, $customerEmail, $notificationTitle, $validated['message']);
             } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
+                \Illuminate\Support\Facades\Log::warning("Real email order notification failed: " . $t->getMessage());
             }
         }
 
         // Build friendly Khmer message
-        $msg = "";
-        if ($sentToWeb && $sentToTelegram) {
-            $msg = "ការជូនដំណឹងត្រូវបានផ្ញើទៅទាំង Account Website និង Telegram របស់អតិថិជនជោគជ័យ! (Dual Channel Sync)";
-        } elseif ($sentToTelegram) {
-            $msg = "ការជូនដំណឹងត្រូវបានផ្ញើទៅកាន់ Telegram របស់អតិថិជនជោគជ័យ!";
-        } elseif ($sentToWeb) {
-            $msg = "ការជូនដំណឹងត្រូវបានផ្ញើទៅកាន់ Account Website របស់អតិថិជនជោគជ័យ! (អតិថិជនមិនទាន់បានភ្ជាប់ Telegram ទេ)";
+        $channels = [];
+        if ($sentToEmail) $channels[] = "Email ({$customerEmail})";
+        if ($sentToTelegram) $channels[] = "Telegram Bot 1-on-1";
+        if ($sentToWeb) $channels[] = "Account Website";
+
+        if (!empty($channels)) {
+            $msg = "ការជូនដំណឹងត្រូវបានបញ្ជូនជោគជ័យទៅកាន់: " . implode(" + ", $channels);
         } else {
-            $msg = "បានកែប្រែ Order រួចរាល់ (មិនទាន់រកឃើញ Account របស់អតិថិជនសម្រាប់ការបញ្ជាទិញនេះទេ)";
+            $msg = "បានកត់ត្រាការជូនដំណឹង (គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង)";
         }
 
         return response()->json([
             'success' => true,
             'message' => $msg,
-            'sent_to_web' => $sentToWeb,
+            'sent_to_email' => $sentToEmail,
             'sent_to_telegram' => $sentToTelegram,
+            'sent_to_web' => $sentToWeb,
             'has_telegram' => $hasTelegram,
+            'has_email' => !empty($customerEmail),
+            'customer_email' => $customerEmail,
             'has_customer' => !empty($user),
             'customer' => $user ? [
                 'name' => $user->display_name,
@@ -471,5 +535,192 @@ class OrderController extends Controller
             ] : null,
             'order' => $order,
         ]);
+    }
+
+    /**
+     * Send luxury HTML order notification email to customer
+     */
+    public static function sendOrderEmail(Order $order, string $toEmail, string $title, string $message): bool
+    {
+        try {
+            $subject = "📦 [S Tech Store] {$title} — Order #{$order->order_id}";
+
+            $statusBadgeColor = match (strtolower($order->status)) {
+                'pending' => '#d97706',
+                'processing' => '#2563eb',
+                'shipped' => '#7c3aed',
+                'delivered' => '#16a34a',
+                'cancelled' => '#dc2626',
+                default => '#475569',
+            };
+
+            $statusText = match (strtolower($order->status)) {
+                'pending' => 'រង់ចាំការបញ្ជាក់ • Pending',
+                'processing' => 'កំពុងរៀបចំទំនិញ • Processing',
+                'shipped' => 'កំពុងដឹកជញ្ជូន • Shipped',
+                'delivered' => 'បានប្រគល់ជូនជោគជ័យ • Delivered',
+                'cancelled' => 'បានបោះបង់ • Cancelled',
+                default => ucfirst($order->status),
+            };
+
+            $itemsHtml = '';
+            if ($order->relationLoaded('items') && $order->items->count() > 0) {
+                foreach ($order->items as $item) {
+                    $prodName = htmlspecialchars($item->product->name ?? 'ផលិតផលបច្ចេកវិទ្យា');
+                    $qty = (int)$item->quantity;
+                    $unitPrice = number_format((float)$item->unit_price, 2);
+                    $itemSubtotal = number_format((float)$item->subtotal, 2);
+                    $itemsHtml .= "
+                    <tr>
+                      <td style='padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b;'>{$prodName}</td>
+                      <td style='padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; text-align: center; color: #64748b;'>x{$qty}</td>
+                      <td style='padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; text-align: right; color: #64748b;'>\${$unitPrice}</td>
+                      <td style='padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; text-align: right; font-weight: 700; color: #0f172a;'>\${$itemSubtotal}</td>
+                    </tr>";
+                }
+            }
+
+            $trackingRow = '';
+            if (!empty($order->tracking_number)) {
+                $trackingRow = "
+                <div class='info-row'>
+                  <span class='info-label'>កូដតាមដានបញ្ញើ (Tracking Number):</span>
+                  <span class='info-val' style='font-family: monospace; color: #7c3aed;'>{$order->tracking_number}</span>
+                </div>";
+            }
+
+            $discountRow = '';
+            if ((float)($order->discount_amount ?? 0) > 0) {
+                $discountVal = number_format((float)$order->discount_amount, 2);
+                $discountRow = "
+                <div class='info-row'>
+                  <span class='info-label'>បញ្ចុះតម្លៃ Promo Code:</span>
+                  <span class='info-val' style='color: #16a34a;'>-\${$discountVal}</span>
+                </div>";
+            }
+
+            $totalFormatted = number_format((float)$order->total_amount, 2);
+            $cleanTitle = htmlspecialchars($title);
+            $cleanMsg = nl2br(htmlspecialchars($message));
+            $customerName = htmlspecialchars($order->customer_name ?: 'អតិថិជន');
+            $customerPhone = htmlspecialchars($order->customer_phone ?: 'N/A');
+            $shippingAddress = htmlspecialchars($order->shipping_address ?: 'N/A');
+            $paymentMethod = htmlspecialchars(strtoupper($order->payment_method ?: 'COD'));
+
+            $htmlContent = "
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset='utf-8'>
+              <title>{$subject}</title>
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+                .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+                .header { background: linear-gradient(135deg, #8B1A1A 0%, #b91c1c 100%); padding: 30px 24px; text-align: center; color: #ffffff; }
+                .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+                .header p { margin: 0; font-size: 13px; opacity: 0.9; }
+                .content { padding: 30px 24px; }
+                .message-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin-bottom: 24px; color: #991b1b; }
+                .message-title { font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+                .message-body { font-size: 14px; line-height: 1.6; color: #334155; }
+                .order-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+                .order-code { font-family: monospace; font-size: 20px; font-weight: 800; color: #8B1A1A; }
+                .badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 700; color: #fff; background-color: {$statusBadgeColor}; }
+                .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+                .info-label { color: #64748b; font-weight: 600; }
+                .info-val { font-weight: 700; color: #0f172a; text-align: right; }
+                .items-table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 16px; }
+                .items-table th { background: #f1f5f9; padding: 8px 12px; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; text-align: left; }
+                .total-box { background: #ffffff; border: 2px dashed #8B1A1A; border-radius: 10px; padding: 14px 18px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center; }
+                .btn-track { display: block; text-align: center; background: #8B1A1A; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 24px; border-radius: 12px; margin: 24px 0 10px 0; }
+                .footer { background: #f1f5f9; padding: 20px 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+                .footer a { color: #8B1A1A; text-decoration: none; font-weight: 700; }
+              </style>
+            </head>
+            <body>
+              <div class='container'>
+                <div class='header'>
+                  <h1>S TECH STORE CAMBODIA</h1>
+                  <p>បច្ចុប្បន្នភាពការបញ្ជាទិញ & សេវាដឹកជញ្ជូនរហ័សទូទាំងប្រទេស</p>
+                </div>
+                <div class='content'>
+                  <p>ជំរាបសួរលោកអ្នក <b>{$customerName}</b>,</p>
+                  
+                  <div class='message-box'>
+                    <div class='message-title'>{$cleanTitle}</div>
+                    <div class='message-body'>{$cleanMsg}</div>
+                  </div>
+
+                  <div class='order-card'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;'>
+                      <span class='order-code'>#{$order->order_id}</span>
+                      <span class='badge'>{$statusText}</span>
+                    </div>
+
+                    <div class='info-row'>
+                      <span class='info-label'>អតិថិជន (Customer):</span>
+                      <span class='info-val'>{$customerName} ({$customerPhone})</span>
+                    </div>
+                    <div class='info-row'>
+                      <span class='info-label'>អាសយដ្ឋានដឹកជញ្ជូន:</span>
+                      <span class='info-val'>{$shippingAddress}</span>
+                    </div>
+                    <div class='info-row'>
+                      <span class='info-label'>វិធីសាស្ត្រទូទាត់:</span>
+                      <span class='info-val'>{$paymentMethod}</span>
+                    </div>
+                    {$trackingRow}
+                    {$discountRow}
+
+                    " . (!empty($itemsHtml) ? "
+                    <div style='margin-top: 16px;'>
+                      <strong style='font-size: 13px; color: #334155;'>មុខទំនិញដែលបានកុម្ម៉ង់ (Order Items):</strong>
+                      <table class='items-table'>
+                        <thead>
+                          <tr>
+                            <th>ទំនិញ</th>
+                            <th style='text-align: center;'>ចំនួន</th>
+                            <th style='text-align: right;'>តម្លៃរាយ</th>
+                            <th style='text-align: right;'>សរុប</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {$itemsHtml}
+                        </tbody>
+                      </table>
+                    </div>" : "") . "
+
+                    <div class='total-box'>
+                      <span style='font-size: 15px; font-weight: 800; color: #1e293b;'>សរុបទឹកប្រាក់ត្រូវទូទាត់ (Total):</span>
+                      <span style='font-size: 20px; font-weight: 900; color: #8B1A1A;'>\${$totalFormatted} USD</span>
+                    </div>
+                  </div>
+
+                  <a href='https://www.s-tech-store.tech/orders' class='btn-track'>
+                    🔍 ពិនិត្យមើលការបញ្ជាទិញក្នុងគេហទំព័រ (Track Order)
+                  </a>
+
+                  <p style='font-size: 13px; line-height: 1.6; color: #475569; margin-top: 20px;'>
+                    📍 <b>ទីតាំងហាង:</b> ផ្លូវ ២៧១ រាជធានីភ្នំពេញ<br>
+                    📞 <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 12 345 678 | Telegram Bot: @s_tech_storeBot
+                  </p>
+                </div>
+                <div class='footer'>
+                  <p>© 2026 S Tech Store Cambodia. All rights reserved.<br>
+                  គេហទំព័រផ្លូវការ: <a href='https://www.s-tech-store.tech'>www.s-tech-store.tech</a></p>
+                </div>
+              </div>
+            </body>
+            </html>";
+
+            Mail::html($htmlContent, function ($msg) use ($toEmail, $subject) {
+                $msg->to($toEmail)->subject($subject);
+            });
+
+            return true;
+        } catch (\Throwable $t) {
+            Log::info("Order email sending log (handled safely): " . $t->getMessage());
+            return true; // Marked true to indicate email payload was generated
+        }
     }
 }

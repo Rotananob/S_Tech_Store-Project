@@ -1,7 +1,8 @@
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
-import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2, Mail, Send } from "lucide-react";
+import { sendRepairAlert } from "@/lib/services/admin.service";
+import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2, Mail, Send, Bell, Globe } from "lucide-react";
 
 type Ticket = {
   id: number;
@@ -16,6 +17,12 @@ type Ticket = {
   status: string;
   technician: string;
   notes?: string;
+};
+
+type EditTicketForm = Ticket & {
+  send_email?: boolean;
+  send_telegram?: boolean;
+  send_web?: boolean;
 };
 
 const STATUSES = ["All Statuses", "Pending Assessment", "In Progress", "Ready", "Completed"];
@@ -37,15 +44,26 @@ export default function RepairManagementPage() {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
-  const [editForm, setEditForm] = useState<Ticket | null>(null);
+  const [editForm, setEditForm] = useState<EditTicketForm | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
+
+  // Multi-Channel Alert Modal state
+  const [alertTicket, setAlertTicket] = useState<Ticket | null>(null);
+  const [alertEmail, setAlertEmail] = useState(true);
+  const [alertTelegram, setAlertTelegram] = useState(true);
+  const [alertWeb, setAlertWeb] = useState(true);
+  const [alertCustomEmail, setAlertCustomEmail] = useState("");
+  const [sendingAlert, setSendingAlert] = useState(false);
+
   const [newForm, setNewForm] = useState({
     customer_name: "",
     customer_phone: "",
     customer_email: "",
     send_email: true,
+    send_telegram: true,
+    send_web: true,
     device_name: "",
     issue_description: "",
     technician_name: "Unassigned",
@@ -85,22 +103,47 @@ export default function RepairManagementPage() {
     }
   };
 
-  const handleSendEmail = async (ticket: Ticket) => {
+  const openAlertModal = (ticket: Ticket) => {
+    setAlertTicket(ticket);
+    const email = ticket.customer_email || "";
+    setAlertCustomEmail(email);
+    setAlertEmail(Boolean(email));
+    setAlertTelegram(true);
+    setAlertWeb(true);
+  };
+
+  const handleSendAlert = async () => {
+    if (!alertTicket) return;
+    if (!alertEmail && !alertTelegram && !alertWeb) {
+      showToast("សូមជ្រើសរើសយ៉ាងហោចណាស់ Channel មួយ (Email, Telegram, ឬ Website Account)", "error");
+      return;
+    }
     try {
-      setSendingEmailId(ticket.id);
-      const res = await api.post(`/admin/repairs/${ticket.id}/send-email`, {
-        email: ticket.customer_email || undefined,
+      setSendingAlert(true);
+      const res = await sendRepairAlert(alertTicket.id, {
+        send_email: alertEmail,
+        send_telegram: alertTelegram,
+        send_web: alertWeb,
+        email: alertCustomEmail.trim() || undefined,
       });
-      if (res.data?.success) {
-        showToast(`📧 បានផ្ញើ Email ជូនដំណឹង Ticket ទៅកាន់ ${res.data.email || 'អតិថិជន'} ជោគជ័យ!`);
+      if (res.success) {
+        showToast(res.message || "បានបញ្ជូនការជូនដំណឹងជោគជ័យ!");
+        if (alertCustomEmail && alertCustomEmail !== alertTicket.customer_email) {
+          setRepairs(prev => prev.map(r => r.id === alertTicket.id ? { ...r, customer_email: alertCustomEmail } : r));
+        }
+        setAlertTicket(null);
       } else {
-        showToast(res.data?.message || "បានកត់ត្រាការផ្ញើ Email រួចរាល់");
+        showToast(res.message || "បរាជ័យក្នុងការបញ្ជូនការជូនដំណឹង", "error");
       }
     } catch (e: any) {
-      showToast(e?.response?.data?.message || "បរាជ័យក្នុងការផ្ញើ Email ជូនដំណឹង Ticket", "error");
+      showToast(e?.response?.data?.message || "បរាជ័យក្នុងការបញ្ជូនការជូនដំណឹង", "error");
     } finally {
-      setSendingEmailId(null);
+      setSendingAlert(false);
     }
+  };
+
+  const handleSendEmail = async (ticket: Ticket) => {
+    openAlertModal(ticket);
   };
 
   useEffect(() => {
@@ -118,6 +161,16 @@ export default function RepairManagementPage() {
     });
   }, [repairs, statusFilter, searchQuery]);
 
+  const openEditTicketModal = (ticket: Ticket) => {
+    setEditTicket(ticket);
+    setEditForm({
+      ...ticket,
+      send_email: Boolean(ticket.customer_email),
+      send_telegram: true,
+      send_web: true,
+    });
+  };
+
   const handleEditSave = async () => {
     if (!editForm) return;
     try {
@@ -125,8 +178,11 @@ export default function RepairManagementPage() {
         status: editForm.status,
         technician_name: editForm.technician,
         estimated_cost: editForm.estCost,
+        send_email: editForm.send_email,
+        send_telegram: editForm.send_telegram,
+        send_web: editForm.send_web,
       });
-      setRepairs(prev => prev.map(r => r.id === editForm.id ? editForm : r));
+      setRepairs(prev => prev.map(r => r.id === editForm.id ? { ...editForm } : r));
       setEditTicket(null);
       setEditForm(null);
       showToast("បច្ចុប្បន្នភាពប័ណ្ណជួសជុលបានជោគជ័យ! • Ticket updated!");
@@ -152,6 +208,8 @@ export default function RepairManagementPage() {
         customer_phone: "",
         customer_email: "",
         send_email: true,
+        send_telegram: true,
+        send_web: true,
         device_name: "",
         issue_description: "",
         technician_name: "Unassigned",
@@ -245,17 +303,46 @@ export default function RepairManagementPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900">
-                <input
-                  type="checkbox"
-                  id="send_email_ticket"
-                  checked={newForm.send_email}
-                  onChange={e => setNewForm({ ...newForm, send_email: e.target.checked })}
-                  className="w-4 h-4 rounded text-[#8B1A1A] focus:ring-[#8B1A1A] cursor-pointer"
-                />
-                <label htmlFor="send_email_ticket" className="text-xs font-semibold cursor-pointer">
-                  📧 ផ្ញើ Email ជូនដំណឹងប័ណ្ណ Ticket ទៅកាន់ User ភ្លាមៗ (Instant Push Email)
-                </label>
+              {/* Multi-Channel Alerts Checkboxes */}
+              <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-2">
+                <div className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <Bell size={14} className="text-purple-600" />
+                  <span>ការជូនដំណឹងស្វ័យប្រវត្តិ (Instant Multi-Channel Alerts)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${newForm.send_email ? 'bg-white border-rose-400 text-rose-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={newForm.send_email}
+                      onChange={e => setNewForm({ ...newForm, send_email: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-rose-600 cursor-pointer"
+                    />
+                    <Mail size={13} className="text-rose-600 shrink-0" />
+                    <span className="truncate">Real Email</span>
+                  </label>
+
+                  <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${newForm.send_telegram ? 'bg-white border-sky-400 text-sky-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={newForm.send_telegram}
+                      onChange={e => setNewForm({ ...newForm, send_telegram: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-sky-600 cursor-pointer"
+                    />
+                    <Send size={13} className="text-sky-600 shrink-0" />
+                    <span className="truncate">Telegram</span>
+                  </label>
+
+                  <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${newForm.send_web ? 'bg-white border-purple-400 text-purple-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={newForm.send_web}
+                      onChange={e => setNewForm({ ...newForm, send_web: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-purple-600 cursor-pointer"
+                    />
+                    <Globe size={13} className="text-purple-600 shrink-0" />
+                    <span className="truncate">Account Web</span>
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -403,20 +490,19 @@ export default function RepairManagementPage() {
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                disabled={sendingEmailId === viewTicket.id}
-                onClick={() => handleSendEmail(viewTicket)}
-                className="flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                onClick={() => {
+                  const t = viewTicket;
+                  setViewTicket(null);
+                  openAlertModal(t);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
               >
-                {sendingEmailId === viewTicket.id ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <Mail size={16} />
-                )}
-                <span>📧 Push Email ទៅកាន់ User</span>
+                <Bell size={16} />
+                <span>បញ្ជូនការជូនដំណឹង (Email / TG / Web)</span>
               </button>
               <button 
                 onClick={() => setViewTicket(null)} 
-                className="px-6 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="px-6 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 បិទ • Close
               </button>
@@ -428,7 +514,7 @@ export default function RepairManagementPage() {
       {/* Edit Modal */}
       {editTicket && editForm && (
         <div className="fixed inset-0 bg-black/50 z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-xl max-w-sm w-full shadow-2xl">
+          <div className="bg-white p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl">
             <h3 className="text-xl font-bold mb-6 text-gray-900">Update Ticket {editForm.ticket_code}</h3>
             
             <div className="flex flex-col gap-4">
@@ -438,7 +524,7 @@ export default function RepairManagementPage() {
                   <select 
                     value={editForm.status} 
                     onChange={e => setEditForm({ ...editForm, status: e.target.value })} 
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
                   >
                     {STATUSES.filter(s => s !== "All Statuses").map(s => <option key={s}>{s}</option>)}
                   </select>
@@ -451,7 +537,7 @@ export default function RepairManagementPage() {
                 <input 
                   value={editForm.technician} 
                   onChange={e => setEditForm({ ...editForm, technician: e.target.value })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
                 />
               </div>
               
@@ -461,23 +547,254 @@ export default function RepairManagementPage() {
                   type="number" 
                   value={editForm.estCost} 
                   onChange={e => setEditForm({ ...editForm, estCost: parseFloat(e.target.value) || 0 })} 
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                  className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
                 />
+              </div>
+
+              {/* Multi-Channel Alerts Checkboxes */}
+              <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                  <Bell size={13} className="text-purple-600" />
+                  <span>ផ្ញើជូនដំណឹងបច្ចុប្បន្នភាព (Notify Customer Channels)</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <label className={`flex items-center gap-1 p-2 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all ${editForm.send_email ? 'bg-white border-rose-400 text-rose-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.send_email ?? true}
+                      onChange={e => setEditForm({ ...editForm, send_email: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-rose-600 cursor-pointer"
+                    />
+                    <Mail size={12} className="text-rose-600 shrink-0" />
+                    <span className="truncate">Email</span>
+                  </label>
+
+                  <label className={`flex items-center gap-1 p-2 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all ${editForm.send_telegram ? 'bg-white border-sky-400 text-sky-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.send_telegram ?? true}
+                      onChange={e => setEditForm({ ...editForm, send_telegram: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-sky-600 cursor-pointer"
+                    />
+                    <Send size={12} className="text-sky-600 shrink-0" />
+                    <span className="truncate">Telegram</span>
+                  </label>
+
+                  <label className={`flex items-center gap-1 p-2 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all ${editForm.send_web ? 'bg-white border-purple-400 text-purple-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.send_web ?? true}
+                      onChange={e => setEditForm({ ...editForm, send_web: e.target.checked })}
+                      className="w-3.5 h-3.5 rounded text-purple-600 cursor-pointer"
+                    />
+                    <Globe size={12} className="text-purple-600 shrink-0" />
+                    <span className="truncate">Web</span>
+                  </label>
+                </div>
               </div>
             </div>
             
-            <div className="flex gap-3 mt-8 pt-6 border-t border-gray-100">
+            <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
               <button 
                 onClick={() => { setEditTicket(null); setEditForm(null); }} 
-                className="flex-1 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleEditSave} 
-                className="flex-1 py-2.5 border-none rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+                className="flex-1 py-2.5 border-none rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors cursor-pointer shadow-md"
               >
                 Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Push Alert to Repair Customer Modal ─── */}
+      {alertTicket && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
+            <div className="p-5 bg-gradient-to-r from-purple-700 to-indigo-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Bell size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold leading-tight">Push Alert to Customer</h3>
+                  <p className="text-xs text-purple-200">
+                    Ticket: {alertTicket.ticket_code} • {alertTicket.customer} ({alertTicket.device})
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAlertTicket(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Ticket Summary Card */}
+              <div className="p-3.5 rounded-xl bg-purple-50/80 border border-purple-200">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                    <User size={13} className="text-purple-700" />
+                    <span>{alertTicket.customer}</span>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${getStatusStyle(alertTicket.status)}`}>
+                    {alertTicket.status}
+                  </span>
+                </div>
+                <div className="text-[11px] text-gray-600 flex items-center gap-3">
+                  <span>📱 {alertTicket.device}</span>
+                  <span>📞 {alertTicket.phone}</span>
+                  <span>💵 ${alertTicket.estCost}</span>
+                </div>
+              </div>
+
+              {/* 3 Channels Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  ជ្រើសរើស Channels សម្រាប់បញ្ជូនដំណឹង (Multi-Channel Dispatch) *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Channel 1: Real Email */}
+                  <div
+                    onClick={() => setAlertEmail(!alertEmail)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      alertEmail
+                        ? "bg-rose-50/80 border-rose-400 ring-2 ring-rose-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-rose-950">
+                        <Mail size={15} className="text-rose-600" />
+                        <span>Real Email</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={alertEmail}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setAlertEmail(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-rose-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate" title={alertCustomEmail || "គ្មាន Email"}>
+                      {alertCustomEmail || "គ្មាន Email"}
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-rose-700">
+                      {alertCustomEmail ? "បាញ់ Email HTML របាយការណ៍" : "បញ្ចូល Email ខាងក្រោម"}
+                    </span>
+                  </div>
+
+                  {/* Channel 2: Telegram Bot Direct */}
+                  <div
+                    onClick={() => setAlertTelegram(!alertTelegram)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      alertTelegram
+                        ? "bg-sky-50/80 border-sky-400 ring-2 ring-sky-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-sky-950">
+                        <Send size={15} className="text-sky-600" />
+                        <span>Telegram Bot</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={alertTelegram}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setAlertTelegram(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate">
+                      Bot 2 Companion
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-sky-700">
+                      ផ្ញើសារ 1-on-1 Ticket Card
+                    </span>
+                  </div>
+
+                  {/* Channel 3: Website Account In-App */}
+                  <div
+                    onClick={() => setAlertWeb(!alertWeb)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      alertWeb
+                        ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-purple-950">
+                        <Globe size={15} className="text-purple-600" />
+                        <span>Account Web</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={alertWeb}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setAlertWeb(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-purple-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate">
+                      {alertTicket.customer}
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-purple-700">
+                      កត់ត្រាក្នុង Notification Bell
+                    </span>
+                  </div>
+                </div>
+
+                {alertEmail && (
+                  <div className="p-2.5 rounded-xl bg-rose-50/60 border border-rose-200 flex items-center gap-2">
+                    <Mail size={14} className="text-rose-600 shrink-0" />
+                    <input
+                      type="email"
+                      value={alertCustomEmail}
+                      onChange={(e) => setAlertCustomEmail(e.target.value)}
+                      placeholder="ផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលអតិថិជន (e.g. customer@example.com)..."
+                      className="w-full bg-transparent text-xs text-gray-800 outline-none font-medium placeholder:text-gray-400"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setAlertTicket(null)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-100 transition-colors cursor-pointer text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendAlert}
+                disabled={sendingAlert}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 text-sm"
+              >
+                {sendingAlert ? (
+                  <span>Sending Alert...</span>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    <span>Send Multi-Channel Alert</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -595,16 +912,11 @@ export default function RepairManagementPage() {
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button 
-                          onClick={() => handleSendEmail(ticket)} 
-                          disabled={sendingEmailId === ticket.id}
-                          className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50" 
-                          title="Push Ticket Details to Customer Email"
+                          onClick={() => openAlertModal(ticket)} 
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer" 
+                          title="ជូនដំណឹងទៅកាន់អតិថិជន (Multi-Channel Alert: Email, Telegram, Web)"
                         >
-                          {sendingEmailId === ticket.id ? (
-                            <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Mail size={16} />
-                          )}
+                          <Bell size={16} />
                         </button>
                         <button 
                           onClick={() => setViewTicket(ticket)} 
@@ -614,7 +926,7 @@ export default function RepairManagementPage() {
                           <Eye size={16} />
                         </button>
                         <button 
-                          onClick={() => { setEditTicket(ticket); setEditForm(ticket); }} 
+                          onClick={() => openEditTicketModal(ticket)} 
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" 
                           title="Update Ticket"
                         >

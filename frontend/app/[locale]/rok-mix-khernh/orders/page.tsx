@@ -28,6 +28,7 @@ import {
   AlertCircle,
   X,
   Save,
+  Globe,
 } from "lucide-react";
 
 const STATUSES = ["All Statuses", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -123,6 +124,9 @@ export default function OrderManagementPage() {
     tracking_number: "",
     admin_notes: "",
     notify_customer: true,
+    send_email: true,
+    send_telegram: true,
+    send_web: true,
   });
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -131,6 +135,10 @@ export default function OrderManagementPage() {
   const [notifyTitle, setNotifyTitle] = useState("");
   const [notifyMessage, setNotifyMessage] = useState("");
   const [notifyStatusSync, setNotifyStatusSync] = useState("");
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifyTelegram, setNotifyTelegram] = useState(true);
+  const [notifyWeb, setNotifyWeb] = useState(true);
+  const [notifyCustomEmail, setNotifyCustomEmail] = useState("");
   const [sendingNotify, setSendingNotify] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -197,13 +205,17 @@ export default function OrderManagementPage() {
 
   // Open Full Edit Modal
   const openEditModal = (order: Order) => {
+    const email = order.customer_email || order.customer_account?.email || "";
+    const hasTg = Boolean(
+      order.customer_account?.has_telegram || (order.user_id && order.user_id.startsWith("tg_"))
+    );
     setEditOrder(order);
     setEditForm({
       status: order.status || "pending",
       payment_status: order.payment_status || "pending",
       customer_name: order.customer_name || "",
       customer_phone: order.customer_phone || "",
-      customer_email: order.customer_email || order.customer_account?.email || "",
+      customer_email: email,
       shipping_address: order.shipping_address || "",
       delivery_type: order.delivery_type || "pnompenh",
       payment_method: order.payment_method || "cod",
@@ -211,6 +223,9 @@ export default function OrderManagementPage() {
       tracking_number: order.tracking_number || "",
       admin_notes: order.admin_notes || "",
       notify_customer: true,
+      send_email: Boolean(email),
+      send_telegram: hasTg,
+      send_web: true,
     });
   };
 
@@ -233,6 +248,9 @@ export default function OrderManagementPage() {
       tracking_number: editForm.tracking_number.trim() || undefined,
       admin_notes: editForm.admin_notes.trim() || undefined,
       notify_customer: editForm.notify_customer,
+      send_email: editForm.send_email,
+      send_telegram: editForm.send_telegram,
+      send_web: editForm.send_web,
     });
     setSavingEdit(false);
 
@@ -272,15 +290,31 @@ export default function OrderManagementPage() {
       `ការបញ្ជាទិញ #${order.order_id} របស់អ្នកត្រូវបានបញ្ជាក់រួចរាល់ហើយ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`
     );
     setNotifyStatusSync(order.status);
+    const email = order.customer_email || order.customer_account?.email || "";
+    const hasTg = Boolean(
+      order.customer_account?.has_telegram || (order.user_id && order.user_id.startsWith("tg_"))
+    );
+    setNotifyCustomEmail(email);
+    setNotifyEmail(Boolean(email));
+    setNotifyTelegram(hasTg);
+    setNotifyWeb(true);
   };
 
   const handleSendNotification = async () => {
     if (!notifyOrder || !notifyMessage.trim()) return;
+    if (!notifyEmail && !notifyTelegram && !notifyWeb) {
+      showToast("សូមជ្រើសរើសយ៉ាងហោចណាស់ Channel មួយ (Email, Telegram, ឬ Website Account)", "error");
+      return;
+    }
     setSendingNotify(true);
     const res = await pushOrderNotification(notifyOrder.id, {
       title: notifyTitle.trim() || undefined,
       message: notifyMessage.trim(),
       status: notifyStatusSync || undefined,
+      send_email: notifyEmail,
+      send_telegram: notifyTelegram,
+      send_web: notifyWeb,
+      email: notifyCustomEmail.trim() || undefined,
     });
     setSendingNotify(false);
 
@@ -746,27 +780,64 @@ export default function OrderManagementPage() {
                 />
               </div>
 
-              {/* Auto Notify Checkbox */}
-              <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell size={16} className="text-purple-600" />
-                  <div>
-                    <div className="text-xs font-bold text-purple-900">
-                      ផ្ញើការជូនដំណឹងស្វ័យប្រវត្តិ (Notify Customer on Save)
-                    </div>
-                    <div className="text-[11px] text-purple-700">
-                      {editOrder.customer_account?.has_telegram
-                        ? "🚀 នឹងផ្ញើទៅទាំង Website Account និង Telegram Bot របស់អតិថិជន!"
-                        : "🌐 នឹងផ្ញើទៅ Website In-App Notification របស់អតិថិជន!"}
+              {/* Auto Notify Multi-Channel Section */}
+              <div className="p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell size={16} className="text-purple-600" />
+                    <div>
+                      <div className="text-xs font-bold text-purple-900">
+                        ផ្ញើការជូនដំណឹងស្វ័យប្រវត្តិ (Notify Customer on Save)
+                      </div>
+                      <div className="text-[11px] text-purple-700">
+                        ជ្រើសរើស Channel ដែលត្រូវផ្ញើដំណឹងពេលរក្សាទុក
+                      </div>
                     </div>
                   </div>
+                  <input
+                    type="checkbox"
+                    checked={editForm.notify_customer}
+                    onChange={(e) => setEditForm({ ...editForm, notify_customer: e.target.checked })}
+                    className="w-4 h-4 rounded text-purple-600 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={editForm.notify_customer}
-                  onChange={(e) => setEditForm({ ...editForm, notify_customer: e.target.checked })}
-                  className="w-4 h-4 rounded text-purple-600 cursor-pointer"
-                />
+
+                {editForm.notify_customer && (
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-purple-200/60">
+                    <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${editForm.send_email ? 'bg-white border-rose-400 text-rose-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.send_email}
+                        onChange={(e) => setEditForm({ ...editForm, send_email: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded text-rose-600 cursor-pointer"
+                      />
+                      <Mail size={13} className="text-rose-600 shrink-0" />
+                      <span className="truncate">Real Email</span>
+                    </label>
+
+                    <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${editForm.send_telegram ? 'bg-white border-sky-400 text-sky-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.send_telegram}
+                        onChange={(e) => setEditForm({ ...editForm, send_telegram: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded text-sky-600 cursor-pointer"
+                      />
+                      <Send size={13} className="text-sky-600 shrink-0" />
+                      <span className="truncate">Telegram</span>
+                    </label>
+
+                    <label className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${editForm.send_web ? 'bg-white border-purple-400 text-purple-950 shadow-xs' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.send_web}
+                        onChange={(e) => setEditForm({ ...editForm, send_web: e.target.checked })}
+                        className="w-3.5 h-3.5 rounded text-purple-600 cursor-pointer"
+                      />
+                      <Globe size={13} className="text-purple-600 shrink-0" />
+                      <span className="truncate">Account Web</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-gray-100 flex gap-3">
@@ -855,6 +926,123 @@ export default function OrderManagementPage() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Multi-Channel Alerts Selector (Real Email, Telegram, In-App Website) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  ជ្រើសរើស Channels សម្រាប់បញ្ជូនដំណឹង (Multi-Channel Alerts) *
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Channel 1: Real Email */}
+                  <div
+                    onClick={() => setNotifyEmail(!notifyEmail)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      notifyEmail
+                        ? "bg-rose-50/80 border-rose-400 ring-2 ring-rose-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-rose-950">
+                        <Mail size={15} className="text-rose-600" />
+                        <span>Real Email</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={notifyEmail}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setNotifyEmail(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-rose-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate" title={notifyCustomEmail || "គ្មាន Email"}>
+                      {notifyCustomEmail || "គ្មាន Email"}
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-rose-700">
+                      {notifyCustomEmail ? "បាញ់ Email ពិតៗ (HTML)" : "បញ្ចូល Email ខាងក្រោម"}
+                    </span>
+                  </div>
+
+                  {/* Channel 2: Telegram Bot Direct */}
+                  <div
+                    onClick={() => setNotifyTelegram(!notifyTelegram)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      notifyTelegram
+                        ? "bg-sky-50/80 border-sky-400 ring-2 ring-sky-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-sky-950">
+                        <Send size={15} className="text-sky-600" />
+                        <span>Telegram Bot</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={notifyTelegram}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setNotifyTelegram(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate">
+                      {notifyOrder.customer_account?.has_telegram ? "Chat ផ្ទាល់ Connected" : "មិនទាន់ Link Telegram"}
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-sky-700">
+                      {notifyOrder.customer_account?.has_telegram ? "ផ្ញើសារ 1-on-1 ស្វ័យប្រវត្តិ" : "ផ្ញើតាម Chat ID បើមាន"}
+                    </span>
+                  </div>
+
+                  {/* Channel 3: Website Account In-App */}
+                  <div
+                    onClick={() => setNotifyWeb(!notifyWeb)}
+                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                      notifyWeb
+                        ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-500/20 shadow-xs"
+                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-purple-950">
+                        <Globe size={15} className="text-purple-600" />
+                        <span>Account Web</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={notifyWeb}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setNotifyWeb(e.target.checked);
+                        }}
+                        className="w-4 h-4 rounded text-purple-600 cursor-pointer"
+                      />
+                    </div>
+                    <div className="text-[11px] text-gray-700 truncate">
+                      {notifyOrder.customer_account?.display_name || notifyOrder.customer_name}
+                    </div>
+                    <span className="mt-1 text-[10px] font-semibold text-purple-700">
+                      កត់ត្រាក្នុង Notification Bell
+                    </span>
+                  </div>
+                </div>
+
+                {notifyEmail && (
+                  <div className="p-2.5 rounded-xl bg-rose-50/60 border border-rose-200 flex items-center gap-2">
+                    <Mail size={14} className="text-rose-600 shrink-0" />
+                    <input
+                      type="email"
+                      value={notifyCustomEmail}
+                      onChange={(e) => setNotifyCustomEmail(e.target.value)}
+                      placeholder="ផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលអតិថិជន (e.g. customer@example.com)..."
+                      className="w-full bg-transparent text-xs text-gray-800 outline-none font-medium placeholder:text-gray-400"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Quick Template Picker */}
