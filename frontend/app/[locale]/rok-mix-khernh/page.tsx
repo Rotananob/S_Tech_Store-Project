@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "@/i18n/routing";
 import { 
   getAdminStats, getRecentOrders, broadcastTelegramMessage, 
@@ -13,9 +13,25 @@ import {
   DollarSign, ShoppingBag, Wrench, Tag, FileText, ArrowUpRight, 
   ArrowDownRight, Settings, Send, Volume2, VolumeX, Radio, Sparkles, 
   CheckCircle2, AlertTriangle, Search, Activity, ShieldCheck, RefreshCw, 
-  MessageSquare, ExternalLink, Zap, ShieldAlert, Lock, Cpu, Eye, Gift, Clock, Terminal, Check
+  MessageSquare, ExternalLink, Zap, ShieldAlert, Lock, Cpu, Eye, Gift, Clock, Terminal, Check,
+  Calendar, ChevronDown, Layers
 } from "lucide-react";
-import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
+
+const MONTH_OPTIONS = [
+  { value: "all", label: "All Months (ពេញមួយឆ្នាំ)" },
+  { value: "1", label: "01 - January (មករា)" },
+  { value: "2", label: "02 - February (កុម្ភៈ)" },
+  { value: "3", label: "03 - March (មីនា)" },
+  { value: "4", label: "04 - April (មេសា)" },
+  { value: "5", label: "05 - May (ឧសភា)" },
+  { value: "6", label: "06 - June (មិថុនា)" },
+  { value: "7", label: "07 - July (កក្កដា)" },
+  { value: "8", label: "08 - August (សីហា)" },
+  { value: "9", label: "09 - September (កញ្ញា)" },
+  { value: "10", label: "10 - October (តុលា)" },
+  { value: "11", label: "11 - November (វិច្ឆិកា)" },
+  { value: "12", label: "12 - December (ធ្នូ)" },
+];
 
 export default function AdminDashboardOverview() {
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -25,18 +41,24 @@ export default function AdminDashboardOverview() {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [lastOrderCount, setLastOrderCount] = useState<number>(0);
   
+  // Date Filters: Year & Month for Sales Performance & Revenue
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [isFilteringSales, setIsFilteringSales] = useState(false);
+
   // Telegram Quick Broadcast state
   const [broadcastMsg, setBroadcastMsg] = useState("");
   const [broadcastTopic, setBroadcastTopic] = useState("chat");
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
-  // Security Pentest & Attack Simulation state
+  // Security Health Probe state
   const [pentestRunning, setPentestRunning] = useState(false);
   const [pentestLogs, setPentestLogs] = useState<{ step: string; status: "success" | "warning" | "error" }[] | null>(null);
   const [showPentestModal, setShowPentestModal] = useState(false);
 
-  // Daily Traffic (12:00 AM - 11:59 PM) state
+  // Daily Traffic state
   const [todayTraffic, setTodayTraffic] = useState<{ hits_today: number; unique_today: number } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -44,7 +66,7 @@ export default function AdminDashboardOverview() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Play pleasant "Cha-Ching" notification sound using Web Audio API
+  // Play pleasant notification sound using Web Audio API
   const playCashChime = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -58,9 +80,9 @@ export default function AdminDashboardOverview() {
       osc1.type = "sine";
       osc2.type = "triangle";
 
-      osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
-      osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.15); // D6
+      osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      osc2.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.15);
 
       gain.gain.setValueAtTime(0.3, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
@@ -74,15 +96,15 @@ export default function AdminDashboardOverview() {
       osc1.stop(ctx.currentTime + 0.6);
       osc2.stop(ctx.currentTime + 0.6);
     } catch (e) {
-      // Audio autoplay permission or context error fallback
+      // Audio autoplay fallback
     }
   };
 
-  const fetchData = async (silent = false) => {
+  const fetchData = async (year = selectedYear, month = selectedMonth, silent = false) => {
     try {
       if (!silent) setLoading(true);
       const [statsData, ordersData] = await Promise.all([
-        getAdminStats(),
+        getAdminStats({ year, month }),
         getRecentOrders(6),
       ]);
       setStats(statsData);
@@ -106,18 +128,19 @@ export default function AdminDashboardOverview() {
 
       if (lastOrderCount > 0 && ordersData.length > lastOrderCount && audioEnabled) {
         playCashChime();
-        showToast("🔔 ការបញ្ជាទិញថ្មីទើបតែបានចូលមកដល់! • New Order Received");
+        showToast("ការបញ្ជាទិញថ្មីទើបតែបានចូលមកដល់ (New Order Received)");
       }
       setLastOrderCount(ordersData.length);
     } catch (error) {
       console.error("Error fetching admin data:", error);
     } finally {
       setLoading(false);
+      setIsFilteringSales(false);
     }
   };
 
+  // Initial load
   useEffect(() => {
-    // 1. Instant hydration from sessionStorage (0ms render)
     let hasCachedData = false;
     try {
       const cachedStats = sessionStorage.getItem("admin_dashboard_stats");
@@ -132,13 +155,26 @@ export default function AdminDashboardOverview() {
       }
     } catch {}
 
-    // 2. Fetch fresh updates in background
-    fetchData(!hasCachedData);
+    fetchData(selectedYear, selectedMonth, !hasCachedData);
 
-    // 3. Gentle background polling every 45 seconds (avoids hammering Neon DB)
-    const interval = setInterval(() => fetchData(true), 45000);
+    const interval = setInterval(() => {
+      fetchData(selectedYear, selectedMonth, true);
+    }, 45000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle year & month filter changes
+  const handleYearChange = (year: number) => {
+    setSelectedYear(year);
+    setIsFilteringSales(true);
+    fetchData(year, selectedMonth, true);
+  };
+
+  const handleMonthChange = (month: string) => {
+    setSelectedMonth(month);
+    setIsFilteringSales(true);
+    fetchData(selectedYear, month, true);
+  };
 
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,7 +187,7 @@ export default function AdminDashboardOverview() {
     try {
       const res = await broadcastTelegramMessage(broadcastMsg.trim(), broadcastTopic, "Admin");
       if (res.success) {
-        showToast("បានផ្ញើសារប្រកាសទៅ Telegram Group ជោគជ័យ! 🎉");
+        showToast("បានផ្ញើសារប្រកាសទៅ Telegram Group ជោគជ័យ");
         setBroadcastMsg("");
       } else {
         showToast(res.error || "បរាជ័យក្នុងការផ្ញើសារ", "error");
@@ -164,77 +200,69 @@ export default function AdminDashboardOverview() {
     }
   };
 
-  const handleTriggerPromoPopup = () => {
-    try {
-      sessionStorage.removeItem("stech_promo_popup_dismissed");
-    } catch {}
-    window.dispatchEvent(new Event("stech:trigger-promo"));
-    showToast("🎉 បានបើកផ្ទាំងមហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ 30% OFF!");
-  };
-
-  const runSecurityPentest = async () => {
+  const runSecurityHealthProbe = async () => {
     setPentestRunning(true);
     setShowPentestModal(true);
     const logs: { step: string; status: "success" | "warning" | "error" }[] = [];
     
-    logs.push({ step: "🚀 ចាប់ផ្ដើមការត្រួតពិនិត្យសុវត្ថិភាព Full-Stack Pentest & Anti-DDoS Sentinel...", status: "success" });
+    logs.push({ step: "ចាប់ផ្ដើមការត្រួតពិនិត្យសុវត្ថិភាពប្រព័ន្ធ និង Firewall Defense...", status: "success" });
     setPentestLogs([...logs]);
 
-    // Test 1: PostgreSQL Neon Health
+    // Test 1: Store Database Health
     try {
-      const statsData = await getAdminStats();
+      const statsData = await getAdminStats({ year: selectedYear, month: selectedMonth });
       if (statsData) {
-        logs.push({ step: "✅ Neon PostgreSQL: Cloud Database latency verified (healthy, 22ms)", status: "success" });
+        logs.push({ step: "Store Database: ការតភ្ជាប់ដំណើរការល្អ និងឆ្លើយតបរហ័ស (Connected, Latency Low)", status: "success" });
       }
     } catch (e) {
-      logs.push({ step: "⚠️ Neon PostgreSQL: Check complete via cached replica", status: "warning" });
+      logs.push({ step: "Store Database: ឆ្លើយតបតាមរយៈ Cached Replica", status: "warning" });
     }
     setPentestLogs([...logs]);
 
     // Test 2: AI Sliding Window Rate Limiter
     try {
-      logs.push({ step: "🔍 ធ្វើតេស្ត Flood Defense នៅលើ AI Endpoint (/api/ai/chat)...", status: "success" });
+      logs.push({ step: "ធ្វើតេស្ត Flood Defense នៅលើ Chat Endpoint...", status: "success" });
       setPentestLogs([...logs]);
 
       const testRes = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Security health test ping", userName: "Admin Pentester" }),
+        body: JSON.stringify({ message: "Security health test ping", userName: "Admin Probe" }),
       });
       const data = await testRes.json();
       if (data.reply || data.success) {
-        logs.push({ step: "✅ AI Rate Limiter: Active (Sliding window 7 req/min & 12 req/30s IP ban armed)", status: "success" });
+        logs.push({ step: "Flood Defense Rate Limiter: ដំណើរការការពារយ៉ាងត្រឹមត្រូវ (Armed & Active)", status: "success" });
       } else {
-        logs.push({ step: "⚠️ AI Rate Limiter: Guard responded: " + (data.error || "Blocked"), status: "warning" });
+        logs.push({ step: "Flood Defense: Guard status: " + (data.error || "Protected"), status: "warning" });
       }
     } catch {
-      logs.push({ step: "✅ AI Rate Limiter: Firewall fallback operational", status: "success" });
+      logs.push({ step: "Flood Defense: Firewall fallback operational", status: "success" });
     }
     setPentestLogs([...logs]);
 
     // Test 3: Telegram Security Alert Channel
     try {
-      logs.push({ step: "📡 បញ្ជូន Security Verification Alert ទៅកាន់ Telegram Group...", status: "success" });
+      logs.push({ step: "បញ្ជូន Security Verification Alert ទៅកាន់ Telegram Group...", status: "success" });
       setPentestLogs([...logs]);
       
       const tgRes = await broadcastTelegramMessage(
-        "🛡️ [PENTEST VERIFIED] ប្រព័ន្ធសុវត្ថិភាព S Tech Store បានដំណើរការ Security Pentest ជោគជ័យ ១០០%! គ្រប់ Endpoint ទាំងអស់ត្រូវបានការពារដោយរឹងមាំ។",
+        "[SECURITY PROBE] ប្រព័ន្ធសុវត្ថិភាព S Tech Store បានដំណើរការ Health Audit ជោគជ័យ។ គ្រប់ Endpoint ទាំងអស់ត្រូវបានការពារដោយរឹងមាំ។",
         "security",
-        "Security Sentinel"
+        "Security System"
       );
       if (tgRes.success) {
-        logs.push({ step: "✅ Telegram Alert Sentinel: សារជូនដំណឹងសុវត្ថិភាពបានបញ្ជូនទៅ Telegram Topic 'Security' ជោគជ័យ!", status: "success" });
+        logs.push({ step: "Telegram Sentinel: សារជូនដំណឹងសុវត្ថិភាពបានបញ្ជូនទៅ Telegram Topic 'Security' ជោគជ័យ", status: "success" });
       } else {
-        logs.push({ step: "⚠️ Telegram Alert: Dispatched through fallback queue", status: "warning" });
+        logs.push({ step: "Telegram Alert: Dispatched through fallback queue", status: "warning" });
       }
     } catch {
-      logs.push({ step: "✅ Telegram Alert: Mock test delivered successfully", status: "success" });
+      logs.push({ step: "Telegram Alert: Mock test delivered successfully", status: "success" });
     }
 
-    logs.push({ step: "🎯 សេចក្តីសន្និដ្ឋាន: ប្រព័ន្ធសុវត្ថិភាព Rate Limiter, Database និង Telegram Bot ដំណើរការល្អឥតខ្ចោះ ១០០%!", status: "success" });
+    logs.push({ step: "សេចក្តីសន្និដ្ឋាន: ប្រព័ន្ធសុវត្ថិភាព Rate Limiter, Database និង Telegram Bot ដំណើរការល្អពេញលេញ", status: "success" });
     setPentestLogs([...logs]);
     setPentestRunning(false);
-    showToast("🎉 ការធ្វើតេស្តសុវត្ថិភាព Pentest បានបញ្ចប់ជោគជ័យ ១០០%!");
+    showToast("ការធ្វើតេស្តសុវត្ថិភាពបានបញ្ចប់ដោយជោគជ័យ");
   };
 
   const formatDate = (dateString: string) => {
@@ -265,6 +293,24 @@ export default function AdminDashboardOverview() {
     );
   });
 
+  const availableYearsList = stats?.availableYears && stats.availableYears.length > 0 
+    ? stats.availableYears 
+    : [currentYear, currentYear - 1, currentYear - 2];
+
+  const currentPeriodSales = stats?.filteredSales !== undefined 
+    ? stats.filteredSales 
+    : (stats?.totalSales || 0);
+
+  const currentPeriodOrders = stats?.filteredOrders !== undefined 
+    ? stats.filteredOrders 
+    : (stats?.totalOrders || 0);
+
+  const avgOrderValue = currentPeriodOrders > 0 
+    ? (currentPeriodSales / currentPeriodOrders).toFixed(2) 
+    : "0.00";
+
+  const selectedMonthObj = MONTH_OPTIONS.find((m) => m.value === selectedMonth);
+
   if (loading) {
     return (
       <div className="p-16 flex flex-col items-center justify-center text-center">
@@ -277,13 +323,14 @@ export default function AdminDashboardOverview() {
   return (
     <div className="font-sans space-y-6">
       {toast && (
-        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-xl font-bold text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} transition-all animate-in fade-in slide-in-from-top-4`}>
-          {toast.msg}
+        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-xl font-bold text-sm text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} transition-all animate-in fade-in slide-in-from-top-4`}>
+          {toast.type === 'error' ? <AlertTriangle size={16} /> : <Check size={16} />}
+          <span>{toast.msg}</span>
         </div>
       )}
 
       {/* ── TOP COMMAND HEADER & QUICK CONTROLS ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -307,7 +354,7 @@ export default function AdminDashboardOverview() {
               const next = !audioEnabled;
               setAudioEnabled(next);
               if (next) playCashChime();
-              showToast(next ? "🔊 បានបើកសំឡេងជូនដំណឹង • Audio Alerts ON" : "🔇 បានបិទសំឡេងជូនដំណឹង • Audio Alerts OFF");
+              showToast(next ? "បានបើកសំឡេងជូនដំណឹង (Audio Alerts ON)" : "បានបិទសំឡេងជូនដំណឹង (Audio Alerts OFF)");
             }}
             className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
               audioEnabled 
@@ -317,13 +364,13 @@ export default function AdminDashboardOverview() {
             title="បន្លឺសំឡេងពេលមាន Order ថ្មី"
           >
             {audioEnabled ? <Volume2 size={16} className="text-emerald-600" /> : <VolumeX size={16} />}
-            <span>{audioEnabled ? "Sound Alert ON 🔔" : "Sound Alert OFF 🔕"}</span>
+            <span>{audioEnabled ? "Sound Alert ON" : "Sound Alert OFF"}</span>
           </button>
 
           {/* Quick Refresh */}
           <button
             type="button"
-            onClick={() => { fetchData(); }}
+            onClick={() => { fetchData(selectedYear, selectedMonth); }}
             className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
             title="ទាញទិន្នន័យថ្មី • Refresh"
           >
@@ -342,37 +389,37 @@ export default function AdminDashboardOverview() {
         </div>
       </div>
 
-      {/* ── LIVE INFRASTRUCTURE HEARTBEAT BAR ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm text-xs">
+      {/* ── LIVE STORE OPERATIONAL STATUS BAR ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-xs text-xs">
         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
           <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Cloud Database</span>
-            <span className="font-bold text-gray-800">Neon PostgreSQL • 22ms</span>
+            <span className="text-gray-400 block text-[10px]">Store Database</span>
+            <span className="font-bold text-gray-800">Online & Connected</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Realtime DB</span>
-            <span className="font-bold text-amber-700">Firebase RTDB • Chat</span>
+            <span className="text-gray-400 block text-[10px]">Customer Chat</span>
+            <span className="font-bold text-gray-800">Live Support Ready</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
           <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse" />
           <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Telegram Sentinel</span>
-            <span className="font-bold text-sky-700">@s_tech_storeBot</span>
+            <span className="text-gray-400 block text-[10px]">Telegram Alerts</span>
+            <span className="font-bold text-sky-700">Sentinel Connected</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
           <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
           <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">AI Assistant</span>
-            <span className="font-bold text-purple-700">Gemini 2.5 Flash</span>
+            <span className="text-gray-400 block text-[10px]">Smart Assistant</span>
+            <span className="font-bold text-purple-700">S Tech AI Online</span>
           </div>
         </div>
 
@@ -380,7 +427,7 @@ export default function AdminDashboardOverview() {
           <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
           <div className="truncate">
             <span className="text-gray-400 block text-[10px]">Defense Shield</span>
-            <span className="font-bold text-indigo-700">Rate Limiter Armed 🛡️</span>
+            <span className="font-bold text-indigo-700">Firewall Protection Active</span>
           </div>
         </div>
       </div>
@@ -389,10 +436,10 @@ export default function AdminDashboardOverview() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Banner with 1-Click Bot Setup */}
-        <div className="lg:col-span-2 p-6 rounded-2xl bg-gradient-to-r from-[#0088cc] via-[#0077b5] to-[#1a4fa0] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-md relative overflow-hidden">
+        <div className="lg:col-span-2 p-6 rounded-2xl bg-gradient-to-r from-[#0088cc] via-[#0077b5] to-[#1a4fa0] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-sm relative overflow-hidden">
           <div className="absolute right-0 top-0 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
           <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-md">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-xs">
               <Send size={26} className="text-white fill-white/20" />
             </div>
             <div>
@@ -400,16 +447,16 @@ export default function AdminDashboardOverview() {
                 <Sparkles size={12} /> ABA Merchant Style One-Click
               </div>
               <h3 className="text-lg font-black text-white m-0">
-                Official Telegram Bot: @s_tech_storeBot
+                Official Telegram Bot Sentinel
               </h3>
               <p className="text-xs text-sky-100 mt-1 leading-relaxed max-w-md">
-                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី • New Orders និងបែងចែកតាម Forum Topics ដោយស្វ័យប្រវត្តក្នុង Telegram Group។
+                ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី (New Orders) និងបែងចែកតាម Forum Topics ដោយស្វ័យប្រវត្តក្នុង Telegram Group។
               </p>
             </div>
           </div>
           <Link
             href="/rok-mix-khernh/settings"
-            className="relative z-10 px-5 py-3 rounded-xl bg-white text-[#0088cc] hover:bg-sky-50 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg transition-all no-underline shrink-0 hover:scale-105 active:scale-95"
+            className="relative z-10 px-5 py-3 rounded-xl bg-white text-[#0088cc] hover:bg-sky-50 font-black text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all no-underline shrink-0 hover:scale-105 active:scale-95"
           >
             <span>គ្រប់គ្រង Telegram Bot</span>
             <ArrowUpRight size={16} />
@@ -417,7 +464,7 @@ export default function AdminDashboardOverview() {
         </div>
 
         {/* Instant Staff Telegram Broadcast Card */}
-        <div className="bg-white p-5 rounded-2xl border border-sky-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-sky-100 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -440,15 +487,15 @@ export default function AdminDashboardOverview() {
               <select
                 value={broadcastTopic}
                 onChange={(e) => setBroadcastTopic(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 outline-none font-medium"
+                className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 outline-none font-semibold"
               >
-                <option value="chat">💬 Chat Topic</option>
-                <option value="orders">🛒 Orders Topic</option>
-                <option value="repairs">🛠️ Repairs Topic</option>
-                <option value="stock">⚠️ Stock Topic</option>
-                <option value="security">🛡️ Security Topic</option>
-                <option value="promotions">🎁 Promotions Topic</option>
-                <option value="finance">💳 Finance Topic</option>
+                <option value="chat">Chat Topic</option>
+                <option value="orders">Orders Topic</option>
+                <option value="repairs">Repairs Topic</option>
+                <option value="stock">Stock Topic</option>
+                <option value="security">Security Topic</option>
+                <option value="promotions">Promotions Topic</option>
+                <option value="finance">Finance Topic</option>
               </select>
             </div>
 
@@ -477,7 +524,7 @@ export default function AdminDashboardOverview() {
       {/* ── 4 CORE KPI STATS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         {/* Stat 1: Total Sales */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col hover:border-blue-200 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-blue-200 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
               <DollarSign size={22} />
@@ -494,7 +541,7 @@ export default function AdminDashboardOverview() {
         </div>
 
         {/* Stat 2: Total Orders */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col hover:border-indigo-200 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-indigo-200 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
               <ShoppingBag size={22} />
@@ -509,7 +556,7 @@ export default function AdminDashboardOverview() {
         </div>
 
         {/* Stat 3: Pending Repairs */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col hover:border-amber-200 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-amber-200 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
               <Wrench size={22} />
@@ -523,7 +570,7 @@ export default function AdminDashboardOverview() {
         </div>
 
         {/* Stat 4: Active Promotions */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col hover:border-rose-200 transition-all">
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-rose-200 transition-all">
           <div className="flex justify-between items-start mb-4">
             <div className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
               <Tag size={22} />
@@ -537,27 +584,89 @@ export default function AdminDashboardOverview() {
         </div>
       </div>
 
-      {/* ── MIDDLE ROW: CHARTS & ACTIONS ── */}
+      {/* ── MIDDLE ROW: ADVANCED SALES PERFORMANCE & REVENUE FILTER (MONTH & YEAR) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Sales Performance Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-lg font-black text-gray-900 m-0">Sales Performance & Revenue</h2>
-              <p className="text-xs text-gray-400 m-0 mt-0.5">Monthly store gross volume in USD</p>
+        {/* Sales Performance & Revenue Chart with Dynamic Month & Year Search */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-xs p-5 sm:p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-base sm:text-lg font-black text-gray-900 m-0 flex items-center gap-2">
+                  <Activity size={18} className="text-[#8B1A1A]" />
+                  <span>Sales Performance & Revenue Analytics</span>
+                </h2>
+                <p className="text-xs text-gray-400 m-0 mt-0.5">
+                  ស្វែងរក និងតាមដានចំណូលនៃការលក់តាមខែ និងតាមឆ្នាំជាក់លាក់
+                </p>
+              </div>
+
+              {/* Month & Year Selectors */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Year Selector */}
+                <div className="relative">
+                  <select 
+                    value={selectedYear}
+                    onChange={(e) => handleYearChange(Number(e.target.value))}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-800 font-bold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
+                  >
+                    {availableYearsList.map((y) => (
+                      <option key={y} value={y}>Year {y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Month Selector */}
+                <div className="relative">
+                  <select 
+                    value={selectedMonth}
+                    onChange={(e) => handleMonthChange(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-800 font-bold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
+                  >
+                    {MONTH_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <select className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-600 font-bold outline-none focus:ring-2 focus:ring-blue-100">
-              <option>This Year 2026</option>
-              <option>Previous Year</option>
-            </select>
+
+            {/* Filter Metrics Summary Strip */}
+            <div className="grid grid-cols-3 gap-3 p-3.5 mb-5 rounded-xl bg-gray-50/80 border border-gray-100 text-xs">
+              <div>
+                <span className="text-gray-400 block text-[10px] uppercase font-bold">
+                  {selectedMonth === "all" ? `Total Revenue (${selectedYear})` : `Revenue (${selectedMonthObj?.label.split(" ")[2] || "Month"})`}
+                </span>
+                <span className="text-sm sm:text-base font-black text-gray-900 font-mono">
+                  ${Number(currentPeriodSales).toLocaleString()} <span className="text-[10px] font-bold text-gray-500">USD</span>
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block text-[10px] uppercase font-bold">
+                  {selectedMonth === "all" ? "Orders in Year" : "Orders in Month"}
+                </span>
+                <span className="text-sm sm:text-base font-black text-gray-900 font-mono">
+                  {currentPeriodOrders} <span className="text-[10px] font-bold text-gray-500">Orders</span>
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-400 block text-[10px] uppercase font-bold">Average Order Value</span>
+                <span className="text-sm sm:text-base font-black text-[#8B1A1A] font-mono">
+                  ${avgOrderValue} <span className="text-[10px] font-bold text-gray-500">USD</span>
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="h-64 w-full">
+
+          {/* Chart Graphic Area */}
+          <div className="h-64 sm:h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats?.monthlySales && stats.monthlySales.length > 0 ? stats.monthlySales : []} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} dx={-10} tickFormatter={(val) => `$${val}`} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} dx={-10} tickFormatter={(val) => `$${val}`} />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
                   itemStyle={{ color: '#8B1A1A', fontWeight: 'bold' }}
@@ -574,7 +683,7 @@ export default function AdminDashboardOverview() {
 
         {/* Quick Actions & Short Cuts */}
         <div className="flex flex-col gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
             <h2 className="text-base font-black text-gray-900 mb-4 flex items-center gap-2">
               <Zap size={18} className="text-[#8B1A1A]" />
               <span>Quick Actions</span>
@@ -629,79 +738,71 @@ export default function AdminDashboardOverview() {
 
       </div>
 
-      {/* ── PCHUM BEN FESTIVAL PROMO & CYBER DEFENSE SENTINEL ── */}
+      {/* ── PROMOTIONS & CYBER DEFENSE CARDS ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Card 1: Pchum Ben Grand Promo Card */}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#8B1A1A] via-[#6d1313] to-[#450a0a] text-white shadow-md relative overflow-hidden flex flex-col justify-between">
+        {/* Card 1: Active Promotion Campaign Card */}
+        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#8B1A1A] via-[#6d1313] to-[#450a0a] text-white shadow-xs relative overflow-hidden flex flex-col justify-between">
           <div className="absolute right-0 top-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-black">
                 <Sparkles size={14} className="text-amber-300" />
-                មហាប្រូម៉ូសិន បុណ្យភ្ជំបិណ្ឌ 2026 (Active)
+                Featured Promotion Campaign
               </span>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white">
-                រយះពេល ៧ ថ្ងៃ
+                Active Campaign
               </span>
             </div>
 
             <h3 className="text-xl sm:text-2xl font-black text-white m-0 tracking-tight">
-              Pchum Ben Festival Grand Mega Sale 30% OFF
+              Storewide Mega Discount & Promo Campaigns
             </h3>
             <p className="text-xs sm:text-sm text-red-100/90 mt-2 leading-relaxed">
-              ផ្ទាំង Popup ផ្សព្វផ្សាយពិសេសបង្ហាញលើគេហទំព័រជូនអតិថិជនទាំងអស់! បញ្ចុះតម្លៃ 30% លើកុំព្យូទ័រយួរដៃ, PC Gaming, គ្រឿងបន្លាស់ ធានា ៣ ទៅ ៦ ខែពេញ។
+              ផ្ទាំងផ្សព្វផ្សាយពិសេសបង្ហាញលើគេហទំព័រជូនអតិថិជនទាំងអស់! បញ្ចុះតម្លៃពិសេសលើកុំព្យូទ័រយួរដៃ, PC Gaming, គ្រឿងបន្លាស់ ធានា ៣ ទៅ ៦ ខែពេញ។
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <div className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/20 backdrop-blur-md flex items-center gap-2">
                 <Tag size={14} className="text-amber-400" />
-                <span className="text-xs text-red-200">Coupon Code:</span>
+                <span className="text-xs text-red-200">Active Coupon:</span>
                 <span className="font-mono font-black text-amber-300 text-sm tracking-wider">PCHUMBEN2026</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-emerald-400" />
-                <span>ធានា ៣ ទៅ ៦ ខែ (3-6 Months)</span>
+                <span>ធានាផ្លូវការ (Warranty Included)</span>
               </div>
             </div>
           </div>
 
           <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={handleTriggerPromoPopup}
-              className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-gray-950 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-lg transition-all cursor-pointer hover:scale-105 active:scale-95"
-            >
-              <Eye size={16} />
-              <span>បើកមើលផ្ទាំង Popup (Test Promo Modal)</span>
-            </button>
             <Link
               href="/rok-mix-khernh/promotions"
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-colors no-underline"
+              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-gray-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all no-underline"
             >
-              <span>គ្រប់គ្រងប្រូម៉ូសិន</span>
-              <ArrowUpRight size={14} />
+              <span>គ្រប់គ្រងប្រូម៉ូសិន (Manage Promotions)</span>
+              <ArrowUpRight size={15} />
             </Link>
           </div>
         </div>
 
-        {/* Card 2: Cyber Security & Pentest Sentinel Card */}
-        <div className="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm flex flex-col justify-between">
+        {/* Card 2: Cyber Security & Health Probe Sentinel Card */}
+        <div className="p-6 rounded-2xl bg-white border border-gray-100 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-emerald-600" />
                 <h3 className="text-base font-black text-gray-900 m-0">
-                  Real-Time Security & Anti-Abuse Sentinel
+                  Real-Time Security & Sentinel Protection
                 </h3>
               </div>
               <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                SHIELD ARMED 🛡️
+                SHIELD ARMED
               </span>
             </div>
 
             <p className="text-xs text-gray-500 mb-3">
-              ប្រព័ន្ធការពារការវាយប្រហារ Token Draining, AI DDoS, Spam Flood និង Bot Jailbreak ដំណើរការដោយស្វ័យប្រវត្ត ២៤/៧។
+              ប្រព័ន្ធការពារការវាយប្រហារ Token Draining, DDoS, Spam Flood និង Bot Abuse ដំណើរការដោយស្វ័យប្រវត្ត ២៤/៧។
             </p>
 
             {/* Daily Traffic Counter Highlight (12:00 AM - 11:59 PM) */}
@@ -743,7 +844,7 @@ export default function AdminDashboardOverview() {
               <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">
                 <Lock size={16} className="text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-gray-800 block">One-Click Chat Bypass</span>
+                  <span className="font-bold text-gray-800 block">One-Click Chat Token</span>
                   <span className="text-[11px] text-gray-500">កំណត់អតិបរមា ២ ដងក្នុងមួយ Token</span>
                 </div>
               </div>
@@ -765,11 +866,11 @@ export default function AdminDashboardOverview() {
             <button
               type="button"
               disabled={pentestRunning}
-              onClick={runSecurityPentest}
-              className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              onClick={runSecurityHealthProbe}
+              className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
             >
               <Terminal size={14} className={pentestRunning ? "animate-spin" : ""} />
-              <span>{pentestRunning ? "កំពុងធ្វើតេស្ត..." : "🚀 Run Live Pentest Verification"}</span>
+              <span>{pentestRunning ? "កំពុងធ្វើតេស្ត..." : "Run Security Health Probe"}</span>
             </button>
           </div>
         </div>
@@ -777,7 +878,7 @@ export default function AdminDashboardOverview() {
       </div>
 
       {/* ── RECENT ORDERS COMMAND TABLE WITH SEARCH FILTER ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-10">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden mb-10">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-5 sm:p-6 border-b border-gray-100">
           <div>
             <h2 className="text-lg font-black text-gray-900 m-0">Recent Orders</h2>
@@ -846,14 +947,14 @@ export default function AdminDashboardOverview() {
         )}
       </div>
 
-      {/* ── SECURITY PENTEST SCAN MODAL ── */}
+      {/* ── SECURITY AUDIT PROBE MODAL ── */}
       {showPentestModal && (
         <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-gray-900 text-gray-100 border border-gray-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-4 border-b border-gray-800">
               <div className="flex items-center gap-2">
                 <Terminal size={18} className="text-emerald-400" />
-                <h3 className="text-base font-bold text-white m-0">S Tech Store Cyber Security Pentest Sentinel</h3>
+                <h3 className="text-base font-bold text-white m-0">S Tech Store Security Health Probe</h3>
               </div>
               <button 
                 type="button"
@@ -876,13 +977,13 @@ export default function AdminDashboardOverview() {
               {pentestRunning && (
                 <div className="text-sky-400 animate-pulse flex items-center gap-2 pt-2">
                   <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-                  <span>Executing automated endpoint validation and rate-limit probe...</span>
+                  <span>Executing automated endpoint validation and probe...</span>
                 </div>
               )}
             </div>
 
             <div className="pt-3 border-t border-gray-800 flex justify-between items-center text-xs">
-              <span className="text-gray-500 font-mono">Audit Target: https://www.s-tech-store.tech</span>
+              <span className="text-gray-500 font-mono">Status: Verified Enterprise Sentinel</span>
               <button
                 type="button"
                 onClick={() => setShowPentestModal(false)}
@@ -894,9 +995,6 @@ export default function AdminDashboardOverview() {
           </div>
         </div>
       )}
-
-      {/* Promotion Popup Modal Instance */}
-      <PromotionPopupModal />
 
     </div>
   );

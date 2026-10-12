@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { ShieldCheck, Lock, Mail, Eye, EyeOff, LogIn, ArrowRight, Store, Clock, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Shield, Lock, Mail, Eye, EyeOff, LogIn, ArrowRight, Store, Clock, AlertTriangle } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -207,7 +207,7 @@ export default function AdminLoginPage() {
                 className="p-2.5 rounded-xl bg-red-950/30 hover:bg-red-900/40 border border-red-500/30 text-left transition-all group"
               >
                 <div className="text-[11px] font-bold text-red-400 flex items-center justify-between">
-                  <span>👑 Admin Account</span>
+                  <span className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-red-400" /> Admin Account</span>
                   <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="text-[10px] text-gray-400 mt-0.5 truncate">admin@stechstore.com</div>
@@ -220,7 +220,7 @@ export default function AdminLoginPage() {
                 className="p-2.5 rounded-xl bg-blue-950/30 hover:bg-blue-900/40 border border-blue-500/30 text-left transition-all group"
               >
                 <div className="text-[11px] font-bold text-blue-400 flex items-center justify-between">
-                  <span>💼 Staff Account</span>
+                  <span className="flex items-center gap-1.5"><Shield size={13} className="text-blue-400" /> Staff Account</span>
                   <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="text-[10px] text-gray-400 mt-0.5 truncate">staff@stechstore.com</div>

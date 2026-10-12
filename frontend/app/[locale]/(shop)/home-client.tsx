@@ -1083,8 +1083,9 @@ export function PromoCTA() {
               <Sparkles size={30} className="text-amber-300" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
-                👑 Member Privilege
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+                <Sparkles size={13} className="text-amber-300" />
+                <span>Member Privilege</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight m-0">
                 Join S Tech VIP Club

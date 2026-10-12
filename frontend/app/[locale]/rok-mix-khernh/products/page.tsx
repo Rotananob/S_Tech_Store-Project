@@ -179,7 +179,7 @@ export default function AdminProductsPage() {
             </div>
 
             <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mb-6 leading-relaxed">
-              ទំនិញនេះនឹងត្រូវ<strong>លុបចេញពី Database Neon PostgreSQL</strong> ទាំងស្រុង ហើយអតិថិជននឹង<strong>លែងឃើញនៅលើគេហទំព័រ</strong>ទៀតហើយ! តើបងចង់បន្តលុបឬទេ?
+              ទំនិញនេះនឹងត្រូវ<strong>លុបចេញពីប្រព័ន្ធ</strong>ទាំងស្រុង ហើយអតិថិជននឹង<strong>លែងឃើញនៅលើគេហទំព័រ</strong>ទៀតហើយ! តើអ្នកចង់បន្តលុបឬទេ?
             </p>
 
             <div className="flex items-center gap-3">

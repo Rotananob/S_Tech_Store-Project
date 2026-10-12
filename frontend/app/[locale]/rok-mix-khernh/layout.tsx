@@ -21,12 +21,12 @@ import {
   UserCheck, 
   Building2,
   CalendarCheck,
-  Crown,
   MessageSquare,
   Send,
   ChevronRight,
   Globe,
-  Sparkles
+  Sparkles,
+  Layers
 } from "lucide-react";
 
 type AdminUser = {
@@ -184,7 +184,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: MessageSquare,
       gradient: "from-pink-500 via-rose-600 to-pink-700",
       shadow: "shadow-pink-900/40",
-      badge: "RTDB",
+      badge: "Live",
       isLive: true,
       adminOnly: false 
     },
@@ -312,9 +312,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-700 text-cyan-100 ring-2 ring-cyan-400/50"
             }`}>
               {isSuperAdmin ? (
-                <Crown size={24} className="text-amber-950 fill-amber-950 drop-shadow" />
+                <ShieldCheck size={24} className="text-amber-950 drop-shadow" />
               ) : isAdmin ? (
-                <Crown size={22} className="text-amber-200 drop-shadow" />
+                <ShieldCheck size={22} className="text-amber-200 drop-shadow" />
               ) : (
                 <ShieldCheck size={22} className="text-cyan-200 drop-shadow" />
               )}
@@ -330,7 +330,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
                       : "bg-blue-500/20 text-blue-300 border-blue-400/40"
                 }`}>
-                  {isSuperAdmin ? "👑 SUPER ADMIN" : isAdmin ? "👑 ADMIN" : "🛡️ STAFF"}
+                  {isSuperAdmin ? "SUPER ADMIN" : isAdmin ? "ADMIN" : "STAFF"}
                 </span>
               </div>
               <div className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email}</div>
@@ -356,7 +356,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div>
             <div className="px-2 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase text-gray-400 select-none">
               <span className="flex items-center gap-1.5 text-gray-300">
-                <span>📌</span>
+                <Layers size={13} className="text-gray-400" />
                 <span>{isKm ? "ប្រតិបត្តិការចម្បង" : "CORE OPERATIONS"}</span>
               </span>
               <span className="text-[9px] text-gray-500 font-mono bg-white/5 px-1.5 py-0.5 rounded">
@@ -401,7 +401,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 border ${
                               isActive 
                                 ? "bg-white/20 text-white border-white/30" 
-                                : link.badge === "RTDB" || link.badge === "Live"
+                                : link.badge === "Live"
                                 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-mono"
                                 : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                             }`}>
@@ -433,7 +433,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div>
             <div className="px-2 pt-2 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase text-gray-400 select-none">
               <span className="flex items-center gap-1.5 text-gray-300">
-                <span>⚙️</span>
+                <Settings size={13} className="text-gray-400" />
                 <span>{isKm ? "ការគ្រប់គ្រងប្រព័ន្ធ" : "SYSTEM & ADMIN"}</span>
               </span>
               <span className="text-[9px] text-gray-500 font-mono bg-white/5 px-1.5 py-0.5 rounded">
@@ -522,30 +522,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          {/* Section 3: Live Cloud Sentinel Status Card (Fills leftover space ergonomically) */}
+          {/* Section 3: Operational Status Card */}
           <div className="p-3.5 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 shadow-inner mt-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
                 <span className="text-xs font-bold text-white flex items-center gap-1">
-                  Cloud Infrastructure <Sparkles size={12} className="text-amber-400" />
+                  System Status
                 </span>
               </div>
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                24/7 Live
+                All Operational
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
-                <span className="text-gray-400 text-[9px]">Neon PostgreSQL</span>
-                <span className="font-bold text-emerald-400 font-mono">22ms • Active</span>
+                <span className="text-gray-400 text-[9px]">Store Service</span>
+                <span className="font-bold text-emerald-400 font-mono">Normal</span>
               </div>
               <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
-                <span className="text-gray-400 text-[9px]">Realtime DB</span>
-                <span className="font-bold text-sky-400 font-mono">Firebase RTDB</span>
+                <span className="text-gray-400 text-[9px]">Sync Engine</span>
+                <span className="font-bold text-sky-400 font-mono">Active</span>
               </div>
             </div>
           </div>
@@ -644,9 +644,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white ring-1 ring-blue-400/60 shadow-blue-500/20"
                 }`}>
                   {isSuperAdmin ? (
-                    <Crown size={16} className="text-amber-950 fill-amber-950 drop-shadow-xs" />
+                    <ShieldCheck size={16} className="text-amber-950 drop-shadow-xs" />
                   ) : isAdmin ? (
-                    <Crown size={15} className="text-amber-100" />
+                    <ShieldCheck size={15} className="text-amber-100" />
                   ) : (
                     <ShieldCheck size={15} className="text-cyan-100" />
                   )}
@@ -661,11 +661,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           ? "bg-amber-100 text-amber-900 border-amber-300" 
                           : "bg-blue-100 text-blue-900 border-blue-300"
                     }`}>
-                      {isSuperAdmin ? "👑 មហាសិទ្ធិ (Owner)" : isAdmin ? "👑 Admin" : "🛡️ Staff"}
+                      {isSuperAdmin ? "Owner" : isAdmin ? "Admin" : "Staff"}
                     </span>
                   </div>
                   <div className="text-[10px] text-gray-500">
-                    {isSuperAdmin ? (isKm ? "ម្ចាស់ប្រព័ន្ធ / Ultimate Privilege" : "System Owner (Supreme Privileges)") : isAdmin ? (isKm ? "អ្នកគ្រប់គ្រងជាន់ខ្ពស់" : "Super Administrator") : (isKm ? "បុគ្គលិកហាង" : "Store Staff Member")}
+                    {isSuperAdmin ? (isKm ? "ម្ចាស់ប្រព័ន្ធ / Owner" : "System Owner") : isAdmin ? (isKm ? "អ្នកគ្រប់គ្រង / Admin" : "Administrator") : (isKm ? "បុគ្គលិកហាង" : "Store Staff Member")}
                   </div>
                 </div>
               </div>

@@ -10,7 +10,6 @@ import {
   User, 
   Clock, 
   ShieldCheck, 
-  Crown, 
   Phone, 
   Mail, 
   CheckCheck, 
@@ -31,7 +30,8 @@ import {
   X,
   Tag,
   Inbox,
-  ChevronLeft
+  ChevronLeft,
+  Bot
 } from "lucide-react";
 import { 
   subscribeToAllChats, 
@@ -114,13 +114,13 @@ export default function AdminRealtimeChatPage() {
             if (targetChatId || data.chat_id) {
               setSelectedChatId(targetChatId || data.chat_id);
             }
-            setBypassNotice(`⚡ បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ 1-Click Direct Token (សល់ ${data.uses_remaining} ដង)!`);
+            setBypassNotice(`បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ 1-Click Direct Token (សល់ ${data.uses_remaining} ដង)`);
             setTimeout(() => setBypassNotice(null), 8000);
           }
         })
         .catch((err) => {
           const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Token មិនត្រឹមត្រូវ ឬផុតកំណត់";
-          setBypassNotice(`⚠️ ${errMsg}`);
+          setBypassNotice(errMsg);
           setTimeout(() => setBypassNotice(null), 8000);
         });
     }
@@ -450,7 +450,7 @@ export default function AdminRealtimeChatPage() {
         {/* Current Staff Badge */}
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3.5 py-2 rounded-xl self-start sm:self-auto shadow-xs">
           {currentStaff.role === "admin" ? (
-            <Crown size={16} className="text-amber-500" />
+            <ShieldCheck size={16} className="text-amber-500" />
           ) : (
             <ShieldCheck size={16} className="text-blue-500" />
           )}
@@ -625,11 +625,11 @@ export default function AdminRealtimeChatPage() {
                           </span>
                         ) : chat.ai_paused ? (
                           <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[9px] flex items-center gap-1">
-                            👤 Staff Takeover
+                            <User size={9} /> <span>Staff Takeover</span>
                           </span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[9px] flex items-center gap-1">
-                            🤖 AI Bot
+                            <Bot size={9} /> <span>AI Assistant</span>
                           </span>
                         )}
 
@@ -963,7 +963,7 @@ export default function AdminRealtimeChatPage() {
                     </div>
 
                     <p className="text-xs text-gray-600 leading-relaxed mb-6 bg-red-50/50 p-3 rounded-xl border border-red-100">
-                      ⚠️ សកម្មភាពនេះនឹងលុបសារ និងប្រវត្តិសន្ទនាទាំងអស់ចេញពី Database ជាស្ថាពរ ហើយមិនអាចត្រឡប់មកវិញបានទេ។
+                      សកម្មភាពនេះនឹងលុបសារ និងប្រវត្តិសន្ទនាទាំងអស់ចេញពី Database ជាស្ថាពរ ហើយមិនអាចត្រឡប់មកវិញបានទេ។
                     </p>
 
                     <div className="flex items-center justify-end gap-2.5">

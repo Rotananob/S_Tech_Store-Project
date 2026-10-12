@@ -131,11 +131,11 @@ export default function SystemSettingsPage() {
         telegram: telegram.trim(),
       });
       if (res.data?.success) {
-        showToast("✅ បានរក្សាទុកព័ត៌មានហាងដោយជោគជ័យ!");
+        showToast("បានរក្សាទុកព័ត៌មានហាងដោយជោគជ័យ", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || "បរាជ័យក្នុងការរក្សាទុកព័ត៌មាន";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -155,11 +155,11 @@ export default function SystemSettingsPage() {
         exchange_rate: rate,
       });
       if (res.data?.success) {
-        showToast("✅ បានរក្សាទុកការកំណត់រូបិយប័ណ្ណ និងភាសាដោយជោគជ័យ!");
+        showToast("បានរក្សាទុកការកំណត់រូបិយប័ណ្ណ និងភាសាដោយជោគជ័យ", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || "បរាជ័យក្នុងការរក្សាទុក";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -176,11 +176,11 @@ export default function SystemSettingsPage() {
         repair_notify: repairNotify,
       });
       if (res.data?.success) {
-        showToast("✅ បានរក្សាទុកជម្រើសជូនដំណឹង (Notifications) ដោយជោគជ័យ!");
+        showToast("បានរក្សាទុកជម្រើសជូនដំណឹងដោយជោគជ័យ", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || "បរាជ័យក្នុងការរក្សាទុក";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsSaving(false);
     }
@@ -209,11 +209,11 @@ export default function SystemSettingsPage() {
         setCurrentPassword("");
         setNewPassword("");
         setConfirmPassword("");
-        showToast(res.data.message || "✅ បានផ្លាស់ប្តូរពាក្យសម្ងាត់ដោយជោគជ័យ!");
+        showToast(res.data.message || "បានផ្លាស់ប្តូរពាក្យសម្ងាត់ដោយជោគជ័យ", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.response?.data?.error || "បរាជ័យក្នុងការប្តូរពាក្យសម្ងាត់";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsChangingPassword(false);
     }
@@ -229,11 +229,11 @@ export default function SystemSettingsPage() {
       });
       if (res.data?.success) {
         setTwoFA(nextState);
-        showToast(res.data.message || (nextState ? "✅ 2FA ត្រូវបានបើកដំណើរការ!" : "⚠️ 2FA ត្រូវបានបិទ!"));
+        showToast(res.data.message || (nextState ? "2FA ត្រូវបានបើកដំណើរការ" : "2FA ត្រូវបានបិទ"), "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || "បរាជ័យក្នុងការកំណត់ 2FA";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsToggling2FA(false);
     }
@@ -246,10 +246,10 @@ export default function SystemSettingsPage() {
       const res = await api.post("/admin/settings/send-2fa-code");
       if (res.data?.success) {
         setShowOtpModal(true);
-        showToast("📩 លេខកូដ OTP ត្រូវបានផ្ញើទៅកាន់ Email & Telegram Bot រួចហើយ!", "info");
+        showToast("លេខកូដ OTP ត្រូវបានផ្ញើទៅកាន់ Email & Telegram Bot រួចហើយ", "info");
       }
     } catch (err: any) {
-      showToast("❌ បរាជ័យក្នុងការផ្ញើកូដ OTP", "error");
+      showToast("បរាជ័យក្នុងការផ្ញើកូដ OTP", "error");
     } finally {
       setIsSendingOtp(false);
     }
@@ -269,11 +269,11 @@ export default function SystemSettingsPage() {
         setShowOtpModal(false);
         setOtpCode("");
         setTwoFA(true);
-        showToast("🎉 ផ្ទៀងផ្ទាត់កូដ 2FA ត្រឹមត្រូវ! Two-Factor Authentication ត្រូវបានការពារពេញលេញ!", "success");
+        showToast("ផ្ទៀងផ្ទាត់កូដ 2FA ត្រឹមត្រូវ! Two-Factor Authentication ត្រូវបានការពារពេញលេញ", "success");
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || "លេខកូដមិនត្រឹមត្រូវ ឬផុតកំណត់";
-      showToast(`❌ ${msg}`, "error");
+      showToast(msg, "error");
     } finally {
       setIsVerifyingOtp(false);
     }
@@ -602,7 +602,7 @@ export default function SystemSettingsPage() {
                     <div className="min-w-0">
                       <div className="text-[11px] font-bold text-gray-500">Telegram Bot Channel</div>
                       <div className="text-xs font-extrabold text-gray-900 truncate">
-                        {twoFaDetails.telegram_linked ? "✅ ភ្ជាប់រួចរាល់ (Active)" : "⚠️ មិនទាន់ភ្ជាប់ (Topic Security)"}
+                        {twoFaDetails.telegram_linked ? "ភ្ជាប់រួចរាល់ (Active)" : "មិនទាន់ភ្ជាប់ (Topic Security)"}
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { X, Sparkles, Copy, Check, ArrowRight, Tag, Flame, Clock, Gift, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "@/i18n/routing";
@@ -31,6 +32,12 @@ const DEFAULT_PCHUM_BEN_PROMO: ActivePromotion = {
 };
 
 export default function PromotionPopupModal() {
+  const pathname = usePathname();
+  const isAdminRoute = Boolean(
+    pathname?.includes("/rok-mix-khernh") || 
+    (typeof window !== "undefined" && window.location.pathname.includes("/rok-mix-khernh"))
+  );
+
   const [isOpen, setIsOpen] = useState(false);
   const [promo, setPromo] = useState<ActivePromotion>(DEFAULT_PCHUM_BEN_PROMO);
   const [copied, setCopied] = useState(false);
@@ -69,6 +76,8 @@ export default function PromotionPopupModal() {
     let timer: NodeJS.Timeout;
 
     const checkAndFetchPromo = async () => {
+      if (isAdminRoute) return;
+
       // Check query parameter for instant preview (e.g. ?promo=preview or ?test_promo=true)
       const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
       const isTestPreview = urlParams?.has("promo") || urlParams?.has("test_promo");
@@ -130,7 +139,7 @@ export default function PromotionPopupModal() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  if (!isOpen) return null;
+  if (isAdminRoute || !isOpen) return null;
 
   const isFixed = (promo.type || "").toLowerCase().includes("fix");
   const discountLabel = isFixed ? `$${promo.value} OFF` : `${promo.value}% OFF`;

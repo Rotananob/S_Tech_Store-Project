@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, CheckCircle2, AlertCircle, X, Crown } from "lucide-react";
+import { Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, CheckCircle2, AlertCircle, X, Lock, ShieldCheck } from "lucide-react";
 
 type StaffMember = {
   id: number;
@@ -246,7 +246,7 @@ export default function AdminStaffPage() {
                               : 'bg-blue-600 text-white'
                         }`}>
                           {s.role === 'super_admin' ? (
-                            <Crown size={18} className="text-amber-950 fill-amber-950" />
+                            <ShieldCheck size={18} className="text-amber-950" />
                           ) : (
                             s.name.charAt(0).toUpperCase()
                           )}
@@ -255,7 +255,7 @@ export default function AdminStaffPage() {
                           <div className="font-bold text-gray-900 flex items-center gap-1.5">
                             <span>{s.name}</span>
                             {s.role === 'super_admin' ? (
-                              <Crown size={13} className="text-amber-500 fill-amber-500" />
+                              <ShieldCheck size={13} className="text-amber-600" />
                             ) : s.role === 'admin' ? (
                               <Shield size={12} className="text-[#8B1A1A]" />
                             ) : null}
@@ -278,7 +278,7 @@ export default function AdminStaffPage() {
                       }`}>
                         {s.role === 'super_admin' ? (
                           <>
-                            <Crown size={13} className="text-amber-800 fill-amber-800" />
+                            <ShieldCheck size={13} className="text-amber-800" />
                             <span>មហាសិទ្ធិ (Owner)</span>
                           </>
                         ) : s.role === 'admin' ? (
@@ -324,8 +324,9 @@ export default function AdminStaffPage() {
                           <Edit size={16} />
                         </button>
                         {s.role === 'super_admin' || s.email === 'nobrothana180703@gmail.com' ? (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200" title="គណនីមហាសិទ្ធិត្រូវបានការពារ">
-                            🔒 ការពារ
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 inline-flex items-center gap-1" title="គណនីមហាសិទ្ធិត្រូវបានការពារ">
+                            <Lock size={11} />
+                            <span>ការពារ</span>
                           </span>
                         ) : (
                           <button
@@ -391,7 +392,7 @@ export default function AdminStaffPage() {
                     onChange={(e) => setRole(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white font-medium"
                   >
-                    <option value="super_admin">👑 មហាសិទ្ធិ • System Owner (Ultimate Privilege)</option>
+                    <option value="super_admin">មហាសិទ្ធិ • System Owner (Ultimate Privilege)</option>
                     <option value="admin">Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ</option>
                     <option value="staff">Store Staff • បុគ្គលិកលក់ និងរៀបចំទំនិញ</option>
                     <option value="manager">Store Manager • ប្រធានសាខា</option>

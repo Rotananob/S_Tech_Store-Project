@@ -690,7 +690,8 @@ export default function AdminUsersPage() {
                             <span>{u.display_name}</span>
                             {isSystemOwner(u.email) ? (
                               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
-                                👑 ម្ចាស់ប្រព័ន្ធ (System Owner)
+                                <ShieldCheck size={11} className="text-amber-700" />
+                                <span>ម្ចាស់ប្រព័ន្ធ (System Owner)</span>
                               </span>
                             ) : u.is_admin ? (
                               <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-red-100 text-[#8B1A1A]">
@@ -1165,7 +1166,7 @@ export default function AdminUsersPage() {
                         <ShieldCheck size={20} />
                       </div>
                       <div>
-                        <div className="text-xs font-black">👑 គណនីម្ចាស់ប្រព័ន្ធ (System Owner)</div>
+                        <div className="text-xs font-black">គណនីម្ចាស់ប្រព័ន្ធ (System Owner)</div>
                         <div className="text-[11px] text-amber-800 mt-0.5">
                           គណនីនេះត្រូវបានការពារកម្រិតខ្ពស់បំផុត មិនអាចផ្អាកដំណើរការ ឬលុបចេញពីប្រព័ន្ធបានឡើយ។
                         </div>

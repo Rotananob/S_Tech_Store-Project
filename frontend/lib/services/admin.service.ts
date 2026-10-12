@@ -7,7 +7,12 @@ export interface AdminStats {
   ordersGrowth: number;
   pendingRepairs: number;
   activePromotions: number;
-  monthlySales?: { name: string; sales: number }[];
+  monthlySales?: { name: string; sales: number; orders?: number; monthNum?: number }[];
+  selectedYear?: number;
+  selectedMonth?: string;
+  filteredSales?: number;
+  filteredOrders?: number;
+  availableYears?: number[];
 }
 
 export interface CustomerAccount {
@@ -43,9 +48,14 @@ export interface Order {
   items?: any[];
 }
 
-export const getAdminStats = async (): Promise<AdminStats> => {
+export const getAdminStats = async (params?: { year?: number; month?: string }): Promise<AdminStats> => {
   try {
-    const response = await api.get("/admin/stats");
+    const query = new URLSearchParams();
+    if (params?.year) query.append("year", String(params.year));
+    if (params?.month) query.append("month", params.month);
+    const qs = query.toString();
+    const url = `/admin/stats${qs ? `?${qs}` : ""}`;
+    const response = await api.get(url);
     return response.data;
   } catch (error) {
     console.error("Failed to fetch admin stats:", error);
