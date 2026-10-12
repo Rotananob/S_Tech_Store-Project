@@ -4,6 +4,8 @@ import {
   getRecentOrders,
   updateOrder,
   pushOrderNotification,
+  updateOrderStatus,
+  deleteOrder,
   Order,
 } from "@/lib/services/admin.service";
 import {
@@ -29,6 +31,12 @@ import {
   X,
   Save,
   Globe,
+  Trash2,
+  Copy,
+  Check,
+  Printer,
+  Clock,
+  PackageCheck,
 } from "lucide-react";
 
 const STATUSES = ["All Statuses", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -70,8 +78,16 @@ const NOTIF_TEMPLATES = [
       `ការទូទាត់ប្រាក់សម្រាប់ការបញ្ជាទិញ #${orderId} ត្រូវបានផ្ទៀងផ្ទាត់ដោយជោគជ័យ។ ហាងកំពុងដំណើរការកញ្ចប់ទំនិញជូនអ្នក!`,
   },
   {
+    id: "cancelled",
+    name: "❌ បោះបង់ការបញ្ជាទិញ (Order Cancelled)",
+    title: "❌ ការបញ្ជាទិញត្រូវបានបោះបង់",
+    status: "cancelled",
+    message: (orderId: string) =>
+      `ការបញ្ជាទិញ #${orderId} ត្រូវបានបោះបង់។ ប្រសិនបើលោកអ្នកមានចម្ងល់ ឬសំណូមពរ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin របស់ S Tech Store។`,
+  },
+  {
     id: "delay",
-    name: "⚠️ ដំណឹងបន្ទាន់ / ពន្យារពេល (Notice)",
+    name: "⚠️ ដំណឹងបន្ទាន់ / ព័ត៌មានបន្ថែម (Notice)",
     title: "⚠️ ព័ត៌មានបន្ថែមទាក់ទងនឹងការបញ្ជាទិញ",
     status: "",
     message: (orderId: string) =>
@@ -108,6 +124,9 @@ export default function OrderManagementPage() {
   // Modals
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
   const [editOrder, setEditOrder] = useState<Order | null>(null);
+  const [deleteOrderTarget, setDeleteOrderTarget] = useState<Order | null>(null);
+  const [deletingOrder, setDeletingOrder] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   // Edit Modal Form State
@@ -144,6 +163,48 @@ export default function OrderManagementPage() {
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 4000);
+  };
+
+  const handleCopy = (text: string, key: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+      showToast("បានចម្លងដោយជោគជ័យ!");
+    } catch {
+      showToast("បរាជ័យក្នុងការចម្លង", "error");
+    }
+  };
+
+  const handleQuickStatusChange = async (targetOrder: Order, newStatus: string) => {
+    const cleanStatus = newStatus.toLowerCase();
+    const res = await updateOrderStatus(targetOrder.id, cleanStatus);
+    if (res.success) {
+      showToast(`បានប្តូរស្ថានភាពទៅជា ${capitalize(cleanStatus)} ជោគជ័យ!`);
+      const updated = { ...targetOrder, status: cleanStatus };
+      setOrders((prev) => prev.map((o) => (o.id === targetOrder.id ? updated : o)));
+      if (viewOrder && viewOrder.id === targetOrder.id) {
+        setViewOrder(updated);
+      }
+    } else {
+      showToast(res.message || "បរាជ័យក្នុងការប្តូរស្ថានភាព", "error");
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deleteOrderTarget) return;
+    setDeletingOrder(true);
+    const res = await deleteOrder(deleteOrderTarget.id);
+    setDeletingOrder(false);
+    if (res.success) {
+      showToast(res.message || "បានលុបការបញ្ជាទិញជោគជ័យ!");
+      setOrders((prev) => prev.filter((o) => o.id !== deleteOrderTarget.id));
+      if (viewOrder?.id === deleteOrderTarget.id) setViewOrder(null);
+      if (editOrder?.id === deleteOrderTarget.id) setEditOrder(null);
+      setDeleteOrderTarget(null);
+    } else {
+      showToast(res.message || "បរាជ័យក្នុងការលុបការបញ្ជាទិញ", "error");
+    }
   };
 
   const fetchOrders = async (silent = false) => {
@@ -211,8 +272,8 @@ export default function OrderManagementPage() {
     );
     setEditOrder(order);
     setEditForm({
-      status: order.status || "pending",
-      payment_status: order.payment_status || "pending",
+      status: (order.status || "pending").toLowerCase(),
+      payment_status: (order.payment_status || "pending").toLowerCase(),
       customer_name: order.customer_name || "",
       customer_phone: order.customer_phone || "",
       customer_email: email,
@@ -236,8 +297,8 @@ export default function OrderManagementPage() {
 
     setSavingEdit(true);
     const res = await updateOrder(editOrder.id, {
-      status: editForm.status,
-      payment_status: editForm.payment_status,
+      status: editForm.status.toLowerCase(),
+      payment_status: editForm.payment_status.toLowerCase(),
       customer_name: editForm.customer_name.trim(),
       customer_phone: editForm.customer_phone.trim(),
       customer_email: editForm.customer_email.trim() || undefined,
@@ -261,8 +322,8 @@ export default function OrderManagementPage() {
           o.id === editOrder.id
             ? {
                 ...o,
-                status: editForm.status,
-                payment_status: editForm.payment_status,
+                status: editForm.status.toLowerCase(),
+                payment_status: editForm.payment_status.toLowerCase(),
                 customer_name: editForm.customer_name.trim(),
                 customer_phone: editForm.customer_phone.trim(),
                 customer_email: editForm.customer_email.trim() || o.customer_email,
@@ -289,14 +350,11 @@ export default function OrderManagementPage() {
     setNotifyMessage(
       `ការបញ្ជាទិញ #${order.order_id} របស់អ្នកត្រូវបានបញ្ជាក់រួចរាល់ហើយ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`
     );
-    setNotifyStatusSync(order.status);
+    setNotifyStatusSync((order.status || "processing").toLowerCase());
     const email = order.customer_email || order.customer_account?.email || "";
-    const hasTg = Boolean(
-      order.customer_account?.has_telegram || (order.user_id && order.user_id.startsWith("tg_"))
-    );
     setNotifyCustomEmail(email);
     setNotifyEmail(Boolean(email));
-    setNotifyTelegram(hasTg);
+    setNotifyTelegram(true);
     setNotifyWeb(true);
   };
 
@@ -307,10 +365,11 @@ export default function OrderManagementPage() {
       return;
     }
     setSendingNotify(true);
+    const targetStatus = notifyStatusSync ? notifyStatusSync.toLowerCase() : undefined;
     const res = await pushOrderNotification(notifyOrder.id, {
       title: notifyTitle.trim() || undefined,
       message: notifyMessage.trim(),
-      status: notifyStatusSync || undefined,
+      status: targetStatus,
       send_email: notifyEmail,
       send_telegram: notifyTelegram,
       send_web: notifyWeb,
@@ -320,12 +379,16 @@ export default function OrderManagementPage() {
 
     if (res.success) {
       showToast(res.message || "បានផ្ញើការជូនដំណឹងជោគជ័យ!");
-      if (notifyStatusSync && notifyStatusSync !== notifyOrder.status) {
+      if (targetStatus && targetStatus !== notifyOrder.status.toLowerCase()) {
         setOrders((prev) =>
-          prev.map((o) => (o.id === notifyOrder.id ? { ...o, status: notifyStatusSync } : o))
+          prev.map((o) => (o.id === notifyOrder.id ? { ...o, status: targetStatus } : o))
         );
+        if (viewOrder && viewOrder.id === notifyOrder.id) {
+          setViewOrder({ ...viewOrder, status: targetStatus });
+        }
       }
       setNotifyOrder(null);
+      fetchOrders(true);
     } else {
       showToast(res.message || "Failed to send notification", "error");
     }
@@ -386,18 +449,29 @@ export default function OrderManagementPage() {
         </div>
       )}
 
-      {/* ─── View Order Details Modal ─── */}
+      {/* ─── Rich & Responsive View Order Details Modal (ព័ត៌មានលម្អិត Order) ─── */}
       {viewOrder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-5 bg-gradient-to-r from-gray-900 to-gray-800 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-rose-400 font-bold">
-                  ORD
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9000] flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-gray-950 via-gray-900 to-indigo-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/10 flex items-center justify-center text-rose-400 font-bold shrink-0 border border-white/10">
+                  <PackageCheck size={22} className="text-rose-400" />
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold leading-tight flex items-center gap-2">
-                    <span>{viewOrder.order_id}</span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold leading-tight font-mono">
+                      {viewOrder.order_id}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(viewOrder.order_id, `view_oid_${viewOrder.id}`)}
+                      className="p-1 rounded bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer"
+                      title="Copy Order ID"
+                    >
+                      {copiedKey === `view_oid_${viewOrder.id}` ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                    </button>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getStatusStyle(
                         viewOrder.status
@@ -405,41 +479,123 @@ export default function OrderManagementPage() {
                     >
                       {capitalize(viewOrder.status)}
                     </span>
-                  </h3>
-                  <p className="text-xs text-gray-300">
+                  </div>
+                  <p className="text-xs text-gray-300 mt-0.5">
                     កាលបរិច្ឆេទ: {new Date(viewOrder.created_at).toLocaleString()}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setViewOrder(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer shrink-0 ml-2"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 space-y-5 overflow-y-auto">
-              {/* Linked Customer Account Profile Card */}
-              <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-100">
+            {/* Modal Scrollable Body */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
+              {/* 1. Order Lifecycle Progress Timeline */}
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-200/80">
+                <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center justify-between">
+                  <span>ដំណាក់កាលបញ្ជាទិញ (Order Timeline)</span>
+                  <span className="text-[11px] font-mono text-gray-500">
+                    បច្ចុប្បន្ន: <strong className="text-gray-900">{capitalize(viewOrder.status)}</strong>
+                  </span>
+                </div>
+
+                {viewOrder.status.toLowerCase() === "cancelled" ? (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                    <span>ការបញ្ជាទិញនេះត្រូវបានបោះបង់ (Order Cancelled)</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-4 gap-1 sm:gap-2 text-center">
+                    {[
+                      { key: "pending", label: "1. រង់ចាំ", sub: "Pending" },
+                      { key: "processing", label: "2. រៀបចំ", sub: "Processing" },
+                      { key: "shipped", label: "3. ដឹកជញ្ជូន", sub: "Shipped" },
+                      { key: "delivered", label: "4. ជោគជ័យ", sub: "Delivered" },
+                    ].map((step, idx) => {
+                      const orderSteps = ["pending", "processing", "shipped", "delivered"];
+                      const currentIdx = orderSteps.indexOf(viewOrder.status.toLowerCase());
+                      const isCompleted = currentIdx >= idx;
+                      const isCurrent = currentIdx === idx;
+
+                      return (
+                        <div key={step.key} className="flex flex-col items-center">
+                          <div
+                            className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                              isCurrent
+                                ? "bg-blue-600 text-white ring-4 ring-blue-500/20 shadow-xs"
+                                : isCompleted
+                                ? "bg-emerald-600 text-white"
+                                : "bg-gray-200 text-gray-500"
+                            }`}
+                          >
+                            {isCompleted && !isCurrent ? <Check size={14} /> : idx + 1}
+                          </div>
+                          <div
+                            className={`mt-1.5 text-[11px] font-bold leading-tight ${
+                              isCurrent ? "text-blue-700" : isCompleted ? "text-emerald-700" : "text-gray-400"
+                            }`}
+                          >
+                            {step.label}
+                          </div>
+                          <div className="text-[10px] text-gray-400 hidden sm:block font-mono">{step.sub}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Quick Status Advance Bar */}
+                <div className="mt-3.5 pt-3 border-t border-gray-200/60 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-gray-600 mr-1">ផ្លាស់ប្តូរ Status រហ័ស:</span>
+                  {[
+                    { key: "pending", label: "Pending", bg: "hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300" },
+                    { key: "processing", label: "Processing", bg: "hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300" },
+                    { key: "shipped", label: "Shipped", bg: "hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300" },
+                    { key: "delivered", label: "Delivered", bg: "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300" },
+                    { key: "cancelled", label: "Cancel", bg: "hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300" },
+                  ].map((btn) => (
+                    <button
+                      key={btn.key}
+                      type="button"
+                      disabled={viewOrder.status.toLowerCase() === btn.key}
+                      onClick={() => handleQuickStatusChange(viewOrder, btn.key)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        viewOrder.status.toLowerCase() === btn.key
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : `bg-white border-gray-200 text-gray-700 ${btn.bg}`
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Customer Profile Card */}
+              <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200/80">
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
                     <User size={14} className="text-purple-600" />
-                    <span>គណនីអតិថិជនពិត (Real User Account)</span>
+                    <span>ព័ត៌មានអតិថិជន (Customer Profile)</span>
                   </div>
-                  {viewOrder.customer_account?.has_telegram ? (
+                  {viewOrder.customer_account?.has_telegram || (viewOrder.user_id && viewOrder.user_id.startsWith("tg_")) ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 border border-sky-300">
                       <Send size={11} className="text-sky-600" />
                       Telegram Connected
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                      Web Account Only
+                      Web Account
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3.5">
+                <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-full overflow-hidden bg-purple-200 shrink-0 border-2 border-white shadow-xs">
                     {viewOrder.customer_account?.photo_url ? (
                       <img
@@ -453,95 +609,202 @@ export default function OrderManagementPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-gray-950 flex items-center gap-2">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="text-sm font-bold text-gray-950 flex flex-wrap items-center gap-2">
                       <span>{viewOrder.customer_account?.display_name || viewOrder.customer_name}</span>
                       {viewOrder.customer_account?.username && (
-                        <span className="text-xs font-medium text-purple-600">
+                        <span className="text-xs font-mono font-medium text-purple-600">
                           {viewOrder.customer_account.username}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-600 flex flex-wrap items-center gap-3 mt-1">
-                      <span className="flex items-center gap-1 font-mono">
-                        <Mail size={12} className="text-gray-400" />
-                        {viewOrder.customer_email || viewOrder.customer_account?.email || "No email"}
-                      </span>
-                      <span className="flex items-center gap-1 font-mono">
-                        <Phone size={12} className="text-gray-400" />
-                        {viewOrder.customer_phone || "No phone"}
-                      </span>
+                    <div className="text-xs text-gray-600 flex flex-wrap items-center gap-3">
+                      {/* Phone */}
+                      {viewOrder.customer_phone ? (
+                        <div className="flex items-center gap-1 font-mono">
+                          <Phone size={12} className="text-gray-400" />
+                          <a href={`tel:${viewOrder.customer_phone}`} className="text-blue-600 hover:underline">
+                            {viewOrder.customer_phone}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(viewOrder.customer_phone || "", "cust_phone")}
+                            className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          >
+                            {copiedKey === "cust_phone" ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">No phone</span>
+                      )}
+
+                      {/* Email */}
+                      {(viewOrder.customer_email || viewOrder.customer_account?.email) && (
+                        <div className="flex items-center gap-1 font-mono">
+                          <Mail size={12} className="text-gray-400" />
+                          <a
+                            href={`mailto:${viewOrder.customer_email || viewOrder.customer_account?.email}`}
+                            className="text-blue-600 hover:underline truncate max-w-[200px]"
+                          >
+                            {viewOrder.customer_email || viewOrder.customer_account?.email}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCopy(viewOrder.customer_email || viewOrder.customer_account?.email || "", "cust_email")
+                            }
+                            className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          >
+                            {copiedKey === "cust_email" ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Order Info Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+              {/* 3. Delivery & Courier Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Truck size={13} className="text-gray-500" />
+                    <span>សេវាដឹកជញ្ជូន & កូដបញ្ញើ</span>
+                  </div>
+                  <div className="text-xs font-semibold text-gray-900 mt-1">
+                    តំបន់: <span className="font-bold text-blue-700">{viewOrder.delivery_type === "province" ? "តាមបណ្តាខេត្ត-ក្រុង" : "រាជធានីភ្នំពេញ (Express)"}</span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[11px] text-gray-500">កូដបញ្ញើ (Tracking):</span>
+                    {viewOrder.tracking_number ? (
+                      <div className="flex items-center gap-1 font-mono text-xs font-bold text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded">
+                        <span>{viewOrder.tracking_number}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(viewOrder.tracking_number || "", "tracking_no")}
+                          className="p-0.5 hover:text-purple-900 cursor-pointer"
+                        >
+                          {copiedKey === "tracking_no" ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">មិនទាន់មានកូដបញ្ញើ</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <MapPin size={13} className="text-gray-500" />
+                    <span>អាសយដ្ឋានដឹកជញ្ជូន (Address)</span>
+                  </div>
+                  <div className="text-xs text-gray-800 font-medium leading-relaxed mt-1">
+                    {viewOrder.shipping_address || "គ្មានព័ត៌មានអាសយដ្ឋាន"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Payment & Financial Details */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80">
                   <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
                     វិធីសាស្ត្រទូទាត់
                   </div>
-                  <div className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                    <CreditCard size={14} className="text-gray-500" />
+                  <div className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                    <CreditCard size={15} className="text-gray-500" />
                     <span>{viewOrder.payment_method?.toUpperCase() || "COD"}</span>
                   </div>
-                  <span
-                    className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border ${getPaymentStatusStyle(
-                      viewOrder.payment_status
-                    )}`}
-                  >
-                    {capitalize(viewOrder.payment_status || "Pending")}
+                  <div className="mt-1.5">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${getPaymentStatusStyle(
+                        viewOrder.payment_status
+                      )}`}
+                    >
+                      {capitalize(viewOrder.payment_status || "Pending")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    សរុបទឹកប្រាក់ (USD)
+                  </div>
+                  <div className="text-lg font-black text-rose-600">
+                    ${Number(viewOrder.total_amount).toFixed(2)}
+                  </div>
+                  <div className="text-[11px] text-gray-400 font-mono mt-0.5">
+                    Rate: 4,100 KHR/$
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 col-span-2 sm:col-span-1">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    សមមូលប្រាក់រៀល (KHR)
+                  </div>
+                  <div className="text-base font-black text-blue-700 font-mono">
+                    {(Number(viewOrder.total_amount) * 4100).toLocaleString()} ៛
+                  </div>
+                  <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                    ទូទាត់បានតាម KHQR
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. Purchased Products List (Rich Item Breakdown) */}
+              <div className="p-4 rounded-xl border border-gray-200/90 bg-white space-y-3">
+                <div className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center justify-between">
+                  <span>ទំនិញដែលបានបញ្ជាទិញ (Order Items)</span>
+                  <span className="text-xs text-gray-500 font-mono">
+                    {viewOrder.items && viewOrder.items.length > 0 ? `${viewOrder.items.length} មុខទំនិញ` : "1 មុខទំនិញ"}
                   </span>
                 </div>
 
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    សរុបទឹកប្រាក់ (TOTAL)
-                  </div>
-                  <div className="text-base font-bold text-rose-700">
-                    ${Number(viewOrder.total_amount).toFixed(2)}
-                  </div>
-                  <div className="text-[11px] text-gray-400 font-mono">
-                    ~ {(Number(viewOrder.total_amount) * 4100).toLocaleString()} KHR
-                  </div>
-                </div>
+                {viewOrder.items && viewOrder.items.length > 0 ? (
+                  <div className="divide-y divide-gray-100">
+                    {viewOrder.items.map((item: any, i: number) => {
+                      const productName = item.product?.name || item.product_name || `ទំនិញ #${item.product_id || i + 1}`;
+                      const productImg = item.product?.image_url || (item.product?.images && item.product.images[0]) || null;
+                      const unitPrice = Number(item.unit_price || item.price || 0);
+                      const qty = Number(item.quantity || 1);
+                      const subtotal = Number(item.subtotal || unitPrice * qty);
 
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    ការដឹកជញ្ជូន & កូដបញ្ញើ
+                      return (
+                        <div key={item.id || i} className="py-2.5 flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                            {productImg ? (
+                              <img src={productImg} alt={productName} className="w-full h-full object-cover" />
+                            ) : (
+                              <PackageCheck size={20} className="text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold text-gray-900 truncate" title={productName}>
+                              {productName}
+                            </div>
+                            <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                              ${unitPrice.toFixed(2)} × {qty}
+                            </div>
+                          </div>
+                          <div className="text-right font-mono font-bold text-xs text-gray-900">
+                            ${subtotal.toFixed(2)}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="text-xs font-semibold text-gray-800 flex items-center gap-1">
-                    <Truck size={13} className="text-gray-500" />
-                    <span>{viewOrder.delivery_type === "province" ? "ខេត្ត-ក្រុង" : "ភ្នំពេញ"}</span>
+                ) : (
+                  <div className="p-3 rounded-lg bg-gray-50 text-center text-xs text-gray-500">
+                    ទំនិញសរុបមានតម្លៃ ${Number(viewOrder.total_amount).toFixed(2)} (ព័ត៌មានលម្អិតមុខទំនិញត្រូវបានកត់ត្រាក្នុងប្រព័ន្ធ)
                   </div>
-                  {viewOrder.tracking_number ? (
-                    <div className="text-[11px] font-mono text-purple-700 font-bold mt-1 truncate">
-                      {viewOrder.tracking_number}
-                    </div>
-                  ) : (
-                    <div className="text-[11px] text-gray-400 mt-1">មិនទាន់មានកូដបញ្ញើ</div>
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* Shipping Address */}
-              <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <MapPin size={13} className="text-gray-500" />
-                  <span>អាសយដ្ឋានដឹកជញ្ជូន (Shipping Address)</span>
-                </div>
-                <div className="text-xs text-gray-800 font-medium">
-                  {viewOrder.shipping_address || "N/A"}
-                </div>
-              </div>
-
-              {/* Admin Internal Notes */}
+              {/* 6. Admin Internal Notes */}
               {viewOrder.admin_notes && (
-                <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200">
+                <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200">
                   <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                     <FileText size={13} className="text-amber-600" />
-                    <span>កំណត់សម្គាល់ខាងក្នុង (Admin Memo)</span>
+                    <span>កំណត់សម្គាល់ផ្ទៃក្នុង Admin (Memo)</span>
                   </div>
                   <div className="text-xs text-amber-950 font-medium">
                     {viewOrder.admin_notes}
@@ -550,13 +813,25 @@ export default function OrderManagementPage() {
               )}
             </div>
 
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+            {/* Modal Footer Actions */}
+            <div className="p-3 sm:p-4 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setViewOrder(null)}
-                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-100 transition-colors cursor-pointer text-sm"
+                className="py-2.5 px-4 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-100 transition-colors cursor-pointer text-xs sm:text-sm"
               >
                 Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.print();
+                }}
+                className="py-2.5 px-3 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-100 transition-colors flex items-center gap-1.5 cursor-pointer text-xs sm:text-sm"
+                title="Print Order Receipt"
+              >
+                <Printer size={15} />
+                <span className="hidden sm:inline">Print Receipt</span>
               </button>
               <button
                 type="button"
@@ -565,7 +840,7 @@ export default function OrderManagementPage() {
                   setViewOrder(null);
                   openEditModal(target);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm shadow-xs"
               >
                 <Edit2 size={15} />
                 <span>Edit Order</span>
@@ -577,10 +852,22 @@ export default function OrderManagementPage() {
                   setViewOrder(null);
                   openPushModal(target);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm shadow-sm"
+                className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm shadow-xs"
               >
                 <Bell size={15} />
                 <span>Notify Customer</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = viewOrder;
+                  setDeleteOrderTarget(target);
+                }}
+                className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer text-xs sm:text-sm"
+                title="Delete Order"
+              >
+                <Trash2 size={15} />
+                <span className="hidden sm:inline">Delete</span>
               </button>
             </div>
           </div>
@@ -928,118 +1215,141 @@ export default function OrderManagementPage() {
                 </div>
               </div>
 
-              {/* Multi-Channel Alerts Selector (Real Email, Telegram, In-App Website) */}
+              {/* 3 Clickable Channel Options (Real Gmail, Telegram Bot, Website Account) */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  ជ្រើសរើស Channels សម្រាប់បញ្ជូនដំណឹង (Multi-Channel Alerts) *
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    ជ្រើសរើស Channels សម្រាប់បញ្ជូនដំណឹង (3-Channel Delivery) *
+                  </label>
+                  <span className="text-[11px] text-gray-500">ចុចលើប៊ូតុងដើម្បី On / Off</span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {/* Channel 1: Real Email */}
-                  <div
+                  {/* Channel 1: Real Gmail / Email */}
+                  <button
+                    type="button"
                     onClick={() => setNotifyEmail(!notifyEmail)}
-                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       notifyEmail
-                        ? "bg-rose-50/80 border-rose-400 ring-2 ring-rose-500/20 shadow-xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                        ? "bg-rose-50 border-rose-400 ring-2 ring-rose-400/30 text-rose-950 shadow-xs"
+                        : "bg-gray-50/70 border-gray-200 text-gray-400 hover:border-gray-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5 font-bold text-xs text-rose-950">
-                        <Mail size={15} className="text-rose-600" />
-                        <span>Real Email</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                            notifyEmail ? "bg-rose-500 text-white" : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          <Mail size={13} />
+                        </div>
+                        <span>1. Real Gmail</span>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={notifyEmail}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setNotifyEmail(e.target.checked);
-                        }}
-                        className="w-4 h-4 rounded text-rose-600 cursor-pointer"
-                      />
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          notifyEmail ? "bg-rose-200 text-rose-800" : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {notifyEmail ? "ON" : "OFF"}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-gray-700 truncate" title={notifyCustomEmail || "គ្មាន Email"}>
-                      {notifyCustomEmail || "គ្មាន Email"}
+                    <div className="text-[11px] font-mono truncate text-gray-700" title={notifyCustomEmail || "គ្មាន Email"}>
+                      {notifyCustomEmail || "(បញ្ចូល Gmail)"}
                     </div>
                     <span className="mt-1 text-[10px] font-semibold text-rose-700">
-                      {notifyCustomEmail ? "បាញ់ Email ពិតៗ (HTML)" : "បញ្ចូល Email ខាងក្រោម"}
+                      HTML Email ផ្លូវការ
                     </span>
-                  </div>
+                  </button>
 
                   {/* Channel 2: Telegram Bot Direct */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setNotifyTelegram(!notifyTelegram)}
-                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       notifyTelegram
-                        ? "bg-sky-50/80 border-sky-400 ring-2 ring-sky-500/20 shadow-xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                        ? "bg-sky-50 border-sky-400 ring-2 ring-sky-400/30 text-sky-950 shadow-xs"
+                        : "bg-gray-50/70 border-gray-200 text-gray-400 hover:border-gray-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5 font-bold text-xs text-sky-950">
-                        <Send size={15} className="text-sky-600" />
-                        <span>Telegram Bot</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                            notifyTelegram ? "bg-sky-500 text-white" : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          <Send size={13} />
+                        </div>
+                        <span>2. Telegram Bot</span>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={notifyTelegram}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setNotifyTelegram(e.target.checked);
-                        }}
-                        className="w-4 h-4 rounded text-sky-600 cursor-pointer"
-                      />
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          notifyTelegram ? "bg-sky-200 text-sky-800" : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {notifyTelegram ? "ON" : "OFF"}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-gray-700 truncate">
-                      {notifyOrder.customer_account?.has_telegram ? "Chat ផ្ទាល់ Connected" : "មិនទាន់ Link Telegram"}
+                    <div className="text-[11px] truncate text-gray-700">
+                      {notifyOrder.customer_account?.has_telegram ||
+                      (notifyOrder.user_id && notifyOrder.user_id.startsWith("tg_"))
+                        ? "1-on-1 Chat Connected"
+                        : "តាម Chat ID (បើមាន)"}
                     </div>
                     <span className="mt-1 text-[10px] font-semibold text-sky-700">
-                      {notifyOrder.customer_account?.has_telegram ? "ផ្ញើសារ 1-on-1 ស្វ័យប្រវត្តិ" : "ផ្ញើតាម Chat ID បើមាន"}
+                      សារកាត Bot 1-on-1
                     </span>
-                  </div>
+                  </button>
 
-                  {/* Channel 3: Website Account In-App */}
-                  <div
+                  {/* Channel 3: Website Account In-App & Mini App */}
+                  <button
+                    type="button"
                     onClick={() => setNotifyWeb(!notifyWeb)}
-                    className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition-all ${
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       notifyWeb
-                        ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-500/20 shadow-xs"
-                        : "bg-gray-50/60 border-gray-200 text-gray-400 opacity-70"
+                        ? "bg-purple-50 border-purple-400 ring-2 ring-purple-400/30 text-purple-950 shadow-xs"
+                        : "bg-gray-50/70 border-gray-200 text-gray-400 hover:border-gray-300"
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5 font-bold text-xs text-purple-950">
-                        <Globe size={15} className="text-purple-600" />
-                        <span>Account Web</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <div
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center ${
+                            notifyWeb ? "bg-purple-600 text-white" : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          <Globe size={13} />
+                        </div>
+                        <span>3. Acc Website</span>
                       </div>
-                      <input
-                        type="checkbox"
-                        checked={notifyWeb}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setNotifyWeb(e.target.checked);
-                        }}
-                        className="w-4 h-4 rounded text-purple-600 cursor-pointer"
-                      />
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          notifyWeb ? "bg-purple-200 text-purple-800" : "bg-gray-200 text-gray-500"
+                        }`}
+                      >
+                        {notifyWeb ? "ON" : "OFF"}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-gray-700 truncate">
+                    <div className="text-[11px] truncate text-gray-700">
                       {notifyOrder.customer_account?.display_name || notifyOrder.customer_name}
                     </div>
                     <span className="mt-1 text-[10px] font-semibold text-purple-700">
-                      កត់ត្រាក្នុង Notification Bell
+                      Bell Web & Mini App
                     </span>
-                  </div>
+                  </button>
                 </div>
 
+                {/* Inline editable verified Gmail */}
                 {notifyEmail && (
-                  <div className="p-2.5 rounded-xl bg-rose-50/60 border border-rose-200 flex items-center gap-2">
-                    <Mail size={14} className="text-rose-600 shrink-0" />
+                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center gap-2">
+                    <Mail size={15} className="text-rose-600 shrink-0" />
                     <input
                       type="email"
                       value={notifyCustomEmail}
                       onChange={(e) => setNotifyCustomEmail(e.target.value)}
-                      placeholder="ផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលអតិថិជន (e.g. customer@example.com)..."
-                      className="w-full bg-transparent text-xs text-gray-800 outline-none font-medium placeholder:text-gray-400"
+                      placeholder="ផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលអតិថិជន (e.g. customer@gmail.com)..."
+                      className="w-full bg-transparent text-xs text-gray-900 font-medium outline-none placeholder:text-gray-400 font-mono"
                     />
                   </div>
                 )}
@@ -1058,7 +1368,7 @@ export default function OrderManagementPage() {
                       onClick={() => {
                         setNotifyTitle(tmpl.title);
                         setNotifyMessage(tmpl.message(notifyOrder.order_id, notifyOrder.tracking_number));
-                        if (tmpl.status) setNotifyStatusSync(tmpl.status);
+                        if (tmpl.status) setNotifyStatusSync(tmpl.status.toLowerCase());
                       }}
                       className="text-left p-2.5 rounded-xl border border-gray-200 hover:border-purple-500 hover:bg-purple-50/40 transition-all text-xs cursor-pointer group"
                     >
@@ -1100,15 +1410,15 @@ export default function OrderManagementPage() {
               {/* Sync status option */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                  ប្តូរ Status នៃការបញ្ជាទិញជាមួយគ្នា (Optional Status Sync)
+                  ប្តូរ Status នៃការបញ្ជាទិញជាមួយគ្នា (Status Sync)
                 </label>
                 <div className="relative">
                   <select
                     value={notifyStatusSync}
-                    onChange={(e) => setNotifyStatusSync(e.target.value)}
+                    onChange={(e) => setNotifyStatusSync(e.target.value.toLowerCase())}
                     className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 bg-white"
                   >
-                    <option value="">Keep current status ({notifyOrder.status})</option>
+                    <option value="">រក្សា Status បច្ចុប្បន្ន ({capitalize(notifyOrder.status)})</option>
                     {STATUSES.filter((s) => s !== "All Statuses").map((s) => (
                       <option key={s} value={s.toLowerCase()}>
                         Set to {s}
@@ -1143,6 +1453,48 @@ export default function OrderManagementPage() {
                   <>
                     <Send size={15} />
                     <span>Send Notification</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Delete Order Confirmation Modal ─── */}
+      {deleteOrderTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[9990] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden flex flex-col p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900">តើអ្នកពិតជាចង់លុប Order នេះមែនទេ?</h3>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                ការបញ្ជាទិញ <strong className="font-mono text-gray-900">#{deleteOrderTarget.order_id}</strong> របស់{" "}
+                <strong>{deleteOrderTarget.customer_name}</strong> នឹងត្រូវបានលុបចេញពីប្រព័ន្ធជាអចិន្ត្រៃយ៍។
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteOrderTarget(null)}
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-semibold text-xs hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                បោះបង់ (Cancel)
+              </button>
+              <button
+                type="button"
+                disabled={deletingOrder}
+                onClick={handleDeleteOrder}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md transition-all"
+              >
+                {deletingOrder ? (
+                  <span>កំពុងលុប...</span>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>បញ្ជាក់ការលុប (Delete)</span>
                   </>
                 )}
               </button>
@@ -1281,7 +1633,205 @@ export default function OrderManagementPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* ─── Mobile View: Touch-Friendly Cards (block md:hidden) ─── */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {paginated.length === 0 ? (
+                <div className="p-12 text-center text-gray-400 text-sm">
+                  មិនមានការបញ្ជាទិញស្របតាមការស្វែងរករបស់អ្នកឡើយ។
+                </div>
+              ) : (
+                paginated.map((order) => {
+                  const { date, time } = formatDisplayDate(order.created_at);
+                  const hasTg = Boolean(
+                    order.customer_account?.has_telegram ||
+                      (order.user_id && order.user_id.startsWith("tg_"))
+                  );
+                  const displayEmail =
+                    order.customer_email || order.customer_account?.email || null;
+
+                  return (
+                    <div
+                      key={`m-${order.id}`}
+                      className="p-4 space-y-3.5 bg-white hover:bg-gray-50/50 transition-colors"
+                    >
+                      {/* Card Header: Order ID + Status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-gray-900 text-base">
+                              #{order.order_id}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(order.order_id, `oid-${order.id}`)}
+                              className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors cursor-pointer"
+                              title="Copy Order ID"
+                            >
+                              {copiedKey === `oid-${order.id}` ? (
+                                <Check size={13} className="text-emerald-600" />
+                              ) : (
+                                <Copy size={13} />
+                              )}
+                            </button>
+                          </div>
+                          <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1.5">
+                            <Clock size={11} />
+                            <span>
+                              {date} • {time}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${getStatusStyle(
+                            order.status
+                          )}`}
+                        >
+                          {capitalize(order.status)}
+                        </span>
+                      </div>
+
+                      {/* Customer Info Card */}
+                      <div className="flex items-center gap-3 p-3 bg-gray-50/80 rounded-xl border border-gray-100">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-purple-100 shrink-0 border border-gray-200">
+                          {order.customer_account?.photo_url ? (
+                            <img
+                              src={order.customer_account.photo_url}
+                              alt="Avatar"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-purple-700 font-bold text-sm">
+                              {(order.customer_name || "U").charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5 truncate">
+                            <span className="truncate">{order.customer_name}</span>
+                            {order.customer_account?.username && (
+                              <span className="text-[10px] text-purple-600 font-mono">
+                                @{order.customer_account.username}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
+                            {displayEmail && (
+                              <span className="truncate font-mono">{displayEmail}</span>
+                            )}
+                            {order.customer_phone && (
+                              <span className="font-mono text-gray-600">{order.customer_phone}</span>
+                            )}
+                          </div>
+                          <div className="mt-1">
+                            {hasTg ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                                <Send size={9} className="text-sky-600" />
+                                Telegram Connected
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                Web Account
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Financial & Delivery Details */}
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-dashed border-gray-100">
+                        <div>
+                          <div className="text-gray-400 text-[10px] uppercase font-bold">វិធីទូទាត់</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="font-semibold text-gray-800">
+                              {order.payment_method?.toUpperCase() || "COD"}
+                            </span>
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${getPaymentStatusStyle(
+                                order.payment_status
+                              )}`}
+                            >
+                              {capitalize(order.payment_status || "Pending")}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-gray-400 text-[10px] uppercase font-bold">សរុប (TOTAL)</div>
+                          <div className="font-extrabold text-gray-900 text-sm">
+                            ${Number(order.total_amount).toFixed(2)}
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-mono">
+                            ~ {(Number(order.total_amount) * 4100).toLocaleString()} KHR
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tracking if available */}
+                      {order.tracking_number && (
+                        <div className="text-[11px] bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg flex items-center justify-between border border-purple-100 font-mono">
+                          <div className="flex items-center gap-1.5">
+                            <Truck size={12} className="text-purple-600" />
+                            <span>Tracking: {order.tracking_number}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(order.tracking_number!, `trk-${order.id}`)}
+                            className="text-purple-600 font-sans text-[10px] underline font-bold cursor-pointer"
+                          >
+                            {copiedKey === `trk-${order.id}` ? "Copied" : "Copy"}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Large Mobile Action Buttons: 2x2 Touch Grid (min-h-[44px]) */}
+                      <div className="grid grid-cols-2 gap-2 pt-1.5">
+                        {/* View Button */}
+                        <button
+                          type="button"
+                          onClick={() => setViewOrder(order)}
+                          className="min-h-[44px] px-3 py-2.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Eye size={17} className="text-gray-700 shrink-0" />
+                          <span>មើល (View)</span>
+                        </button>
+
+                        {/* Edit Button */}
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(order)}
+                          className="min-h-[44px] px-3 py-2.5 bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-blue-200 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Edit2 size={17} className="text-blue-600 shrink-0" />
+                          <span>កែប្រែ (Edit)</span>
+                        </button>
+
+                        {/* Push Notification Button */}
+                        <button
+                          type="button"
+                          onClick={() => openPushModal(order)}
+                          className="min-h-[44px] px-3 py-2.5 bg-purple-50 hover:bg-purple-100 active:scale-95 text-purple-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-purple-200 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Bell size={17} className="text-purple-600 shrink-0" />
+                          <span>ដំណឹង (Notify)</span>
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => setDeleteOrderTarget(order)}
+                          className="min-h-[44px] px-3 py-2.5 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-rose-200 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Trash2 size={17} className="text-rose-600 shrink-0" />
+                          <span>លុប (Delete)</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* ─── Desktop Table View (hidden md:block) ─── */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[950px]">
                 <thead>
                   <tr className="bg-gray-50/90 border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
@@ -1291,7 +1841,7 @@ export default function OrderManagementPage() {
                     <th className="p-4">ការទូទាត់ (PAYMENT)</th>
                     <th className="p-4 text-right">តម្លៃសរុប (TOTAL)</th>
                     <th className="p-4 text-center">ស្ថានភាព (STATUS)</th>
-                    <th className="p-4 text-right">ACTIONS</th>
+                    <th className="p-4 text-center">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
@@ -1429,31 +1979,43 @@ export default function OrderManagementPage() {
                           </td>
 
                           {/* Actions */}
-                          <td className="p-4 text-right">
-                            <div className="flex justify-end items-center gap-1.5">
+                          <td className="p-4 text-center">
+                            <div className="flex justify-center items-center gap-1.5">
                               {/* Push Notification */}
                               <button
+                                type="button"
                                 onClick={() => openPushModal(order)}
-                                className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
-                                title="Push Notification to Customer (Web & Telegram)"
+                                className="p-2 text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-all cursor-pointer shadow-xs"
+                                title="Push Notification to Customer (Web, Telegram, Gmail)"
                               >
-                                <Bell size={17} />
+                                <Bell size={16} />
                               </button>
                               {/* View Details */}
                               <button
+                                type="button"
                                 onClick={() => setViewOrder(order)}
-                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                                title="View Details"
+                                className="p-2 text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all cursor-pointer shadow-xs"
+                                title="View Details (មើលលម្អិត)"
                               >
-                                <Eye size={17} />
+                                <Eye size={16} />
                               </button>
                               {/* Edit Order */}
                               <button
+                                type="button"
                                 onClick={() => openEditModal(order)}
-                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-2 text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-all cursor-pointer shadow-xs"
                                 title="Edit Order (កែប្រែព័ត៌មាន Order)"
                               >
-                                <Edit2 size={17} />
+                                <Edit2 size={16} />
+                              </button>
+                              {/* Delete Order */}
+                              <button
+                                type="button"
+                                onClick={() => setDeleteOrderTarget(order)}
+                                className="p-2 text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all cursor-pointer shadow-xs"
+                                title="Delete Order (លុប Order)"
+                              >
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>

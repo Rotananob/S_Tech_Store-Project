@@ -86,16 +86,6 @@ export const getRecentOrders = async (limit?: number): Promise<Order[]> => {
   }
 };
 
-export const updateOrderStatus = async (orderId: number, status: string): Promise<boolean> => {
-  try {
-    await api.patch(`/admin/orders/${orderId}/status`, { status });
-    return true;
-  } catch (error) {
-    console.error("Failed to update order status:", error);
-    return false;
-  }
-};
-
 export const updateOrder = async (
   orderId: number,
   data: {
@@ -184,6 +174,42 @@ export const pushOrderNotification = async (
     return {
       success: false,
       message: error.response?.data?.message || "បរាជ័យក្នុងការផ្ញើការជូនដំណឹង",
+    };
+  }
+};
+
+export const updateOrderStatus = async (
+  orderId: number,
+  status: string
+): Promise<{ success: boolean; message?: string; order?: Order }> => {
+  try {
+    const res = await api.patch(`/admin/orders/${orderId}/status`, { status });
+    return {
+      success: true,
+      message: res.data?.message || "បានផ្លាស់ប្តូរស្ថានភាពជោគជ័យ!",
+      order: res.data?.order,
+    };
+  } catch (error: any) {
+    console.error("Failed to update order status:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.response?.data?.error || "បរាជ័យក្នុងការផ្លាស់ប្តូរស្ថានភាព",
+    };
+  }
+};
+
+export const deleteOrder = async (orderId: number): Promise<{ success: boolean; message?: string }> => {
+  try {
+    const res = await api.delete(`/admin/orders/${orderId}`);
+    return {
+      success: true,
+      message: res.data?.message || "បានលុបការបញ្ជាទិញជោគជ័យ!",
+    };
+  } catch (error: any) {
+    console.error("Failed to delete order:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || error.response?.data?.error || "បរាជ័យក្នុងការលុបការបញ្ជាទិញ",
     };
   }
 };

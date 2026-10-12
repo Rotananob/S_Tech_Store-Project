@@ -231,23 +231,60 @@ class OrderController extends Controller
         }
     }
 
+    /**
+     * Resolve customer UserProfile and Target UID (supports both Web Firebase UID and Telegram Mini App tg_<chat_id>)
+     */
+    private function resolveCustomerAndUid(Order $order): array
+    {
+        $targetUid = !empty($order->user_id) ? trim($order->user_id) : null;
+        $user = null;
+
+        if (!empty($targetUid)) {
+            $user = \App\Models\UserProfile::where('firebase_uid', $targetUid)->first();
+            if (!$user && str_starts_with($targetUid, 'tg_')) {
+                $rawChatId = str_replace('tg_', '', $targetUid);
+                $user = \App\Models\UserProfile::where('telegram_chat_id', $rawChatId)->first();
+            }
+        }
+        if (!$user && !empty($order->customer_phone)) {
+            $user = \App\Models\UserProfile::where('phone', trim($order->customer_phone))->first();
+            if ($user && empty($targetUid)) {
+                $targetUid = $user->firebase_uid;
+            }
+        }
+        if (!$user && !empty($order->customer_email)) {
+            $user = \App\Models\UserProfile::where('email', trim($order->customer_email))->first();
+            if ($user && empty($targetUid)) {
+                $targetUid = $user->firebase_uid;
+            }
+        }
+        if (empty($targetUid) && $user && !empty($user->firebase_uid)) {
+            $targetUid = $user->firebase_uid;
+        }
+
+        return [$user, $targetUid];
+    }
+
     public function updateStatus(Request $request, $id)
     {
+        if ($request->has('status')) {
+            $request->merge(['status' => strtolower(trim($request->input('status')))]);
+        }
         $validated = $request->validate([
-            'status' => 'required|string|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'required|string|in:pending,processing,shipped,delivered,completed,cancelled',
         ]);
 
         $order = Order::findOrFail($id);
         $oldStatus = $order->status;
-        $order->update(['status' => $validated['status']]);
-
-        // Resolve customer Firebase UID
-        $uid = $order->user_id ?: \App\Models\UserProfile::where('phone', $order->customer_phone)->value('firebase_uid');
-        if (!$uid && !empty($order->customer_email)) {
-            $uid = \App\Models\UserProfile::where('email', $order->customer_email)->value('firebase_uid');
+        $newStatus = $validated['status'];
+        if ($newStatus === 'completed') {
+            $newStatus = 'delivered';
         }
+        $order->update(['status' => $newStatus]);
 
-        if ($uid && $oldStatus !== $validated['status']) {
+        [$user, $targetUid] = $this->resolveCustomerAndUid($order);
+
+        if ($targetUid && $oldStatus !== $newStatus) {
             $statusTitles = [
                 'pending' => "⏳ ការបញ្ជាទិញរង់ចាំការបញ្ជាក់",
                 'processing' => "📦 កំពុងរៀបចំការបញ្ជាទិញ",
@@ -259,23 +296,27 @@ class OrderController extends Controller
             $statusMessages = [
                 'pending' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដាក់ស្នើ និងកំពុងរង់ចាំការបញ្ជាក់ (Pending)។",
                 'processing' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងត្រូវបានរៀបចំវេចខ្ចប់ដោយហាង (Processing)។",
-                'shipped' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក (Shipped)។",
+                'shipped' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក (Shipped)" . ($order->tracking_number ? " [កូដបញ្ញើ: {$order->tracking_number}]" : "") . "។",
                 'delivered' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដឹកជញ្ជូនដល់ជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store! (Delivered)",
                 'cancelled' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានបោះបង់ (Cancelled)។",
             ];
 
-            \App\Models\UserNotification::create([
-                'firebase_uid' => $uid,
-                'title' => $statusTitles[$validated['status']] ?? "Order Update",
-                'message' => $statusMessages[$validated['status']] ?? "Your order {$order->order_id} is now {$validated['status']}.",
-                'type' => 'order',
-                'link' => '/orders',
-                'read' => false,
-            ]);
+            try {
+                \App\Models\UserNotification::create([
+                    'firebase_uid' => $targetUid,
+                    'title' => $statusTitles[$newStatus] ?? "Order Update",
+                    'message' => $statusMessages[$newStatus] ?? "Your order {$order->order_id} is now {$newStatus}.",
+                    'type' => 'order',
+                    'link' => '/orders',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Status update notification create error: " . $t->getMessage());
+            }
         }
 
         // Dispatch instant personalized status update directly to Customer Telegram (Bot 2 Companion)
-        if ($oldStatus !== $validated['status']) {
+        if ($oldStatus !== $newStatus) {
             try {
                 \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'status_updated');
             } catch (\Throwable $t) {
@@ -283,15 +324,25 @@ class OrderController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Order status updated successfully', 'order' => $order]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Order status updated successfully',
+            'order' => $order->fresh('items.product'),
+        ]);
     }
 
     public function update(Request $request, $id)
     {
         $order = Order::findOrFail($id);
 
+        if ($request->has('status') && !empty($request->input('status'))) {
+            $st = strtolower(trim($request->input('status')));
+            if ($st === 'completed') $st = 'delivered';
+            $request->merge(['status' => $st]);
+        }
+
         $validated = $request->validate([
-            'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled',
             'payment_status' => 'nullable|string|in:pending,paid,failed,refunded',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
@@ -311,6 +362,7 @@ class OrderController extends Controller
 
         $sentToWeb = false;
         $sentToTelegram = false;
+        $sentToEmail = false;
 
         // Auto notification if requested or status changed
         if (!empty($validated['notify_customer']) || ($oldStatus !== $order->status && $request->has('status'))) {
@@ -333,17 +385,7 @@ class OrderController extends Controller
             $title = $statusTitles[$order->status] ?? "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}";
             $message = $statusMessages[$order->status] ?? "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានកែប្រែព័ត៌មានដោយជោគជ័យ។";
 
-            // Resolve user profile
-            $user = null;
-            if (!empty($order->user_id)) {
-                $user = \App\Models\UserProfile::where('firebase_uid', $order->user_id)->first();
-            }
-            if (!$user && !empty($order->customer_phone)) {
-                $user = \App\Models\UserProfile::where('phone', $order->customer_phone)->first();
-            }
-            if (!$user && !empty($order->customer_email)) {
-                $user = \App\Models\UserProfile::where('email', $order->customer_email)->first();
-            }
+            [$user, $targetUid] = $this->resolveCustomerAndUid($order);
 
             $wantEmail = $request->has('send_email') ? $request->boolean('send_email') : true;
             $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
@@ -353,11 +395,11 @@ class OrderController extends Controller
                 ? trim($validated['customer_email'])
                 : ($order->customer_email ?: ($user?->email ?: null));
 
-            // 1. In-App Website Notification
-            if ($wantWeb && $user && !empty($user->firebase_uid)) {
+            // 1. In-App Website / Mini App Notification
+            if ($wantWeb && !empty($targetUid)) {
                 try {
                     \App\Models\UserNotification::create([
-                        'firebase_uid' => $user->firebase_uid,
+                        'firebase_uid' => $targetUid,
                         'title' => $title,
                         'message' => $message,
                         'type' => 'order',
@@ -383,13 +425,16 @@ class OrderController extends Controller
                         );
                         $sentToTelegram = ($tgRes['ok'] ?? false) === true;
                     }
+
+                    if ($oldStatus !== $order->status) {
+                        \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'status_updated');
+                    }
                 } catch (\Throwable $t) {
                     \Illuminate\Support\Facades\Log::warning("Telegram update notification failed: " . $t->getMessage());
                 }
             }
 
             // 3. Real Email Notification
-            $sentToEmail = false;
             if ($wantEmail && !empty($customerEmail)) {
                 try {
                     $order->loadMissing('items.product');
@@ -403,19 +448,25 @@ class OrderController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Order updated successfully',
-            'order' => $order->load('items.product'),
+            'order' => $order->fresh('items.product'),
             'sent_to_web' => $sentToWeb,
             'sent_to_telegram' => $sentToTelegram,
-            'sent_to_email' => $sentToEmail ?? false,
+            'sent_to_email' => $sentToEmail,
         ]);
     }
 
     public function pushNotification(Request $request, $id)
     {
+        if ($request->has('status') && !empty($request->input('status'))) {
+            $st = strtolower(trim($request->input('status')));
+            if ($st === 'completed') $st = 'delivered';
+            $request->merge(['status' => $st]);
+        }
+
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'message' => 'required|string',
-            'status' => 'nullable|string|in:pending,processing,shipped,delivered,cancelled',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled',
             'send_email' => 'nullable|boolean',
             'send_telegram' => 'nullable|boolean',
             'send_web' => 'nullable|boolean',
@@ -423,22 +474,20 @@ class OrderController extends Controller
         ]);
 
         $order = Order::with('items.product')->findOrFail($id);
+        $oldStatus = $order->status;
 
-        if (!empty($validated['status']) && $validated['status'] !== $order->status) {
-            $order->update(['status' => $validated['status']]);
+        if (!empty($validated['status'])) {
+            $newStatus = $validated['status'];
+            if ($newStatus === 'completed') {
+                $newStatus = 'delivered';
+            }
+            if ($newStatus !== $order->status) {
+                $order->update(['status' => $newStatus]);
+            }
         }
 
-        // Resolve user profile via user_id, phone, or email
-        $user = null;
-        if (!empty($order->user_id)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', $order->user_id)->first();
-        }
-        if (!$user && !empty($order->customer_phone)) {
-            $user = \App\Models\UserProfile::where('phone', $order->customer_phone)->first();
-        }
-        if (!$user && !empty($order->customer_email)) {
-            $user = \App\Models\UserProfile::where('email', $order->customer_email)->first();
-        }
+        // Resolve user profile and target UID (supports both Web and Telegram Mini App tg_<chat_id>)
+        [$user, $targetUid] = $this->resolveCustomerAndUid($order);
 
         $notificationTitle = $validated['title'] ?: "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}";
 
@@ -459,11 +508,11 @@ class OrderController extends Controller
         $sentToEmail = false;
         $hasTelegram = false;
 
-        // 1. In-App Notification to Website Account
-        if ($wantWeb && $user && !empty($user->firebase_uid)) {
+        // 1. In-App Notification to Customer Account (Web or Telegram Mini App)
+        if ($wantWeb && !empty($targetUid)) {
             try {
                 \App\Models\UserNotification::create([
-                    'firebase_uid' => $user->firebase_uid,
+                    'firebase_uid' => $targetUid,
                     'title' => $notificationTitle,
                     'message' => $validated['message'],
                     'type' => 'order',
@@ -492,6 +541,12 @@ class OrderController extends Controller
                 } catch (\Throwable $t) {
                     \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
                 }
+
+                if ($oldStatus !== $order->status) {
+                    try {
+                        \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->fresh(['items.product']), 'status_updated');
+                    } catch (\Throwable $t) {}
+                }
             }
         }
 
@@ -508,7 +563,7 @@ class OrderController extends Controller
         $channels = [];
         if ($sentToEmail) $channels[] = "Email ({$customerEmail})";
         if ($sentToTelegram) $channels[] = "Telegram Bot 1-on-1";
-        if ($sentToWeb) $channels[] = "Account Website";
+        if ($sentToWeb) $channels[] = "Account Website & Mini App";
 
         if (!empty($channels)) {
             $msg = "ការជូនដំណឹងត្រូវបានបញ្ជូនជោគជ័យទៅកាន់: " . implode(" + ", $channels);
@@ -525,7 +580,7 @@ class OrderController extends Controller
             'has_telegram' => $hasTelegram,
             'has_email' => !empty($customerEmail),
             'customer_email' => $customerEmail,
-            'has_customer' => !empty($user),
+            'has_customer' => !empty($user) || !empty($targetUid),
             'customer' => $user ? [
                 'name' => $user->display_name,
                 'email' => $user->email,
@@ -533,7 +588,22 @@ class OrderController extends Controller
                 'telegram' => $user->telegram,
                 'has_telegram' => $hasTelegram,
             ] : null,
-            'order' => $order,
+            'order' => $order->fresh(['items.product']),
+        ]);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $order = Order::findOrFail($id);
+        $orderId = $order->order_id ?: ('#' . $order->id);
+
+        $order->items()->delete();
+        $order->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានលុបការបញ្ជាទិញ {$orderId} ដោយជោគជ័យ!",
+            'deleted_id' => (int)$id,
         ]);
     }
 

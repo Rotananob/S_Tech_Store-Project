@@ -1191,6 +1191,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::match(['put', 'patch'], '/admin/orders/{id}', [OrderController::class, 'update']);
     Route::patch('/admin/orders/{id}/status', [OrderController::class, 'updateStatus']);
     Route::post('/admin/orders/{id}/notify', [OrderController::class, 'pushNotification']);
+    Route::delete('/admin/orders/{id}', [OrderController::class, 'destroy']);
 
     // Staff & Account Management (Admin Role Only)
     Route::get('/admin/staff', [AdminAuthController::class, 'staffList']);
