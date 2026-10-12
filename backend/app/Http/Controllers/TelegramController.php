@@ -44,7 +44,7 @@ class TelegramController extends Controller
     }
 
     /**
-     * Generate One-Click Connect Link & QR code token (ABA Merchant Style)
+     * Generate One-Click Connect Link & QR code token (1-Click Group Pairing)
      */
     public function generateLink(Request $request)
     {
@@ -58,6 +58,13 @@ class TelegramController extends Controller
 
         $user = $request->input('user') ?? $request->header('X-User-Email') ?? 'Admin/Staff';
         $data = TelegramService::generatePairLink($user);
+
+        // 1. Ensure webhook is registered if public HTTPS URL exists
+        TelegramService::ensureWebhookRegistered();
+
+        // 2. Launch autonomous background radar poller on server (runs for 90s, 1s interval)
+        // Ensures instant pairing & topic creation in Telegram even when admin does not return to site
+        TelegramService::startBackgroundRadarPoller($data['pair_code']);
 
         return response()->json([
             'success' => true,

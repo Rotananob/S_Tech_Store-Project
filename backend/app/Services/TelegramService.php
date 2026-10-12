@@ -158,7 +158,7 @@ class TelegramService
     }
 
     /**
-     * Generate a new unique Pairing Link & Code (ABA Merchant Style)
+     * Generate a new unique Pairing Link & Code for Group Pairing
      */
     public static function generatePairLink(string $userEmail = 'admin'): array
     {
@@ -208,6 +208,60 @@ class TelegramService
             'direct_url' => $directUrl,
             'expires_in' => 1800, // 30 minutes
         ];
+    }
+
+    /**
+     * Start autonomous background radar poller to auto-detect pairing and auto-create topics in real time
+     */
+    public static function startBackgroundRadarPoller(string $pairCode): void
+    {
+        try {
+            $artisan = base_path('artisan');
+            $pairCodeEsc = escapeshellarg($pairCode);
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                pclose(popen("start /B php \"{$artisan}\" telegram:radar-poll {$pairCodeEsc} --duration=90 > NUL 2>&1", "r"));
+            } else {
+                exec("php \"{$artisan}\" telegram:radar-poll {$pairCodeEsc} --duration=90 > /dev/null 2>&1 &");
+            }
+            Log::info("Autonomous background radar poller launched for pair code: {$pairCode}");
+        } catch (\Throwable $e) {
+            Log::warning("Failed to start background radar poller: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Ensure public webhook is registered if HTTPS URL is configured
+     */
+    public static function ensureWebhookRegistered(): bool
+    {
+        $settings = self::getSettings();
+        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return false;
+        }
+
+        $webhookUrl = env('TELEGRAM_WEBHOOK_URL');
+        if (!$webhookUrl) {
+            $appUrl = env('APP_URL');
+            if ($appUrl && str_starts_with($appUrl, 'https://')) {
+                $webhookUrl = rtrim($appUrl, '/') . '/api/telegram/webhook';
+            }
+        }
+
+        if (!$webhookUrl || !str_starts_with($webhookUrl, 'https://')) {
+            return false;
+        }
+
+        try {
+            $resp = Http::timeout(5)->post("https://api.telegram.org/bot{$token}/setWebhook", [
+                'url' => $webhookUrl,
+                'drop_pending_updates' => false,
+                'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
+            ]);
+            return ($resp->json()['ok'] ?? false) === true;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**
@@ -342,6 +396,14 @@ class TelegramService
             $activeBotUsername = ($botParam === 'auth' || $chatType === 'private')
                 ? self::getCustomerBotUsername()
                 : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+
+            // STRICT DISCONNECT ISOLATION: In group chat, if disconnected, ignore completely!
+            if ($chatType !== 'private') {
+                $isConnectedGroup = !empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId;
+                if (!$isConnectedGroup) {
+                    return;
+                }
+            }
 
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
@@ -773,12 +835,9 @@ class TelegramService
                     return;
                 }
 
-                $joinMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Notification Bot!</b>\n\n"
-                    . "🏪 <b>ហាង S Tech Store Cambodia</b>\n"
-                    . "Bot ត្រូវបានបន្ថែមចូលក្នុងគ្រុបនេះដោយជោគជ័យ។\n\n"
-                    . "👉 ប្រសិនបើអ្នកមាន Pairing Code សូមវាយបញ្ជា: <code>/start STxxxxx</code>\n"
-                    . "👉 ឬវាយបញ្ជា <code>/setup_topics</code> ដើម្បីរៀបចំ Forum Topics ដោយស្វ័យប្រវត្តិ!";
-                self::sendMessage($chatId, $joinMsg);
+                // STRICT DISCONNECT ISOLATION:
+                // If disconnected and no active pairing token exists, stay completely silent!
+                return;
             }
             return;
         }
@@ -863,16 +922,8 @@ class TelegramService
                         return;
                     }
 
-                    if (!empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId) {
-                        return;
-                    }
-
-                    $joinMsg = "👋 <b>ជម្រាបសួរក្រុមការងារ S Tech Store!</b>\n\n"
-                        . "ខ្ញុំគឺ Bot ផ្លូវការរបស់ហាង S Tech Store។\n\n"
-                        . "🔑 ដើម្បីភ្ជាប់គ្រុបនេះជាមួយ Admin Website សូមប្រើពាក្យបញ្ជា:\n"
-                        . "<code>/start STxxxxx</code> (លេខកូដ Pairing ពី Settings)\n\n"
-                        . "🛠️ ឬវាយ <code>/setup_topics</code> ប្រសិនបើចង់បង្កើត Forum Topics ស្វ័យប្រវត្តិ!";
-                    self::sendMessage($chatId, $joinMsg);
+                    // STRICT DISCONNECT ISOLATION:
+                    // If disconnected and no active pairing token exists, do NOT reply or send greeting!
                     return;
                 }
             }
@@ -1281,22 +1332,19 @@ class TelegramService
 
         // 5. GROUP CHAT COMMANDS (Admin & Staff group only)
         if ($chatType !== 'private') {
-            if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
-                $tokens = $settings['pending_tokens'] ?? [];
-                if (!empty($tokens)) {
-                    self::pairChat('AUTO', $chatId, $chatTitle, $chatType);
-                    return;
-                }
+            $isConnected = !empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId;
 
-                $isConnected = !empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId;
+            // STRICT DISCONNECT ISOLATION:
+            // When disconnected, bot must strictly ignore / remain silent in this group unless re-paired with a valid code!
+            if (!$isConnected) {
+                return;
+            }
+
+            if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
                 $currentChat = $settings['chat_title'] ?? $chatTitle;
                 $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Notification Bot!</b>\n\n"
                     . "🤖 <b>គណនី Bot:</b> @{$activeBotUsername}\n"
-                    . "⚡ <b>ស្ថានភាព:</b> " . ($isConnected ? "🟢 Connected ជាមួយគ្រុប {$currentChat}" : "⚪ មិនទាន់ភ្ជាប់គ្រុប") . "\n\n"
-                    . "📌 <b>របៀបភ្ជាប់គ្រុប:</b>\n"
-                    . "1️⃣ ចូលទៅកាន់ Admin Dashboard 👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/settings\">Telegram Settings</a>\n"
-                    . "2️⃣ ចុចប៊ូតុង <b>Connect Telegram</b> (1-Click Connect)\n"
-                    . "3️⃣ ជ្រើសរើស Group របស់ហាង នោះប្រព័ន្ធនឹង Auto Connect ភ្លាមៗ!\n\n"
+                    . "⚡ <b>ស្ថានភាព:</b> 🟢 Connected ជាមួយគ្រុប {$currentChat}\n\n"
                     . "⚙️ <b>ពាក្យបញ្ជាដែលមាន:</b>\n"
                     . "• <code>/setup_topics</code> — បង្កើត និងរៀបចំ Forum Topics ស្វ័យប្រវត្តិ\n"
                     . "• <code>/status</code> — ពិនិត្យមើលស្ថានភាពភ្ជាប់បច្ចុប្បន្ន";
@@ -1310,11 +1358,10 @@ class TelegramService
             }
 
             if (preg_match('/^\/status(?:@\w+)?/i', $text)) {
-                $isConnected = !empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === (string)$chatId;
                 $statusText = "📊 <b>ស្ថានភាព S Tech Store Bot:</b>\n\n"
                     . "• <b>Bot Username:</b> @{$activeBotUsername}\n"
                     . "• <b>Chat ID បច្ចុប្បន្ន:</b> <code>{$chatId}</code>\n"
-                    . "• <b>ស្ថានភាពភ្ជាប់:</b> " . ($isConnected ? "🟢 ភ្ជាប់រួចរាល់" : "⚪ មិនទាន់ភ្ជាប់") . "\n"
+                    . "• <b>ស្ថានភាពភ្ជាប់:</b> 🟢 ភ្ជាប់រួចរាល់\n"
                     . "• <b>Topics បានរៀបចំ:</b> " . count($settings['topics'] ?? []) . " topics\n\n"
                     . "✅ ប្រព័ន្ធដំណើរការ ២៤/៧ ដោយស្វ័យប្រវត្តិ!";
                 self::sendMessage($chatId, $statusText);
@@ -2117,6 +2164,28 @@ class TelegramService
                 $createdTopics = [];
             }
 
+            // Active Probe & Smart Topic Healing: Verify if saved topics still exist in Telegram
+            if ($token && !str_contains($token, 'Placeholder') && !empty($createdTopics)) {
+                foreach ($createdTopics as $k => $tid) {
+                    if (!isset($topicsToCreate[$k])) continue;
+                    try {
+                        $probeResp = Http::timeout(4)->post("https://api.telegram.org/bot{$token}/editForumTopic", [
+                            'chat_id' => $chatId,
+                            'message_thread_id' => $tid,
+                            'name' => $topicsToCreate[$k]['name'],
+                        ]);
+                        $probeJson = $probeResp->json();
+                        if (!($probeJson['ok'] ?? false)) {
+                            $probeDesc = strtolower($probeJson['description'] ?? '');
+                            if (str_contains($probeDesc, 'not found') || str_contains($probeDesc, 'deleted') || str_contains($probeDesc, 'invalid thread')) {
+                                Log::info("Forum topic '{$k}' (Thread ID: {$tid}) was deleted in Telegram. Unsetting to heal and recreate.");
+                                unset($createdTopics[$k]);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
+            }
+
             // STRICT DEDUPLICATION: Check if all topics already exist
             $allAlreadyExist = true;
             foreach ($topicsToCreate as $key => $topicData) {
@@ -2129,13 +2198,14 @@ class TelegramService
             if ($allAlreadyExist && ($isSameChat || empty($connectedChatId))) {
                 if (empty($settings['topics_chat_id']) || $settings['topics_chat_id'] !== $chatIdStr) {
                     $settings['topics_chat_id'] = $chatIdStr;
-                    self::saveSettings($settings);
                 }
+                $settings['topics'] = $createdTopics;
+                self::saveSettings($settings);
                 return [
                     'ok' => true,
                     'already_exists' => true,
                     'topics' => $createdTopics,
-                    'message' => 'ប្រធានបទ Topics ទាំងអស់ត្រូវបានបង្កើតរួចរាល់ហើយក្នុងគ្រុប (All topics already exist, no duplicates created).',
+                    'message' => 'ប្រធានបទ Topics ទាំងអស់ត្រូវបានបង្កើតរួចរាល់ហើយក្នុងគ្រុប (All topics already exist and healthy).',
                 ];
             }
 
@@ -2294,6 +2364,10 @@ class TelegramService
         $settings['connected_by'] = null;
         $settings['topics'] = [];
         $settings['topics_chat_id'] = null;
+        $settings['pending_tokens'] = [];
+
+        self::$cachedSettings = null;
+        \Illuminate\Support\Facades\Cache::forget('tg_settings_cache_v2');
 
         return self::saveSettings($settings);
     }
@@ -2383,8 +2457,21 @@ class TelegramService
             $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
-            // Fallback retry if thread does not exist or was closed/deleted
+            // Fallback retry & auto-heal if thread does not exist or was closed/deleted
             if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'thread not found') && $threadId) {
+                $topics = $settings['topics'] ?? [];
+                $healed = false;
+                foreach ($topics as $tk => $tid) {
+                    if ((int)$tid === (int)$threadId) {
+                        unset($topics[$tk]);
+                        $healed = true;
+                    }
+                }
+                if ($healed) {
+                    $settings['topics'] = $topics;
+                    self::saveSettings($settings);
+                }
+
                 unset($payload['message_thread_id']);
                 $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
@@ -2424,8 +2511,21 @@ class TelegramService
             $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
-            // Fallback retry if thread does not exist or was closed/deleted
+            // Fallback retry & auto-heal if thread does not exist or was closed/deleted
             if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'thread not found') && $threadId) {
+                $topics = $settings['topics'] ?? [];
+                $healed = false;
+                foreach ($topics as $tk => $tid) {
+                    if ((int)$tid === (int)$threadId) {
+                        unset($topics[$tk]);
+                        $healed = true;
+                    }
+                }
+                if ($healed) {
+                    $settings['topics'] = $topics;
+                    self::saveSettings($settings);
+                }
+
                 unset($payload['message_thread_id']);
                 $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();

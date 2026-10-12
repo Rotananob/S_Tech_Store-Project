@@ -126,12 +126,18 @@ export default function TelegramBotCard() {
       setPairData(res);
       showToast("កំពុងបើកកម្មវិធី Telegram... សូមជ្រើសរើស Group របស់ហាង");
 
-      // Auto-launch Telegram App directly via native tg:// URL scheme first, fallback to https://t.me/
+      // Auto-launch Telegram App directly via non-blocking link so this web tab remains alive and active
       const tgApp = res.tg_app_url || `tg://resolve?domain=${res.bot_username}&startgroup=${res.pair_code}&admin=manage_topics+change_info+post_messages+edit_messages+delete_messages+pin_messages+promote_members+invite_users`;
       const tgWeb = res.group_url;
 
       try {
-        window.location.href = tgApp;
+        const link = document.createElement("a");
+        link.href = tgApp;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       } catch (e) {
         window.open(tgWeb, "_blank");
       }
@@ -238,7 +244,7 @@ export default function TelegramBotCard() {
         </div>
       )}
 
-      {/* Header Banner — Apple & ABA Merchant Premium Theme */}
+      {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#0088cc] via-[#0077b5] to-[#123970] p-6 sm:p-8 text-white relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-sky-300/10 rounded-full blur-2xl pointer-events-none" />
@@ -251,7 +257,7 @@ export default function TelegramBotCard() {
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm border border-white/25 text-[11px] font-extrabold text-sky-100 mb-1.5">
                 <Sparkles size={12} className="text-amber-300" />
-                <span>ABA Merchant Style 1-Click Connect</span>
+                <span>ភ្ជាប់ Group ស្វ័យប្រវត្ត (1-Click Connect)</span>
               </div>
               <h2 className="text-lg sm:text-2xl font-black text-white m-0 tracking-tight leading-tight">
                 Telegram Bot Notifications & Forum Topics
@@ -544,20 +550,20 @@ export default function TelegramBotCard() {
             </div>
           </div>
         ) : (
-          /* ── CASE 2: NOT CONNECTED (PRE-CONFIGURED ABA MERCHANT 1-CLICK FLOW) ── */
+          /* ── CASE 2: NOT CONNECTED (1-CLICK FLOW) ── */
           <div className="flex flex-col gap-6">
             
             {/* Main 1-Click Connect Hero Banner */}
             <div className="bg-gradient-to-br from-gray-50 via-sky-50/30 to-blue-50/50 p-6 sm:p-8 rounded-3xl border border-sky-100 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
               <div className="max-w-xl">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-[#0088cc] text-xs font-bold mb-3">
-                  <Smartphone size={14} /> ងាយស្រួលបំផុត ១-ចុច ABA Merchant Style
+                  <Smartphone size={14} /> ងាយស្រួលបំផុត ១-ចុច ស្វ័យប្រវត្តិ
                 </div>
                 <h3 className="text-lg sm:text-2xl font-black text-gray-900 tracking-tight leading-snug">
                   ភ្ជាប់ Telegram Bot ទៅកាន់ Group របស់ហាង
                 </h3>
                 <p className="text-gray-600 text-xs sm:text-sm mt-2 leading-relaxed">
-                  គ្រាន់តែចុចប៊ូតុងខាងក្រោម នោះវានឹងរត់ចូលទៅក្នុង <b>Telegram App</b> លើទូរស័ព្ទរបស់អ្នកភ្លាមៗ! បន្ទាប់មកគ្រាន់តែ Add Bot <b>@{botUsername}</b> ចូលក្នុង Group ណាមួយ នោះវានឹងភ្ជាប់ និងបង្កើត <b>Forum Topics</b> ដោយស្វ័យប្រវត្តិ។
+                  គ្រាន់តែចុចបើក Telegram រួចជ្រើសរើស Group របស់ហាង ហើយ Add Bot <b>@{botUsername}</b> ជា Admin ជាមួយសិទ្ធិ <b>&quot;Manage Topics&quot;</b> ជាការស្រេច! ប្រព័ន្ធនឹងតភ្ជាប់ និងបង្កើត Forum Topics ជូនភ្លាមៗ។
                 </p>
 
                 {/* Main Action Trigger */}
@@ -820,13 +826,13 @@ export default function TelegramBotCard() {
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-[#0088cc] text-[11px] font-extrabold uppercase tracking-wider mb-1.5">
                     <Sparkles size={12} className="text-amber-500" />
-                    <span>ABA Merchant 1-Click Connect Flow</span>
+                    <span>ភ្ជាប់ Telegram Group ដោយស្វ័យប្រវត្តិ</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-                    កំពូលវៃលុក UX • ភ្ជាប់ Telegram Bot
+                    របៀបភ្ជាប់ Telegram Bot ទៅកាន់គ្រុប
                   </h3>
                   <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto leading-relaxed">
-                    ធ្វើតាមជំហានងាយៗខាងក្រោម។ នៅពេល Add Bot ចូលក្នុងគ្រុប វានឹងស្គាល់ និងបង្កើត Forum Topics ដោយស្វ័យប្រវត្តិ!
+                    ចុចបើក Telegram ជ្រើសរើស Group របស់ហាង ហើយ Add Bot ជា Admin ជាមួយ Manage Topics ជាការស្រេច!
                   </p>
                 </div>
 

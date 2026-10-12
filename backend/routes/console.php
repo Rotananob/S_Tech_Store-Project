@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 
 Artisan::command('telegram:poll {--timeout=15 : Long poll timeout in seconds}', function () {
     $timeout = (int)$this->option('timeout');
-    $this->info("⚡ S Tech Store Telegram Bot Polling Worker started (timeout: {$timeout}s)...");
+    $this->info("S Tech Store Telegram Bot Polling Worker started (timeout: {$timeout}s)...");
 
     while (true) {
         try {
@@ -22,12 +22,44 @@ Artisan::command('telegram:poll {--timeout=15 : Long poll timeout in seconds}', 
     }
 })->purpose('Poll Telegram Bot updates continuously and auto-reply instantly in Telegram');
 
+Artisan::command('telegram:radar-poll {pair_code} {--duration=90}', function ($pairCode) {
+    $duration = (int)$this->option('duration') ?: 90;
+    $start = time();
+    $this->info("Telegram Radar Poller started for pair code: {$pairCode}");
+
+    while ((time() - $start) < $duration) {
+        $settings = \App\Services\TelegramService::getSettings();
+        $tokens = $settings['pending_tokens'] ?? [];
+
+        // If pair code was already paired and topics exist, finish early
+        if (!empty($settings['connected']) && !isset($tokens[$pairCode]) && !empty($settings['topics'])) {
+            $this->info("Pairing and topics verified!");
+            return;
+        }
+
+        try {
+            \App\Services\TelegramService::pollPendingUpdates(0);
+        } catch (\Throwable $e) {}
+
+        // Check if now connected
+        $settings = \App\Services\TelegramService::getSettings();
+        if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+            // Guarantee topics are created and auto-healed in Telegram immediately
+            \App\Services\TelegramService::setupTopics($settings['chat_id']);
+            $this->info("Group connected & topics auto-created in Telegram!");
+            return;
+        }
+
+        sleep(1);
+    }
+})->purpose('Autonomous background radar poller for 1-click group pairing and topic creation');
+
 Artisan::command('telegram:sync-db', function () {
     $settings = \App\Services\TelegramService::getSettings();
     \App\Services\TelegramService::saveSettings($settings);
-    $this->info("Telegram settings synced to Neon PostgreSQL successfully!");
+    $this->info("Telegram settings synced successfully!");
     $this->line(json_encode($settings, JSON_PRETTY_PRINT));
-})->purpose('Sync Telegram Bot settings to Neon PostgreSQL database');
+})->purpose('Sync Telegram Bot settings to database');
 
 Artisan::command('telegram:test', function () {
     $res = \App\Services\TelegramService::sendTestNotification();

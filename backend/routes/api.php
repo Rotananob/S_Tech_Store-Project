@@ -1237,7 +1237,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::get('/admin/users/{id}/orders', [\App\Http\Controllers\UserController::class, 'getUserOrdersForAdmin']);
     Route::delete('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
 
-    // Telegram Bot Integration (ABA Merchant Style)
+    // Telegram Bot Integration (1-Click Group Pairing)
     Route::get('/admin/telegram/status', [\App\Http\Controllers\TelegramController::class, 'status']);
     Route::post('/admin/telegram/generate-link', [\App\Http\Controllers\TelegramController::class, 'generateLink']);
     Route::post('/admin/telegram/pair', [\App\Http\Controllers\TelegramController::class, 'pair']);
