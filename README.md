@@ -1,206 +1,204 @@
-# 🚀 S Tech Store — Enterprise E-Commerce & Management Platform
+# S Tech Store
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.2.10-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Bakong KHQR](https://img.shields.io/badge/Bakong-Open_API_KHQR-E01E26?style=for-the-badge)](https://bakong.nbc.gov.kh/)
-[![Telegram](https://img.shields.io/badge/Dual_Telegram-Bots_Integrated-229ED9?style=for-the-badge&logo=telegram&logoColor=white)](https://telegram.org/)
-[![PWA Ready](https://img.shields.io/badge/PWA-Serwist_Offline_Ready-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)](https://serwist.pages.dev/)
-[![Security Audit](https://img.shields.io/badge/Pentest-5_Stage_Red_Team_Passed-059669?style=for-the-badge&logo=shield&logoColor=white)](#-cybersecurity--red-team-hardening)
+Production hardware retail platform, custom computer builder, and store management system built for the Cambodian technology market. The system connects a Next.js 16 storefront with a Laravel 11 backend, integrating National Bank of Cambodia Bakong KHQR payments, dual Telegram bot automation, progressive web applications, and an obfuscated operations portal.
 
 ---
 
-## 📖 Overview
-
-**S Tech Store** is a full-stack, enterprise-grade E-Commerce and Retail Operations Management system specially engineered for computer hardware, peripherals, custom PC building, and hardware repair services in Cambodia.
-
-Built with a high-performance **Next.js 16 (App Router + Turbopack)** frontend and an ultra-robust **Laravel 11 REST API** backed by **PostgreSQL 15**, the platform integrates Cambodia's national standard **National Bank of Cambodia (NBC) Bakong Open API & EMVCo KHQR** payment gateway, dual Telegram bot automation, progressive web apps (PWA) for both customers and staff, and an obfuscated, high-security management portal.
-
----
-
-## 🏛️ System Architecture
+## Architecture Blueprint
 
 ```mermaid
-graph TD
-    subgraph ClientLayer["🖥️ Frontend Clients (Next.js 16 + PWA)"]
-        CustomerWeb["🛒 Public Customer Storefront\n(Desktop / Mobile PWA)"]
-        CustomerBot["🤖 @S_TECH_ASSISTANTBOT\n(Invoices, 1-Click Login Handshake)"]
-        AdminPortal["🛡️ Admin Portal (/rok-mix-khernh)\n(Desktop / Staff PWA)"]
-        MerchantBot["📢 Admin Merchant Bot\n(Group Alerts, Orders, Stock, Shifts)"]
+flowchart TD
+    subgraph Clients["Client Applications"]
+        WebStore["Customer Web Storefront & PWA"]
+        CustBot["Customer Telegram Bot @S_TECH_ASSISTANTBOT"]
+        OpsPortal["Operations Portal at /rok-mix-khernh"]
+        StaffBot["Staff Telegram Alert Bot"]
     end
 
-    subgraph SecurityLayer["🛡️ Security & API Gateway"]
-        WAF["Cloudflare / NGINX Reverse Proxy"]
-        RateLimit["Rate Limiting & Throttle"]
-        Sanctum["Laravel Sanctum & HMAC-SHA256 Auth"]
+    subgraph Gateway["Edge Gateway & Security Layer"]
+        ReverseProxy["Cloudflare & Nginx Reverse Proxy"]
+        Throttle["Sliding Window Rate Limiter"]
+        AuthGuards["Sanctum Token & HMAC SHA-256 Verification"]
     end
 
-    subgraph BackendLayer["⚙️ Backend Core (Laravel 11 REST API)"]
-        OrderEngine["Order & Checkout Engine\n(Server-side recalculation)"]
-        PaymentEngine["Payment Service\n(Bakong KHQR + EMVCo CRC16)"]
-        CatalogEngine["Product Catalog & Inventory Engine"]
-        RepairEngine["Repair & Service Ticket Engine"]
-        ShiftEngine["POS Shift & Cash Register Engine"]
-        TelegramService["Dual Telegram Bot Dispatcher"]
+    subgraph Application["Core Service Layer"]
+        CheckoutSvc["Order Processing & Checkout Service"]
+        PaymentSvc["Bakong Open API & KHQR Engine"]
+        PCBuilderSvc["PC Compatibility & Wattage Engine"]
+        WalletSvc["S-Tech Smart Wallet & Ledger Engine"]
+        RepairSvc["Hardware Service & Repair Ticketing"]
+        ShiftSvc["POS Cash Register & Shift Reconciliation"]
+        TelegramSvc["Dual Telegram Dispatcher"]
+        AISvc["S Tech AI Vision & Support Assistant"]
     end
 
-    subgraph ExternalServices["🌐 External Integrations"]
-        BakongAPI["🏛️ NBC Bakong Open API\n(Real-time payment verification)"]
-        TelegramAPI["✈️ Telegram Bot API\n(Notifications & Invoices)"]
-        PostgresDB[("🐘 PostgreSQL 15 Database\n(ACID Compliant)")]
+    subgraph Integrations["External Providers & Persistence"]
+        BakongAPI["NBC Bakong Open API Gateway"]
+        TelegramAPI["Telegram Bot API"]
+        PostgresDB[("PostgreSQL 15 Relational Database")]
+        RedisCache[("Redis Cache & Job Queue")]
     end
 
-    CustomerWeb --> WAF
-    AdminPortal --> WAF
-    WAF --> RateLimit --> Sanctum
-    Sanctum --> OrderEngine
-    Sanctum --> CatalogEngine
-    Sanctum --> RepairEngine
-    Sanctum --> ShiftEngine
+    WebStore --> ReverseProxy
+    OpsPortal --> ReverseProxy
+    ReverseProxy --> Throttle --> AuthGuards
+    
+    AuthGuards --> CheckoutSvc
+    AuthGuards --> PCBuilderSvc
+    AuthGuards --> WalletSvc
+    AuthGuards --> RepairSvc
+    AuthGuards --> ShiftSvc
+    AuthGuards --> AISvc
 
-    OrderEngine --> PaymentEngine
-    PaymentEngine --> BakongAPI
-    OrderEngine --> TelegramService
-    RepairEngine --> TelegramService
+    CheckoutSvc --> PaymentSvc
+    PaymentSvc --> BakongAPI
+    CheckoutSvc --> TelegramSvc
+    RepairSvc --> TelegramSvc
+    ShiftSvc --> TelegramSvc
 
-    TelegramService --> TelegramAPI
-    TelegramAPI --> CustomerBot
-    TelegramAPI --> MerchantBot
+    TelegramSvc --> TelegramAPI
+    TelegramAPI --> CustBot
+    TelegramAPI --> StaffBot
 
-    OrderEngine --> PostgresDB
-    CatalogEngine --> PostgresDB
-    RepairEngine --> PostgresDB
-    ShiftEngine --> PostgresDB
+    CheckoutSvc --> PostgresDB
+    WalletSvc --> PostgresDB
+    RepairSvc --> PostgresDB
+    ShiftSvc --> PostgresDB
+    AISvc --> RedisCache
 ```
 
 ---
 
-## ✨ Core Highlights & Features
+## Core Engineering Modules
 
-### 🛒 1. Customer Experience (Storefront)
-- **High-Velocity UI/UX**: Next.js 16 App Router with Turbopack, Framer Motion micro-interactions, dark & light themes, and Lucide icons.
-- **Bilingual Support (Khmer & English)**: Complete native localization (`km` and `en`) powered by `next-intl`.
-- **Intelligent Search & Filtering**: Real-time instant search dropdown with live pricing/stock previews, faceted filters (Category, Brand, Price Range, CPU/GPU/RAM specs), and sorting.
-- **Dynamic Slide-Over Cart**: Flyout drawer accessible from any page, real-time quantity validation against live stock, and free delivery calculators.
-- **Custom PC Builder (`/build-pc`)**: Interactive component compatibility calculator (CPU socket, RAM type, PSU wattage check, real-time total build cost computation, and 1-click cart migration).
-- **Repair Service Booking (`/services`)**: Online service booking, repair tracking, and laptop/PC maintenance quotes.
-- **Customer VIP Profile & Wallet**: Order history timeline with live driver contact info, saved addresses, wishlist, viewed items, and 2FA OTP security settings.
-- **Dual PWA**: Standalone installable app on iOS Safari and Android Chrome with offline fallback capability.
+### 1. Payment Engine & KHQR Integration
+The transaction engine follows the National Bank of Cambodia EMVCo KHQR standard for merchant payments in both United States Dollar and Khmer Riel currencies.
+* **EMVCo Tag Assembly**: Generates dynamic QR payloads with merchant account identifier, country code, currency definition, transaction sum, and CRC-16 CCITT polynomial checksum.
+* **Open API Verification**: Interacts directly with the official NBC Bakong Open API via JWT bearer tokens, polling transaction settlement states and consuming webhook events.
+* **Settlement Latency**: Incoming deposits trigger instant balance updates in under two seconds through direct API reconciliation without requiring manual human review.
+* **Payment Redundancy**: Supports Cash on Delivery, debit or credit card settlement, and direct banking transfers alongside KHQR.
 
-### 💳 2. National NBC Bakong Open API & KHQR Payments
-- **EMVCo Compliant KHQR Generator**: Generates real-time, dynamic KHQR codes with CRC16 CCITT polynomial checksum.
-- **Live Status Polling & Webhooks**: Integrated directly with Bakong Open API JWT Bearer token for instant transaction confirmation and sound alerts upon payment.
-- **ABA Bank Merchant Integration**: Configured for account `014 579 634` (`NOB ROTANA`) with exact merchant tag and currency encoding (USD & KHR).
-- **Cash on Delivery (COD)** & Direct Bank Transfer options.
+### 2. S-Tech Smart Wallet & Customer Loyalty System
+A complete internal ledger system managing stored customer balances and loyalty rewards.
+* **Dual-Currency Balances**: Balances are calculated in USD and converted to KHR using live official exchange rates.
+* **Double-Entry Records**: Every top-up, item purchase, refund, or deduction creates immutable ledger entries with transaction identification references.
+* **S-Coins Reward Algorithm**: Customers receive between one and three percent cashback in S-Coins upon order delivery, plus streak rewards ranging from ten to fifty coins per daily check-in.
+* **Checkout Coin Deduction**: Customers can redeem S-Coins directly on the checkout screen at a fixed rate of one thousand coins per one US dollar discount.
 
-### 🤖 3. Dual Telegram Bot Automation Infrastructure
-| Bot Instance | Bot Username | Role & Features |
+### 3. Interactive PC Builder
+An engineering utility helping customers configure custom desktop computer builds with real-time hardware compatibility checks.
+* **Socket Compatibility Matrix**: Matches processor sockets with motherboard sockets, covering Intel LGA1700, AMD AM5, and AMD AM4 chipsets.
+* **Memory Standard Validation**: Enforces DDR4 and DDR5 memory generation parity across motherboards and memory kits.
+* **Dimension Clearance**: Checks graphics card physical length against chassis interior dimensions to prevent installation conflicts.
+* **Power Budget Calculator**: Tallies combined thermal design power across central processors, graphics boards, fans, and storage drives, recommending certified power supplies with twenty to thirty percent headroom.
+* **Instant Export**: Allows customers to save quotes, generate PDF summaries, or migrate the complete build into the shopping cart with a single action.
+
+### 4. Dual Telegram Bot Infrastructure
+A bifurcated notification and authentication architecture running two dedicated Telegram bot daemons.
+
+| Instance | Identifier | Functional Responsibility |
 |---|---|---|
-| **Bot #1 (Merchant/Staff)** | `@s_tech_storeBot` | Admin fulfillment bot. Dispatches grouped topic alerts to the private store staff channel for: New Orders, Low Stock Alerts, Shift Changes, and Hardware Repair Tickets. |
-| **Bot #2 (Customer Direct)** | `@S_TECH_ASSISTANTBOT` | Customer companion bot. Powers 1-Click App Handshake Login (no password required) and dispatches instant digital receipts, order confirmation invoices, and delivery driver phone numbers directly to the customer's Telegram chat. |
+| **Merchant Operations Bot** | Store internal bot | Dispatches real-time grouped operational alerts into private staff channels for newly placed orders, critical inventory warnings, shift openings or closures, and hardware service tickets. |
+| **Customer Direct Assistant** | `@S_TECH_ASSISTANTBOT` | Manages customer communication by delivering digital invoices, tracking numbers, driver phone contacts, and providing passwordless one-click authentication tokens. |
 
-### 🛡️ 4. Secret Admin Management Portal (`/rok-mix-khernh`)
-- **Obfuscated Routing**: Hidden `/rok-mix-khernh` URL protects the management interface against brute-force crawlers targeting standard `/admin` URLs.
-- **Role-Based Access Control (RBAC)**: Super Admin, Admin, Manager, Cashier, and Technician roles with strictly enforced permission boundaries.
-- **Orders Command Center**: Live order status updates (Pending → Confirmed → Processing → Out for Delivery → Completed / Cancelled), tracking numbers, and thermal/A4 invoice printing.
-- **Product & Inventory Matrix**: Full CRUD catalog manager with category assignment, multi-image upload, rich specification JSON editor, profit margin calculation, and low-stock alerts.
-- **Hardware Repair System**: Comprehensive repair ticketing (Device type, serial number, diagnosis notes, assigned technician, parts billing, and live status updates).
-- **POS Cash Registers & Shifts**: Opening and closing cash drawer registers, variance reconciliation, cash drops, and end-of-shift receipts.
-- **Promotions & Coupons**: Percentage or fixed discount coupons with usage thresholds and expiration dates.
-- **Admin PWA Ready**: Optimized for iPad/tablet and mobile device home-screen installation for shop-floor staff.
+* **Cryptographic Handshake**: Customer logins via Telegram use HMAC SHA-256 signature verification computed against the bot authentication token to guarantee session validity without transmitting passwords.
 
----
+### 5. S Tech AI Diagnostic & Support System
+An integrated multimodal assistant designed to provide customer support and technical hardware troubleshooting.
+* **Hardware Vision Analysis**: Evaluates customer photos to diagnose Windows stop errors, blue screen bug checks, BIOS configurations, motherboard port connections, and laptop specification labels.
+* **Platform Knowledge Base**: The assistant maintains complete awareness of store catalog inventory, shipping rates, repair workflows, PC builder rules, and payment policies.
+* **Live Profile Context Injection**: When an authenticated user opens chat, the assistant automatically consumes account profile data, current wallet balance, accumulated coins, and active order counts to answer personal account queries accurately.
+* **Token Abuse Defense**: Employs a sliding-window rate limiter that bans abusive network addresses for ten minutes whenever request velocity exceeds twelve requests within thirty seconds.
 
-## 🔒 Cybersecurity & Red Team Hardening
-
-The application underwent rigorous **5-Stage Red Team Penetration Testing & Stress Hardening**:
-
-1. **Stage 1 — Perimeter & Network Defense**:
-   - Strict Content Security Policy (CSP), HSTS, `X-Frame-Options: SAMEORIGIN`, and `X-Content-Type-Options: nosniff`.
-   - Global API rate limiting (`throttle:api`, 60 req/min for public endpoints; strict burst limiting on auth/checkout).
-2. **Stage 2 — Authentication & Session Integrity**:
-   - Zero-trust token handshakes using cryptographic `hmac_sha256` hash verification with Telegram Bot Secret.
-   - Secure HTTP-only cookies, automated Sanctum token rotation, and password hashing using Bcrypt (cost factor 12).
-3. **Stage 3 — Data Validation & Injection Shielding**:
-   - 100% Parameterized queries via PDO/Eloquent to eliminate SQL Injection (SQLi).
-   - Strict backend FormRequest validation, HTML tag stripping, and XSS sanitization across all customer inputs.
-4. **Stage 4 — Business Logic & Financial Integrity**:
-   - Strict server-side recalculation of cart pricing, discounts, and delivery fees (client prices are never trusted).
-   - Database transactions with pessimistic row locking (`lockForUpdate`) on inventory deductions to prevent race conditions.
-   - CRC16 mathematical validation on all generated KHQR strings.
-5. **Stage 5 — RBAC Authorization & Audit Trails**:
-   - Middlewares enforce role-based policy gates on all admin endpoints.
-   - Sensitive credentials (`.env`, service account keys, API tokens) strictly excluded from version control.
+### 6. Retail Operations & Store Management Portal
+An administrative portal located behind the obfuscated route `/rok-mix-khernh` to protect administrative interfaces from automated credential stuffers.
+* **Role-Based Access Control**: Grants specific permissions across Super Admin, Store Manager, Cashier, Inventory Clerk, and Repair Technician accounts.
+* **Order Fulfillment Pipeline**: Tracks orders from pending state through processing, fulfillment, and delivery, supporting continuous thermal receipt printing.
+* **Inventory Matrix**: Manages multi-image uploads, category trees, cost prices, selling prices, profit margins, and minimum stock threshold alerts.
+* **Hardware Repair Workshop**: Logs intake device details, serial numbers, customer fault descriptions, technician assignments, replacement part costs, and customer pickup statuses.
+* **Cash Drawer Shifts**: Enforces cash drawer opening balances, mid-shift cash drops, expected cash totals, and variance reconciliation at shift closure.
 
 ---
 
-## 🛠️ Technology Stack
+## Technical Specifications
 
-### Frontend
-- **Framework**: [Next.js 16.2.10](https://nextjs.org/) (App Router, Turbopack, React 19)
-- **State & Data Fetching**: React Hooks, Context API, Native Fetch with ISR & revalidation
-- **Internationalization**: [next-intl](https://next-intl-docs.vercel.app/) (Khmer `km`, English `en`)
-- **PWA Service Worker**: [@serwist/next](https://serwist.pages.dev/)
-- **UI & Icons**: [Tailwind CSS](https://tailwindcss.com/), [Lucide React](https://lucide.dev/), [Framer Motion](https://www.framer.com/motion/)
-- **Theme**: `next-themes` (Dark/Light mode)
+### Frontend Application
+* **Framework**: Next.js 16.2.10 running on Node.js 20 or 22
+* **Rendering Architecture**: React 19 App Router with Turbopack compilation
+* **Styling & Animation**: Tailwind CSS with Framer Motion transitions
+* **Localization**: Complete native Khmer and English localization through next-intl
+* **Service Worker**: Serwist offline service worker providing installable PWA behavior on mobile platforms
+* **Theme Support**: Next-themes dark and light interface modes
 
-### Backend
-- **Framework**: [Laravel 11.x](https://laravel.com/) (PHP 8.2+)
-- **Database**: [PostgreSQL 15+](https://www.postgresql.org/)
-- **Authentication**: Laravel Sanctum, Firebase Admin SDK, Telegram WebApp Auth
-- **Payment Gateway**: NBC Bakong Open API, EMVCo KHQR Specification
-- **Notification Services**: Telegram Bot API (Async HTTP client)
-
----
-
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- Node.js `20.x` or `22.x`
-- PHP `8.2` or `8.3` (with `pdo_pgsql`, `openssl`, `mbstring`, `curl`, `gd` extensions)
-- PostgreSQL `15` or higher
-- Composer `2.x`
+### Backend API & Services
+* **Framework**: Laravel 11 on PHP 8.2 or 8.3
+* **Primary Database**: PostgreSQL 15 with relational integrity constraints and transaction isolation
+* **Authentication**: Laravel Sanctum tokens combined with Firebase Auth integration
+* **Banking Gateway**: National Bank of Cambodia Bakong Open API and EMVCo KHQR specifications
+* **External Dispatchers**: Asynchronous Telegram Bot API HTTP clients
 
 ---
 
-### 1. Backend Setup
+## System Hardening & Security Measures
+
+1. **Perimeter Controls**: Enforces strict Content Security Policy headers, HTTP Strict Transport Security, and nosniff content protection alongside API throttling rules.
+2. **Data Sanitization**: Uses Eloquent parameterized queries to eliminate SQL injection vulnerabilities, combined with HTML tag stripping on all customer inputs.
+3. **Financial Isolation**: Cart totals, voucher deductions, and delivery fees are calculated strictly on the server; client prices are discarded during checkout.
+4. **Race Condition Prevention**: Employs database row locking during inventory deductions to avoid overselling during flash sales.
+5. **Credential Management**: Excludes sensitive API keys, database credentials, and service tokens from version control.
+
+---
+
+## Installation & Deployment Runbook
+
+### Environment Requirements
+* Node.js version 20.x or 22.x
+* PHP version 8.2 or 8.3 with extensions: `pdo_pgsql`, `openssl`, `mbstring`, `curl`, `gd`
+* PostgreSQL version 15 or higher
+* Composer version 2.x
+
+---
+
+### Step 1. Backend Service Configuration
 
 ```bash
 cd backend
 
 # Install PHP dependencies
-composer install
+composer install --no-dev --optimize-autoloader
 
-# Copy environment template
+# Create environment configuration
 cp .env.example .env
 
-# Generate application key
+# Generate encryption key
 php artisan key:generate
 
-# Configure your database in .env:
+# Set up database credentials inside .env:
 # DB_CONNECTION=pgsql
 # DB_HOST=127.0.0.1
 # DB_PORT=5432
 # DB_DATABASE=s_tech_store
-# DB_USERNAME=your_username
-# DB_PASSWORD=your_password
+# DB_USERNAME=postgres
+# DB_PASSWORD=your_secure_password
 
-# Run migrations and seed data
-php artisan migrate --seed
+# Execute database migrations and seed baseline data
+php artisan migrate --seed --force
 
-# Create storage symlink
+# Link storage directory
 php artisan storage:link
 
-# Start development server
+# Cache configuration for production
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Start application server
 php artisan serve
-# → Backend running at http://localhost:8000
 ```
 
 ---
 
-### 2. Frontend Setup
+### Step 2. Frontend Application Configuration
 
 ```bash
 cd frontend
@@ -208,41 +206,22 @@ cd frontend
 # Install Node dependencies
 npm install
 
-# Copy environment template
+# Create environment configuration
 cp .env.example .env.local
 
-# Verify frontend configuration in .env.local:
-# NEXT_PUBLIC_API_URL=http://localhost:8000/api
-# NEXT_PUBLIC_TELEGRAM_BOT_ID=8689597792
-# NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=S_TECH_ASSISTANTBOT
-
-# Start development server
-npm run dev
-# → Frontend running at http://localhost:3000
-```
-
----
-
-### 3. Production Build
-
-```bash
-# Frontend production build
-cd frontend
+# Build production distribution
 npm run build
-npm run start
 
-# Backend optimization
-cd backend
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Start production server
+npm run start
 ```
 
 ---
 
-## 🔐 Environment Variables Reference
+## Environment Variables Configuration
 
-### Backend (`backend/.env`)
+### Backend Environment Configuration at `backend/.env`
+
 ```env
 APP_NAME="S Tech Store"
 APP_ENV=production
@@ -254,70 +233,75 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_DATABASE=s_tech_store
 DB_USERNAME=postgres
-DB_PASSWORD=secret
+DB_PASSWORD=your_secure_password
 
-# Telegram Bot #1 (Admin & Merchant Fulfillment)
+# Staff Alert Telegram Bot
 TELEGRAM_BOT_TOKEN=your_merchant_bot_token
-TELEGRAM_CHAT_ID=your_merchant_group_id
+TELEGRAM_CHAT_ID=your_staff_channel_id
 
-# Telegram Bot #2 (Customer Direct Invoices & Auth Handshake)
+# Customer Direct Telegram Bot
 TELEGRAM_AUTH_BOT_TOKEN=8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8
 TELEGRAM_AUTH_BOT_USERNAME=S_TECH_ASSISTANTBOT
 TELEGRAM_AUTH_BOT_ID=8689597792
 
-# Bakong KHQR Open API
+# National Bank of Cambodia Bakong Open API
 BAKONG_OPEN_API_TOKEN=your_bakong_jwt_token
 BAKONG_MERCHANT_NAME="NOB ROTANA"
 BAKONG_MERCHANT_ACCOUNT="014 579 634"
 ```
 
-### Frontend (`frontend/.env.local`)
+### Frontend Environment Configuration at `frontend/.env.local`
+
 ```env
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 NEXT_PUBLIC_TELEGRAM_BOT_ID=8689597792
 NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=S_TECH_ASSISTANTBOT
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ---
 
-## 📂 Project Directory Structure
+## Repository Structure
 
 ```
 S Tech Store/
-├── backend/                        # Laravel 11 API Backend
+├── backend/                       Laravel 11 REST API Backend
 │   ├── app/
-│   │   ├── Http/Controllers/       # API & Admin Controllers
-│   │   ├── Models/                 # Eloquent Models (Product, Order, User, Shift, etc.)
-│   │   ├── Services/               # TelegramService, PaymentService, KHQRService
-│   ├── config/                     # Application configurations
+│   │   ├── Http/Controllers/      API and Admin Management Controllers
+│   │   ├── Models/                Database Models for Orders, Products, Shifts
+│   │   └── Services/              Bakong KHQR, Wallet, and Telegram Engines
+│   ├── config/                    Application configuration files
 │   ├── database/
-│   │   ├── migrations/             # PostgreSQL database migrations
-│   │   └── seeders/                # Database seeders
+│   │   ├── migrations/            PostgreSQL schema migrations
+│   │   └── seeders/               Initial database seeders
 │   └── routes/
-│       └── api.php                 # REST API endpoints & security throttles
+│       └── api.php                Public and protected API routes
 │
-├── frontend/                       # Next.js 16 App Router Frontend
+├── frontend/                      Next.js 16 App Router Frontend
 │   ├── app/
-│   │   ├── [locale]/               # Localized routing (en / km)
-│   │   │   ├── (auth)/             # Login, Register, Forgot Password
-│   │   │   ├── (shop)/             # Products, Cart, Checkout, Profile, PC Builder
-│   │   │   └── rok-mix-khernh/     # Obfuscated Admin Management Portal
-│   │   ├── api/                    # Internal API routes
-│   │   ├── manifest.ts             # PWA Webmanifest definition
-│   │   └── sw.ts                   # Serwist Service Worker
-│   ├── components/                 # Reusable UI widgets & components
-│   ├── context/                    # Cart, Auth, and Wishlist React Contexts
-│   ├── messages/                   # i18n translation dictionaries (en.json, km.json)
-│   └── public/                     # Static icons, banners, and PWA assets
+│   │   ├── [locale]/              Localized application routes for Khmer and English
+│   │   │   ├── (auth)/            Authentication pages
+│   │   │   ├── (shop)/            Storefront, Catalog, Cart, Checkout, PC Builder
+│   │   │   └── rok-mix-khernh/    Obfuscated Retail Operations Portal
+│   │   ├── api/                   Next.js server-side API proxy routes
+│   │   ├── manifest.ts            Progressive web application manifest
+│   │   └── sw.ts                  Service worker definition
+│   ├── components/                Reusable user interface components
+│   ├── context/                   Client-side state management contexts
+│   ├── messages/                  Translation dictionaries for Khmer and English
+│   └── public/                    Static media assets and icons
 │
-├── CLIENT_MANUAL_AND_FEATURES.md   # Complete Client Feature Guide & Operation Manual (Khmer & English)
-└── README.md                       # This engineering documentation
+├── CLIENT_MANUAL_AND_FEATURES.md  Client operation manual and feature documentation
+└── README.md                      System engineering and architecture documentation
 ```
 
 ---
 
-## 📄 License & Attribution
+## Engineering Leadership
 
-Copyright © 2026 **S Tech Store**. All Rights Reserved.  
-Engineered with premium enterprise standards for high reliability, security, and Cambodia retail speed.
+* **System Architect & Lead Engineer**: Rotana Nob  
+* **Platform**: S Tech Store Cambodia  
+* **Official Website**: https://www.s-tech-store.tech  
+
+Copyright 2026 S Tech Store. All rights reserved.
