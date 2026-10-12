@@ -61,6 +61,16 @@ next-env.d.ts
 *.bak
 *.orig
 *.rej
-.turbo/
 public/sw.js
 public/sw.js.map
+
+# ─── Security & Credentials ──────────────────────────────────────────────────
+*CREDENTIALS*
+*credentials*
+*VAULT*
+*vault*
+*SECRET*
+*secret*
+*.pem
+*.key
+*.cert

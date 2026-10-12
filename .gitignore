@@ -1,14 +1,54 @@
-# S Tech Store — Root
+# S Tech Store — Fortress Security Gitignore
+
+# ─── High Security Vaults & Credentials ─────────────────────────
+ADMIN_CREDENTIALS_VAULT.md
+*CREDENTIALS*
+*credentials*
+*VAULT*
+*vault*
+*SECRET*
+*secret*
+*PASSWORDS*
+*passwords*
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# ─── Environment Variables & Secrets ────────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+*.env.*
+backend/.env
+backend/.env.*
+backend/.env.backup
+frontend/.env
+frontend/.env.*
+frontend/.env.local
+frontend/.env.production
+frontend/.env.development
+
+# ─── Authentication, Tokens & Service Accounts ──────────────────
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+firebase-adminsdk*.json
+telegram_settings.json
+backend/telegram_settings.json
+backend/storage/app/telegram_settings.json
+backend/storage/app/private/telegram_settings.json
+auth_tokens.json
+secrets.json
+
+# ─── System, Caches & IDE ───────────────────────────────────────
 node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
 *.log
-.env
-.env.local
-.env.production
-serviceAccountKey.json
-*-firebase-adminsdk-*.json
 .idea/
 .vscode/
 backend_backup/
@@ -17,4 +57,5 @@ frontend/out/
 backend/vendor/
 backend/storage/*.key
 cloudflared.exe
-
+*.sqlite
+*.sqlite3

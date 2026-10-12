@@ -91,20 +91,20 @@ class AdminAndStaffSeeder extends Seeder
         );
 
         // 3. Seed Super Admin (មហាសិទ្ធិ / System Owner) Accounts with Cost 12 Bcrypt Hash
-        // Password: ST#Own3r_98X$kQ29@2026!Sec^Omega (Ultra-Difficult Military Grade)
         $ownerEmails = [
             'owner@stechstore.com',
             'nobrothana180703@gmail.com',
             'rotananob@gmail.com',
         ];
 
+        $ownerPassword = env('ADMIN_OWNER_PASSWORD') ?: bin2hex(random_bytes(16));
         foreach ($ownerEmails as $oEmail) {
             $ownerToken = bin2hex(random_bytes(32));
             User::updateOrCreate(
                 ['email' => $oEmail],
                 [
                     'name' => 'Rotana Nob (System Owner)',
-                    'password' => Hash::make('ST#Own3r_98X$kQ29@2026!Sec^Omega', ['rounds' => 12]),
+                    'password' => Hash::make($ownerPassword, ['rounds' => 12]),
                     'role' => 'super_admin',
                     'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                     'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
@@ -127,13 +127,13 @@ class AdminAndStaffSeeder extends Seeder
         }
 
         // 4. Seed Standard Administrator (Admin - អ្នកគ្រប់គ្រងទូទៅ)
-        // Password: ST#Adm1n_74Wp@81K!2026$Nexus*9X
+        $adminPassword = env('ADMIN_PASSWORD') ?: bin2hex(random_bytes(16));
         $adminToken = bin2hex(random_bytes(32));
         $adminUser = User::updateOrCreate(
             ['email' => 'admin@stechstore.com'],
             [
                 'name' => 'S Tech Admin',
-                'password' => Hash::make('ST#Adm1n_74Wp@81K!2026$Nexus*9X', ['rounds' => 12]),
+                'password' => Hash::make($adminPassword, ['rounds' => 12]),
                 'role' => 'admin',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
@@ -165,13 +165,13 @@ class AdminAndStaffSeeder extends Seeder
         );
 
         // 5. Seed Staff Account (បុគ្គលិកហាង & ផ្នែកលក់)
-        // Password: ST#St@ff_52Mv#63Q^2026!Shift&7B
+        $staffPassword = env('STAFF_PASSWORD') ?: bin2hex(random_bytes(16));
         $staffToken = bin2hex(random_bytes(32));
         $staffUser = User::updateOrCreate(
             ['email' => 'staff@stechstore.com'],
             [
                 'name' => 'S Tech Operations Staff',
-                'password' => Hash::make('ST#St@ff_52Mv#63Q^2026!Shift&7B', ['rounds' => 12]),
+                'password' => Hash::make($staffPassword, ['rounds' => 12]),
                 'role' => 'staff',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Morning Shift (វេនព្រឹក)',
