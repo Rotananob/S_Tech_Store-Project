@@ -363,6 +363,26 @@ export default function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
+          {/* Real Stock Status */}
+          <div className="flex items-center gap-1.5 mt-2 text-[11px]">
+            {Number(product.stock) > 0 ? (
+              Number(product.stock) <= 5 ? (
+                <span className="text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200/60 dark:border-amber-800/40">
+                  <span className="animate-pulse">⚡</span> សល់តិច: {product.stock} គ្រឿង
+                </span>
+              ) : (
+                <span className="text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200/60 dark:border-emerald-800/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  ស្តុក: {product.stock} គ្រឿង
+                </span>
+              )
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500 font-medium">
+                អស់ពីស្តុក
+              </span>
+            )}
+          </div>
+
           {/* Quick Add To Cart Button for mobile & desktop touch */}
           <div className="border-t border-gray-100 dark:border-white/10" style={{ marginTop: "12px", paddingTop: "10px" }}>
             <button

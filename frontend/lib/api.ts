@@ -80,11 +80,6 @@ api.interceptors.request.use(
               config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
             }
           }
-          const customerToken = localStorage.getItem("stech_user_token") || localStorage.getItem("customer_token");
-          if (customerToken) {
-            config.headers["X-Customer-Token"] = customerToken;
-          }
-
           // 3. Fallback: Direct Telegram Mini App WebApp context (Zero latency)
           if (!config.headers["X-Firebase-UID"] && (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
             const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
@@ -92,6 +87,11 @@ api.interceptors.request.use(
             config.headers["X-Firebase-Name"] = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || `tg_${tgUser.id}`;
             if (tgUser.photo_url) config.headers["X-Firebase-Photo"] = tgUser.photo_url;
           }
+        }
+
+        const customerToken = localStorage.getItem("stech_user_token") || localStorage.getItem("customer_token");
+        if (customerToken) {
+          config.headers["X-Customer-Token"] = customerToken;
         }
       } catch (e) {
         // Auth not initialized yet — skip

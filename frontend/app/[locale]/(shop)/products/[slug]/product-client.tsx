@@ -392,14 +392,23 @@ export function ProductDetailClient({ product }: { product: any }) {
                     🔥 -{discountPct}% OFF PROMO
                   </span>
                 )}
-                {product.stock > 0 ? (
-                   <span className="bg-[#eefdf4] dark:bg-emerald-950/40 text-[#16a34a] dark:text-emerald-400 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                     In Stock
-                   </span>
+                {Number(product.stock) > 0 ? (
+                  Number(product.stock) <= 5 ? (
+                    <span className="inline-flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800/40 px-3 py-1 rounded-full text-[11px] font-extrabold shadow-xs animate-pulse">
+                      <span>⚡ សល់តិច: {product.stock} គ្រឿងចុងក្រោយ</span>
+                      <span className="text-[10px] opacity-75">(Only {product.stock} left)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 bg-[#eefdf4] dark:bg-emerald-950/40 text-[#16a34a] dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40 px-3 py-1 rounded-full text-[11px] font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                      <span>មានក្នុងស្តុក: {product.stock} គ្រឿង</span>
+                      <span className="text-[10px] opacity-75 font-medium">(In Stock: {product.stock})</span>
+                    </span>
+                  )
                 ) : (
-                   <span className="bg-gray-100 dark:bg-white/10 text-gray-500 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                     Out of Stock
-                   </span>
+                  <span className="inline-flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 px-3 py-1 rounded-full text-[11px] font-bold">
+                    <span>❌ អស់ពីស្តុក (Out of Stock)</span>
+                  </span>
                 )}
               </div>
 

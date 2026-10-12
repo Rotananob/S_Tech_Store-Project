@@ -22,16 +22,38 @@ class UserController extends Controller
         $uid = $request->header('X-Firebase-UID');
         if (!empty($uid)) return $uid;
 
-        $token = $request->header('X-Customer-Token') ?: $request->bearerToken();
+        $token = $request->header('X-Customer-Token')
+            ?: $request->bearerToken()
+            ?: $request->cookie('customer_token')
+            ?: $request->query('token')
+            ?: $request->query('tg_token');
+
         if (!empty($token)) {
             $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+            $user = null;
             if ($userId) {
                 $user = UserProfile::find($userId);
-                if ($user && !empty($user->firebase_uid)) {
-                    return $user->firebase_uid;
+            }
+            if (!$user) {
+                $user = UserProfile::where('magic_login_token', $token)->first();
+            }
+            if ($user) {
+                if (empty($user->firebase_uid)) {
+                    $user->firebase_uid = 'stech_u_' . $user->id;
+                    $user->save();
                 }
+                return $user->firebase_uid;
             }
         }
+
+        $email = $request->header('X-Firebase-Email');
+        if (!empty($email)) {
+            $user = UserProfile::where('email', $email)->first();
+            if ($user && !empty($user->firebase_uid)) {
+                return $user->firebase_uid;
+            }
+        }
+
         return null;
     }
 
@@ -1340,7 +1362,10 @@ class UserController extends Controller
         ]);
 
         $cartItem = UserCartItem::where('firebase_uid', $uid)
-            ->where('product_id', $productId)
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                  ->orWhere('id', $productId);
+            })
             ->first();
 
         if ($cartItem) {
@@ -1359,7 +1384,13 @@ class UserController extends Controller
         $uid = $this->getUid($request);
         if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
 
-        UserCartItem::where('firebase_uid', $uid)->where('product_id', $productId)->delete();
+        UserCartItem::where('firebase_uid', $uid)
+            ->where(function ($q) use ($productId) {
+                $q->where('product_id', $productId)
+                  ->orWhere('id', $productId);
+            })
+            ->delete();
+
         return response()->json(['message' => 'Removed from cart']);
     }
 
@@ -1386,10 +1417,30 @@ class UserController extends Controller
         $uid = $this->getUid($request);
         if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
 
-        $orders = Order::where('user_id', $uid)
-            ->with('items.product')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $user = UserProfile::where('firebase_uid', $uid)
+            ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
+            ->first();
+
+        $orders = Order::where(function ($q) use ($uid, $user) {
+            $q->where('user_id', $uid);
+            if ($user) {
+                if (!empty($user->id)) {
+                    $q->orWhere('user_id', (string)$user->id);
+                }
+                if (!empty($user->firebase_uid)) {
+                    $q->orWhere('user_id', $user->firebase_uid);
+                }
+                if (!empty($user->phone)) {
+                    $q->orWhere('customer_phone', $user->phone);
+                }
+                if (!empty($user->email)) {
+                    $q->orWhere('customer_email', $user->email);
+                }
+            }
+        })
+        ->with('items.product')
+        ->orderBy('created_at', 'desc')
+        ->get();
 
         return response()->json($orders);
     }

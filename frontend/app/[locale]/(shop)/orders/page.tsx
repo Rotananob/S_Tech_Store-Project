@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import api from "@/lib/api";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { isUserAuthenticated, getEffectiveUser } from "@/lib/auth-user";
 import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
 import { Printer } from "lucide-react";
 
@@ -41,7 +42,17 @@ interface Order {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(() => {
+    if (typeof window !== "undefined") {
+      return isUserAuthenticated() || Boolean(
+        localStorage.getItem("stech_user_session") ||
+        localStorage.getItem("user_session") ||
+        localStorage.getItem("stech_user_token") ||
+        localStorage.getItem("customer_token")
+      );
+    }
+    return null;
+  });
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
@@ -73,11 +84,19 @@ export default function OrdersPage() {
 
   const hasActiveClientSession = (): boolean => {
     if (typeof window === "undefined") return false;
+    if (isUserAuthenticated()) return true;
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get("tg_token")) return true;
-      if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) return true;
-      if (localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || localStorage.getItem("customer_token")) return true;
+      if (urlParams.get("tg_token") || urlParams.get("token")) return true;
+      if ((window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) return true;
+      if (
+        localStorage.getItem("stech_user_session") ||
+        localStorage.getItem("user_session") ||
+        localStorage.getItem("stech_user_token") ||
+        localStorage.getItem("customer_token")
+      ) {
+        return true;
+      }
     } catch (e) {}
     return false;
   };
@@ -89,6 +108,18 @@ export default function OrdersPage() {
       const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
       setOrders(list);
       setLoggedIn(true);
+
+      // Auto-open specific order receipt if query param order_id matches
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetId = urlParams.get("order_id") || window.location.hash.replace("#", "");
+        if (targetId) {
+          const match = list.find((o: Order) => o.order_id === targetId || String(o.id) === targetId);
+          if (match) {
+            handleViewReceipt(match);
+          }
+        }
+      }
     } catch (e: any) {
       if (e?.response?.status === 401 && !hasActiveClientSession()) {
         setLoggedIn(false);
@@ -107,15 +138,23 @@ export default function OrdersPage() {
       fetchOrders();
     }
 
-    // 2. Listen to Firebase auth state
+    // 2. Listen to Firebase auth state with grace period to prevent false logout flash
     const auth = getAuth();
+    let timeoutId: NodeJS.Timeout | null = null;
+
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
+        if (timeoutId) clearTimeout(timeoutId);
         setLoggedIn(true);
         fetchOrders();
-      } else if (!hasActiveClientSession()) {
-        setLoggedIn(false);
-        setLoading(false);
+      } else {
+        // Firebase reported null initially. Check client session before declaring logged out
+        timeoutId = setTimeout(() => {
+          if (!hasActiveClientSession() && !auth.currentUser) {
+            setLoggedIn(false);
+            setLoading(false);
+          }
+        }, 800);
       }
     });
 
@@ -128,6 +167,7 @@ export default function OrdersPage() {
 
     return () => {
       unsub();
+      if (timeoutId) clearTimeout(timeoutId);
       window.removeEventListener("user_session_updated", handleSessionUpdated);
     };
   }, []);

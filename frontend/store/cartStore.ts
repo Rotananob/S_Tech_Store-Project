@@ -42,6 +42,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       if (Array.isArray(res)) {
         const mappedItems: CartItem[] = res.map((item: any) => ({
           id: item.id,
+          product_id: item.product_id || item.product?.id,
           product: item.product,
           quantity: item.quantity,
           name: item.product?.name,
@@ -52,6 +53,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
       } else if (res && (res as any).success) {
         const mappedItems: CartItem[] = (res as any).data.map((item: any) => ({
           id: item.id,
+          product_id: item.product_id || item.product?.id,
           product: item.product,
           quantity: item.quantity,
           name: item.product?.name,
@@ -82,7 +84,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
 
     // --- Optimistic update: update local state immediately ---
     const existingIndex = prevItems.findIndex(
-      (i) => ((i as any).product?.id ?? i.id) === productId
+      (i) => ((i as any).product?.id ?? (i as any).product_id ?? i.id) === productId
     );
 
     if (existingIndex >= 0) {
@@ -111,7 +113,7 @@ export const useCartStore = create<CartState>()((set, get) => ({
 
       if (res && ((res as any).success || (res as any).item || (res as any).message)) {
         // Sync true server state quietly (no visible lag)
-        get().fetchCart();
+        await get().fetchCart();
         return true;
       }
 
@@ -135,13 +137,24 @@ export const useCartStore = create<CartState>()((set, get) => ({
     }
 
     const prevItems = get().items;
-    // Optimistic remove
-    set({ items: prevItems.filter((i) => i.id !== id) });
+    const targetItem = prevItems.find((i) => i.id === id);
+    const prodId = (targetItem as any)?.product?.id ?? (targetItem as any)?.product_id;
+
+    // Optimistic remove - filter out by either cart item id or product id
+    set({
+      items: prevItems.filter(
+        (i) => i.id !== id && (!prodId || ((i as any)?.product?.id !== prodId && (i as any)?.product_id !== prodId))
+      ),
+    });
 
     try {
+      // Remove row id and product id to guarantee database deletion
       await removeFromCart(id);
-      // Sync quietly in background
-      get().fetchCart();
+      if (prodId && prodId !== id) {
+        await removeFromCart(prodId).catch(() => {});
+      }
+      // Re-fetch to ensure server and local state are in lockstep
+      await get().fetchCart();
     } catch {
       // Rollback on error
       set({ items: prevItems });
@@ -152,7 +165,14 @@ export const useCartStore = create<CartState>()((set, get) => ({
     const user = getEffectiveUser();
     if (!user) return;
 
+    if (quantity <= 0) {
+      return get().removeItem(id);
+    }
+
     const prevItems = get().items;
+    const targetItem = prevItems.find((i) => i.id === id);
+    const prodId = (targetItem as any)?.product?.id ?? (targetItem as any)?.product_id;
+
     // Optimistic update quantity
     set({
       items: prevItems.map((i) =>
@@ -162,7 +182,10 @@ export const useCartStore = create<CartState>()((set, get) => ({
 
     try {
       await updateCartItem(id, quantity);
-      get().fetchCart();
+      if (prodId && prodId !== id) {
+        await updateCartItem(prodId, quantity).catch(() => {});
+      }
+      await get().fetchCart();
     } catch {
       set({ items: prevItems });
     }
