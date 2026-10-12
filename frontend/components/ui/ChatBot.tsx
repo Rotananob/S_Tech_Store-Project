@@ -472,6 +472,57 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     return { allowed: true };
   }, []);
 
+  // ─── Extract Live Customer Profile & Wallet Context ───────────────────────
+  const getUserContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    let localSession: any = null;
+    let walletData: any = null;
+
+    try {
+      const s = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+      if (s) localSession = JSON.parse(s);
+    } catch {}
+
+    try {
+      const w = localStorage.getItem("stech_cached_wallet");
+      if (w) walletData = JSON.parse(w);
+    } catch {}
+
+    const hasToken = !!(localStorage.getItem("token") || localStorage.getItem("customer_token"));
+    const isLoggedIn = Boolean(currentUser || localSession?.id || hasToken);
+
+    const name = userName && userName !== "អតិថិជន" && userName !== "បង"
+      ? userName
+      : (localSession?.name || localSession?.username || currentUser?.displayName || "ភ្ញៀវ (Guest)");
+
+    const email = localSession?.email || currentUser?.email || agentForm.email || "មិនទាន់ភ្ជាប់";
+    const phone = localSession?.phone || agentForm.phone || "មិនទាន់ភ្ជាប់";
+    const telegram = localSession?.telegram_username || localSession?.telegram || agentForm.telegram || "មិនទាន់ភ្ជាប់";
+    const role = localSession?.role || "customer";
+
+    const walletBalanceUSD = walletData?.balance !== undefined ? `$${Number(walletData.balance).toFixed(2)}` : null;
+    const walletBalanceKHR = walletData?.balance_khr !== undefined ? `${Number(walletData.balance_khr).toLocaleString()} ៛` : null;
+    const coins = walletData?.coins !== undefined ? Number(walletData.coins) : null;
+    const totalDeposited = walletData?.total_deposited !== undefined ? `$${Number(walletData.total_deposited).toFixed(2)}` : null;
+    const totalSpent = walletData?.total_spent !== undefined ? `$${Number(walletData.total_spent).toFixed(2)}` : null;
+
+    return {
+      isLoggedIn,
+      name,
+      email,
+      phone,
+      telegram,
+      role,
+      walletBalanceUSD,
+      walletBalanceKHR,
+      coins,
+      totalDeposited,
+      totalSpent,
+      currentPath: window.location.pathname,
+      device: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? "Mobile/Phone" : "PC/Desktop/Laptop",
+    };
+  }, [currentUser, userName, agentForm]);
+
   // ─── Session Title Generator ──────────────────────────────────────────────
   const generateSessionTitle = (text: string): string => {
     let clean = text.replace(/^(សួស្តី|hello|hi|ជំរាបសួរ|បង|admin)[,\s!.]*/i, "").trim();
@@ -495,13 +546,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           // Clean up any historical leaks: deduplicate messages by sender & text
           return parsed.map((s: ChatSessionItem) => {
             if (!Array.isArray(s.messages)) return s;
-            const seen = new Set<string>();
-            const uniqueMsgs = s.messages.filter((m) => {
-              const k = `${m.sender}_${m.text}_${m.time || ""}`;
-              if (seen.has(k)) return false;
-              seen.add(k);
-              return true;
-            });
+            const uniqueMsgs: ChatItem[] = [];
+            for (const m of s.messages) {
+              const clean = (m.text || "").trim();
+              const lastMsg = uniqueMsgs[uniqueMsgs.length - 1];
+              // Avoid back-to-back identical messages
+              if (lastMsg && (lastMsg.text || "").trim() === clean) {
+                continue;
+              }
+              // If system message has same text as an existing bot message, skip it
+              if (m.sender === "system" && uniqueMsgs.some((prev) => prev.sender === "bot" && (prev.text || "").trim() === clean)) {
+                continue;
+              }
+              uniqueMsgs.push(m);
+            }
             return { ...s, messages: uniqueMsgs };
           });
         }
@@ -765,10 +823,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       if (firebaseMsgs && firebaseMsgs.length > 0) {
         // Merge staff/admin replies from RTDB into local message thread
         setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m.id || m.text));
+          const existingIds = new Set(prev.map((m) => m.id).filter(Boolean));
+          const existingTexts = new Set(prev.map((m) => (m.text || "").trim()));
           const newStaffMsgs: ChatItem[] = [];
 
           for (const m of firebaseMsgs) {
+            // NEVER import bot replies or S Tech AI replies from RTDB back into local state!
+            // handleSend manages AI replies directly to eliminate duplication.
+            if (m.sender === "bot" || m.senderName === "S Tech AI") {
+              continue;
+            }
+
             if (m.sender === "admin" || m.sender === "staff" || m.sender === "system") {
               // Isolation check:
               // 1. If message has a sessionId, it MUST match the active session!
@@ -777,7 +842,10 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                 ? m.sessionId === activeSessionId
                 : (m.timestamp && m.timestamp >= (sessionCreatedAt - 15000));
 
-              if (isForThisSession && !existingIds.has(m.id || m.text)) {
+              const cleanText = (m.text || "").trim();
+              const isAlreadyPresent = (m.id && existingIds.has(m.id)) || (cleanText && existingTexts.has(cleanText));
+
+              if (isForThisSession && !isAlreadyPresent) {
                 newStaffMsgs.push({
                   id: m.id,
                   sender: m.sender === "system" ? "system" : "staff",
@@ -787,6 +855,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                     ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                     : "",
                 });
+                if (cleanText) existingTexts.add(cleanText);
+                if (m.id) existingIds.add(m.id);
               }
             }
           }
@@ -917,6 +987,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         userName: userName,
         history: messages.slice(-6),
         productInfo: productInfo || null,
+        userContext: getUserContext(),
         aiPaused: isAiPaused,
       };
 
@@ -941,7 +1012,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       const data = await res.json();
       const aiReplyText =
         data?.reply ||
-        "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! 🙏 ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ!";
+        "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝";
       const shouldSuggestAgent = !!data?.suggestAgent;
 
       const aiMsg: ChatItem = {
@@ -952,14 +1023,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         suggestAgent: shouldSuggestAgent,
       };
 
-      setMessages((prev) => [...prev, aiMsg]);
+      setMessages((prev) => {
+        const trimmed = (aiReplyText || "").trim();
+        if (prev.length > 0 && (prev[prev.length - 1].text || "").trim() === trimmed) {
+          return prev;
+        }
+        return [...prev, aiMsg];
+      });
 
-      // Also record AI reply into Firebase RTDB with sessionId
+      // Also record AI reply into Firebase RTDB with sessionId (use sender: "bot", NEVER "system")
       if (chatId) {
         sendChatMessage(
           chatId,
           {
-            sender: "system",
+            sender: "bot",
             senderName: "S Tech AI",
             text: aiReplyText,
             sessionId: activeSessionId,
@@ -1030,11 +1107,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       const fallbackMsg: ChatItem = {
         sender: "bot",
         senderName: "S Tech AI",
-        text: "ប្រព័ន្ធ AI កំពុងរវល់ខ្លាំងបន្តិចបាទ! 🙏 ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ!",
+        text: "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         suggestAgent: true,
       };
-      setMessages((prev) => [...prev, fallbackMsg]);
+      setMessages((prev) => {
+        const trimmed = (fallbackMsg.text || "").trim();
+        if (prev.length > 0 && (prev[prev.length - 1].text || "").trim() === trimmed) {
+          return prev;
+        }
+        return [...prev, fallbackMsg];
+      });
     } finally {
       setIsAiThinking(false);
     }

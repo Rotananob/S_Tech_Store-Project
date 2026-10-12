@@ -4,7 +4,7 @@ import api from "@/lib/api";
 
 export interface ChatMessage {
   id: string;
-  sender: "user" | "admin" | "staff" | "system";
+  sender: "user" | "admin" | "staff" | "system" | "bot";
   senderName: string;
   text: string;
   timestamp: number;
@@ -55,7 +55,7 @@ export function getOrCreateVisitorId(): string {
 export async function sendChatMessage(
   chatId: string,
   message: {
-    sender: "user" | "admin" | "staff" | "system";
+    sender: "user" | "admin" | "staff" | "system" | "bot";
     senderName: string;
     text: string;
     sessionId?: string | null;
