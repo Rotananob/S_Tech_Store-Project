@@ -93,19 +93,45 @@ class PaymentController extends Controller
             ->orWhere('id', $orderId)
             ->firstOrFail();
 
+        // Ownership Verification: Ensure caller is authorized to confirm this order
+        $clientUid = $request->header('X-Firebase-UID');
+        if (!empty($order->user_id) && !empty($clientUid) && $order->user_id !== $clientUid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'គ្មានសិទ្ធិផ្ទៀងផ្ទាត់ Order របស់គណនីផ្សេងឡើយ (Forbidden)',
+            ], 403);
+        }
+
+        // Automatic Bank Status Verification (Bakong / ABA)
+        $statusCheck = PaymentService::checkTransactionStatus($order->order_id);
+        if ($statusCheck['paid'] ?? false) {
+            return response()->json([
+                'success' => true,
+                'message' => 'បានផ្ទៀងផ្ទាត់ការទូទាត់ជាមួយធនាគារជោគជ័យ! (Payment Auto-Verified by Bank Gateway)',
+                'order' => $order->fresh(),
+            ]);
+        }
+
+        // When not yet verified automatically by bank API, flag as pending_verification
+        // This alerts staff to check bank statement and prevents unauthorized order dispatch
         $tranId = 'MANUAL_' . strtoupper(uniqid());
         $method = $request->input('method', 'khqr');
 
-        $updated = PaymentService::markOrderAsPaid($order, $tranId, $method, [
-            'mode' => 'customer_confirmed',
-            'note' => 'Customer confirmed KHQR transfer from banking app',
+        $order->payment_status = 'pending_verification';
+        $order->payment_method = $method;
+        $order->transaction_id = $tranId;
+        $order->payment_details = json_encode([
+            'mode' => 'customer_claimed_transfer',
+            'note' => 'Customer submitted transfer confirmation. Awaiting bank verification.',
             'timestamp' => now()->toIso8601String(),
+            'ip' => $request->ip(),
         ]);
+        $order->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'បានផ្ទៀងផ្ទាត់ការទូទាត់ជោគជ័យ! (Payment Verified)',
-            'order' => $updated,
+            'message' => 'បានទទួលការបញ្ជាក់ការបង់ប្រាក់! ក្រុមការងារនឹងផ្ទៀងផ្ទាត់ជាមួយធនាគាររួចរៀបចំទំនិញជូនលោកអ្នក (Awaiting Bank Verification)',
+            'order' => $order,
             'transaction_id' => $tranId,
         ]);
     }
@@ -117,6 +143,16 @@ class PaymentController extends Controller
     public function webhook(Request $request)
     {
         Log::info('Payment Webhook received: ', $request->all());
+
+        // Secret / Signature Verification
+        $webhookSecret = env('PAYMENT_WEBHOOK_SECRET');
+        if (!empty($webhookSecret)) {
+            $headerSecret = $request->header('X-Webhook-Secret') ?: $request->header('X-Signature');
+            if ($headerSecret !== $webhookSecret) {
+                Log::warning("Unauthorized payment webhook invocation from IP: " . $request->ip());
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
 
         $tranId = $request->input('tran_id') ?: $request->input('transaction_id') ?: $request->input('hash');
         $status = $request->input('status');

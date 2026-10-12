@@ -10,19 +10,41 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    // Allow all origins: localhost (dev), Vercel production, any tunnel (cloudflare)
-    'allowed_origins' => ['*'],
+    // In local dev allow all; in production restrict strictly to verified store domains
+    'allowed_origins' => env('APP_ENV') === 'local'
+        ? ['*']
+        : array_filter(array_map('trim', explode(',', env('ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,https://www.s-tech-store.tech,https://s-tech-store.tech')))),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https?://.*\.s-tech-store\.tech$#',
+        '#^https?://.*\.vercel\.app$#',
+    ],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+        'Content-Type',
+        'X-Requested-With',
+        'Authorization',
+        'X-Admin-Token',
+        'X-Admin-Role',
+        'X-Firebase-UID',
+        'X-Firebase-Email',
+        'X-Firebase-Name',
+        'X-Firebase-Photo',
+        'X-Customer-Token',
+        'X-Telegram-Bot-Api-Secret-Token',
+        'Accept',
+        'Origin',
+    ],
 
-    'exposed_headers' => [],
+    'exposed_headers' => [
+        'X-Admin-Token',
+        'X-Firebase-UID',
+    ],
 
-    'max_age' => 0,
+    'max_age' => 86400,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

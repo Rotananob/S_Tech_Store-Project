@@ -286,6 +286,15 @@ class TelegramController extends Controller
      */
     public function webhook(Request $request)
     {
+        $webhookSecret = env('TELEGRAM_WEBHOOK_SECRET');
+        if (!empty($webhookSecret)) {
+            $providedSecret = $request->header('X-Telegram-Bot-Api-Secret-Token');
+            if ($providedSecret !== $webhookSecret) {
+                Log::warning("Unauthorized Telegram Webhook invocation from IP: " . $request->ip());
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
+
         $update = $request->all();
         $botParam = $request->query('bot', '');
         Log::info("Telegram Webhook Update received [bot={$botParam}]:", $update);

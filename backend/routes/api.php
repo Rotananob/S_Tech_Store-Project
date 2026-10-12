@@ -1090,17 +1090,17 @@ Route::post('/auth/check-register-limit', function (Request $request) {
 // Real-time Active Promotion Popup & Banner (Public)
 Route::get('/promotions/active-popup', [\App\Http\Controllers\PromoCodeController::class, 'activePopup']);
 Route::get('/promotions/hero-banners', [\App\Http\Controllers\PromoCodeController::class, 'heroBanners']);
-Route::post('/promo-codes/validate', [\App\Http\Controllers\PromoCodeController::class, 'validatePromo']);
+Route::post('/promo-codes/validate', [\App\Http\Controllers\PromoCodeController::class, 'validatePromo'])->middleware('throttle:20,1');
 
 // Real Payment Gateways (Bakong KHQR, ABA PayWay, Deeplinks, Visa/Mastercard)
-Route::post('/payment/session', [\App\Http\Controllers\PaymentController::class, 'createSession']);
-Route::post('/payment/card', [\App\Http\Controllers\PaymentController::class, 'processCard']);
-Route::get('/payment/check/{orderId}', [\App\Http\Controllers\PaymentController::class, 'checkStatus']);
-Route::post('/payment/confirm-manual/{orderId}', [\App\Http\Controllers\PaymentController::class, 'confirmManual']);
-Route::post('/payment/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook']);
+Route::post('/payment/session', [\App\Http\Controllers\PaymentController::class, 'createSession'])->middleware('throttle:15,1');
+Route::post('/payment/card', [\App\Http\Controllers\PaymentController::class, 'processCard'])->middleware('throttle:10,1');
+Route::get('/payment/check/{orderId}', [\App\Http\Controllers\PaymentController::class, 'checkStatus'])->middleware('throttle:60,1');
+Route::post('/payment/confirm-manual/{orderId}', [\App\Http\Controllers\PaymentController::class, 'confirmManual'])->middleware('throttle:10,1');
+Route::post('/payment/webhook', [\App\Http\Controllers\PaymentController::class, 'webhook'])->middleware('throttle:60,1');
 
 // Admin & Staff Authentication (Login Form Only — Strictly No Public Registration)
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:5,1');
 
 // Firebase-authenticated Routes (uses X-Firebase-UID header)
 // The UserController handles its own auth via getUid() method
@@ -1257,4 +1257,4 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 });
 
 // Public Telegram Webhook Endpoint
-Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramController::class, 'webhook']);
+Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramController::class, 'webhook'])->middleware('throttle:120,1');

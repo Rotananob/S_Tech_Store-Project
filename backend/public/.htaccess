@@ -3,6 +3,11 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    # Block access to hidden files and sensitive extensions (.env, .git, .sql, .bak, .log)
+    <FilesMatch "^\.|\.(env|git|json|lock|sql|bak|log|sh)$">
+        Require all denied
+    </FilesMatch>
+
     RewriteEngine On
 
     # Handle Authorization Header
