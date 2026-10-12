@@ -253,7 +253,7 @@ export default function AdminStaffPage() {
                         </div>
                         <div>
                           <div className="font-bold text-gray-900 flex items-center gap-1.5">
-                            <span>{s.name}</span>
+                            <span>{s.role !== 'super_admin' ? s.name.replace(/Super Admin/gi, 'Admin') : s.name}</span>
                             {s.role === 'super_admin' ? (
                               <ShieldCheck size={13} className="text-amber-600" />
                             ) : s.role === 'admin' ? (
@@ -283,6 +283,8 @@ export default function AdminStaffPage() {
                           </>
                         ) : s.role === 'admin' ? (
                           'Admin'
+                        ) : s.role === 'manager' ? (
+                          'Manager'
                         ) : (
                           'Store Staff'
                         )}

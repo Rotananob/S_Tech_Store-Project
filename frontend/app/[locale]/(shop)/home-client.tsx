@@ -145,6 +145,14 @@ export function HeroSection() {
 
   // Dynamic API sync to pull live active promotions from backend
   useEffect(() => {
+    // If PWA was launched from an Admin shortcut or with source=admin_pwa, bounce immediately to Admin Console
+    if (typeof window !== "undefined") {
+      if (window.location.search.includes("source=admin_pwa") || window.location.search.includes("pwa=admin")) {
+        window.location.replace("/rok-mix-khernh");
+        return;
+      }
+    }
+
     let mounted = true;
     api.get("/promotions/hero-banners")
       .then((res) => {

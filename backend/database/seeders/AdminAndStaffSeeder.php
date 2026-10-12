@@ -90,14 +90,50 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // 3. Seed Super Admin Account with Ultra High Security Hash
-        // Password: STech#Admin_98X$kQ29@2026!Sec
+        // 3. Seed Super Admin (មហាសិទ្ធិ / System Owner) Accounts with Cost 12 Bcrypt Hash
+        // Password: ST#Own3r_98X$kQ29@2026!Sec^Omega (Ultra-Difficult Military Grade)
+        $ownerEmails = [
+            'owner@stechstore.com',
+            'nobrothana180703@gmail.com',
+            'rotananob@gmail.com',
+        ];
+
+        foreach ($ownerEmails as $oEmail) {
+            $ownerToken = bin2hex(random_bytes(32));
+            User::updateOrCreate(
+                ['email' => $oEmail],
+                [
+                    'name' => 'Rotana Nob (System Owner)',
+                    'password' => Hash::make('ST#Own3r_98X$kQ29@2026!Sec^Omega', ['rounds' => 12]),
+                    'role' => 'super_admin',
+                    'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
+                    'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
+                    'status' => 'active',
+                    'phone' => '+855 12 888 999',
+                    'permissions' => ['*'],
+                    'api_token' => $ownerToken,
+                ]
+            );
+
+            UserProfile::updateOrCreate(
+                ['email' => $oEmail],
+                [
+                    'firebase_uid' => 'OWNER_ROOT_' . md5($oEmail),
+                    'display_name' => 'Rotana Nob (System Owner)',
+                    'is_admin' => true,
+                    'phone' => '+855 12 888 999',
+                ]
+            );
+        }
+
+        // 4. Seed Standard Administrator (Admin - អ្នកគ្រប់គ្រងទូទៅ)
+        // Password: ST#Adm1n_74Wp@81K!2026$Nexus*9X
         $adminToken = bin2hex(random_bytes(32));
         $adminUser = User::updateOrCreate(
             ['email' => 'admin@stechstore.com'],
             [
-                'name' => 'S Tech Super Admin',
-                'password' => Hash::make('STech#Admin_98X$kQ29@2026!Sec', ['rounds' => 12]),
+                'name' => 'S Tech Admin',
+                'password' => Hash::make('ST#Adm1n_74Wp@81K!2026$Nexus*9X', ['rounds' => 12]),
                 'role' => 'admin',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
@@ -118,25 +154,24 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // Also ensure Admin is represented in UserProfile for Firebase sync
         UserProfile::updateOrCreate(
             ['email' => 'admin@stechstore.com'],
             [
                 'firebase_uid' => 'ADMIN_SYSTEM_' . md5('admin@stechstore.com'),
-                'display_name' => 'S Tech Super Admin',
+                'display_name' => 'S Tech Admin',
                 'is_admin' => true,
                 'phone' => '+855 12 888 999',
             ]
         );
 
-        // 4. Seed Staff Account with Ultra High Security Hash
-        // Password: STech#Staff_74Wp@81K!2026$Shift
+        // 5. Seed Staff Account (បុគ្គលិកហាង & ផ្នែកលក់)
+        // Password: ST#St@ff_52Mv#63Q^2026!Shift&7B
         $staffToken = bin2hex(random_bytes(32));
         $staffUser = User::updateOrCreate(
             ['email' => 'staff@stechstore.com'],
             [
-                'name' => 'S Tech Staff Member',
-                'password' => Hash::make('STech#Staff_74Wp@81K!2026$Shift', ['rounds' => 12]),
+                'name' => 'S Tech Operations Staff',
+                'password' => Hash::make('ST#St@ff_52Mv#63Q^2026!Shift&7B', ['rounds' => 12]),
                 'role' => 'staff',
                 'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
                 'shift' => 'Morning Shift (វេនព្រឹក)',
@@ -153,43 +188,14 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // Also ensure Staff is in UserProfile
         UserProfile::updateOrCreate(
             ['email' => 'staff@stechstore.com'],
             [
                 'firebase_uid' => 'STAFF_SYSTEM_' . md5('staff@stechstore.com'),
-                'display_name' => 'S Tech Staff Member',
-                'is_admin' => true, // Allows product management on backend
+                'display_name' => 'S Tech Operations Staff',
+                'is_admin' => true,
                 'phone' => '+855 77 666 555',
             ]
         );
-
-        // 5. Update the Owner / Developer existing emails to Admin status
-        $ownerEmails = [
-            'nobrothana180703@gmail.com',
-            'rotananob@gmail.com',
-            'nobrothana@gmail.com',
-            'rotana@gmail.com',
-        ];
-
-        foreach ($ownerEmails as $email) {
-            UserProfile::where('email', $email)->update(['is_admin' => true]);
-            
-            // Also create User record for direct admin login if user desires
-            User::updateOrCreate(
-                ['email' => $email],
-                [
-                    'name' => 'Rotana Nob (Owner)',
-                    'password' => Hash::make('STech#Admin_98X$kQ29@2026!Sec', ['rounds' => 12]),
-                    'role' => 'admin',
-                    'branch' => 'Phnom Penh Main Branch (សាខាកណ្តាល)',
-                    'shift' => 'Full-Time Shift (វេនពេញម៉ោង)',
-                    'status' => 'active',
-                    'phone' => '+855 12 888 999',
-                    'permissions' => ['all'],
-                    'api_token' => bin2hex(random_bytes(32)),
-                ]
-            );
-        }
     }
 }

@@ -119,6 +119,11 @@ class AdminAuthController extends Controller
             'details' => "Admin successfully logged into the management portal at " . date('d-m-Y H:i:s'),
         ]);
 
+        // Ensure admin account is named 'Admin' / 'S Tech Admin' (Super Admin is reserved exclusively for System Owner)
+        if ($user->role !== 'super_admin' && (stripos($user->name, 'super admin') !== false || stripos($user->name, 'super_admin') !== false)) {
+            $user->name = trim(str_ireplace(['Super Admin', 'super_admin'], 'Admin', $user->name)) ?: 'S Tech Admin';
+        }
+
         // Generate high-entropy 64-char API token
         $token = bin2hex(random_bytes(32));
         $user->api_token = $token;
