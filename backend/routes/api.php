@@ -627,7 +627,7 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
     if (!($user->is_active ?? true)) {
         return response()->json([
             'success' => false,
-            'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin។'
+            'error' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។'
         ], 403);
     }
 
@@ -673,7 +673,7 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     if ($user && !($user->is_active ?? true)) {
         return response()->json([
             'success' => false,
-            'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin តាមរយៈ Live Chat ឬទូរស័ព្ទ។'
+            'error' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។'
         ], 403);
     }
 
@@ -828,7 +828,7 @@ Route::get('/auth/session/token-login', function (Request $request) {
     }
 
     if (!($user->is_active ?? true) || ($user->status ?? '') === 'suspended') {
-        return response()->json(['success' => false, 'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin។'], 403);
+        return response()->json(['success' => false, 'error' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។'], 403);
     }
 
     return response()->json([
@@ -1111,6 +1111,7 @@ Route::get('/user/public/{identifier}', [UserController::class, 'getPublicProfil
 Route::get('/user/profile', [UserController::class, 'getProfile']);
 Route::put('/user/profile', [UserController::class, 'updateProfile']);
 Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
+Route::post('/user/claim-welcome-gift', [UserController::class, 'claimWelcomeGift']);
 
 // Notifications
 Route::get('/notifications', [UserController::class, 'getNotifications']);

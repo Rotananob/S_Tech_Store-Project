@@ -11,6 +11,7 @@ import CookieConsent from "@/components/ui/CookieConsent";
 import AppUpdatePrompt from "@/components/ui/AppUpdatePrompt";
 import TrafficTracker from "@/components/ui/TrafficTracker";
 import TelegramAuthBridge from "@/components/auth/TelegramAuthBridge";
+import WelcomeGiftModal from "@/components/promotions/WelcomeGiftModal";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const khmerFont = Battambang({ 
@@ -193,6 +194,7 @@ export default async function RootLayout({
             <SplashScreen />
             <TrafficTracker />
             <TelegramAuthBridge />
+            <WelcomeGiftModal />
             {children}
             <FloatingBackButton />
             <ScrollToTopButton />

@@ -67,6 +67,7 @@ class PromoCodeController extends Controller
             'PROMO' => ['name' => 'October Mega Sale 20% OFF', 'type' => 'percentage', 'value' => 20.00, 'description' => 'ប្រូម៉ូសិនពិសេសប្រចាំខែ ២០%'],
             'STECH10' => ['name' => 'S Tech Member 10% OFF', 'type' => 'percentage', 'value' => 10.00, 'description' => 'បញ្ចុះតម្លៃ ១០% សម្រាប់សមាជិក'],
             'WELCOME' => ['name' => 'ស្វាគមន៍អតិថិជនថ្មី $10 OFF', 'type' => 'fixed', 'value' => 10.00, 'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $10 ភ្លាមៗ'],
+            'WELCOME5' => ['name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF', 'type' => 'fixed', 'value' => 5.00, 'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $5.00 ភ្លាមៗ'],
             'VIP10' => ['name' => 'VIP Member 10% OFF', 'type' => 'percentage', 'value' => 10.00, 'description' => 'បញ្ចុះតម្លៃ ១០% សម្រាប់ VIP Member'],
             'PCHUM' => ['name' => 'ប្រូម៉ូសិន ភ្ជុំបិណ្ឌ 30% OFF', 'type' => 'percentage', 'value' => 30.00, 'description' => 'បញ្ចុះតម្លៃ ៣០% ពិធីបុណ្យភ្ជុំបិណ្ឌ'],
         ];

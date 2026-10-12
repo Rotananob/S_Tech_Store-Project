@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
+import { toHumanKhmerError } from "@/lib/error-translator";
 import api from "@/lib/api";
 
 export default function RegisterPage() {
@@ -287,7 +288,7 @@ export default function RegisterPage() {
       await new Promise((r) => setTimeout(r, 2000));
       navigateToDestination(0);
     } catch (err: any) {
-      setError(err.message || "Failed to create an account.");
+      setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
@@ -326,7 +327,7 @@ export default function RegisterPage() {
       await new Promise((r) => setTimeout(r, 2200));
       navigateToDestination(0);
     } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google.");
+      setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);

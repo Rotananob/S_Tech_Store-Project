@@ -14,6 +14,7 @@ class UserProfile extends Model
         'points', 'is_admin', 'avatar_url',
         'is_active', 'status', 'last_password_reset_at',
         'magic_login_token', 'magic_token_expires_at',
+        'has_claimed_welcome_gift', 'welcome_gift_claimed_at',
     ];
 
     protected $casts = [
@@ -24,6 +25,8 @@ class UserProfile extends Model
         'notif_telegram' => 'boolean',
         'is_admin' => 'boolean',
         'is_active' => 'boolean',
+        'has_claimed_welcome_gift' => 'boolean',
+        'welcome_gift_claimed_at' => 'datetime',
         'points' => 'integer',
         'gps_lat' => 'float',
         'gps_lng' => 'float',

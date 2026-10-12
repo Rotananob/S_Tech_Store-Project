@@ -393,7 +393,7 @@ class UserController extends Controller
         if (!($user->is_active ?? true)) {
             return response()->json([
                 'success' => false,
-                'message' => "គណនី '{$user->display_name}' ត្រូវបានផ្អាកដំណើរការ (Account Disabled)។ មិនអាចបង្កើត Magic Link បានទេ។",
+                'message' => "គណនី '{$user->display_name}' ត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ មិនអាចបង្កើត Magic Link បានទេ។",
             ], 403);
         }
 
@@ -454,7 +454,7 @@ class UserController extends Controller
         if (!($user->is_active ?? true)) {
             return response()->json([
                 'success' => false,
-                'message' => "គណនីត្រូវបានផ្អាកដំណើរការ (Account Disabled)",
+                'message' => "គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ Admin ដើម្បីបើកដំណើរការឡើងវិញ។",
             ], 403);
         }
 
@@ -517,7 +517,7 @@ class UserController extends Controller
         if (!($user->is_active ?? true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការ (Account Disabled)។',
+                'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។',
             ], 403);
         }
 
@@ -632,7 +632,99 @@ class UserController extends Controller
                 'wishlist' => $wishlistCount,
                 'points' => $profile->points,
                 'unread_notifications' => $unreadNotifCount,
+                'has_claimed_welcome_gift' => (bool)($profile->has_claimed_welcome_gift ?? false),
             ],
+        ]);
+    }
+
+    /**
+     * POST /api/user/claim-welcome-gift
+     * Claim the $5 Welcome Gift Voucher after sharing.
+     */
+    public function claimWelcomeGift(Request $request)
+    {
+        $uid = $this->getUid($request);
+        if (!$uid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'សូមចូលគណនីជាមុនសិន ដើម្បីទទួលកាដូស្វាគមន៍ $5',
+            ], 401);
+        }
+
+        $user = UserProfile::where('firebase_uid', $uid)->first();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'រកមិនឃើញគណនីរបស់អ្នកទេ សូមព្យាយាមចូលគណនីម្ដងទៀត',
+            ], 404);
+        }
+
+        if (!($user->is_active ?? true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ Admin ដើម្បីដោះស្រាយ។',
+            ], 403);
+        }
+
+        if ($user->has_claimed_welcome_gift) {
+            return response()->json([
+                'success' => true,
+                'already_claimed' => true,
+                'message' => 'លោកអ្នកបានទទួលកាដូស្វាគមន៍ $5 នេះរួចរាល់ហើយ! កូដប្រូម៉ូសិនរបស់អ្នកគឺ WELCOME5',
+                'voucher' => [
+                    'code' => 'WELCOME5',
+                    'value' => 5.00,
+                    'type' => 'fixed',
+                    'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
+                ],
+            ]);
+        }
+
+        // Ensure WELCOME5 promo code exists in database
+        $promo = \App\Models\PromoCode::where('code', 'WELCOME5')->first();
+        if (!$promo) {
+            \App\Models\PromoCode::create([
+                'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
+                'code' => 'WELCOME5',
+                'type' => 'fixed',
+                'value' => 5.00,
+                'status' => 'active',
+                'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $5.00 ភ្លាមៗលើរាល់ការទិញទំនិញ',
+                'usage_max' => 99999,
+                'usage_count' => 0,
+            ]);
+        } else {
+            if ($promo->status !== 'active') {
+                $promo->status = 'active';
+                $promo->save();
+            }
+        }
+
+        $user->has_claimed_welcome_gift = true;
+        $user->welcome_gift_claimed_at = now();
+        $user->points = ($user->points ?? 0) + 50;
+        $user->save();
+
+        try {
+            UserNotification::create([
+                'firebase_uid' => $user->firebase_uid,
+                'title' => '🎉 ទទួលបានកាដូស្វាគមន៍ $5 Voucher ជោគជ័យ!',
+                'message' => 'អបអរសាទរ! លោកអ្នកបានទទួលកាដូ $5 ឥតគិតថ្លៃ។ ប្រើប្រាស់កូដ WELCOME5 ពេល Checkout ដើម្បីទទួលបានការបញ្ចុះតម្លៃ $5 ភ្លាមៗ។',
+                'type' => 'promo',
+                'read' => false,
+            ]);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => 'អបអរសាទរ! លោកអ្នកទទួលបានកាដូស្វាគមន៍ $5 ដោយជោគជ័យ 🎉',
+            'voucher' => [
+                'code' => 'WELCOME5',
+                'value' => 5.00,
+                'type' => 'fixed',
+                'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
+            ],
+            'points_bonus' => 50,
         ]);
     }
 

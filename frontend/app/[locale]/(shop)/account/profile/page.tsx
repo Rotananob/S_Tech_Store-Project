@@ -52,6 +52,7 @@ interface ProfileData {
   gps_lat?: number;
   gps_lng?: number;
   photo_url?: string;
+  has_claimed_welcome_gift?: boolean;
 }
 
 const CAMBODIA_PROVINCES = [
@@ -1060,10 +1061,10 @@ export default function UserProfilePage() {
                   type="button"
                   onClick={handleConnectTelegram}
                   disabled={telegramLinking}
-                  className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#229ED9] via-[#0088cc] to-[#0077b5] hover:brightness-110 text-white text-sm sm:text-base font-black transition-all shadow-xl shadow-[#0088cc]/30 active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer border-none"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 text-sm sm:text-base font-black transition-all shadow-xl shadow-amber-500/40 border-2 border-amber-300 ring-4 ring-amber-400/30 active:scale-95 flex items-center justify-center gap-2.5 cursor-pointer animate-pulse"
                 >
-                  <Send size={18} className="-translate-x-0.5" />
-                  <span>{telegramLinking ? "កំពុងដំណើរការ..." : "✈️ ភ្ជាប់ជាមួយ Telegram ឥឡូវនេះ (Connect Now)"}</span>
+                  <AlertTriangle size={18} className="text-slate-950 shrink-0" />
+                  <span>{telegramLinking ? "កំពុងដំណើរការ..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចភ្ជាប់ឥឡូវនេះ (Connect Telegram)"}</span>
                 </button>
               )}
             </div>
@@ -1071,6 +1072,35 @@ export default function UserProfilePage() {
         </div>
 
         {/* ── 3. PINDUODUO-INSPIRED SUITE (Matching Image 2) ────────────────── */}
+
+        {/* 2.0 $5 Welcome Gift Claim Banner (If not yet claimed) */}
+        {!profile.has_claimed_welcome_gift && (
+          <div 
+            onClick={() => {
+              sessionStorage.removeItem("stech_dismissed_gift_modal");
+              window.dispatchEvent(new Event("user_session_updated"));
+            }}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-amber-600 p-4 text-white shadow-lg border border-red-400/50 cursor-pointer flex items-center justify-between transition-all hover:scale-[1.01] active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-md text-amber-300 flex items-center justify-center font-black shadow-sm shrink-0">
+                <Gift size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-black text-white uppercase tracking-wider">កាដូស្វាគមន៍ $5.00 OFF</span>
+                  <span className="text-[10px] font-black bg-amber-400 text-black px-2 py-0.5 rounded-full uppercase">ឥតគិតថ្លៃ</span>
+                </div>
+                <p className="text-xs text-white/90 mt-0.5 font-medium line-clamp-1">
+                  ចែករំលែក Link ដើម្បីទទួលយក Voucher $5 ភ្លាមៗសម្រាប់ទិញទំនិញ!
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-[#8B1A1A] text-xs font-black shrink-0 ml-2 shadow-sm">
+              <span>Claim $5 🎁</span>
+            </div>
+          </div>
+        )}
 
         {/* 2.1 Saver Pass Golden VIP Banner */}
         <div 
@@ -1529,10 +1559,10 @@ export default function UserProfilePage() {
                         type="button"
                         onClick={handleConnectTelegram}
                         disabled={telegramLinking}
-                        className="text-[10px] text-[#0088cc] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                        className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-800 dark:text-amber-300 border border-amber-400/50 text-[10px] font-black flex items-center gap-1 cursor-pointer transition-all animate-pulse"
                       >
-                        <Zap size={11} />
-                        <span>{telegramLinking ? "Connecting..." : "1-Click Link Bot"}</span>
+                        <AlertTriangle size={11} className="text-amber-600 dark:text-amber-400" />
+                        <span>{telegramLinking ? "Connecting..." : "⚠️ មិនទាន់ភ្ជាប់ • ចុចភ្ជាប់ Telegram"}</span>
                       </button>
                     )}
                   </div>
@@ -1933,10 +1963,10 @@ export default function UserProfilePage() {
                       type="button"
                       onClick={handleConnectTelegram}
                       disabled={telegramLinking}
-                      className="px-5 py-2.5 rounded-xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-xs font-black transition-all border-none cursor-pointer flex items-center justify-center gap-2 shadow-md shadow-sky-500/20 shrink-0 disabled:opacity-50"
+                      className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 text-slate-950 text-xs sm:text-sm font-black transition-all border-2 border-amber-300 shadow-lg shadow-amber-500/30 ring-4 ring-amber-400/20 cursor-pointer flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 animate-pulse"
                     >
-                      {telegramLinking ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
-                      <span>{telegramLinking ? "កំពុងរៀបចំ..." : "✈️ ភ្ជាប់ Telegram Bot ឥឡូវនេះ"}</span>
+                      {telegramLinking ? <RefreshCw size={14} className="animate-spin" /> : <AlertTriangle size={15} className="text-slate-950 shrink-0" />}
+                      <span>{telegramLinking ? "កំពុងរៀបចំ..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចភ្ជាប់ Bot ឥឡូវនេះ"}</span>
                     </button>
                   </div>
                 )}
@@ -2071,10 +2101,10 @@ export default function UserProfilePage() {
                           type="button"
                           onClick={handleConnectTelegram}
                           disabled={telegramLinking}
-                          className="mt-1 text-xs text-[#0088cc] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                          className="mt-1.5 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-800 dark:text-amber-300 border border-amber-400/40 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all animate-pulse w-fit"
                         >
-                          <Send size={11} />
-                          <span>{telegramLinking ? "Connecting..." : "✈️ ភ្ជាប់គណនី Telegram ឥឡូវនេះ (Connect Telegram Bot)"}</span>
+                          <AlertTriangle size={12} className="text-amber-600 dark:text-amber-400" />
+                          <span>{telegramLinking ? "Connecting..." : "⚠️ មិនទាន់ភ្ជាប់ Telegram • ចុចដើម្បីភ្ជាប់ Bot"}</span>
                         </button>
                       )}
                     </div>

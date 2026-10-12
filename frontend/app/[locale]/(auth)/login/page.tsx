@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
+import { toHumanKhmerError } from "@/lib/error-translator";
 import api from "@/lib/api";
 
 export default function LoginPage() {
@@ -201,6 +202,25 @@ export default function LoginPage() {
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Verify if customer account is active in database
+      try {
+        const profRes = await api.get("/user/profile");
+        if (profRes.data?.profile && profRes.data.profile.is_active === false) {
+          await signOut(auth);
+          setError("គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return;
+        }
+      } catch (checkErr: any) {
+        if (checkErr.response?.status === 403 || checkErr.response?.data?.error?.includes("ផ្អាក")) {
+          await signOut(auth);
+          setError("គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return;
+        }
+      }
+
       // Create a real DB notification for this login
       await api.post("/user/notifications", {
         title: "Login Successful 🔐",
@@ -220,7 +240,7 @@ export default function LoginPage() {
       await new Promise((r) => setTimeout(r, 2000));
       navigateToDestination(0);
     } catch (err: any) {
-      setError("Invalid email or password.");
+      setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
@@ -240,7 +260,25 @@ export default function LoginPage() {
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
-      
+
+      // Verify if customer account is active in database
+      try {
+        const profRes = await api.get("/user/profile");
+        if (profRes.data?.profile && profRes.data.profile.is_active === false) {
+          await signOut(auth);
+          setError("គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return;
+        }
+      } catch (checkErr: any) {
+        if (checkErr.response?.status === 403 || checkErr.response?.data?.error?.includes("ផ្អាក")) {
+          await signOut(auth);
+          setError("គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។");
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return;
+        }
+      }
+
       setAuthOverlay({
         show: true,
         title: "ចូលគណនី Google បានជោគជ័យ! 🎉",
@@ -260,7 +298,7 @@ export default function LoginPage() {
       navigateToDestination(0);
     } catch (err: any) {
       console.error(err);
-      setError("Failed to sign in with Google: " + (err.message || "Unknown error"));
+      setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);
@@ -333,7 +371,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.error || err.message || "បរាជ័យក្នុងការចូលគណនី Telegram");
+      setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {
       setLoading(false);

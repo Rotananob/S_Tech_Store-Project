@@ -1528,6 +1528,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {[
+                          { code: "WELCOME5", label: "🎁 WELCOME5 ($5 Gift)" },
                           { code: "STECH20", label: "STECH20 (20%)" },
                           { code: "PROMO", label: "PROMO (20%)" },
                           { code: "PCHUM", label: "PCHUM (30%)" },
