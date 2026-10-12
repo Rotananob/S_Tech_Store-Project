@@ -405,9 +405,31 @@ class TelegramService
                 }
             }
 
-            // ⚡ Zero-Latency Callback Answer: Immediately extinguish Telegram client top loading spinner (<25ms)
+            // ⚡ Instant Tactile Feedback: Immediately fire answerCallbackQuery with contextual toast (<20ms)
             if ($callbackId) {
-                self::answerCallbackQuery($callbackId, '', $activeToken);
+                $quickToast = match ($callbackData) {
+                    'cust_my_orders', 'cust_track', 'btn_my_orders' => "📦 កំពុងទាញយកទិន្នន័យបញ្ជាទិញ...",
+                    'cust_my_wallet', 'btn_my_wallet' => "💰 កំពុងពិនិត្យសមតុល្យកាបូបលុយ...",
+                    'cust_my_points', 'btn_my_points' => "🪙 កំពុងពិនិត្យពិន្ទុ S-Coins & VIP...",
+                    'cust_my_repairs', 'btn_my_repairs', 'cust_repair' => "🔧 កំពុងពិនិត្យសំបុត្រជួសជុល...",
+                    'cust_shop' => "🛍️ កំពុងដំណើរការហាងទំនិញ...",
+                    'cust_promo' => "🔥 កំពុងបើកប្រូម៉ូសិន...",
+                    'cust_contact', 'btn_about_store' => "🏪 កំពុងបើកព័ត៌មានហាង...",
+                    'cust_help', 'btn_how_to_connect' => "ℹ️ កំពុងបើកជំនួយ...",
+                    'cust_support', 'btn_chat_start' => "💬 កំពុងភ្ជាប់ទៅក្រុមការងារ...",
+                    'cust_ask_options', 'btn_faq' => "❓ កំពុងបើកសំណួរញឹកញាប់...",
+                    'cust_ask_payment' => "💳 កំពុងទាញយកវិធីទូទាត់...",
+                    'cust_ask_delivery' => "🚚 កំពុងទាញយកព័ត៌មានដឹកជញ្ជូន...",
+                    'cust_ask_warranty' => "🛡️ កំពុងទាញយកគោលការណ៍ធានា...",
+                    'cust_main_menu', 'btn_main_menu' => "🏠 កំពុងត្រឡប់ទៅមឺនុយមេ...",
+                    default => "⚡ ទទួលបានការចុច! កំពុងដំណើរការ...",
+                };
+                self::answerCallbackQuery($callbackId, $quickToast, $activeToken);
+            }
+
+            // ⚡ Immediate Typing Action indicator in Telegram header (<20ms)
+            if ($chatId) {
+                self::sendChatAction($chatId, 'typing', $activeToken);
             }
 
             // Admin only topic setup (group chat)
@@ -509,10 +531,13 @@ class TelegramService
                     self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
                 }
 
-                // 2. Targeted lightweight DB query (only essential columns)
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                    ->select(['id', 'phone'])
-                    ->first();
+                // 2. Targeted lightweight DB query with short cache (<5ms)
+                $user = Cache::remember("tg_u_prof_{$chatId}", 20, function() use ($chatId) {
+                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                        ->orWhere('telegram_chat_id', (string)$chatId)
+                        ->select(['id', 'phone', 'firebase_uid', 'wallet_balance', 'points'])
+                        ->first();
+                });
 
                 $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
                     $q->where('user_id', 'tg_' . $chatId);
@@ -613,10 +638,13 @@ class TelegramService
                     self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
                 }
 
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                    ->orWhere('telegram_chat_id', (string)$chatId)
-                    ->select(['id', 'firebase_uid', 'wallet_balance', 'points'])
-                    ->first();
+                // Targeted lightweight DB query with short cache (<5ms)
+                $user = Cache::remember("tg_u_prof_{$chatId}", 20, function() use ($chatId) {
+                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                        ->orWhere('telegram_chat_id', (string)$chatId)
+                        ->select(['id', 'firebase_uid', 'wallet_balance', 'points', 'phone'])
+                        ->first();
+                });
 
                 $walletBalance = (float)($user->wallet_balance ?? 0.00);
                 $points = (int)($user->points ?? 0);
@@ -3732,6 +3760,29 @@ class TelegramService
             Http::timeout(5)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
                 'callback_query_id' => $callbackId,
                 'text' => $text,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Send instant chat action (e.g. typing) to Telegram client header (< 20ms)
+     */
+    public static function sendChatAction($chatId, string $action = 'typing', ?string $token = null): void
+    {
+        if (empty($chatId)) {
+            return;
+        }
+
+        $settings = self::getSettings();
+        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return;
+        }
+
+        try {
+            Http::timeout(3)->post("https://api.telegram.org/bot{$token}/sendChatAction", [
+                'chat_id' => $chatId,
+                'action' => $action,
             ]);
         } catch (\Throwable $e) {}
     }

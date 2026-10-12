@@ -208,6 +208,15 @@ export function HeroSection() {
     return () => clearInterval(timer);
   }, [slides.length, isPaused]);
 
+  // Listen for promo auto-glide event to illuminate and lock hero slider to the festival banner
+  useEffect(() => {
+    const handlePromoGlide = () => {
+      setSlideIndex(0);
+    };
+    window.addEventListener("stech:hero-promo-illuminated", handlePromoGlide);
+    return () => window.removeEventListener("stech:hero-promo-illuminated", handlePromoGlide);
+  }, []);
+
   const current = slides[slideIndex] || slides[0];
 
   const nextSlide = () => setSlideIndex((prev) => (prev + 1) % slides.length);
