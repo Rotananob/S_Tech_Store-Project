@@ -1099,6 +1099,89 @@ class TelegramService
                 return;
             }
 
+            // Customer Disconnect Menu Prompt
+            if ($callbackData === 'cust_disconnect_menu' && $chatId) {
+                $tgId = (string)($from['id'] ?? $chatId);
+                $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+                    ->orWhere('firebase_uid', 'tg_' . $tgId)
+                    ->first();
+
+                if ($user && (!empty($user->telegram_chat_id) || !empty($user->telegram))) {
+                    $discText = "🔌 <b>ការគ្រប់គ្រងគណនី & ផ្តាច់ការភ្ជាប់ (Telegram Disconnect):</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                        . "• 👤 <b>គណនីភ្ជាប់បច្ចុប្បន្ន:</b> <b>" . htmlspecialchars($user->display_name ?: 'VIP Member') . "</b>\n"
+                        . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($user->email ?: 'N/A') . "</code>\n"
+                        . "• 🆔 <b>Telegram Chat ID:</b> <code>{$tgId}</code>\n\n"
+                        . "⚠️ <b>តើលោកអ្នកពិតជាចង់ផ្តាច់គណនី Telegram នេះចេញពី Website មែនទេ?</b>\n"
+                        . "បន្ទាប់ពីផ្តាច់រួច Telegram នេះនឹងនៅទំនេរ ហើយអាចយកទៅភ្ជាប់ជាមួយគណនីផ្សេងបាន។";
+
+                    $discKb = [
+                        'inline_keyboard' => [
+                            [['text' => '⚠️ បញ្ជាក់ផ្តាច់ការភ្ជាប់ (Confirm Disconnect)', 'callback_data' => 'cust_confirm_disconnect']],
+                            [['text' => '🔙 មឺនុយមេ (Cancel / Main Menu)', 'callback_data' => 'cust_main_menu']],
+                        ],
+                    ];
+                } else {
+                    $discText = "ℹ️ <b>ស្ថានភាពគណនី Telegram:</b>\n\n"
+                        . "គណនី Telegram របស់អ្នកមិនទាន់ត្រូវបានភ្ជាប់ជាមួយគណនី Website ណាមួយនៅឡើយទេ (Not Linked)។\n\n"
+                        . "👉 លោកអ្នកអាចភ្ជាប់បានដោយចូលទៅកាន់ Profile Setting លើ Website រួចចុច <b>\"ភ្ជាប់ Official Bot\"</b>។";
+
+                    $discKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ],
+                    ];
+                }
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $discText, $discKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $discText, $discKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'ផ្តាច់ការភ្ជាប់ Telegram', $activeToken);
+                return;
+            }
+
+            // Customer Confirm Disconnect (Executes Unlink)
+            if ($callbackData === 'cust_confirm_disconnect' && $chatId) {
+                $tgId = (string)($from['id'] ?? $chatId);
+                $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+                    ->orWhere('firebase_uid', 'tg_' . $tgId)
+                    ->first();
+
+                if ($user) {
+                    $user->telegram = null;
+                    $user->telegram_chat_id = null;
+                    $user->notif_telegram = false;
+                    if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
+                        $user->firebase_uid = 'usr_' . \Illuminate\Support\Str::random(20);
+                    }
+                    $user->save();
+                }
+
+                $doneText = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ចេញពី Website S Tech Store រួចរាល់ហើយ។\n"
+                    . "ឥឡូវនេះ Telegram របស់អ្នកនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល។\n\n"
+                    . "👉 លោកអ្នកអាចភ្ជាប់ឡើងវិញបានគ្រប់ពេល តាមរយៈ Profile Setting លើ Website។";
+
+                $doneKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ (Website)', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                        [['text' => '🔙 មឺនុយមេ (Main Menu)', 'callback_data' => 'cust_main_menu']],
+                    ],
+                ];
+
+                if ($messageId) {
+                    self::editMessageText($chatId, $messageId, $doneText, $doneKb, 'HTML', $activeToken);
+                } else {
+                    self::sendMessageWithKeyboard($chatId, $doneText, $doneKb, 'HTML', null, $activeToken);
+                }
+                self::answerCallbackQuery($callbackId, 'ផ្តាច់ជោគជ័យ', $activeToken);
+                return;
+            }
+
             return;
         }
 
@@ -1719,6 +1802,56 @@ class TelegramService
                 . "សម្រាប់អតិថិជន សូមប្រើប្រាស់ពាក្យបញ្ជា <code>/start</code> ឬ <code>/help</code> ដើម្បីទិញទំនិញ និងទទួលព័ត៌មាន។";
             self::sendMessageWithKeyboard($chatId, $adminNotice, self::getCustomerMainMenuKeyboard(), 'HTML', null, $activeToken);
             return;
+        }
+
+        // Customer /disconnect or /unlink or ផ្តាច់
+        if (preg_match('/^\/(?:disconnect|unlink|logout)(?:@\w+)?/i', $text) || in_array(mb_strtolower($text), ['ផ្តាច់', 'ផ្ដាច់', 'ផ្តាច់គណនី', 'ផ្ដាច់គណនី', 'ផ្តាច់ការភ្ជាប់', 'ផ្ដាច់ការភ្ជាប់'])) {
+            $tgId = (string)($from['id'] ?? $chatId);
+            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+                ->orWhere('firebase_uid', 'tg_' . $tgId)
+                ->first();
+
+            if ($user && (!empty($user->telegram_chat_id) || !empty($user->telegram))) {
+                $userDisplayName = $user->display_name ?: 'អតិថិជន';
+                $user->telegram = null;
+                $user->telegram_chat_id = null;
+                $user->notif_telegram = false;
+                if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
+                    $user->firebase_uid = 'usr_' . \Illuminate\Support\Str::random(20);
+                }
+                $user->save();
+
+                $disconnectMsg = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "• 👤 <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($userDisplayName) . "</b>\n"
+                    . "• 🔌 <b>ស្ថានភាព:</b> <b>ផ្តាច់រួចរាល់ (Disconnected)</b>\n\n"
+                    . "គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ចេញពី Website S Tech Store រួចរាល់ហើយ។\n"
+                    . "ឥឡូវនេះ Telegram របស់អ្នកនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល។\n\n"
+                    . "👉 លោកអ្នកអាចភ្ជាប់ឡើងវិញបានគ្រប់ពេល តាមរយៈ Profile Setting លើ Website។";
+
+                $disconnectKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ (Website)', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                        [['text' => '🔙 មឺនុយមេ (Main Menu)', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $disconnectMsg, $disconnectKb, 'HTML', null, $activeToken);
+                return;
+            } else {
+                $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                    . "👉 ប្រសិនបើអ្នកចង់ភ្ជាប់ជាមួយគណនីលើ Website សូមចូលទៅកាន់គេហទំព័រ រួចចុច <b>\"ភ្ជាប់ Official Bot\"</b> ក្នុង Profile Setting។";
+
+                $notLinkedKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                return;
+            }
         }
 
         // Customer /start

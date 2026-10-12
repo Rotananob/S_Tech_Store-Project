@@ -569,23 +569,40 @@ Route::get('/user/telegram/link-check', function (Request $request) {
 });
 
 Route::post('/user/telegram/unlink', function (Request $request) {
-    $uid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid');
+    $uid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid') ?: $request->input('uid');
     $email = $request->header('X-Firebase-Email') ?: $request->input('email');
-    $token = $request->header('X-Customer-Token') ?: $request->input('customer_token');
+    $token = $request->header('X-Customer-Token') ?: $request->input('customer_token') ?: $request->cookie('customer_token') ?: $request->bearerToken();
+    $chatId = $request->input('telegram_chat_id') ?: $request->input('chat_id');
+    $telegram = $request->input('telegram');
 
     $user = null;
     if ($uid) {
-        $user = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+        $user = \App\Models\UserProfile::where('firebase_uid', $uid)
+            ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
+            ->first();
     }
     if (!$user && $token) {
         $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
         if ($userId) $user = \App\Models\UserProfile::find($userId);
+        if (!$user) $user = \App\Models\UserProfile::where('magic_login_token', $token)->first();
+    }
+    if (!$user && $chatId) {
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$chatId)
+            ->orWhere('firebase_uid', 'tg_' . $chatId)
+            ->first();
     }
     if (!$user && $email) {
         $user = \App\Models\UserProfile::where('email', $email)->first();
     }
+    if (!$user && $telegram) {
+        $cleanTg = ltrim(trim($telegram), '@');
+        $user = \App\Models\UserProfile::where('telegram', '@' . $cleanTg)
+            ->orWhere('telegram', $cleanTg)
+            ->first();
+    }
 
     if ($user) {
+        $oldChatId = $user->telegram_chat_id;
         $user->telegram = null;
         $user->telegram_chat_id = null;
         $user->notif_telegram = false;
@@ -596,6 +613,24 @@ Route::post('/user/telegram/unlink', function (Request $request) {
             $user->firebase_uid = 'usr_' . \Illuminate\Support\Str::random(20);
         }
         $user->save();
+
+        // Send confirmation alert to customer's Telegram chat if previously connected
+        if (!empty($oldChatId)) {
+            try {
+                $alertText = "ℹ️ <b>គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ដោយជោគជ័យ!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "លោកអ្នកបានផ្តាច់គណនី Telegram នេះចេញពី Website S Tech Store រួចរាល់ហើយ។\n\n"
+                    . "👉 គណនី Telegram នេះឥឡូវនេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល។";
+
+                $kb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                \App\Services\TelegramService::sendMessageWithKeyboard($oldChatId, $alertText, $kb, 'HTML');
+            } catch (\Throwable $t) {}
+        }
 
         return response()->json([
             'success' => true,

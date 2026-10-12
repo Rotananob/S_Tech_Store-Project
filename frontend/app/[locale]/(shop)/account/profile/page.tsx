@@ -158,6 +158,7 @@ export default function UserProfilePage() {
   const [telegramPolling, setTelegramPolling] = useState(false);
   const [telegramSuccess, setTelegramSuccess] = useState(false);
   const [telegramUnlinking, setTelegramUnlinking] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
   // History Sub-Tabs & Activity Tracking (Orders, Viewed Products, Searches)
   const [historySubTab, setHistorySubTab] = useState<"orders" | "viewed" | "searches">("orders");
@@ -925,13 +926,18 @@ export default function UserProfilePage() {
     document.addEventListener("visibilitychange", onReturn);
   };
 
-  const handleUnlinkTelegram = async () => {
-    if (!confirm("តើអ្នកពិតជាចង់ផ្តាច់ការភ្ជាប់គណនី Telegram នេះមែនទេ? លោកអ្នកនឹងមិនទទួលបានវិក្កយបត្រអេឡិចត្រូនិច ឬដំណឹងបញ្ជាទិញក្នុងឆាត Telegram ទៀតឡើយ។")) {
-      return;
-    }
+  const handleUnlinkTelegram = () => {
+    setShowDisconnectModal(true);
+  };
+
+  const executeUnlinkTelegram = async () => {
+    setShowDisconnectModal(false);
     try {
       setTelegramUnlinking(true);
-      const res = await api.post("/user/telegram/unlink");
+      const res = await api.post("/user/telegram/unlink", {
+        telegram_chat_id: profile.telegram_chat_id,
+        telegram: profile.telegram,
+      });
       if (res.data?.success) {
         setProfile((prev) => ({
           ...prev,
@@ -2265,17 +2271,15 @@ export default function UserProfilePage() {
                         <ExternalLink size={12} />
                       </a>
 
-                      {!isTelegramAuthUser && (
-                        <button
-                          type="button"
-                          onClick={handleUnlinkTelegram}
-                          disabled={telegramUnlinking}
-                          className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all border border-red-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          {telegramUnlinking ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
-                          <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ការភ្ជាប់ (Unlink)"}</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={handleUnlinkTelegram}
+                        disabled={telegramUnlinking}
+                        className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-all border border-red-500/20 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {telegramUnlinking ? <RefreshCw size={13} className="animate-spin" /> : <X size={13} />}
+                        <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ការភ្ជាប់ (Unlink)"}</span>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -3832,6 +3836,65 @@ export default function UserProfilePage() {
               >
                 យល់ព្រម (OK)
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Telegram Disconnect Confirmation Modal ────────────────── */}
+      <AnimatePresence>
+        {showDisconnectModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-red-500/30 shadow-2xl text-center space-y-4"
+            >
+              <button
+                type="button"
+                onClick={() => setShowDisconnectModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-red-500 flex items-center justify-center mx-auto shadow-md">
+                <AlertTriangle size={32} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                  ផ្តាច់ការភ្ជាប់គណនី Telegram? ⚠️
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                  តើអ្នកពិតជាចង់ផ្តាច់ការភ្ជាប់ Telegram នេះមែនទេ? លោកអ្នកនឹងលែងទទួលបានវិក្កយបត្រអេឡិចត្រូនិច (E-Receipts) ឬដំណឹងបញ្ជាទិញចូល Telegram ទៀតហើយ។
+                </p>
+                {profile.telegram_chat_id && (
+                  <div className="mt-3 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 font-mono text-xs font-bold text-gray-700 dark:text-gray-300">
+                    ID: {profile.telegram_chat_id} {profile.telegram ? `(@${profile.telegram.replace('@', '')})` : ''}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDisconnectModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                >
+                  ទេ (បោះបង់)
+                </button>
+                <button
+                  type="button"
+                  onClick={executeUnlinkTelegram}
+                  disabled={telegramUnlinking}
+                  className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md shadow-red-600/30 border-none cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {telegramUnlinking ? <RefreshCw size={14} className="animate-spin" /> : null}
+                  <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "យល់ព្រមផ្តាច់"}</span>
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
