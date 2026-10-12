@@ -893,6 +893,14 @@ class TelegramService
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
             $handshake = Cache::get($handshakeKey);
+            if (!$handshake) {
+                try {
+                    $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', $handshakeKey)->first();
+                    if ($row && !empty($row->value)) {
+                        $handshake = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                    }
+                } catch (\Throwable $t) {}
+            }
 
             $tgId = (string)($from['id'] ?? $chatId);
             $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
@@ -917,24 +925,43 @@ class TelegramService
                 return;
             }
 
-            // 1. SAVE USER IN DATABASE & MARK HANDSHAKE COMPLETED IMMEDIATELY (ZERO DELAY FOR WEB POLLING)
-            $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
-            $user->display_name = $fullName;
-            if (empty($user->email)) $user->email = $email;
-            $user->telegram = $tgUsername ?: ("ID: {$tgId}");
-            $user->telegram_chat_id = $tgId;
-            $user->notif_telegram = true;
-            $user->is_active = true;
-            $user->status = 'active';
+            // 1. STRICT 1 TELEGRAM = 1 ACCOUNT RESOLUTION (PRESERVES EXISTING USER DATA JUST LIKE GOOGLE SIGN-IN)
+            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+                ->orWhere('firebase_uid', 'tg_' . $tgId)
+                ->first();
 
-            // Fetch genuine profile photo from Telegram Bot API
             $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
-            if (!empty($tgAvatar)) {
-                $user->photo_url = $tgAvatar;
-                $user->avatar = $tgAvatar;
-            }
 
-            $user->save();
+            if ($user) {
+                // Existing account found! Preserve real orders, points, and profile data
+                $user->telegram_chat_id = (string)$tgId;
+                if (empty($user->telegram)) {
+                    $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+                }
+                if (empty($user->photo_url) && !empty($tgAvatar)) {
+                    $user->photo_url = $tgAvatar;
+                    $user->avatar = $tgAvatar;
+                }
+                $user->is_active = true;
+                $user->status = 'active';
+                $user->save();
+            } else {
+                // Brand new user registration via Telegram
+                $user = new \App\Models\UserProfile();
+                $user->firebase_uid = 'tg_' . $tgId;
+                $user->display_name = $fullName;
+                $user->email = $email;
+                $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+                $user->telegram_chat_id = (string)$tgId;
+                $user->notif_telegram = true;
+                $user->is_active = true;
+                $user->status = 'active';
+                if (!empty($tgAvatar)) {
+                    $user->photo_url = $tgAvatar;
+                    $user->avatar = $tgAvatar;
+                }
+                $user->save();
+            }
 
             $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
             Cache::put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
@@ -962,13 +989,14 @@ class TelegramService
                     'telegram_id' => $tgId,
                     'telegram_chat_id' => $tgId,
                     'phone' => $phoneNumber,
+                    'points' => (int)($user->points ?? 0),
                     'photo_url' => $user->photo_url,
                     'avatar' => $user->photo_url,
                     'provider' => 'telegram',
                 ],
             ];
 
-            // Mark handshake complete immediately in cache and database for 0-delay sync
+            // Mark handshake complete immediately in cache and database for ZERO-DELAY web sync
             Cache::put($handshakeKey, $completedHandshake, 600);
             try {
                 \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
@@ -977,18 +1005,43 @@ class TelegramService
                 );
             } catch (\Throwable $t) {}
 
-            // 2. SEND INSTANT 100% VERIFIED RESPONSE (0ms DELAY)
-            $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
-            $verifiedMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ភ្ជាប់គណនីជោគជ័យ ១០០% (Verified & Active)!</b>\n"
+            // 2. LIVELY COUNTDOWN & ANIMATED PROGRESS BAR IN TELEGRAM BOT
+            $loadingMsg = "⚡ <b>កំពុងផ្ទៀងផ្ទាត់សុវត្ថិភាព Security Handshake (3s)...</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "👋 <b>ជម្រាបសួរ:</b> <b>" . htmlspecialchars($fullName) . "</b>\n\n"
-                . "📋 <b>ព័ត៌មានគណនី Telegram របស់អ្នក:</b>\n"
-                . "• 👤 <b>ឈ្មោះពិត (Full Name):</b> <b>" . htmlspecialchars($fullName) . "</b>\n"
+                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងតភ្ជាប់ជាមួយគេហទំព័រ S Tech Store...</b>\n"
+                . "• 👤 <b>ឈ្មោះ:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
+                . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n\n"
+                . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
+
+            $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
+            $msgId = $sentResp['result']['message_id'] ?? null;
+
+            if ($msgId) {
+                usleep(350000); // 0.35s lively tick
+                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងទាញយក Real Data (1s)...</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "🔄 <b>កំពុងធ្វើសមកាលកម្មទិន្នន័យ Orders, ពិន្ទុ & Auto-Sign In...</b>\n"
+                    . "• 👤 <b>ឈ្មោះ:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
+                    . "• 📦 <b>ទិន្នន័យ Profile:</b> <b>Synced ✅</b>\n\n"
+                    . "[ ▰▰▰▰▰▰▰▰▱▱ ] <b>85%</b>";
+                self::editMessageText($chatId, $msgId, $loadingMsg1, null, 'HTML', $activeToken);
+                usleep(350000); // 0.35s lively tick
+            }
+
+            // 3. EDIT TO FINAL 100% VERIFIED SUCCESS MESSAGE
+            $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+            $verifiedMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ចូលគណនីជោគជ័យ ១០០% (Verified & Active)!</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "👋 <b>ជម្រាបសួរ:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n\n"
+                . "📋 <b>ព័ត៌មានគណនីរបស់អ្នក:</b>\n"
+                . "• 👤 <b>ឈ្មោះពិត (Full Name):</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
                 . "• 🏷️ <b>Telegram Username:</b> " . htmlspecialchars($tgUsername ?: 'មិនមាន Username') . "\n"
                 . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
                 . "• 📱 <b>លេខទូរស័ព្ទ / Phone:</b> " . htmlspecialchars($phoneNumber) . "\n"
+                . "• 🪙 <b>ពិន្ទុ S-Coins:</b> <b>" . (int)($user->points ?? 0) . " Coins</b>\n"
                 . "• 🔐 <b>ស្ថានភាព (Status):</b> <b>✅ ចូលគណនីស្វ័យប្រវត្តិ (Auto-Sign In Active)</b>\n"
                 . "• ⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i:s') . "\n\n"
+                . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100%</b>\n\n"
                 . "🚀 <b>គណនីរបស់អ្នកត្រូវបាន Auto-Sign In នៅក្នុងគេហទំព័រ S Tech Store រួចរាល់ហើយ!</b>\n"
                 . "<i>លោកអ្នកមិនបាច់វាយលេខសម្ងាត់ ឬចុច Connect ម្តងទៀតឡើយ។</i>\n\n"
                 . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) ឬចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញភ្លាមៗ៖</b>";
@@ -1004,16 +1057,20 @@ class TelegramService
                 ],
             ];
 
-            self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
+            if ($msgId) {
+                self::editMessageText($chatId, $msgId, $verifiedMsg, $doneKb, 'HTML', $activeToken);
+            } else {
+                self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
+            }
 
             // 4. Send customer login alert (Non-blocking / executed after customer response)
             self::sendCustomerLoginAlert([
                 'method' => '👤 1-Click Telegram App Handshake (Login ស្វ័យប្រវត្តិ)',
                 'ip' => $handshake['ip'] ?? request()->ip() ?? '127.0.0.1',
                 'device' => 'Telegram Mobile/Desktop Client',
-                'user' => "{$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
+                'user' => "{$user->display_name} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
                 'action' => 'TELEGRAM_APP_HANDSHAKE_SUCCESS',
-                'details' => "អតិថិជនបាន Login តាមរយៈ 1-Click Telegram App Handshake ជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId}។",
+                'details' => "អតិថិជនបាន Login តាមរយៈ 1-Click Telegram App Handshake ជោគជ័យ! Name: {$user->display_name}, Telegram ID: {$tgId}។",
             ]);
             return;
         }
@@ -1023,6 +1080,14 @@ class TelegramService
             $cleanToken = strtolower(trim($extractedCode));
             $linkKey = "tg_link_{$cleanToken}";
             $linkData = Cache::get($linkKey);
+            if (!$linkData) {
+                try {
+                    $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', $linkKey)->first();
+                    if ($row && !empty($row->value)) {
+                        $linkData = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                    }
+                } catch (\Throwable $t) {}
+            }
 
             $tgId = (string)($from['id'] ?? $chatId);
             $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'Telegram Customer';
@@ -1058,44 +1123,103 @@ class TelegramService
                 return;
             }
 
-            // 1. UPDATE USER PROFILE & MARK CACHE COMPLETED IMMEDIATELY
+            // ── STRICT 1-TO-1 ACCOUNT CHECK: CHECK IF THIS TELEGRAM ID IS ALREADY LINKED TO ANOTHER ACCOUNT ──
+            $alreadyLinked = \App\Models\UserProfile::where(function($q) use ($tgId) {
+                    $q->where('telegram_chat_id', (string)$tgId)
+                      ->orWhere('firebase_uid', 'tg_' . $tgId);
+                })
+                ->where('id', '!=', $user->id)
+                ->first();
+
+            if ($alreadyLinked) {
+                $maskedEmail = !empty($alreadyLinked->email)
+                    ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
+                    : 'អ៊ីមែលសម្ងាត់';
+
+                $conflictPayload = [
+                    'status' => 'conflict',
+                    'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}' ({$maskedEmail})! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។",
+                    'already_linked_name' => $alreadyLinked->display_name,
+                    'already_linked_email' => $maskedEmail,
+                ];
+
+                Cache::put($linkKey, $conflictPayload, 600);
+                try {
+                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                        ['key' => $linkKey],
+                        ['value' => json_encode($conflictPayload), 'updated_at' => now()]
+                    );
+                } catch (\Throwable $t) {}
+
+                $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1-to-1 Account Rule៖</b>\n"
+                    . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
+                    . "• 👤 <b>ឈ្មោះគណនីចាស់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n"
+                    . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($maskedEmail) . "</code>\n\n"
+                    . "💡 <b>ដំណោះស្រាយ៖</b>\n"
+                    . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី Website ១ ប៉ុណ្ណោះ (1 Telegram = 1 Account)។\n"
+                    . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនីថ្មី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើ Website រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
+                    . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីថ្មីនេះបាន។</i>";
+
+                self::sendMessageWithKeyboard($chatId, $conflictMsg, [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ], 'HTML', null, $activeToken);
+                return;
+            }
+
+            // 1. UPDATE USER PROFILE & MARK CACHE/DB COMPLETED
             $user->telegram = $tgUsername ?: ("ID: {$tgId}");
-            $user->telegram_chat_id = $tgId;
+            $user->telegram_chat_id = (string)$tgId;
             $user->notif_telegram = true;
 
             // Fetch genuine profile photo from Telegram Bot API if user has no avatar or to update it
             $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
-            if (!empty($tgAvatar)) {
+            if (!empty($tgAvatar) && empty($user->photo_url)) {
                 $user->photo_url = $tgAvatar;
                 $user->avatar = $tgAvatar;
             }
 
             $user->save();
 
-            Cache::put($linkKey, [
+            $completedPayload = [
                 'status' => 'completed',
                 'user_id' => $user->id,
                 'telegram_id' => $tgId,
                 'telegram_username' => $tgUsername ?: $fullName,
                 'display_name' => $user->display_name,
                 'photo_url' => $user->photo_url,
-            ], 600);
+            ];
 
-            // 2. SEND INSTANT DEFAULT RESPONSE (ZERO DELAY)
-            $loadingMsg = "⚡ <b>កំពុងភ្ជាប់គណនី Telegram របស់អ្នកជាមួយ Profile...</b>\n"
+            Cache::put($linkKey, $completedPayload, 600);
+            try {
+                \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                    ['key' => $linkKey],
+                    ['value' => json_encode($completedPayload), 'updated_at' => now()]
+                );
+            } catch (\Throwable $t) {}
+
+            // 2. LIVELY COUNTDOWN & ANIMATED PROGRESS BAR IN TELEGRAM BOT
+            $loadingMsg = "⚡ <b>កំពុងដំណើរការ Security Handshake (3s)...</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការ Security Handshake (3s)...</b>\n"
+                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងភ្ជាប់គណនី Telegram ជាមួយ Profile...</b>\n"
                 . "<i>• ឈ្មោះគណនីហាង: <b>" . htmlspecialchars($user->display_name) . "</b></i>\n"
-                . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>";
-            
+                . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>\n\n"
+                . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
+
             $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
             $msgId = $sentResp['result']['message_id'] ?? null;
 
             if ($msgId) {
                 usleep(350000); // Snappy 0.35s
-                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងធ្វើសមកាលកម្ម Private Invoices (1s)...</b>\n"
+                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងធ្វើសមកាលកម្ម E-Invoices (1s)...</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔄 <b>កំពុងបើកដំណើរការ E-Invoice & Order Alert Bot ផ្ទាល់ខ្លួន...</b>";
+                    . "🔄 <b>កំពុងបើកដំណើរការ Private Invoices & Order Alert Bot ផ្ទាល់ខ្លួន...</b>\n"
+                    . "<i>• ឈ្មោះគណនី: <b>" . htmlspecialchars($user->display_name) . "</b></i>\n\n"
+                    . "[ ▰▰▰▰▰▰▰▰▱▱ ] <b>85%</b>";
                 self::editMessageText($chatId, $msgId, $loadingMsg1, null, 'HTML', $activeToken);
                 usleep(350000); // Snappy 0.35s
             }
@@ -1113,6 +1237,7 @@ class TelegramService
                 . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
                 . "• 📱 <b>លេខទូរស័ព្ទ / Phone:</b> " . htmlspecialchars($phoneNumber) . "\n"
                 . "• 🔐 <b>ស្ថានភាព (Status):</b> <b>✅ ភ្ជាប់ជាមួយ Profile រួចរាល់</b>\n\n"
+                . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100%</b>\n\n"
                 . "🔒 <b>អត្ថប្រយោជន៍គណនី Private របស់អ្នក៖</b>\n"
                 . "  🧾 <b>វិក្កយបត្រ (Invoices/Receipts):</b> ផ្ញើចូលឆាតនេះស្វ័យប្រវត្តរាល់ពេលទូទាត់ប្រាក់\n"
                 . "  📦 <b>តាមដាន Order:</b> ដំណឹងទំនិញចេញដឹក (PassApp / Courier) ផ្ទាល់ខ្លួន\n"

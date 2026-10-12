@@ -470,7 +470,7 @@ export default function RegisterPage() {
           // Snappy entry transition directly to intended destination
           navigateToDestination(200);
           return true;
-        } else if (checkRes.data?.status === "expired" || checkRes.data?.status === "rejected") {
+        } else if (checkRes.data?.status === "expired" || checkRes.data?.status === "rejected" || checkRes.data?.status === "conflict") {
           isPollingCompletedRef.current = true;
           if (telegramPollIntervalRef.current) {
             clearInterval(telegramPollIntervalRef.current);
@@ -478,7 +478,8 @@ export default function RegisterPage() {
           }
           localStorage.removeItem("stech_pending_tg_handshake");
           sessionStorage.removeItem("stech_pending_tg_handshake");
-          setError("ការផ្ទៀងផ្ទាត់ Telegram បានផុតកំណត់ ឬមិនត្រឹមត្រូវ។ សូមព្យាយាមម្តងទៀត។");
+          const errMsg = checkRes.data?.error || "ការផ្ទៀងផ្ទាត់ Telegram ត្រូវបានបដិសេធ ឬផុតកំណត់។";
+          setError(errMsg);
           setAuthOverlay({ show: false, title: "", subtitle: "" });
           return false;
         }

@@ -430,6 +430,20 @@ class UserController extends Controller
             $validated['display_name'] = $validated['username'];
         }
 
+        // 1-to-1 Telegram uniqueness guard: prevent assigning a Telegram ID that is already bound to another account
+        if (!empty($validated['telegram_chat_id'])) {
+            $conflict = UserProfile::where(function($q) use ($validated) {
+                    $q->where('telegram_chat_id', (string)$validated['telegram_chat_id'])
+                      ->orWhere('firebase_uid', 'tg_' . $validated['telegram_chat_id']);
+                })
+                ->where('firebase_uid', '!=', $uid)
+                ->first();
+            if ($conflict) {
+                unset($validated['telegram_chat_id']);
+                unset($validated['telegram']);
+            }
+        }
+
         $profile = UserProfile::firstOrCreate(['firebase_uid' => $uid]);
         $profile->update($validated);
 

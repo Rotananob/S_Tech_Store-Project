@@ -36,6 +36,22 @@ export function getEffectiveUser(): EffectiveUser | null {
     const tg = (window as any).Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
     if (tgUser && tgUser.id) {
+      // If we already have an enriched session synced from the backend for this telegram account, use it!
+      const stored = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const parsedTgId = String(parsed.telegram_id || parsed.telegram_chat_id || (parsed.firebase_uid?.startsWith("tg_") ? parsed.firebase_uid.slice(3) : ""));
+          if (parsedTgId === String(tgUser.id)) {
+            return {
+              ...parsed,
+              isTelegram: true,
+              provider: "telegram",
+            };
+          }
+        } catch (e) {}
+      }
+
       const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ")
         || tgUser.username
         || `Telegram User #${tgUser.id}`;

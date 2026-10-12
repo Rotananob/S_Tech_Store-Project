@@ -637,6 +637,18 @@ export default function UserProfilePage() {
             setTelegramSuccess(false);
           }, 1500);
           return true;
+        } else if (res.data?.status === "conflict" || res.data?.status === "rejected") {
+          cleanup();
+          setTelegramPolling(false);
+          setTelegramModalOpen(false);
+          const errMsg = res.data?.error || `គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី "${res.data?.already_linked_name || "ផ្សេង"}"! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។`;
+          setSaveModal({
+            show: true,
+            success: false,
+            title: "គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ ⚠️",
+            message: errMsg,
+          });
+          return false;
         }
       } catch (e) {}
       return false;
@@ -671,19 +683,38 @@ export default function UserProfilePage() {
     }
     try {
       setTelegramUnlinking(true);
-      await api.post("/user/telegram/unlink");
-      setProfile((prev) => ({
-        ...prev,
-        telegram: "",
-        telegram_chat_id: undefined,
-        notif_telegram: false,
-      }));
-      setSaveModal({
-        show: true,
-        success: true,
-        title: "ផ្តាច់ការភ្ជាប់ជោគជ័យ ✅",
-        message: "គណនី Telegram ត្រូវបានផ្តាច់ចេញពីគណនីរបស់អ្នកដោយជោគជ័យ។",
-      });
+      const res = await api.post("/user/telegram/unlink");
+      if (res.data?.success) {
+        setProfile((prev) => ({
+          ...prev,
+          telegram: "",
+          telegram_chat_id: undefined,
+          notif_telegram: false,
+        }));
+
+        // Clean up locally stored session
+        if (typeof window !== "undefined") {
+          try {
+            const sess = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+            if (sess) {
+              const p = JSON.parse(sess);
+              delete p.telegram;
+              delete p.telegram_chat_id;
+              delete p.telegram_id;
+              localStorage.setItem("stech_user_session", JSON.stringify(p));
+              localStorage.setItem("user_session", JSON.stringify(p));
+              window.dispatchEvent(new Event("user_session_updated"));
+            }
+          } catch (err) {}
+        }
+
+        setSaveModal({
+          show: true,
+          success: true,
+          title: "ផ្តាច់ការភ្ជាប់ជោគជ័យ ✅",
+          message: "គណនី Telegram ត្រូវបានផ្តាច់ចេញពីគណនីរបស់អ្នករួចរាល់។ ឥឡូវនេះគណនី Telegram នេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនីផ្សេងបាន។",
+        });
+      }
     } catch (e: any) {
       alert("មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
     } finally {

@@ -303,7 +303,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         ], 410);
     }
 
-    // 2. Find or Create User Profile in Neon DB
+    // 2. Find or Create User Profile in Neon DB (Preserves existing account data just like Google Sign-In)
     $tgId = (string)$data['id'];
     $firebaseUid = 'tg_' . $tgId;
     $fullName = trim($data['first_name'] . ' ' . ($data['last_name'] ?? ''));
@@ -312,13 +312,25 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         ? ($data['username'] . '@telegram.s-tech-store.tech')
         : ("tg_{$tgId}@s-tech-store.tech");
 
-    $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => $firebaseUid]);
-    $user->display_name = $fullName ?: ("Telegram User #{$tgId}");
+    $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
+        ->orWhere('firebase_uid', $firebaseUid)
+        ->first();
+
+    if (!$user) {
+        $user = new \App\Models\UserProfile();
+        $user->firebase_uid = $firebaseUid;
+        $user->email = $email;
+    }
+
+    $user->display_name = $user->display_name ?: ($fullName ?: "Telegram User #{$tgId}");
     if (empty($user->email)) {
         $user->email = $email;
     }
-    $user->telegram = $tgUsername;
-    if (!empty($data['photo_url'])) {
+    $user->telegram_chat_id = $tgId;
+    if (empty($user->telegram)) {
+        $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+    }
+    if (!empty($data['photo_url']) && empty($user->photo_url)) {
         $user->photo_url = $data['photo_url'];
         $user->avatar_url = $data['photo_url'];
     }
@@ -428,6 +440,17 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
         ]);
     }
 
+    if ($status === 'conflict' || $status === 'rejected') {
+        return response()->json([
+            'success' => false,
+            'completed' => false,
+            'status' => 'conflict',
+            'error' => $data['error'] ?? 'គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីផ្សេង!',
+            'already_linked_name' => $data['already_linked_name'] ?? null,
+            'already_linked_email' => $data['already_linked_email'] ?? null,
+        ]);
+    }
+
     return response()->json([
         'success' => true,
         'completed' => false,
@@ -466,12 +489,20 @@ Route::post('/user/telegram/link-init', function (Request $request) {
     }
 
     $linkToken = 'tglink_' . strtolower(\Illuminate\Support\Str::random(24));
-    \Illuminate\Support\Facades\Cache::put("tg_link_{$linkToken}", [
+    $linkPayload = [
         'user_id' => $user->id,
         'firebase_uid' => $user->firebase_uid,
         'status' => 'pending',
         'created_at' => time(),
-    ], 600); // 10 minutes
+    ];
+
+    \Illuminate\Support\Facades\Cache::put("tg_link_{$linkToken}", $linkPayload, 600); // 10 minutes
+    try {
+        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+            ['key' => "tg_link_{$linkToken}"],
+            ['value' => json_encode($linkPayload), 'updated_at' => now()]
+        );
+    } catch (\Throwable $t) {}
 
     $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
     $deepLink = "https://t.me/{$botUsername}?start={$linkToken}";
@@ -493,17 +524,41 @@ Route::get('/user/telegram/link-check', function (Request $request) {
     }
 
     $data = \Illuminate\Support\Facades\Cache::get("tg_link_{$token}");
+    if (!$data) {
+        try {
+            $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_link_{$token}")->first();
+            if ($row && !empty($row->value)) {
+                $data = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        } catch (\Throwable $t) {}
+    }
+
     if (!$data || !is_array($data)) {
         return response()->json(['success' => false, 'error' => 'Link session expired or invalid'], 404);
     }
 
-    if (($data['status'] ?? '') === 'completed') {
+    $status = $data['status'] ?? 'pending';
+
+    if ($status === 'completed') {
         return response()->json([
             'success' => true,
             'completed' => true,
+            'status' => 'completed',
             'telegram' => $data['telegram_username'] ?? null,
             'telegram_id' => $data['telegram_id'] ?? null,
             'display_name' => $data['display_name'] ?? null,
+            'photo_url' => $data['photo_url'] ?? null,
+        ]);
+    }
+
+    if ($status === 'conflict' || $status === 'rejected') {
+        return response()->json([
+            'success' => false,
+            'completed' => false,
+            'status' => 'conflict',
+            'error' => $data['error'] ?? 'គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីផ្សេង!',
+            'already_linked_name' => $data['already_linked_name'] ?? null,
+            'already_linked_email' => $data['already_linked_email'] ?? null,
         ]);
     }
 
@@ -535,11 +590,17 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         $user->telegram = null;
         $user->telegram_chat_id = null;
         $user->notif_telegram = false;
+
+        // If the account was initially created directly via Telegram (firebase_uid starts with tg_),
+        // detach it so that this Telegram ID is 100% free and unbound for future linking!
+        if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
+            $user->firebase_uid = 'usr_' . \Illuminate\Support\Str::random(20);
+        }
         $user->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Telegram companion unlinked successfully',
+            'message' => 'Telegram companion unlinked successfully. This Telegram account is now completely free to be connected to any account.',
         ]);
     }
 
@@ -605,21 +666,29 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
         : ("tg_{$tgId}@s-tech-store.tech");
 
-    $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
-    if ($user->exists && !($user->is_active ?? true)) {
+    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+        ->orWhere('firebase_uid', 'tg_' . $tgId)
+        ->first();
+
+    if ($user && !($user->is_active ?? true)) {
         return response()->json([
             'success' => false,
             'error' => 'គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account has been disabled)។ សូមទាក់ទងមកកាន់ Admin តាមរយៈ Live Chat ឬទូរស័ព្ទ។'
         ], 403);
     }
-    $user->telegram_chat_id = $tgId;
-    if (!$user->exists) {
+
+    if (!$user) {
+        $user = new \App\Models\UserProfile();
+        $user->firebase_uid = 'tg_' . $tgId;
+        $user->email = $email;
         $user->is_active = true;
         $user->status = 'active';
     }
-    $user->display_name = $fullName;
+
+    $user->telegram_chat_id = (string)$tgId;
+    $user->display_name = $user->display_name ?: $fullName;
     if (empty($user->email)) $user->email = $email;
-    $user->telegram = $tgUsername;
+    if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$tgId}");
     if (!empty($tgUser['photo_url'])) {
         $user->photo_url = $tgUser['photo_url'];
         $user->avatar_url = $tgUser['photo_url'];
