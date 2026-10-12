@@ -1,14 +1,13 @@
 import { create } from "zustand";
 import api from "@/lib/api";
-import { getAuth } from "firebase/auth";
+import { getEffectiveUser } from "@/lib/auth-user";
 
 export interface WishlistItem {
   id: number;
   name: string;
   price: number;
-  image?: string;
-  slug?: string;
-  added_at?: string;
+  image: string;
+  slug: string;
 }
 
 interface WishlistStore {
@@ -30,8 +29,8 @@ export const useWishlistStore = create<WishlistStore>()(
     fetchWishlist: async () => {
       try {
         set({ loading: true });
-        const auth = getAuth();
-        if (!auth.currentUser) {
+        const user = getEffectiveUser();
+        if (!user) {
           set({ items: [], loading: false });
           return;
         }
@@ -44,10 +43,10 @@ export const useWishlistStore = create<WishlistStore>()(
 
     addItem: async (item) => {
       try {
-        const auth = getAuth();
-        if (!auth.currentUser) {
+        const user = getEffectiveUser();
+        if (!user) {
           if (typeof window !== "undefined") {
-            window.location.href = "/login";
+            window.location.href = "/login?redirect=" + encodeURIComponent(window.location.pathname);
           }
           return false;
         }
@@ -65,8 +64,8 @@ export const useWishlistStore = create<WishlistStore>()(
 
     removeItem: async (id) => {
       try {
-        const auth = getAuth();
-        if (!auth.currentUser) {
+        const user = getEffectiveUser();
+        if (!user) {
           if (typeof window !== "undefined") {
             window.location.href = "/login";
           }

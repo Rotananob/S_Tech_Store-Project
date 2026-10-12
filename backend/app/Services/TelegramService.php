@@ -809,6 +809,47 @@ class TelegramService
             return;
         }
 
+        // 3.1 Handle Contact Sharing (Direct Customer Phone Number capture)
+        if (!empty($message['contact'])) {
+            $contact = $message['contact'];
+            $phoneNumber = trim($contact['phone_number'] ?? '');
+            if ($phoneNumber) {
+                if (!str_starts_with($phoneNumber, '+') && is_numeric($phoneNumber)) {
+                    $phoneNumber = '+' . $phoneNumber;
+                }
+                $contactUserId = (string)($contact['user_id'] ?? $from['id'] ?? $chatId);
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $contactUserId)
+                    ->orWhere('telegram_chat_id', $contactUserId)
+                    ->first();
+                if ($user) {
+                    $user->phone = $phoneNumber;
+                    $user->save();
+                }
+
+                $respMsg = "📱 <b>ទទួលបានលេខទូរស័ព្ទជោគជ័យ!</b>\n\n"
+                    . "• 👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
+                    . "• 📞 <b>លេខទូរស័ព្ទ:</b> <code>" . htmlspecialchars($phoneNumber) . "</code>\n\n"
+                    . "✅ ព័ត៌មាននេះត្រូវបានភ្ជាប់ជាមួយគណនីរបស់អ្នករួចរាល់ សម្រាប់បំពេញស្វ័យប្រវត្តិនាពេល Checkout និងទទួលទំនិញដឹកជញ្ជូន។\n\n"
+                    . "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញបន្ត៖";
+
+                $directUrl = "https://www.s-tech-store.tech";
+                $sessionToken = $user ? self::generateCustomerSessionToken((string)$contactUserId, $fromName) : null;
+                if ($sessionToken) {
+                    $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+                }
+
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ បើកទិញក្នុង Mini App ភ្លាមៗ', 'web_app' => ['url' => $directUrl]]],
+                        [['text' => '🌐 ចូល Website ហាង', 'url' => $directUrl]],
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $respMsg, $replyMarkup, 'HTML', null, $activeToken);
+                return;
+            }
+        }
+
         // Check if bot was added as new chat member in group
         if (!empty($message['new_chat_members'])) {
             foreach ($message['new_chat_members'] as $newMember) {
@@ -933,28 +974,7 @@ class TelegramService
                 );
             } catch (\Throwable $t) {}
 
-            // 2. SEND INSTANT DEFAULT RESPONSE TO TELEGRAM (ZERO DELAY)
-            $loadingMsg = "⚡ <b>កំពុងផ្ទៀងផ្ទាត់ និងភ្ជាប់គណនីរបស់អ្នកជាមួយ S Tech Store...</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់សុវត្ថិភាព (3s)...</b>\n"
-                . "<i>• ឈ្មោះ: <b>" . htmlspecialchars($fullName) . "</b></i>\n"
-                . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>";
-            
-            $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
-            $msgId = $sentResp['result']['message_id'] ?? null;
-
-            if ($msgId) {
-                usleep(350000); // Snappy 0.35s
-                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងបង្កើត Session ចូលវេបសាយស្វ័យប្រវត្តិ (1s)...</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔄 <b>កំពុងបញ្ចប់ការផ្ទៀងផ្ទាត់ និងដំណើរការទិន្នន័យ...</b>\n"
-                    . "<i>• ឈ្មោះ: <b>" . htmlspecialchars($fullName) . "</b></i>\n"
-                    . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>";
-                self::editMessageText($chatId, $msgId, $loadingMsg1, null, 'HTML', $activeToken);
-                usleep(350000); // Snappy 0.35s
-            }
-
-            // 3. EDIT MESSAGE TO 100% VERIFIED
+            // 2. SEND INSTANT 100% VERIFIED RESPONSE (0ms DELAY)
             $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
             $verifiedMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ភ្ជាប់គណនីជោគជ័យ ១០០% (Verified & Active)!</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -981,11 +1001,7 @@ class TelegramService
                 ],
             ];
 
-            if ($msgId) {
-                self::editMessageText($chatId, $msgId, $verifiedMsg, $doneKb, 'HTML', $activeToken);
-            } else {
-                self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
-            }
+            self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
 
             // 4. Send customer login alert (Non-blocking / executed after customer response)
             self::sendCustomerLoginAlert([

@@ -551,9 +551,11 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             $user->avatar_url = $realPhoto;
         }
     }
-    $user->is_active = true;
-    $user->status = 'active';
-    $user->save();
+    if (!empty($tgUser['phone_number'])) {
+        $user->phone = $tgUser['phone_number'];
+    } elseif ($request->filled('phone')) {
+        $user->phone = trim($request->input('phone'));
+    }
 
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
@@ -575,6 +577,7 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             'name' => $user->display_name,
             'display_name' => $user->display_name,
             'email' => $user->email,
+            'phone' => $user->phone,
             'telegram' => $user->telegram,
             'telegram_id' => $tgId,
             'photo_url' => $user->photo_url,
@@ -582,6 +585,42 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             'provider' => 'telegram',
         ],
     ]);
+});
+
+// Telegram Mini App Phone Sync (Real phone attachment)
+Route::post('/auth/telegram/sync-phone', function (Request $request) {
+    $phone = trim((string)$request->input('phone'));
+    if (!$phone) {
+        return response()->json(['success' => false, 'error' => 'Phone number is required'], 400);
+    }
+
+    $uid = $request->header('X-Firebase-UID');
+    $token = $request->header('X-Customer-Token');
+    $tgId = $request->input('telegram_id');
+
+    $user = null;
+    if ($uid) {
+        $user = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+    }
+    if (!$user && $tgId) {
+        $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $tgId)
+            ->orWhere('telegram_chat_id', (string)$tgId)
+            ->first();
+    }
+    if (!$user && $token) {
+        $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+        if ($userId) {
+            $user = \App\Models\UserProfile::find($userId);
+        }
+    }
+
+    if ($user) {
+        $user->phone = $phone;
+        $user->save();
+        return response()->json(['success' => true, 'phone' => $phone]);
+    }
+
+    return response()->json(['success' => false, 'error' => 'User not found'], 404);
 });
 
 // Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)

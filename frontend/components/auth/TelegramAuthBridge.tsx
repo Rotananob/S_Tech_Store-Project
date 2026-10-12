@@ -80,33 +80,46 @@ export default function TelegramAuthBridge() {
       } catch (e) {}
 
       const tgUser = tg.initDataUnsafe?.user;
-      const existingSession = localStorage.getItem("user_session") || localStorage.getItem("stech_user_session");
 
-      if (tgUser && !existingSession) {
+      if (tgUser && tgUser.id) {
         const displayName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") 
           || tgUser.username 
           || `Telegram User #${tgUser.id}`;
 
+        const existingRaw = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        let existing = null;
+        try {
+          if (existingRaw) existing = JSON.parse(existingRaw);
+        } catch (e) {}
+
         const sessionPayload = {
+          ...existing,
           id: `tg_${tgUser.id}`,
           uid: `tg_${tgUser.id}`,
           firebase_uid: `tg_${tgUser.id}`,
           telegram_id: tgUser.id,
           name: displayName,
           display_name: displayName,
-          username: tgUser.username ? `@${tgUser.username}` : null,
-          telegram: tgUser.username ? `@${tgUser.username}` : null,
-          photo_url: tgUser.photo_url || null,
-          avatar: tgUser.photo_url || null,
+          username: tgUser.username ? `@${tgUser.username}` : (existing?.username || null),
+          telegram: tgUser.username ? `@${tgUser.username}` : (existing?.telegram || null),
+          photo_url: tgUser.photo_url || existing?.photo_url || null,
+          avatar: tgUser.photo_url || existing?.avatar || null,
+          phone: existing?.phone || null,
           provider: "telegram",
         };
 
-        const clientToken = `tg_miniapp_${tgUser.id}_${Date.now()}`;
+        const clientToken = localStorage.getItem("customer_token") || `tg_miniapp_${tgUser.id}_${Date.now()}`;
         localStorage.setItem("user_session", JSON.stringify(sessionPayload));
         localStorage.setItem("stech_user_session", JSON.stringify(sessionPayload));
         localStorage.setItem("customer_token", clientToken);
         document.cookie = `customer_token=${clientToken}; path=/; max-age=2592000; SameSite=Lax`;
         window.dispatchEvent(new Event("user_session_updated"));
+
+        // If user landed on login or register while inside Telegram Mini App, auto-navigate to home or checkout!
+        if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
+          const redirectTarget = new URLSearchParams(window.location.search).get("redirect") || "/";
+          window.location.href = redirectTarget;
+        }
 
         // Sync with backend asynchronously
         api.post("/auth/telegram/miniapp-sync", {
@@ -114,9 +127,17 @@ export default function TelegramAuthBridge() {
           init_data: tg.initData,
         })
           .then((res) => {
-            if (res.data?.success && res.data?.token) {
-              localStorage.setItem("customer_token", res.data.token);
-              document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+            if (res.data?.success) {
+              if (res.data?.token) {
+                localStorage.setItem("customer_token", res.data.token);
+                document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+              }
+              if (res.data?.user) {
+                const updatedObj = { ...sessionPayload, ...res.data.user };
+                localStorage.setItem("user_session", JSON.stringify(updatedObj));
+                localStorage.setItem("stech_user_session", JSON.stringify(updatedObj));
+                window.dispatchEvent(new Event("user_session_updated"));
+              }
             }
           })
           .catch(() => {});

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { getEffectiveUser } from "@/lib/auth-user";
 import api from "@/lib/api";
 import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
 
@@ -203,30 +204,43 @@ export default function CheckoutPage() {
   // Auto pre-fill from user authentication & cloud profile
   useEffect(() => {
     fetchCart();
-    const unsub = onAuthStateChanged(auth, (user) => {
-      const sessionStr = typeof window !== "undefined" ? localStorage.getItem("stech_user_session") : null;
-      if (!user && !sessionStr) {
-        router.push("/login?redirect=/checkout");
-      } else {
-        const u = user || (sessionStr ? JSON.parse(sessionStr) : null);
-        const uName = u?.displayName || u?.display_name || u?.name || "";
-        if (uName) {
-          setName(uName);
-          setCardHolder(uName.toUpperCase());
-        }
-        api.get("/user/profile").then((res) => {
-          if (res.data?.profile) {
-            const p = res.data.profile;
-            if (p.display_name) setName(p.display_name);
-            if (p.phone) setPhone(p.phone);
-            if (p.address) setAddress(p.address);
-            if (p.delivery_notes) setDeliveryNote(p.delivery_notes);
-            setProfileAutoFilled(true);
-          }
-        }).catch(() => {});
+
+    const loadCloudProfile = (fallbackUser?: any) => {
+      const uName = fallbackUser?.displayName || fallbackUser?.display_name || fallbackUser?.name || "";
+      if (uName) {
+        setName(uName);
+        setCardHolder(uName.toUpperCase());
       }
-    });
-    return () => unsub();
+      if (fallbackUser?.phone) {
+        setPhone(fallbackUser.phone);
+      }
+
+      api.get("/user/profile").then((res) => {
+        if (res.data?.profile) {
+          const p = res.data.profile;
+          if (p.display_name) setName(p.display_name);
+          if (p.phone) setPhone(p.phone);
+          if (p.address) setAddress(p.address);
+          if (p.delivery_notes) setDeliveryNote(p.delivery_notes);
+          setProfileAutoFilled(true);
+        }
+      }).catch(() => {});
+    };
+
+    const effective = getEffectiveUser();
+    if (effective) {
+      loadCloudProfile(effective);
+    } else {
+      const unsub = onAuthStateChanged(auth, (user) => {
+        const u = user || getEffectiveUser();
+        if (!u) {
+          router.push("/login?redirect=/checkout");
+        } else {
+          loadCloudProfile(u);
+        }
+      });
+      return () => unsub();
+    }
   }, [fetchCart, router]);
 
   // Clean up polling & timers on unmount
@@ -296,7 +310,7 @@ export default function CheckoutPage() {
 
   // ─── Initiate Order Placement ────────────────────────────────────────────────
   const handlePlaceOrderClick = async () => {
-    const hasAuth = auth.currentUser || (typeof window !== "undefined" && localStorage.getItem("stech_user_session"));
+    const hasAuth = Boolean(getEffectiveUser());
     if (!hasAuth) {
       router.push("/login?redirect=/checkout");
       return;
@@ -852,9 +866,32 @@ export default function CheckoutPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                      លេខទូរស័ព្ទ (Phone Number) *
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
+                        លេខទូរស័ព្ទ (Phone Number) *
+                      </label>
+                      {typeof window !== "undefined" && (window as any).Telegram?.WebApp?.requestContact && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const tg = (window as any).Telegram?.WebApp;
+                            if (tg?.requestContact) {
+                              tg.requestContact((ok: boolean, res: any) => {
+                                if (ok && (res?.contact?.phone_number || res?.phone_number)) {
+                                  const num = res?.contact?.phone_number || res?.phone_number;
+                                  setPhone(num);
+                                  api.post("/auth/telegram/sync-phone", { phone: num }).catch(() => {});
+                                }
+                              });
+                            }
+                          }}
+                          className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md"
+                        >
+                          <Smartphone size={11} />
+                          <span>យកពី Telegram</span>
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input

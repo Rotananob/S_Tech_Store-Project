@@ -11,6 +11,7 @@ import { useWishlistStore } from "@/store/wishlistStore";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
 import { auth } from "@/lib/firebase";
+import { getEffectiveUser } from "@/lib/auth-user";
 
 import { motion } from "framer-motion";
 import { triggerFlyToCart } from "@/lib/flyToCart";
@@ -55,8 +56,8 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!auth.currentUser) {
-      router.push("/login");
+    if (!getEffectiveUser()) {
+      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
       return;
     }
     // Trigger parabolic fly-to-cart animation!

@@ -35,6 +35,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useTranslations } from "next-intl";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { getEffectiveUser } from "@/lib/auth-user";
 import api from "@/lib/api";
 
 // ─── Luxury High-Tech Motion Variants (Apple Keynote & Studio Product Drop) ──
@@ -404,8 +405,8 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
   const handleAddToCart = (e: React.MouseEvent, product: any, promoPrice: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!auth.currentUser) {
-      router.push("/login");
+    if (!getEffectiveUser()) {
+      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
       return;
     }
     addItem({
@@ -860,8 +861,8 @@ export function ProductCard({ product }: { product: any }) {
     e.stopPropagation();
 
     // Check if user is logged in
-    if (!auth.currentUser) {
-      router.push("/login");
+    if (!getEffectiveUser()) {
+      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
       return;
     }
     

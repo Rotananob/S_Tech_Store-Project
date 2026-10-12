@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "@/lib/api";
+import { getEffectiveUser } from "@/lib/auth-user";
 
 export interface NotificationItem {
   id: number;
@@ -36,8 +37,8 @@ export const useNotificationStore = create<NotificationState>()(
     fetchNotifications: async () => {
       try {
         set({ loading: true });
-        const auth = (await import("firebase/auth")).getAuth();
-        if (!auth.currentUser) {
+        const user = getEffectiveUser();
+        if (!user) {
           set({ notifications: [], loading: false });
           return;
         }

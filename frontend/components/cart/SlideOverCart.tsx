@@ -9,6 +9,7 @@ import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { Link, useRouter } from "@/i18n/routing";
 import { auth } from "@/lib/firebase";
+import { getEffectiveUser } from "@/lib/auth-user";
 
 export default function SlideOverCart() {
   const router = useRouter();
@@ -137,7 +138,7 @@ export default function SlideOverCart() {
                     onClick={(e) => {
                       e.preventDefault();
                       setIsOpen(false);
-                      if (!auth.currentUser) {
+                      if (!getEffectiveUser()) {
                         router.push("/login?redirect=/checkout");
                         return;
                       }

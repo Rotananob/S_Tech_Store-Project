@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { getAuth } from 'firebase/auth';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart as clearCartService } from '@/lib/services/cart.service';
+import { getEffectiveUser } from '@/lib/auth-user';
 
 export interface CartItem {
   id: number;
@@ -33,8 +33,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
   fetchCart: async () => {
     try {
       set({ loading: true });
-      const auth = getAuth();
-      if (!auth.currentUser) {
+      const user = getEffectiveUser();
+      if (!user) {
         set({ items: [], loading: false });
         return;
       }
@@ -68,10 +68,10 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 
   addItem: async (item) => {
-    const auth = getAuth();
-    if (!auth.currentUser) {
+    const user = getEffectiveUser();
+    if (!user) {
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
       }
       return false;
     }
@@ -101,7 +101,6 @@ export const useCartStore = create<CartState>()((set, get) => ({
         price: item.price || 0,
         quantity: qtyToAdd,
         image_url: item.image_url,
-        product: (item as any).product ?? null,
       };
       set({ items: [...prevItems, tempItem] });
     }
@@ -127,8 +126,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 
   removeItem: async (id) => {
-    const auth = getAuth();
-    if (!auth.currentUser) {
+    const user = getEffectiveUser();
+    if (!user) {
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -150,8 +149,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
   },
 
   updateQuantity: async (id, quantity) => {
-    const auth = getAuth();
-    if (!auth.currentUser) return;
+    const user = getEffectiveUser();
+    if (!user) return;
 
     const prevItems = get().items;
     // Optimistic update quantity
@@ -171,8 +170,8 @@ export const useCartStore = create<CartState>()((set, get) => ({
 
   clearCart: async () => {
     try {
-      const auth = getAuth();
-      if (auth.currentUser) {
+      const user = getEffectiveUser();
+      if (user) {
         await clearCartService();
       }
       set({ items: [] });
