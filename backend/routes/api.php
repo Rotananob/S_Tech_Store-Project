@@ -899,6 +899,7 @@ Route::post('/auth/check-register-limit', function (Request $request) {
 
 // Real-time Active Promotion Popup & Banner (Public)
 Route::get('/promotions/active-popup', [\App\Http\Controllers\PromoCodeController::class, 'activePopup']);
+Route::get('/promotions/hero-banners', [\App\Http\Controllers\PromoCodeController::class, 'heroBanners']);
 Route::post('/promo-codes/validate', [\App\Http\Controllers\PromoCodeController::class, 'validatePromo']);
 
 // Real Payment Gateways (Bakong KHQR, ABA PayWay, Deeplinks, Visa/Mastercard)
@@ -1006,6 +1007,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     // Promotions & Promo Codes
     Route::get('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'index']);
     Route::post('/promo-codes', [\App\Http\Controllers\PromoCodeController::class, 'store']);
+    Route::post('/promo-codes/upload-image', [\App\Http\Controllers\PromoCodeController::class, 'uploadImage']);
     Route::put('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'update']);
     Route::delete('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
 

@@ -130,7 +130,9 @@ export default function TelegramBotCard() {
     setSettingUpTopics(true);
     try {
       const res = await setupTelegramTopics();
-      if (res.success) {
+      if ((res as any).already_exists) {
+        showToast("✓ Forum Topics ត្រូវបានរៀបចំរួចរាល់ហើយ ដំណើរការល្អ!");
+      } else if (res.success) {
         showToast("✓ Forum Topics ត្រូវបានបង្កើត និងរៀបចំជោគជ័យ!");
         fetchStatus();
       } else {

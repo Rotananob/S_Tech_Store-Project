@@ -11,16 +11,19 @@ class TelegramController extends Controller
     /**
      * Get current Telegram connection status
      */
-    public function status()
+    public function status(Request $request)
     {
         $settings = TelegramService::getSettings();
 
-        // If not connected or pending tokens exist, quick-poll updates with 0 timeout to catch newly added bot
-        if (empty($settings['connected']) || !empty($settings['pending_tokens'])) {
-            try {
-                TelegramService::pollPendingUpdates(0);
-                $settings = TelegramService::getSettings();
-            } catch (\Throwable $e) {}
+        // Only quick-poll updates if explicitly requested via ?check_now=1 with cooldown
+        if ($request->boolean('check_now') && (empty($settings['connected']) || !empty($settings['pending_tokens']))) {
+            $cacheKey = 'tg_poll_status_cooldown';
+            if (\Illuminate\Support\Facades\Cache::add($cacheKey, 1, 15)) {
+                try {
+                    TelegramService::pollPendingUpdates(0);
+                    $settings = TelegramService::getSettings();
+                } catch (\Throwable $e) {}
+            }
         }
         
         return response()->json([
@@ -112,6 +115,19 @@ class TelegramController extends Controller
                 'success' => false,
                 'error' => 'សូមភ្ជាប់ Telegram Bot ទៅកាន់គ្រុបជាមុនសិន (No Telegram group connected yet).',
             ], 400);
+        }
+
+        // Idempotency guard: If topics are already set up and non-empty, do not call Telegram API again
+        if (!empty($settings['topics']) && is_array($settings['topics']) && count($settings['topics']) >= 4) {
+            return response()->json([
+                'success' => true,
+                'already_exists' => true,
+                'data' => [
+                    'ok' => true,
+                    'topics' => $settings['topics'],
+                ],
+                'message' => 'ប្រធានបទ Topics ត្រូវបានរៀបចំរួចរាល់ហើយក្នុងគ្រុប (Topics already set up).',
+            ], 200);
         }
 
         $result = TelegramService::setupTopics($settings['chat_id']);

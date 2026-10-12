@@ -22,7 +22,8 @@ import {
   Building2,
   CalendarCheck,
   Crown,
-  MessageSquare
+  MessageSquare,
+  Send
 } from "lucide-react";
 
 type AdminUser = {
@@ -164,6 +165,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       icon: <MessageSquare size={18} />, 
       adminOnly: false,
       badge: "RTDB"
+    },
+    { 
+      href: "/rok-mix-khernh/telegram-bot", 
+      label: isKm ? "Telegram Bot 🤖" : "Telegram Bot", 
+      icon: <Send size={18} className="text-[#0088cc]" />, 
+      adminOnly: false,
+      badge: "Live"
     },
     // Admin Only Management Features
     { 

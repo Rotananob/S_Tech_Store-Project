@@ -29,6 +29,25 @@ class PromoCodeController extends Controller
         return response()->json([
             'success' => true,
             'data' => $promo,
+            'promo' => $promo,
+        ]);
+    }
+
+    public function heroBanners()
+    {
+        $banners = PromoCode::where('status', 'active')
+            ->whereNotNull('image_url')
+            ->where('image_url', '!=', '')
+            ->where(function ($q) {
+                $q->whereNull('valid_until')->orWhere('valid_until', '>=', now());
+            })
+            ->latest()
+            ->take(8)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $banners,
         ]);
     }
 
@@ -136,6 +155,39 @@ class PromoCodeController extends Controller
         ]);
     }
 
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp,gif,svg|max:10240',
+        ]);
+
+        $file = $request->file('image');
+        $uploadedUrl = null;
+
+        try {
+            $cloudUrl = config('cloudinary.cloud_url') ?: env('CLOUDINARY_URL');
+            if ($cloudUrl && function_exists('cloudinary')) {
+                $result = cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                    'folder' => 'stech_promotions',
+                    'resource_type' => 'auto'
+                ]);
+                $uploadedUrl = $result['secure_url'] ?? null;
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Cloudinary upload error: ' . $e->getMessage());
+        }
+
+        if (!$uploadedUrl) {
+            $path = $file->store('promotions', 'public');
+            $uploadedUrl = asset('storage/' . $path);
+        }
+
+        return response()->json([
+            'success' => true,
+            'url' => $uploadedUrl,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -147,12 +199,47 @@ class PromoCodeController extends Controller
             'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'usage_max' => 'nullable|integer|min:1',
             'status' => 'required|in:active,scheduled,expired,disabled',
-            'auto_applied' => 'nullable|boolean',
+            'auto_applied' => 'nullable',
+            'image' => 'nullable|image|max:10240',
             'image_url' => 'nullable|string',
-            'show_popup' => 'nullable|boolean',
+            'show_popup' => 'nullable',
             'description' => 'nullable|string',
             'target_url' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $uploadedUrl = null;
+            try {
+                $cloudUrl = config('cloudinary.cloud_url') ?: env('CLOUDINARY_URL');
+                if ($cloudUrl && function_exists('cloudinary')) {
+                    $result = cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                        'folder' => 'stech_promotions',
+                        'resource_type' => 'auto'
+                    ]);
+                    $uploadedUrl = $result['secure_url'] ?? null;
+                }
+            } catch (\Throwable $e) {}
+
+            if (!$uploadedUrl) {
+                $path = $file->store('promotions', 'public');
+                $uploadedUrl = asset('storage/' . $path);
+            }
+            $validated['image_url'] = $uploadedUrl;
+        }
+
+        if (!empty($validated['code'])) {
+            $validated['code'] = strtoupper(trim($validated['code']));
+        }
+
+        if (isset($validated['auto_applied'])) {
+            $validated['auto_applied'] = filter_var($validated['auto_applied'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($validated['show_popup'])) {
+            $validated['show_popup'] = filter_var($validated['show_popup'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        unset($validated['image']);
 
         $promo = PromoCode::create($validated);
 
@@ -182,12 +269,47 @@ class PromoCodeController extends Controller
             'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'usage_max' => 'nullable|integer|min:1',
             'status' => 'sometimes|required|in:active,scheduled,expired,disabled',
-            'auto_applied' => 'nullable|boolean',
+            'auto_applied' => 'nullable',
+            'image' => 'nullable|image|max:10240',
             'image_url' => 'nullable|string',
-            'show_popup' => 'nullable|boolean',
+            'show_popup' => 'nullable',
             'description' => 'nullable|string',
             'target_url' => 'nullable|string',
         ]);
+
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $uploadedUrl = null;
+            try {
+                $cloudUrl = config('cloudinary.cloud_url') ?: env('CLOUDINARY_URL');
+                if ($cloudUrl && function_exists('cloudinary')) {
+                    $result = cloudinary()->uploadApi()->upload($file->getRealPath(), [
+                        'folder' => 'stech_promotions',
+                        'resource_type' => 'auto'
+                    ]);
+                    $uploadedUrl = $result['secure_url'] ?? null;
+                }
+            } catch (\Throwable $e) {}
+
+            if (!$uploadedUrl) {
+                $path = $file->store('promotions', 'public');
+                $uploadedUrl = asset('storage/' . $path);
+            }
+            $validated['image_url'] = $uploadedUrl;
+        }
+
+        if (isset($validated['code']) && !empty($validated['code'])) {
+            $validated['code'] = strtoupper(trim($validated['code']));
+        }
+
+        if (isset($validated['auto_applied'])) {
+            $validated['auto_applied'] = filter_var($validated['auto_applied'], FILTER_VALIDATE_BOOLEAN);
+        }
+        if (isset($validated['show_popup'])) {
+            $validated['show_popup'] = filter_var($validated['show_popup'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        unset($validated['image']);
 
         $promo->update($validated);
         return response()->json(['message' => 'Promo code updated', 'data' => $promo]);

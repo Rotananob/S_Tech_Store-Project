@@ -145,24 +145,45 @@ export function HeroSection() {
   // Dynamic API sync to pull live active promotions from backend
   useEffect(() => {
     let mounted = true;
-    api.get("/promotions/active-popup")
+    api.get("/promotions/hero-banners")
       .then((res) => {
         if (!mounted) return;
-        const p = res.data?.data || res.data?.promo;
-        if (p && p.name) {
-          const dynamicSlide = {
+        const bannerList = res.data?.data;
+        if (Array.isArray(bannerList) && bannerList.length > 0) {
+          const promoSlides = bannerList.map((p: any) => ({
             title: p.name,
             desc: p.description || "ការបញ្ចុះតម្លៃពិសេសពី S Tech Store ធានាគុណភាព ១០០%",
             image: p.image_url || "/images/pchum-ben-promo.jpg",
             alt: p.name,
-            badge: `🔥 ${p.code || "PROMO"}`,
+            badge: `🔥 ${p.code ? p.code + ' ' : ''}${p.type === 'percentage' ? p.value + '% OFF' : '$' + p.value + ' OFF'}`,
             isGrandFestival: (p.name || "").includes("ភ្ជុំ") || (p.name || "").toLowerCase().includes("pchum"),
             isPromo: true,
-            promoCode: p.code || "PCHUMBEN2026",
+            promoCode: p.code || "STECH20",
             link: p.target_url || "/category/all",
             ctaText: "ទិញឥឡូវនេះ (Shop Now)",
-          };
-          setSlides((prev) => [dynamicSlide, ...prev.filter((s: any) => s.promoCode !== p.code)]);
+          }));
+          setSlides([...promoSlides, ...DEFAULT_HERO_SLIDES]);
+        } else {
+          // Fallback to active-popup if hero-banners is empty
+          api.get("/promotions/active-popup").then((popupRes) => {
+            if (!mounted) return;
+            const p = popupRes.data?.data || popupRes.data?.promo;
+            if (p && p.name && p.image_url) {
+              const dynamicSlide = {
+                title: p.name,
+                desc: p.description || "ការបញ្ចុះតម្លៃពិសេសពី S Tech Store ធានាគុណភាព ១០០%",
+                image: p.image_url,
+                alt: p.name,
+                badge: `🔥 ${p.code || "PROMO"}`,
+                isGrandFestival: (p.name || "").includes("ភ្ជុំ") || (p.name || "").toLowerCase().includes("pchum"),
+                isPromo: true,
+                promoCode: p.code || "STECH20",
+                link: p.target_url || "/category/all",
+                ctaText: "ទិញឥឡូវនេះ (Shop Now)",
+              };
+              setSlides([dynamicSlide, ...DEFAULT_HERO_SLIDES]);
+            }
+          }).catch(() => {});
         }
       })
       .catch(() => {});
