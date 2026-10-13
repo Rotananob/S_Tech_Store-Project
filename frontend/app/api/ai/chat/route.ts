@@ -134,6 +134,11 @@ const SYSTEM_PROMPT = `
    - បើឃើញកង្ហារមានធូលីកកស្ទះ ឬជែលត្រជាក់ស្ងួតឡើងរឹង ត្រូវណែនាំពីសេវា Deep Cleaning & Re-paste ដោយប្រើជែលលំដាប់ពិភពលោក Arctic MX-4 ឬ Thermal Grizzly Kryonaut នៅ S Tech Store ដែលជួយបញ្ចុះកម្ដៅបាន ១០ ទៅ ១៥ អង្សាសេភ្លាមៗ។
 6. បង្កាន់ដៃ និងតារាងតម្លៃ (Quotations & Part Lists):
    - ពិនិត្យមើលតុល្យភាពនៃគ្រឿង (Bottleneck Analysis)៖ តើ CPU និង GPU ស៊ីគ្នាដែរទេ? តើ Power Supply (Watt) គ្រប់គ្រាន់ដែរទេ? តើតម្លៃសមរម្យដែរឬទេ? និងផ្តល់ការកែសម្រួលដើម្បីទទួលបានកម្លាំងខ្លាំងបំផុតក្នុងតម្លៃសន្សំសំចៃ។
+7. ផ្ទាំងប្រូម៉ូសិន, កាដូស្វាគមន៍ & Vouchers (Welcome Gift $5.00 & Promo Cards):
+   - ប្រសិនបើរូបភាពជាផ្ទាំង "EXCLUSIVE WELCOME GIFT • កាដូស្វាគមន៍ $5.00 Voucher" (កូដ WELCOME5) ឬផ្ទាំង Voucher បញ្ចុះតម្លៃ៖
+     • បញ្ជាក់ភ្លាមថា៖ "រូបភាពនេះជាកាដូស្វាគមន៍ពិសេស $5.00 Voucher (WELCOME5) សម្រាប់អតិថិជនថ្មីរបស់ S Tech Store បាទ! 🎁✨"
+     • ពន្យល់អត្ថន័យ៖ បងទទួលបានទឹកប្រាក់បញ្ចុះតម្លៃ $5.00 ភ្លាមៗ (ឥតគិតថ្លៃ) លើការទិញ Laptop, PC builds, គ្រឿងបន្លាស់ ឬសម្ភារៈ IT គ្រប់មុខ។
+     • ពន្យល់របៀបទទួល (Unlock & Claim)៖ គ្រាន់តែចុចប៊ូតុង Share ទៅ Telegram, Facebook ឬចុច Copy Link ផ្ញើទៅកាន់មិត្តភក្តិ នោះប៊ូតុង "Claim $5.00" នឹងបើកដំណើរការភ្លាមៗ! បន្ទាប់ពី Claim រួច បងអាចយកកូដ WELCOME5 ទៅបំពេញនៅទំព័រ Checkout ដើម្បីបញ្ចុះតម្លៃ $5.00 ភ្លាមៗបាទ! 💻💳
 `.trim();
 
 // ─── Strict 2 to 4 Emoji Enforcer ──────────────────────────────────────────
@@ -168,14 +173,30 @@ function generateSmartFallback(
   hasImages: boolean = false,
   userContext: any = null
 ): { reply: string; suggestAgent: boolean } {
+  const lower = userText.toLowerCase();
+
+  // If user asks about the $5 Welcome Voucher or uploads the voucher modal:
+  if (
+    lower.includes("មានន័យ") ||
+    lower.includes("voucher") ||
+    lower.includes("welcome") ||
+    lower.includes("កាដូ") ||
+    lower.includes("5") ||
+    lower.includes("gift") ||
+    lower.includes("welcome5")
+  ) {
+    return {
+      reply: `បាទបង ${userName}! រូបភាពនេះគឺជារង្វាន់ "កាដូស្វាគមន៍ $5.00 Voucher (WELCOME5)" សម្រាប់អតិថិជនថ្មីរបស់ S Tech Store បាទ! 🎁✨\n\n• មានន័យថា៖ បងទទួលបានទឹកប្រាក់បញ្ចុះតម្លៃ $5.00 ភ្លាមៗ (ឥតគិតថ្លៃ) លើរាល់ការទិញ Laptop, PC builds ឬគ្រឿងបន្លាស់ IT គ្រប់ប្រភេទ 💻💳\n• របៀបដោះសោ និងប្រើប្រាស់៖\n  1. ចុចប៊ូតុង Share ទៅ Telegram, Facebook, WhatsApp ឬចុច "Copy Link" ផ្ញើទៅមិត្តភក្តិ ដើម្បីដោះសោរប៊ូតុង "Claim $5"\n  2. ចុច Claim យក Voucher រួចបំពេញកូដ WELCOME5 នៅទំព័រ Checkout នោះប្រព័ន្ធនឹងបញ្ចុះតម្លៃ $5.00 ជូនភ្លាមៗបាទ! 🚀🤝`,
+      suggestAgent: false,
+    };
+  }
+
   if (hasImages) {
     return {
       reply: `បាទបង ${userName}! ខ្ញុំបានទទួលរូបភាពរបស់បងរួចហើយ 🔍 តែប្រព័ន្ធវិភាគរូបភាពស្វ័យប្រវត្តិកំពុងមមាញឹកបន្តិចបាទ! ⚙️ ដើម្បីឱ្យបងទទួលបានការដោះស្រាយ និងវិភាគ Specs ឬកូដ Error ជាក់ស្តែងភ្លាមៗ សូមចុចប៊ូតុង "ទាក់ទងក្រុមការងារ" ឬ "ឆាត Telegram" ខាងក្រោមដើម្បីឱ្យជាងជំនាញរបស់ S Tech Store ជួយពិនិត្យជូនបងភ្លាមៗបាទ! 🚀🤝`,
       suggestAgent: true,
     };
   }
-
-  const lower = userText.toLowerCase();
 
   // User Profile / Wallet / S-Coins / Account Queries
   if (
@@ -489,10 +510,10 @@ ${userContextSection}
 
     // Fast candidate models prioritized by verified availability & low latency
     const CANDIDATE_MODELS = [
-      "gemini-3.5-flash",      // Priority 1: High intelligence, multimodal image vision & Khmer tech master (Verified 200 OK)
-      "gemini-3.8-flash",      // Priority 2: Flagship multimodal model
-      "gemini-3.7-flash",      // Priority 3: Deep reasoning fallback
-      "gemini-3.5-flash-lite", // Priority 4: Lightweight fast fallback
+      "gemini-3.5-flash-lite", // Priority 1: Verified 200 OK, ultra-fast <2s, multimodal image vision supported!
+      "gemini-3.7-flash",      // Priority 2: Verified 200 OK, deep reasoning & multimodal image vision
+      "gemini-3.5-flash",      // Priority 3: Fallback (in case quota resets)
+      "gemini-3.8-flash",      // Priority 4: Flagship multimodal fallback
       "gemini-flash-latest",   // Priority 5: Dynamic flash alias fallback
     ];
 
@@ -500,8 +521,8 @@ ${userContextSection}
       for (const model of CANDIDATE_MODELS) {
         try {
           const controller = new AbortController();
-          // Give vision calls 7500ms to process up to 3 images, 4500ms for pure text
-          const timeoutMs = hasImages ? 7500 : (model.includes("flash-lite") ? 4000 : 5000);
+          // Give vision calls 15000ms (gemini-3.7-flash takes ~7.7s, flash-lite <2s), 5000ms for pure text
+          const timeoutMs = hasImages ? 15000 : (model.includes("flash-lite") ? 4000 : 6000);
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
           const res = await fetch(

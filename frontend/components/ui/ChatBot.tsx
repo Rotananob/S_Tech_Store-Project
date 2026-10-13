@@ -437,13 +437,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
-  // ─── Live Thinking Timer ──────────────────────────────────────────────────
+  // ─── Live Thinking Timer with Safety Watchdog ────────────────────────────
   useEffect(() => {
     let interval: any;
     if (isAiThinking) {
       setThinkingSeconds(0);
       interval = setInterval(() => {
-        setThinkingSeconds((prev) => +(prev + 0.1).toFixed(1));
+        setThinkingSeconds((prev) => {
+          const next = +(prev + 0.1).toFixed(1);
+          if (next >= 18) {
+            // Safety watchdog: never let timer exceed 18s or freeze client UI
+            setIsAiThinking(false);
+          }
+          return next;
+        });
       }, 100);
     }
     return () => clearInterval(interval);
@@ -1003,11 +1010,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         };
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 18000);
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(apiPayload),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const data = await res.json();
       const aiReplyText =
@@ -1048,68 +1060,75 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         ).catch(() => {});
       }
     } catch (err) {
-      // Direct client fallback to Gemini API if Next.js internal route was unreachable
-      try {
-        const decodedFallback = typeof atob !== "undefined"
-          ? atob("QVEuQWI4Uk42Snc5NDRoRnNuTHhyMWVsUUtiR0JLYzkxNnhCTjRYNmR0R3M1cmQxdzhjWVE=")
-          : "";
-        const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || decodedFallback;
-        const fallbackKeys = Array.from(new Set([primaryKey, decodedFallback])).filter((k): k is string => Boolean(k && k.trim().length > 10));
-        const fallbackModels = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"];
+      // Direct client fallback if Next.js internal route was unreachable or timed out
+      const lowerText = (textToSend || "").toLowerCase();
+      let fallbackText = "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝";
+      let shouldSuggestAgent = true;
 
-        const directParts: any[] = [];
-        for (const img of currentImgs.slice(0, 3)) {
-          const cleanB64 = img.base64.replace(/^data:image\/[a-zA-Z0-9\+\-\.]+;base64,/, "");
-          directParts.push({
-            inlineData: {
-              mimeType: img.file?.type || "image/jpeg",
-              data: cleanB64,
-            },
-          });
-        }
-        directParts.push({ text: textToSend || "សូមជួយវិភាគរូបភាពនេះឱ្យខ្ញុំបន្តិចបាទ" });
+      // Instant voucher explanation if user uploads or asks about the $5 welcome voucher
+      if (
+        lowerText.includes("មានន័យ") ||
+        lowerText.includes("voucher") ||
+        lowerText.includes("welcome") ||
+        lowerText.includes("កាដូ") ||
+        lowerText.includes("5") ||
+        lowerText.includes("gift") ||
+        lowerText.includes("welcome5")
+      ) {
+        fallbackText = `បាទបង ${userName}! រូបភាពនេះគឺជារង្វាន់ "កាដូស្វាគមន៍ $5.00 Voucher (WELCOME5)" សម្រាប់អតិថិជនថ្មីរបស់ S Tech Store បាទ! 🎁✨\n\n• មានន័យថា៖ បងទទួលបានទឹកប្រាក់បញ្ចុះតម្លៃ $5.00 ភ្លាមៗ (ឥតគិតថ្លៃ) លើរាល់ការទិញ Laptop, PC builds ឬគ្រឿងបន្លាស់ IT គ្រប់ប្រភេទ 💻💳\n• របៀបដោះសោ និងប្រើប្រាស់៖\n  1. ចុចប៊ូតុង Share ទៅ Telegram, Facebook ឬចុច "Copy Link" ផ្ញើទៅមិត្តភក្តិ ដើម្បីដោះសោរប៊ូតុង "Claim $5"\n  2. ចុច Claim យក Voucher រួចបំពេញកូដ WELCOME5 នៅទំព័រ Checkout នោះប្រព័ន្ធនឹងបញ្ចុះតម្លៃ $5.00 ជូនភ្លាមៗបាទ! 🚀🤝`;
+        shouldSuggestAgent = false;
+      } else {
+        try {
+          const decodedFallback = typeof atob !== "undefined"
+            ? atob("QVEuQWI4Uk42Snc5NDRoRnNuTHhyMWVsUUtiR0JLYzkxNnhCTjRYNmR0R3M1cmQxdzhjWVE=")
+            : "";
+          const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || decodedFallback;
+          if (primaryKey) {
+            const directCtrl = new AbortController();
+            const directTimeout = setTimeout(() => directCtrl.abort(), 4000);
+            const directParts: any[] = [];
+            for (const img of currentImgs.slice(0, 3)) {
+              const cleanB64 = img.base64.replace(/^data:image\/[a-zA-Z0-9\+\-\.]+;base64,/, "");
+              directParts.push({
+                inlineData: {
+                  mimeType: img.file?.type || "image/jpeg",
+                  data: cleanB64,
+                },
+              });
+            }
+            directParts.push({ text: textToSend || "សូមជួយវិភាគរូបភាពនេះឱ្យខ្ញុំបន្តិចបាទ" });
 
-        clientFallback: for (const keyToUse of fallbackKeys) {
-          for (const modelToUse of fallbackModels) {
-            try {
-              const directRes = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${keyToUse}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    contents: [{ role: "user", parts: directParts }],
-                  }),
-                }
-              );
-              if (directRes.ok) {
-                const directData = await directRes.json();
-                const fallbackText = directData?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (fallbackText) {
-                  const aiMsg: ChatItem = {
-                    sender: "bot",
-                    senderName: "S Tech AI",
-                    text: fallbackText.trim(),
-                    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                  };
-                  setMessages((prev) => [...prev, aiMsg]);
-                  return;
-                }
+            const directRes = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${primaryKey}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ role: "user", parts: directParts }] }),
+                signal: directCtrl.signal,
               }
-            } catch {}
+            );
+            clearTimeout(directTimeout);
+            if (directRes.ok) {
+              const directData = await directRes.json();
+              const fbText = directData?.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (fbText) {
+                fallbackText = fbText.trim();
+                shouldSuggestAgent = false;
+              }
+            }
           }
+        } catch {
+          // Keep instant fallback
         }
-      } catch (directErr) {
-        // Continue to friendly fallback
       }
 
       // Graceful fallback — Never show technical error!
       const fallbackMsg: ChatItem = {
         sender: "bot",
         senderName: "S Tech AI",
-        text: "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝",
+        text: fallbackText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        suggestAgent: true,
+        suggestAgent: shouldSuggestAgent,
       };
       setMessages((prev) => {
         const trimmed = (fallbackMsg.text || "").trim();
@@ -1274,7 +1293,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             </div>
             <div className="flex items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400 font-medium truncate">
               <MessageSquare size={10} className={`shrink-0 ${isAiPaused ? "text-emerald-500" : "text-emerald-500"}`} />
-              <span className="truncate">{isAiPaused ? `👤 ជជែកផ្ទាល់ជាមួយ ${pausedByStaff || "បុគ្គលិក"}` : currentTitle}</span>
+              <span className="truncate">{isAiPaused ? `👤 ជជែកផ្ទាល់ជាមួយ ${pausedByStaff || "បុគ្គលិក"}` : isAiThinking ? "⚡ កំពុងវិភាគឆ្លើយតប..." : currentTitle}</span>
             </div>
           </div>
         </div>
