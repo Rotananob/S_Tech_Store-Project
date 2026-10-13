@@ -27,7 +27,7 @@ export default function ShopLoading() {
             S <span style={{ color: "#8B1A1A" }}>Tech</span> <span style={{ color: "#1a4fa0" }}>Store</span>
           </h1>
           <p className="font-khmer" style={{ fontSize: "12px", color: "#888888", margin: "4px 0 0 0", letterSpacing: "0.5px" }}>
-            ហាងបច្ចេកវិទ្យា
+            ហាងលក់កុំព្យទ័រ
           </p>
         </div>
         
