@@ -845,7 +845,7 @@ export function ProductDetailClient({ product }: { product: any }) {
                 <button 
                   onClick={() => {
                     setShowChatOptions(false);
-                    window.open('https://t.me/s_tech_storeBot', '_blank');
+                    window.open('https://t.me/S_TECH_ASSISTANTBOT', '_blank');
                   }} 
                   className="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/40 rounded-xl font-bold transition-all shadow-sm cursor-pointer"
                 >

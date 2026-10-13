@@ -151,7 +151,7 @@ export default function ForgotPasswordPage() {
             មិនទទួលបានអ៊ីមែល ឬត្រូវការជំនួយបន្ទាន់? ស្នើសុំ Magic Login Link ពី Admin:
           </p>
           <a
-            href="https://t.me/s_tech_storeBot"
+            href="https://t.me/S_TECH_ASSISTANTBOT"
             target="_blank"
             rel="noreferrer"
             style={{

@@ -1531,7 +1531,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                           </button>
 
                           <a
-                            href="https://t.me/StechStoreBot"
+                            href="https://t.me/S_TECH_ASSISTANTBOT"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"

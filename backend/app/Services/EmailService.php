@@ -85,7 +85,7 @@ class EmailService
         </div>
         <div class="feature-item">
           <strong>🤖 ជំនួយការឆ្លាតវៃ Telegram Bot</strong>
-          <span>ទទួលបានការជូនដំណឹងពីស្ថានភាពទំនិញ និងទិញទំនិញរហ័សតាម @s_tech_storeBot។</span>
+          <span>ទទួលបានការជូនដំណឹងពីស្ថានភាពទំនិញ និងទិញទំនិញរហ័សតាម @S_TECH_ASSISTANTBOT។</span>
         </div>
         <div class="feature-item">
           <strong>🚚 ដឹកជញ្ជូនរហ័សទូទាំង ២៥ ខេត្ត-ក្រុង</strong>

@@ -760,7 +760,7 @@ class OrderController extends Controller
 
                   <p style='font-size: 13px; line-height: 1.6; color: #475569; margin-top: 20px;'>
                     📍 <b>ទីតាំងហាង:</b> ផ្លូវ ២៧១ រាជធានីភ្នំពេញ<br>
-                    📞 <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 12 345 678 | Telegram Bot: @s_tech_storeBot
+                    📞 <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 12 345 678 | Telegram Bot: @S_TECH_ASSISTANTBOT
                   </p>
                 </div>
                 <div class='footer'>

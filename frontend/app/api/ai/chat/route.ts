@@ -89,7 +89,7 @@ const SYSTEM_PROMPT = `
    - កត់ត្រាប្រវត្តិប្រតិបត្តិការលម្អិត (Top-ups, Purchases, Coin Redemptions, Refunds) ព្រមទាំងអាចបោះពុម្ពវិក្កយបត្រ (Print Receipt) បានភ្លាមៗ។
 4. គណនីអតិថិជន & ការតភ្ជាប់ Telegram (/account/profile)៖
    - គ្រប់គ្រងព័ត៌មានផ្ទាល់ខ្លួន៖ ឈ្មោះ, អ៊ីមែល, លេខទូរស័ព្ទ, និងអាសយដ្ឋានដឹកជញ្ជូនលំនាំដើម។
-   - តភ្ជាប់គណនីជាមួយ Telegram Bot (@StechStoreBot)៖ ទទួលបានការជូនដំណឹងពីការបញ្ជាទិញ, សមតុល្យលុយ, និងអាច Login ដោយចុច 1-Click Magic Link ពីក្នុង Telegram ចូល Website បានភ្លាមៗ។
+   - តភ្ជាប់គណនីជាមួយ Telegram Bot (@S_TECH_ASSISTANTBOT)៖ ទទួលបានការជូនដំណឹងពីការបញ្ជាទិញ, សមតុល្យលុយ, និងអាច Login ដោយចុច 1-Click Magic Link ពីក្នុង Telegram ចូល Website បានភ្លាមៗ។
 5. ប្រវត្តិការបញ្ជាទិញ (My Orders — /orders)៖
    - តាមដានស្ថានភាពទំនិញផ្ទាល់ (Live Progress Stepper)៖ កំពុងរង់ចាំ (Pending) -> កំពុងរៀបចំ (Processing) -> កំពុងដឹកជញ្ជូន (Shipped) -> ប្រគល់ជោគជ័យ (Delivered) -> បានលុបចោល (Cancelled)។
    - មើលវិក្កយបត្រផ្លូវការ (Official Invoice) និងវិក្កយបត្រម៉ាស៊ីនកម្តៅ (Print Thermal Receipt)។
@@ -109,7 +109,7 @@ const SYSTEM_PROMPT = `
    - សេវាកម្មសម្អាតធូលី និងផ្លាស់ប្តូរជែលត្រជាក់ (Thermal Paste): ប្រើប្រាស់ជែលលំដាប់ពិភពលោក Arctic MX-4 ឬ Thermal Grizzly Kryonaut បញ្ចុះកម្ដៅបាន ១០ ទៅ ១៥ អង្សាសេភ្លាមៗ។
    - ជួសជុលអេក្រង់ Laptop, ប្តូរក្ដារចុច, ជួសជុល Motherboard, Upgrade SSD & RAM ជាមួយការ Backup ទិន្នន័យដោយសុវត្ថិភាព។
 8. Telegram Bot ផ្លូវការ & Telegram Mini App៖
-   - Username Bot: @StechStoreBot
+   - Username Bot: @S_TECH_ASSISTANTBOT
    - មុខងារ: ឆែកសមតុល្យលុយ, ឆែកកាក់, ឆែកការបញ្ជាទិញ, និងមានប៊ូតុងបើក Telegram Mini App ដែលអាចទិញទំនិញ និងបញ្ជាទិញផ្ទាល់ពីក្នុង Telegram ដោយមិនបាច់ Login សារជាថ្មី។
 9. ស្ថាបត្យករ និងអ្នកដឹកនាំបច្ចេកវិទ្យា (Lead Architect & Developer)៖
    - លោក Rotana NOB: System Architect & Lead Developer ដែលបានឌីហ្សាញ និងអភិវឌ្ឍប្រព័ន្ធ S Tech Store, Backend API, Bakong Open API Engine, Telegram Bot, និង S Tech AI នេះឡើងទាំងស្រុង។
@@ -220,7 +220,7 @@ function generateSmartFallback(
       };
     } else {
       return {
-        reply: `បាទបង! បច្ចុប្បន្នបងកំពុងប្រើប្រាស់ជា Guest (មិនទាន់បាន Login ចូលគណនីទេ) 📱🔑។ ដើម្បីពិនិត្យសមតុល្យលុយក្នុង S-Tech Wallet, កាក់ S-Coins និងប្រវត្តិបញ្ជាទិញ បងអាចចុច Login ចូលគណនី ឬភ្ជាប់ Telegram Bot @StechStoreBot បានភ្លាមៗបាទ! 💳✨`,
+        reply: `បាទបង! បច្ចុប្បន្នបងកំពុងប្រើប្រាស់ជា Guest (មិនទាន់បាន Login ចូលគណនីទេ) 📱🔑។ ដើម្បីពិនិត្យសមតុល្យលុយក្នុង S-Tech Wallet, កាក់ S-Coins និងប្រវត្តិបញ្ជាទិញ បងអាចចុច Login ចូលគណនី ឬភ្ជាប់ Telegram Bot @S_TECH_ASSISTANTBOT បានភ្លាមៗបាទ! 💳✨`,
         suggestAgent: false,
       };
     }
@@ -479,7 +479,7 @@ export async function POST(req: NextRequest) {
 - ប្រសិនបើអតិថិជនសួរអំពីព័ត៌មានផ្ទាល់ខ្លួន (ឧ. "តើខ្ញុំឈ្មោះអី?", "លុយខ្ញុំសល់ប៉ុន្មាន?", "កាក់ខ្ញុំមានប៉ុន្មាន?", "ខ្ញុំ Login នៅ?", "ខ្ញុំកំពុងមើលទំព័រណា?", "ឧបករណ៍ខ្ញុំជាអី?"):
   អ្នកត្រូវឆ្លើយតបដោយប្រើប្រាស់ទិន្នន័យពិតប្រាកដនៅក្នុង [CURRENT CUSTOMER PROFILE & LIVE ACCOUNT DATA] ខាងលើភ្លាមៗ!
 - ប្រសិនបើសមតុល្យលុយ ឬកាក់មានតម្លៃជាក់ស្តែង សូមប្រាប់ចំនួននោះយ៉ាងច្បាស់លាស់ (ឧ. "បាទបង ${userContext.name || userName}! កាបូបលុយ S-Tech Smart Wallet របស់បងបច្ចុប្បន្នមានសមតុល្យ ${userContext.walletBalanceUSD || '$0.00'} (${userContext.walletBalanceKHR || '0 ៛'}) និងកាក់ S-Coins ចំនួន ${userContext.coins || 0} Coins បាទ! 💳🪙")។
-- ប្រសិនបើអតិថិជនមិនទាន់បាន Login ហើយសួររកលុយ ឬកាក់ សូមណែនាំគាត់ឱ្យចុច Login ចូលគណនី ឬចូលទៅកាន់ទំព័រ /login ឬភ្ជាប់ Telegram Bot @StechStoreBot ដើម្បីពិនិត្យសមតុល្យពិតប្រាកដបាទ! 📱🔑
+- ប្រសិនបើអតិថិជនមិនទាន់បាន Login ហើយសួររកលុយ ឬកាក់ សូមណែនាំគាត់ឱ្យចុច Login ចូលគណនី ឬចូលទៅកាន់ទំព័រ /login ឬភ្ជាប់ Telegram Bot @S_TECH_ASSISTANTBOT ដើម្បីពិនិត្យសមតុល្យពិតប្រាកដបាទ! 📱🔑
 `;
     }
 

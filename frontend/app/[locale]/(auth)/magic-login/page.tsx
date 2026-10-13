@@ -302,7 +302,7 @@ function MagicLoginContent() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
               <a
-                href="https://t.me/s_tech_storeBot"
+                href="https://t.me/S_TECH_ASSISTANTBOT"
                 target="_blank"
                 rel="noreferrer"
                 style={{

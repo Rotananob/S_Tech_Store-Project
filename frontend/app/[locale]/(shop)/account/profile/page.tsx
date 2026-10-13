@@ -1086,68 +1086,71 @@ export default function UserProfilePage() {
                 <Monitor size={13} />
               </button>
             </div>
-
-            {/* Clean Sign Out Pill */}
-            <button
-              type="button"
-              onClick={() => setShowLogoutModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-200 hover:text-white border border-red-500/30 text-xs font-semibold transition-all shadow-xs active:scale-95 cursor-pointer backdrop-blur-md"
-              title="Sign Out • ចាកចេញ"
-            >
-              <LogOut size={13} />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
           </div>
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             {/* Left: User Profile Identity */}
-            <div className="flex items-center gap-4 sm:gap-6">
-              {/* Avatar Frame with Upload & Presets */}
-              <div className="relative group shrink-0">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-amber-400 via-red-500 to-indigo-500 p-0.5 shadow-xl">
-                  <div className="w-full h-full rounded-[14px] bg-[#141720] flex items-center justify-center overflow-hidden border-2 border-[#12141a] relative">
-                    {avatarPreview || user?.photoURL || profile.photo_url ? (
-                      <img
-                        src={avatarPreview || profile.photo_url || user?.photoURL || ""}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-amber-400 font-black text-3xl">
-                        {(profile.display_name || user?.displayName || "U")[0].toUpperCase()}
-                      </span>
-                    )}
+            <div className="flex items-start sm:items-center gap-4 sm:gap-6">
+              {/* Avatar Column with Sign Out Button Underneath */}
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                {/* Avatar Frame with Upload & Presets */}
+                <div className="relative group shrink-0">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-tr from-amber-400 via-red-500 to-indigo-500 p-0.5 shadow-xl">
+                    <div className="w-full h-full rounded-[14px] bg-[#141720] flex items-center justify-center overflow-hidden border-2 border-[#12141a] relative">
+                      {avatarPreview || user?.photoURL || profile.photo_url ? (
+                        <img
+                          src={avatarPreview || profile.photo_url || user?.photoURL || ""}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-amber-400 font-black text-3xl">
+                          {(profile.display_name || user?.displayName || "U")[0].toUpperCase()}
+                        </span>
+                      )}
 
-                    {/* Real-time Cloudinary Uploading Overlay */}
-                    {avatarUploading && (
-                      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
-                        <RefreshCw size={20} className="animate-spin text-amber-400" />
-                        <span className="text-[9px] font-bold mt-1 text-amber-300">Cloudinary...</span>
-                      </div>
-                    )}
+                      {/* Real-time Cloudinary Uploading Overlay */}
+                      {avatarUploading && (
+                        <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center text-white z-10">
+                          <RefreshCw size={20} className="animate-spin text-amber-400" />
+                          <span className="text-[9px] font-bold mt-1 text-amber-300">Cloudinary...</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Telegram Verified Avatar Badge */}
+                  {(isTelegramAuthUser || profile.telegram_chat_id) && (
+                    <div
+                      className="absolute -top-1.5 -left-1.5 w-7 h-7 rounded-full bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-[#12141a] z-10"
+                      title="Telegram Verified Account"
+                    >
+                      <Send size={12} className="-translate-x-0.5 translate-y-0.5" />
+                    </div>
+                  )}
+
+                  {/* Upload Camera Trigger */}
+                  <label
+                    className={`absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-gray-900 shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-transform active:scale-90 border border-gray-200 ${
+                      avatarUploading ? "opacity-50 pointer-events-none" : ""
+                    }`}
+                    title="Upload profile picture to Cloudinary"
+                  >
+                    <Camera size={15} />
+                    <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={avatarUploading} />
+                  </label>
                 </div>
 
-                {/* Telegram Verified Avatar Badge */}
-                {(isTelegramAuthUser || profile.telegram_chat_id) && (
-                  <div
-                    className="absolute -top-1.5 -left-1.5 w-7 h-7 rounded-full bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-[#12141a] z-10"
-                    title="Telegram Verified Account"
-                  >
-                    <Send size={12} className="-translate-x-0.5 translate-y-0.5" />
-                  </div>
-                )}
-
-                {/* Upload Camera Trigger */}
-                <label
-                  className={`absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-gray-900 shadow-md flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-transform active:scale-90 border border-gray-200 ${
-                    avatarUploading ? "opacity-50 pointer-events-none" : ""
-                  }`}
-                  title="Upload profile picture to Cloudinary"
+                {/* Logout Button directly below Avatar */}
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutModal(true)}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/30 text-red-200 hover:text-white border border-red-500/30 hover:border-red-500/60 text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer backdrop-blur-md group"
+                  title="Sign Out • ចាកចេញ"
                 >
-                  <Camera size={15} />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={avatarUploading} />
-                </label>
+                  <LogOut size={13} className="text-red-400 group-hover:text-white transition-colors" />
+                  <span>ចាកចេញ</span>
+                </button>
               </div>
 
               {/* Identity Details */}
