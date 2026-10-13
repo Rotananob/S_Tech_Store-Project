@@ -592,7 +592,7 @@ ${userContextSection}
   } catch (err: any) {
     // Top-level catch: NEVER return raw technical error to customer!
     const fallbackText = enforceEmojiRule(
-      "ប្រព័ន្ធ AI កំពុងរវល់បន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីទាក់ទងផ្ទាល់ជាមួយក្រុមការងារ Human Agent របស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝"
+      "ប្រព័ន្ធ AI កំពុងរវល់ ឬជួបបញ្ហាបច្ចេកទេសបន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីឆាតផ្ទាល់ជាមួយ Telegram Bot Assistant (@S_TECH_ASSISTANTBOT) ឬ Alert ទៅកាន់ក្រុមការងារបច្ចេកទេសរបស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝"
     );
     return NextResponse.json({
       success: true,
