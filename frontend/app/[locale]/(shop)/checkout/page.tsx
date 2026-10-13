@@ -1946,7 +1946,7 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <a
-                    href={khqrSession.deeplinks?.universal || khqrSession.deeplinks?.aba || `aba://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
+                    href={khqrSession.deeplinks?.universal || `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="py-2 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
@@ -1956,7 +1956,7 @@ export default function CheckoutPage() {
                   </a>
 
                   <a
-                    href={khqrSession.deeplinks?.universal || khqrSession.deeplinks?.bakong || `bakong://qr?data=${encodeURIComponent(khqrSession.khqr_string)}`}
+                    href={khqrSession.deeplinks?.universal || `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="py-2 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"

@@ -337,13 +337,18 @@ class WalletController extends Controller
             }
         }
 
-        // Prepare banking app deeplinks
+        // Fallback to deterministic NBC Bakong Universal Link
+        if (empty($universalDeeplink)) {
+            $universalDeeplink = "https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=" . rawurlencode($activeKhqr);
+        }
+
+        // Prepare banking app deeplinks — All mapped to universal HTTPS link to prevent invalid address errors
         $deeplinks = [
             'universal' => $universalDeeplink,
-            'bakong' => $universalDeeplink ?: ("bakong://qr?data=" . urlencode($activeKhqr)),
-            'aba' => $universalDeeplink ?: ("aba://qr?data=" . urlencode($activeKhqr)),
-            'wing' => "wing://qr?data=" . urlencode($activeKhqr),
-            'acleda' => "acledamb://pay?qr=" . urlencode($activeKhqr),
+            'bakong' => $universalDeeplink,
+            'aba' => $universalDeeplink,
+            'wing' => $universalDeeplink,
+            'acleda' => $universalDeeplink,
         ];
 
         // Store pending deposit transaction in ledger with complete cryptographic hash fingerprint

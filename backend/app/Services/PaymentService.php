@@ -59,13 +59,18 @@ class PaymentService
         $currCode = $isUSD ? '840' : '116';
         $primaryAccount = $isUSD ? $accountUsd : $accountKhr;
 
-        // 1. Tag 29: Merchant Account Information (Acquirer Bank Template)
+        // 1. Tag 29: Individual / Bakong Account Information
         $sub29_00 = self::tlv('00', $merchantId);
         $sub29_01 = self::tlv('01', $primaryAccount);
-        $sub29_02 = self::tlv('02', $bankName);
-        $tag29 = self::tlv('29', $sub29_00 . $sub29_01 . $sub29_02);
+        $tag29 = self::tlv('29', $sub29_00 . $sub29_01);
 
-        // 2. Tag 40: ABA Bank Dual Account Template
+        // 2. Tag 30: Official NBC Bakong Merchant Account Information (Scannable by ALL 36+ Cambodian Banks)
+        $sub30_00 = self::tlv('00', $merchantId);
+        $sub30_01 = self::tlv('01', $primaryAccount);
+        $sub30_02 = self::tlv('02', $bankName);
+        $tag30 = self::tlv('30', $sub30_00 . $sub30_01 . $sub30_02);
+
+        // 3. Tag 40: ABA Bank Dual Account Template (Instant P2P routing)
         $sub40_00 = self::tlv('00', 'abaP2P');
         $sub40_01 = self::tlv('01', $abaP2pId);
         $sub40_02 = self::tlv('02', $accountKhr); // KHR Account (006822995)
@@ -73,29 +78,29 @@ class PaymentService
         $sub40_04 = self::tlv('04', 'Dual');
         $tag40 = self::tlv('40', $sub40_00 . $sub40_01 . $sub40_02 . $sub40_03 . $sub40_04);
 
-        // 3. Tag 52: Merchant Category Code (0000 for standard P2P/merchant)
+        // 4. Tag 52: Merchant Category Code (0000 for standard P2P/merchant)
         $tag52 = self::tlv('52', '0000');
 
-        // 4. Tag 53: Transaction Currency (840 = USD, 116 = KHR)
+        // 5. Tag 53: Transaction Currency (840 = USD, 116 = KHR)
         $tag53 = self::tlv('53', $currCode);
 
-        // 5. Tag 54: Transaction Amount (Present in dynamic QR with amount > 0)
+        // 6. Tag 54: Transaction Amount (Present in dynamic QR with amount > 0)
         $tag54 = '';
         if ($isDynamic && $amount > 0) {
             $formattedAmount = $isUSD ? number_format($amount, 2, '.', '') : (string)round($amount);
             $tag54 = self::tlv('54', $formattedAmount);
         }
 
-        // 6. Tag 58: Country Code (KH)
+        // 7. Tag 58: Country Code (KH)
         $tag58 = self::tlv('58', 'KH');
 
-        // 7. Tag 59: Merchant/Recipient Name (Up to 25 chars)
+        // 8. Tag 59: Merchant/Recipient Name (Up to 25 chars)
         $tag59 = self::tlv('59', substr($accountName, 0, 25));
 
-        // 8. Tag 60: Merchant City (Up to 15 chars)
+        // 9. Tag 60: Merchant City (Up to 15 chars)
         $tag60 = self::tlv('60', substr($city, 0, 15));
 
-        // 9. Tag 62: Additional Data Field (Bill/Order Reference)
+        // 10. Tag 62: Additional Data Field (Bill/Order Reference)
         $tag62 = '';
         if (!empty($orderId)) {
             $sub62_01 = self::tlv('01', substr($orderId, 0, 25));
@@ -110,6 +115,7 @@ class PaymentService
         $rawPayload = self::tlv('00', '01')
             . self::tlv('01', $pointOfInitiation)
             . $tag29
+            . $tag30
             . $tag40
             . $tag52
             . $tag53
@@ -182,11 +188,10 @@ class PaymentService
             }
         }
 
-        // Real Cambodia Banking App Deeplinks
-        $bakongDeeplink = "bakong://qr?data=" . urlencode($activeKhqr);
-        $abaDeeplink = "aba://qr?data=" . urlencode($activeKhqr);
-        $wingDeeplink = "wing://qr?data=" . urlencode($activeKhqr);
-        $acledaDeeplink = "acledamb://pay?qr=" . urlencode($activeKhqr);
+        // Universal Deeplink fallback: Deterministic NBC Bakong Universal Link
+        if (empty($universalDeeplink)) {
+            $universalDeeplink = "https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=" . rawurlencode($activeKhqr);
+        }
 
         return [
             'order_id' => $orderId,
@@ -202,10 +207,10 @@ class PaymentService
             'md5_khr' => $md5Khr,
             'deeplinks' => [
                 'universal' => $universalDeeplink,
-                'bakong' => $universalDeeplink ?: $bakongDeeplink,
-                'aba' => $universalDeeplink ?: $abaDeeplink,
-                'wing' => $wingDeeplink,
-                'acleda' => $acledaDeeplink,
+                'bakong' => $universalDeeplink,
+                'aba' => $universalDeeplink,
+                'wing' => $universalDeeplink,
+                'acleda' => $universalDeeplink,
             ],
             'merchant' => [
                 'name' => config('payment.bakong.account_name', 'ROTANA NOB'),
