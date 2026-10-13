@@ -28,4 +28,13 @@ class Order extends Model
     {
         return $this->belongsTo(UserProfile::class, 'user_id', 'firebase_uid');
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($order) {
+            if (!empty($order->user_id) && str_starts_with($order->user_id, 'tg_')) {
+                \App\Services\TelegramService::invalidateUserBotCache($order->user_id);
+            }
+        });
+    }
 }

@@ -58,4 +58,16 @@ class UserProfile extends Model
     {
         return $this->hasMany(Order::class, 'user_id', 'firebase_uid');
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($user) {
+            if (!empty($user->telegram_chat_id)) {
+                \App\Services\TelegramService::invalidateUserBotCache($user->telegram_chat_id);
+            }
+            if (!empty($user->firebase_uid) && str_starts_with($user->firebase_uid, 'tg_')) {
+                \App\Services\TelegramService::invalidateUserBotCache($user->firebase_uid);
+            }
+        });
+    }
 }

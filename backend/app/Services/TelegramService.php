@@ -230,21 +230,21 @@ class TelegramService
     }
 
     /**
-     * Ensure public webhook is registered if HTTPS URL is configured
+     * Ensure public webhook is registered for both Main Bot & Customer/Auth Bot if HTTPS URL is configured
      */
     public static function ensureWebhookRegistered(): bool
     {
         $settings = self::getSettings();
         $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-        if (!$token || str_contains($token, 'Placeholder')) {
-            return false;
-        }
+        $authBotToken = self::getCustomerBotToken();
 
         $webhookUrl = env('TELEGRAM_WEBHOOK_URL');
         if (!$webhookUrl) {
             $appUrl = env('APP_URL');
             if ($appUrl && str_starts_with($appUrl, 'https://')) {
                 $webhookUrl = rtrim($appUrl, '/') . '/api/telegram/webhook';
+            } else {
+                $webhookUrl = 'https://stech-backend-xz6j.onrender.com/api/telegram/webhook';
             }
         }
 
@@ -252,16 +252,33 @@ class TelegramService
             return false;
         }
 
-        try {
-            $resp = Http::timeout(5)->post("https://api.telegram.org/bot{$token}/setWebhook", [
-                'url' => $webhookUrl,
-                'drop_pending_updates' => false,
-                'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
-            ]);
-            return ($resp->json()['ok'] ?? false) === true;
-        } catch (\Throwable $e) {
-            return false;
+        $allOk = true;
+
+        // 1. Register Main Bot Webhook with ?bot=main
+        if ($token && !str_contains($token, 'Placeholder')) {
+            try {
+                $resp = Http::timeout(4)->post("https://api.telegram.org/bot{$token}/setWebhook", [
+                    'url' => $webhookUrl . '?bot=main',
+                    'drop_pending_updates' => false,
+                    'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
+                ]);
+                $allOk = $allOk && (($resp->json()['ok'] ?? false) === true);
+            } catch (\Throwable $e) {}
         }
+
+        // 2. Register Customer / Auth Bot Webhook with ?bot=auth
+        if ($authBotToken && $authBotToken !== $token && !str_contains($authBotToken, 'Placeholder')) {
+            try {
+                $resp = Http::timeout(4)->post("https://api.telegram.org/bot{$authBotToken}/setWebhook", [
+                    'url' => $webhookUrl . '?bot=auth',
+                    'drop_pending_updates' => false,
+                    'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
+                ]);
+                $allOk = $allOk && (($resp->json()['ok'] ?? false) === true);
+            } catch (\Throwable $e) {}
+        }
+
+        return $allOk;
     }
 
     /**
@@ -371,6 +388,30 @@ class TelegramService
     }
 
     /**
+     * Contextual toast message for instant button click feedback (< 1ms)
+     */
+    public static function getQuickToast(?string $callbackData): string
+    {
+        return match ($callbackData) {
+            'cust_my_orders', 'cust_track', 'btn_my_orders' => "📦 កំពុងទាញយកទិន្នន័យបញ្ជាទិញ...",
+            'cust_my_wallet', 'btn_my_wallet' => "💰 កំពុងពិនិត្យសមតុល្យកាបូបលុយ...",
+            'cust_my_points', 'btn_my_points' => "🪙 កំពុងពិនិត្យពិន្ទុ S-Coins & VIP...",
+            'cust_my_repairs', 'btn_my_repairs', 'cust_repair' => "🔧 កំពុងពិនិត្យសំបុត្រជួសជុល...",
+            'cust_shop' => "🛍️ កំពុងដំណើរការហាងទំនិញ...",
+            'cust_promo' => "🔥 កំពុងបើកប្រូម៉ូសិន...",
+            'cust_contact', 'btn_about_store' => "🏪 កំពុងបើកព័ត៌មានហាង...",
+            'cust_help', 'btn_how_to_connect' => "ℹ️ កំពុងបើកជំនួយ...",
+            'cust_support', 'btn_chat_start' => "💬 កំពុងភ្ជាប់ទៅក្រុមការងារ...",
+            'cust_ask_options', 'btn_faq' => "❓ កំពុងបើកសំណួរញឹកញាប់...",
+            'cust_ask_payment' => "💳 កំពុងទាញយកវិធីទូទាត់...",
+            'cust_ask_delivery' => "🚚 កំពុងទាញយកព័ត៌មានដឹកជញ្ជូន...",
+            'cust_ask_warranty' => "🛡️ កំពុងទាញយកគោលការណ៍ធានា...",
+            'cust_main_menu', 'btn_main_menu' => "🏠 កំពុងត្រឡប់ទៅមឺនុយមេ...",
+            default => "⚡ ទទួលបានការចុច! កំពុងដំណើរការ...",
+        };
+    }
+
+    /**
      * Process an individual update received from Telegram Webhook or Long Polling
      */
     public static function processUpdate(array $up, ?string $botParam = null): void
@@ -389,13 +430,23 @@ class TelegramService
             $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $fromUsername = $from['username'] ?? '';
 
-            // Token routing: Customer bot for private chat or auth bot param; Group bot for admin groups
-            $activeToken = ($botParam === 'auth' || $chatType === 'private')
-                ? self::getCustomerBotToken()
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
-            $activeBotUsername = ($botParam === 'auth' || $chatType === 'private')
-                ? self::getCustomerBotUsername()
-                : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+            // Accurate Multi-Bot Token Routing:
+            // Check if callback query was clicked on a message sent by Main Bot or Auth Bot
+            $msgBotId = $callbackQuery['message']['from']['id'] ?? null;
+            if ($msgBotId == 8899300323 || $botParam === 'main') {
+                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+            } elseif ($msgBotId == 8689597792 || $botParam === 'auth') {
+                $activeToken = self::getCustomerBotToken();
+                $activeBotUsername = self::getCustomerBotUsername();
+            } else {
+                $activeToken = ($botParam === 'auth' || ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_TOKEN') && !env('TELEGRAM_BOT_TOKEN')))
+                    ? self::getCustomerBotToken()
+                    : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                $activeBotUsername = ($botParam === 'auth')
+                    ? self::getCustomerBotUsername()
+                    : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+            }
 
             // STRICT DISCONNECT ISOLATION: In group chat, if disconnected, ignore completely!
             if ($chatType !== 'private') {
@@ -407,30 +458,10 @@ class TelegramService
 
             // ⚡ Instant Tactile Feedback: Immediately fire answerCallbackQuery with contextual toast (<20ms)
             if ($callbackId) {
-                $quickToast = match ($callbackData) {
-                    'cust_my_orders', 'cust_track', 'btn_my_orders' => "📦 កំពុងទាញយកទិន្នន័យបញ្ជាទិញ...",
-                    'cust_my_wallet', 'btn_my_wallet' => "💰 កំពុងពិនិត្យសមតុល្យកាបូបលុយ...",
-                    'cust_my_points', 'btn_my_points' => "🪙 កំពុងពិនិត្យពិន្ទុ S-Coins & VIP...",
-                    'cust_my_repairs', 'btn_my_repairs', 'cust_repair' => "🔧 កំពុងពិនិត្យសំបុត្រជួសជុល...",
-                    'cust_shop' => "🛍️ កំពុងដំណើរការហាងទំនិញ...",
-                    'cust_promo' => "🔥 កំពុងបើកប្រូម៉ូសិន...",
-                    'cust_contact', 'btn_about_store' => "🏪 កំពុងបើកព័ត៌មានហាង...",
-                    'cust_help', 'btn_how_to_connect' => "ℹ️ កំពុងបើកជំនួយ...",
-                    'cust_support', 'btn_chat_start' => "💬 កំពុងភ្ជាប់ទៅក្រុមការងារ...",
-                    'cust_ask_options', 'btn_faq' => "❓ កំពុងបើកសំណួរញឹកញាប់...",
-                    'cust_ask_payment' => "💳 កំពុងទាញយកវិធីទូទាត់...",
-                    'cust_ask_delivery' => "🚚 កំពុងទាញយកព័ត៌មានដឹកជញ្ជូន...",
-                    'cust_ask_warranty' => "🛡️ កំពុងទាញយកគោលការណ៍ធានា...",
-                    'cust_main_menu', 'btn_main_menu' => "🏠 កំពុងត្រឡប់ទៅមឺនុយមេ...",
-                    default => "⚡ ទទួលបានការចុច! កំពុងដំណើរការ...",
-                };
+                $quickToast = self::getQuickToast($callbackData);
                 self::answerCallbackQuery($callbackId, $quickToast, $activeToken);
             }
 
-            // ⚡ Immediate Typing Action indicator in Telegram header (<20ms)
-            if ($chatId) {
-                self::sendChatAction($chatId, 'typing', $activeToken);
-            }
 
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
@@ -521,37 +552,31 @@ class TelegramService
                 return;
             }
 
-            // Customer My Orders & Track Order (Instant Animation & Targeted Fast Query)
+            // Customer My Orders & Track Order (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) && $chatId) {
-                // 1. Instant in-chat visual feedback / animation
-                if ($messageId) {
-                    $loadingAnim = "📦 <b>កំពុងទាញយកបញ្ជីការកុម្ម៉ង់...</b>\n\n"
-                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
-                        . "<code>[ ▰▰▰▰▰▰▰▱▱▱ ] 70%</code>";
-                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
-                }
-
-                // 2. Targeted lightweight DB query with short cache (<5ms)
-                $user = Cache::remember("tg_u_prof_{$chatId}", 20, function() use ($chatId) {
+                // Local-First Cached Profile & Orders (< 1ms on repeat clicks)
+                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
                     return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
                         ->orWhere('telegram_chat_id', (string)$chatId)
                         ->select(['id', 'phone', 'firebase_uid', 'wallet_balance', 'points'])
                         ->first();
                 });
 
-                $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
-                    $q->where('user_id', 'tg_' . $chatId);
-                    if ($user && !empty($user->phone)) {
-                        $q->orWhere('customer_phone', $user->phone);
-                    }
-                })
-                ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
-                ->with(['items' => function ($q) {
-                    $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
-                }])
-                ->latest()
-                ->take(3)
-                ->get();
+                $orders = Cache::remember("tg_orders_{$chatId}", 30, function() use ($chatId, $user) {
+                    return \App\Models\Order::where(function ($q) use ($chatId, $user) {
+                        $q->where('user_id', 'tg_' . $chatId);
+                        if ($user && !empty($user->phone)) {
+                            $q->orWhere('customer_phone', $user->phone);
+                        }
+                    })
+                    ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
+                    ->with(['items' => function ($q) {
+                        $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
+                    }])
+                    ->latest()
+                    ->take(3)
+                    ->get();
+                });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
@@ -629,17 +654,10 @@ class TelegramService
                 return;
             }
 
-            // Customer My Wallet & Cash Balance (Instant Animation & Targeted Fast Query)
+            // Customer My Wallet & Cash Balance (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_wallet', 'btn_my_wallet']) && $chatId) {
-                if ($messageId) {
-                    $loadingAnim = "💰 <b>កំពុងទាញយកសមតុល្យកាបូបលុយ...</b>\n\n"
-                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
-                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 80%</code>";
-                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
-                }
-
-                // Targeted lightweight DB query with short cache (<5ms)
-                $user = Cache::remember("tg_u_prof_{$chatId}", 20, function() use ($chatId) {
+                // Local-First Cached Profile & Transactions (< 1ms on repeat clicks)
+                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
                     return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
                         ->orWhere('telegram_chat_id', (string)$chatId)
                         ->select(['id', 'firebase_uid', 'wallet_balance', 'points', 'phone'])
@@ -655,14 +673,14 @@ class TelegramService
                 $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
                 $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
-                $recentTxs = collect();
-                if ($user && !empty($user->firebase_uid)) {
-                    $recentTxs = \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
+                $recentTxs = Cache::remember("tg_txs_{$chatId}", 30, function() use ($user) {
+                    if (!$user || empty($user->firebase_uid)) return collect();
+                    return \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
                         ->select(['id', 'type', 'amount', 'status', 'created_at'])
                         ->latest()
                         ->take(3)
                         ->get();
-                }
+                });
 
                 $txListText = "";
                 if ($recentTxs->isNotEmpty()) {
@@ -725,18 +743,14 @@ class TelegramService
                 return;
             }
 
-            // Customer My Points & VIP Rewards (Instant Animation & Targeted Fast Query)
+            // Customer My Points & VIP Rewards (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
-                if ($messageId) {
-                    $loadingAnim = "🪙 <b>កំពុងទាញយកពិន្ទុ & VIP Rewards...</b>\n\n"
-                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
-                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 85%</code>";
-                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
-                }
-
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                    ->select(['id', 'points'])
-                    ->first();
+                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
+                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                        ->orWhere('telegram_chat_id', (string)$chatId)
+                        ->select(['id', 'points', 'phone', 'firebase_uid', 'wallet_balance'])
+                        ->first();
+                });
                 $points = (int)($user->points ?? 0);
                 $dollarVal = number_format($points * 0.01, 2);
 
@@ -747,9 +761,11 @@ class TelegramService
                     default => '🥈 Silver Member',
                 };
 
-                $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)
-                    ->whereIn('status', ['completed', 'delivered'])
-                    ->count();
+                $completedOrders = Cache::remember("tg_orders_cnt_{$chatId}", 60, function() use ($chatId) {
+                    return \App\Models\Order::where('user_id', 'tg_' . $chatId)
+                        ->whereIn('status', ['completed', 'delivered'])
+                        ->count();
+                });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
@@ -784,27 +800,25 @@ class TelegramService
                 return;
             }
 
-            // Customer My Repairs & Warranty Service (Instant Animation & Targeted Fast Query)
+            // Customer My Repairs & Warranty Service (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_repairs', 'btn_my_repairs', 'cust_repair']) && $chatId) {
-                if ($messageId) {
-                    $loadingAnim = "🔧 <b>កំពុងទាញយកសំបុត្រជួសជុល & Warranty...</b>\n\n"
-                        . "⏳ <i>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងដំណើរការទាញយកទិន្នន័យជាក់ស្តែង...</i>\n\n"
-                        . "<code>[ ▰▰▰▰▰▰▰▰▱▱ ] 80%</code>";
-                    self::editMessageText($chatId, $messageId, $loadingAnim, null, 'HTML', $activeToken);
-                }
+                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
+                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                        ->orWhere('telegram_chat_id', (string)$chatId)
+                        ->select(['id', 'phone', 'email', 'firebase_uid', 'wallet_balance', 'points'])
+                        ->first();
+                });
 
-                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                    ->select(['id', 'phone', 'email'])
-                    ->first();
-
-                $repairs = \App\Models\Repair::where(function ($q) use ($user) {
-                    if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
-                    if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
-                })
-                ->select(['id', 'ticket_code', 'device_name', 'status', 'technician_name', 'estimated_cost', 'issue_description'])
-                ->latest()
-                ->take(3)
-                ->get();
+                $repairs = Cache::remember("tg_repairs_{$chatId}", 30, function() use ($user) {
+                    return \App\Models\Repair::where(function ($q) use ($user) {
+                        if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
+                        if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
+                    })
+                    ->select(['id', 'ticket_code', 'device_name', 'status', 'technician_name', 'estimated_cost', 'issue_description'])
+                    ->latest()
+                    ->take(3)
+                    ->get();
+                });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
@@ -1270,13 +1284,21 @@ class TelegramService
 
         if (!$chatId) return;
 
-        // Token routing: Customer bot for private customer chat; group bot for admin groups
-        $activeToken = ($botParam === 'auth' || $chatType === 'private')
-            ? self::getCustomerBotToken()
-            : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
-        $activeBotUsername = ($botParam === 'auth' || $chatType === 'private')
-            ? self::getCustomerBotUsername()
-            : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+        // Multi-Bot Token routing based on bot parameter and chat context
+        if ($botParam === 'main') {
+            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+            $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+        } elseif ($botParam === 'auth') {
+            $activeToken = self::getCustomerBotToken();
+            $activeBotUsername = self::getCustomerBotUsername();
+        } else {
+            $activeToken = ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_TOKEN') && !env('TELEGRAM_BOT_TOKEN'))
+                ? self::getCustomerBotToken()
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+            $activeBotUsername = ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_USERNAME') && !env('TELEGRAM_BOT_USERNAME'))
+                ? self::getCustomerBotUsername()
+                : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+        }
 
         // Message Deduplication
         if ($messageId && !Cache::add("tg_done_msg_{$chatId}_{$messageId}", time(), 86400)) {
@@ -2102,11 +2124,13 @@ class TelegramService
             return;
         }
 
-        // Customer /wallet, /balance, /money, /funds, /topup (Real Wallet Lookup)
+        // Customer /wallet, /balance, /money, /funds, /topup (Local-First Real Wallet Lookup)
         if (preg_match('/^\/(?:wallet|balance|money|funds|topup)(?:@\w+)?/i', $text)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                ->orWhere('telegram_chat_id', (string)$chatId)
-                ->first();
+            $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
+                return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
+                    ->orWhere('telegram_chat_id', (string)$chatId)
+                    ->first();
+            });
 
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
             $points = (int)($user->points ?? 0);
@@ -2116,13 +2140,13 @@ class TelegramService
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
             $walletAppUrl = "https://www.s-tech-store.tech/account/wallet?tg_token={$sessionToken}";
 
-            $recentTxs = collect();
-            if ($user && !empty($user->firebase_uid)) {
-                $recentTxs = \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
+            $recentTxs = Cache::remember("tg_txs_{$chatId}", 30, function() use ($user) {
+                if (!$user || empty($user->firebase_uid)) return collect();
+                return \App\Models\WalletTransaction::where('firebase_uid', $user->firebase_uid)
                     ->latest()
                     ->take(3)
                     ->get();
-            }
+            });
 
             $txListText = "";
             if ($recentTxs->isNotEmpty()) {
@@ -3839,7 +3863,7 @@ class TelegramService
     }
 
     /**
-     * Answer Telegram callback query to dismiss button loading spinners (supports Multi-Bot Token)
+     * Answer Telegram callback query to dismiss button loading spinners (supports Multi-Bot Token & Auto-Fallback)
      */
     public static function answerCallbackQuery(?string $callbackId, string $text = '', ?string $token = null): void
     {
@@ -3854,11 +3878,37 @@ class TelegramService
         }
 
         try {
-            Http::timeout(5)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+            $resp = Http::timeout(2)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
                 'callback_query_id' => $callbackId,
                 'text' => $text,
+                'cache_time' => 1,
             ]);
+
+            // If token rejected with 400 (e.g. wrong bot token), automatically fallback to customer bot token
+            if (!$resp->successful() && $token !== self::getCustomerBotToken() && self::getCustomerBotToken()) {
+                $altToken = self::getCustomerBotToken();
+                Http::timeout(2)->post("https://api.telegram.org/bot{$altToken}/answerCallbackQuery", [
+                    'callback_query_id' => $callbackId,
+                    'text' => $text,
+                    'cache_time' => 1,
+                ]);
+            }
         } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Invalidate local-first Telegram cache for a user when wallet balance, orders, or points mutate
+     */
+    public static function invalidateUserBotCache(string|int $chatId): void
+    {
+        $id = (string)$chatId;
+        $cleanId = str_replace('tg_', '', $id);
+        Cache::forget("tg_u_prof_{$cleanId}");
+        Cache::forget("tg_txs_{$cleanId}");
+        Cache::forget("tg_orders_{$cleanId}");
+        Cache::forget("tg_orders_cnt_{$cleanId}");
+        Cache::forget("tg_repairs_{$cleanId}");
+        Cache::forget("tg_points_{$cleanId}");
     }
 
     /**

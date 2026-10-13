@@ -297,10 +297,37 @@ class TelegramController extends Controller
 
         $update = $request->all();
         $botParam = $request->query('bot', '');
-        Log::info("Telegram Webhook Update received [bot={$botParam}]:", $update);
+
+        // ⚡ INSTANT LOCAL-FIRST CALLBACK ACKNOWLEDGMENT:
+        // When user clicks any inline button in Telegram, respond with method 'answerCallbackQuery'
+        // directly in the webhook HTTP response. This stops the top bar "Loading..." pill and button
+        // spinner immediately (< 50ms) without waiting for external network or database roundtrips!
+        $callbackQuery = $update['callback_query'] ?? null;
+        $callbackId = $callbackQuery['id'] ?? null;
+        $callbackData = $callbackQuery['data'] ?? '';
+        $quickToast = $callbackId ? TelegramService::getQuickToast($callbackData) : '';
+
+        $responsePayload = ['ok' => true];
+        if (!empty($callbackId)) {
+            $responsePayload = [
+                'method' => 'answerCallbackQuery',
+                'callback_query_id' => $callbackId,
+                'text' => $quickToast,
+                'cache_time' => 1,
+            ];
+        }
+
+        // In FastCGI / PHP-FPM environments, flush HTTP response immediately to Telegram servers
+        // so client spinner dismisses instantly while background processing continues
+        if (function_exists('fastcgi_finish_request')) {
+            response()->json($responsePayload)->send();
+            fastcgi_finish_request();
+            TelegramService::processUpdate($update, $botParam);
+            return response()->json($responsePayload);
+        }
 
         TelegramService::processUpdate($update, $botParam);
 
-        return response()->json(['ok' => true]);
+        return response()->json($responsePayload);
     }
 }

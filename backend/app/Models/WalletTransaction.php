@@ -28,4 +28,13 @@ class WalletTransaction extends Model
     {
         return $this->belongsTo(UserProfile::class, 'firebase_uid', 'firebase_uid');
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($tx) {
+            if (!empty($tx->firebase_uid) && str_starts_with($tx->firebase_uid, 'tg_')) {
+                \App\Services\TelegramService::invalidateUserBotCache($tx->firebase_uid);
+            }
+        });
+    }
 }
