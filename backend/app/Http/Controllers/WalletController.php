@@ -296,7 +296,7 @@ class WalletController extends Controller
         }
 
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:1.00|max:5000.00',
+            'amount' => 'required|numeric|min:0.01|max:5000.00',
             'method' => 'nullable|string|in:khqr,bakong,aba,wing,acleda,card,visa',
             'currency' => 'nullable|string|in:USD,KHR',
         ]);

@@ -21,7 +21,7 @@ interface WalletTopupModalProps {
 const STORAGE_KEY = "stech_pending_wallet_topup";
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes validity
 const MAX_VERIFY_ATTEMPTS = 5; // Max 5 verification attempts per generated QR to protect Bakong Open API
-const PRESET_AMOUNTS = [5, 10, 20, 50, 100, 200];
+const PRESET_AMOUNTS = [0.01, 5, 10, 20, 50, 100];
 
 const BANK_CHANNELS = [
   {
@@ -134,8 +134,8 @@ export default function WalletTopupModal({
 
   const handleGenerateQR = async () => {
     const amt = getEffectiveAmount();
-    if (amt < 1) {
-      setErrorMsg("ចំនួនទឹកប្រាក់អប្បបរមាគឺ $1.00 USD");
+    if (amt < 0.01) {
+      setErrorMsg("ចំនួនទឹកប្រាក់អប្បបរមាគឺ $0.01 USD");
       return;
     }
     setErrorMsg(null);
@@ -359,7 +359,7 @@ export default function WalletTopupModal({
                               : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
                           }`}
                         >
-                          ${amt}.00
+                          {amt < 1 ? `$${amt.toFixed(2)}` : `$${amt}.00`}
                         </button>
                       );
                     })}
@@ -373,12 +373,12 @@ export default function WalletTopupModal({
                     <input
                       type="number"
                       step="0.01"
-                      min="1"
+                      min="0.01"
                       value={customAmount}
                       onChange={(e) => {
                         setCustomAmount(e.target.value);
                       }}
-                      placeholder="ឬបញ្ចូលចំនួនទឹកប្រាក់ផ្ទាល់ខ្លួន (e.g. 15.50)"
+                      placeholder="ឬបញ្ចូលចំនួនទឹកប្រាក់ផ្ទាល់ខ្លួន (e.g. 0.01 ឬ 15.50)"
                       className="w-full pl-8 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
                     />
                   </div>
