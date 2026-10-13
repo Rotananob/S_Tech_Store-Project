@@ -37,6 +37,23 @@ class AdminMiddleware
             if ($user) {
                 // Strict RBAC Verification: User must be admin or staff
                 if ($user->isAdmin() || $user->isStaff()) {
+                    $isSuper = $user->isSuperAdmin() || ($user->email === 'nobrothana180703@gmail.com');
+
+                    // Check if Staff Activity Lockdown is armed by System Owner
+                    $masterState = \Illuminate\Support\Facades\Cache::get('master_system_state') ?: (function() {
+                        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'master_system_state')->first();
+                        return $row && !empty($row->value) ? (is_string($row->value) ? json_decode($row->value, true) : (array)$row->value) : [];
+                    })();
+
+                    if (!empty($masterState['staff_lockdown']) && !$isSuper) {
+                        return response()->json([
+                            'success' => false,
+                            'code' => 'STAFF_LOCKDOWN_ACTIVE',
+                            'message' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ (System Owner)!',
+                            'reason' => $masterState['staff_lockdown_reason'] ?? 'Emergency Staff Lockdown by System Owner',
+                        ], 423);
+                    }
+
                     // Attach authenticated admin/staff user to request attributes
                     $request->attributes->set('auth_user', $user);
                     return $next($request);

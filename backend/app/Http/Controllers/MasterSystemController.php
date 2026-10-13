@@ -29,7 +29,18 @@ class MasterSystemController extends Controller
         }
 
         $defaults = [
+            'mode' => 'online',
             'maintenance_mode' => false,
+            'maintenance_title' => 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)',
+            'maintenance_reason' => 'កំពុង Upgrade Server និងប្រព័ន្ធទូទាត់ប្រាក់ជូនលោកអ្នក។',
+            'vacation_mode' => false,
+            'vacation_title' => 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
+            'vacation_reason' => 'ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!',
+            'vacation_end_time' => null,
+            'vacation_days' => 3,
+            'vacation_started_at' => null,
+            'staff_lockdown' => false,
+            'staff_lockdown_reason' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ (System Owner)!',
             'financial_freeze' => false,
             'coin_multiplier' => 1.0,
             'force_app_version' => '1.1.0',
@@ -70,22 +81,95 @@ class MasterSystemController extends Controller
     }
 
     /**
+     * Public Store Status (For Customer Storefront & PWA Guard)
+     */
+    public function publicStatus(Request $request)
+    {
+        $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+        $state = [];
+        if ($row && !empty($row->value)) {
+            $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+        }
+
+        $vacationActive = !empty($state['vacation_mode']);
+        $vacationEndTime = $state['vacation_end_time'] ?? null;
+
+        // Auto-Expiration: If vacation end time has arrived, automatically resume online!
+        if ($vacationActive && !empty($vacationEndTime)) {
+            $now = now();
+            $end = \Carbon\Carbon::parse($vacationEndTime);
+            if ($now->greaterThanOrEqualTo($end)) {
+                $vacationActive = false;
+                $this->updateMasterState([
+                    'vacation_mode' => false,
+                    'mode' => !empty($state['maintenance_mode']) ? 'maintenance' : 'online',
+                ]);
+            }
+        }
+
+        $maintenanceActive = !empty($state['maintenance_mode']);
+
+        $mode = 'online';
+        if ($maintenanceActive) {
+            $mode = 'maintenance';
+        } elseif ($vacationActive) {
+            $mode = 'vacation';
+        }
+
+        return response()->json([
+            'status' => $mode,
+            'vacation' => [
+                'active' => $vacationActive,
+                'title' => $state['vacation_title'] ?? 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
+                'reason' => $state['vacation_reason'] ?? 'ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!',
+                'end_time' => $vacationEndTime,
+                'days' => (int)($state['vacation_days'] ?? 3),
+                'started_at' => $state['vacation_started_at'] ?? null,
+            ],
+            'maintenance' => [
+                'active' => $maintenanceActive,
+                'title' => $state['maintenance_title'] ?? 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)',
+                'reason' => $state['maintenance_reason'] ?? 'កំពុង Upgrade Server និងប្រព័ន្ធទូទាត់ប្រាក់ជូនលោកអ្នក។',
+                'end_time' => $state['maintenance_end_time'] ?? null,
+            ],
+            'staff_lockdown' => [
+                'active' => !empty($state['staff_lockdown']),
+                'reason' => $state['staff_lockdown_reason'] ?? 'សកម្មភាពបុគ្គលិកត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ',
+            ],
+            'server_time' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
      * Toggle Store Maintenance Mode
      */
     public function toggleMaintenance(Request $request)
     {
         $enabled = (bool)$request->input('enabled', false);
-        $reason = $request->input('reason', 'ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពតាមកាលវិភាគផ្លូវការ (Scheduled System Maintenance)');
+        $title = trim((string)$request->input('title', 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)'));
+        $reason = trim((string)$request->input('reason', 'ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពតាមកាលវិភាគផ្លូវការ (Scheduled System Maintenance)'));
+        $endTime = $request->input('end_time');
+
+        $currentMaster = Cache::get('master_system_state') ?? [];
+        if (empty($currentMaster)) {
+            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+            if ($row && !empty($row->value)) {
+                $currentMaster = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        }
 
         $this->updateMasterState([
             'maintenance_mode' => $enabled,
+            'maintenance_title' => $title,
             'maintenance_reason' => $reason,
+            'maintenance_end_time' => $endTime ? \Carbon\Carbon::parse($endTime)->toIso8601String() : null,
             'maintenance_updated_at' => now()->toIso8601String(),
+            'mode' => $enabled ? 'maintenance' : (!empty($currentMaster['vacation_mode']) ? 'vacation' : 'online'),
         ]);
 
         // Push Alert to Telegram Sentinel
         try {
-            $statusKh = $enabled ? "🔴 បានបើកដំណើរការ MAINTENANCE MODE (ហាងត្រូវបានបិទបណ្តោះអាសន្ន)" : "🟢 បានបិទ MAINTENANCE MODE (ហាងបានបើកដំណើរការធម្មតាឡើងវិញ)";
+            $statusKh = $enabled ? "🔴 បានបើកដំណើរការ MAINTENANCE MODE (ហាងត្រូវបានបិទសម្រាប់ជួសជុល)" : "🟢 បានបិទ MAINTENANCE MODE (ហាងបានបើកដំណើរការធម្មតាឡើងវិញ)";
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
                 'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
@@ -100,6 +184,105 @@ class MasterSystemController extends Controller
             'message' => $enabled 
                 ? 'បានបើក Maintenance Mode ជោគជ័យ! អតិថិជននឹងឃើញផ្ទាំងថែទាំប្រព័ន្ធ។' 
                 : 'បានបិទ Maintenance Mode ជោគជ័យ! ហាងបានបើកដំណើរការជាសាធារណៈវិញហើយ។',
+        ]);
+    }
+
+    /**
+     * Toggle Store Temporary Closure / Vacation with Custom Days & Countdown
+     */
+    public function toggleVacation(Request $request)
+    {
+        $enabled = (bool)$request->input('enabled', false);
+        $days = max(1, (int)$request->input('days', 3));
+        $hours = (int)$request->input('hours', 0);
+        $customEndTime = $request->input('end_time');
+        $title = trim((string)$request->input('title', 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)'));
+        $reason = trim((string)$request->input('reason', "ហាង S Tech Store សូមឈប់សម្រាករយៈពេល {$days} ថ្ងៃ។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!"));
+
+        $endTime = null;
+        if ($enabled) {
+            if (!empty($customEndTime)) {
+                $endTime = \Carbon\Carbon::parse($customEndTime)->toIso8601String();
+            } else {
+                $totalHours = ($days * 24) + $hours;
+                if ($totalHours <= 0) $totalHours = 72; // default 3 days
+                $endTime = now()->addHours($totalHours)->toIso8601String();
+            }
+        }
+
+        $newState = [
+            'vacation_mode' => $enabled,
+            'vacation_title' => $title,
+            'vacation_reason' => $reason,
+            'vacation_end_time' => $endTime,
+            'vacation_days' => $days,
+            'vacation_started_at' => $enabled ? now()->toIso8601String() : null,
+            'mode' => $enabled ? 'vacation' : 'online',
+        ];
+
+        $this->updateMasterState($newState);
+
+        try {
+            $statusKh = $enabled
+                ? "🏖️ បានបើក STORE VACATION MODE (បិទសម្រាក {$days} ថ្ងៃ — Countdown ដល់: {$endTime})"
+                : "🟢 បានបិទ VACATION MODE (ហាងបានបើកដំណើរការឡើងវិញជាធម្មតា)";
+            TelegramService::sendSecurityAlert([
+                'type' => $statusKh,
+                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'action' => $enabled ? "Store Closed for {$days} Days" : 'Store Re-Opened',
+                'details' => "មូលហេតុ: {$reason} | ពេលបើកវិញ: " . ($endTime ?: 'ភ្លាមៗ'),
+            ]);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'vacation_mode' => $enabled,
+            'vacation_end_time' => $endTime,
+            'message' => $enabled
+                ? "បានបើកមុខងារបិទសម្រាក {$days} ថ្ងៃ ជោគជ័យ! អតិថិជននឹងឃើញផ្ទាំងរាប់ថយក្រោយ Countdown។"
+                : "បានបិទមុខងារសម្រាក និងបើកហាងដំណើរការឡើងវិញជាធម្មតាជោគជ័យ!",
+        ]);
+    }
+
+    /**
+     * Toggle Complete Staff & Sub-Admin Activity Lockdown
+     */
+    public function toggleStaffLockdown(Request $request)
+    {
+        $enabled = (bool)$request->input('enabled', false);
+        $reason = trim((string)$request->input('reason', 'ការត្រួតពិនិត្យសុវត្ថិភាពសរុប និងបង្កកសកម្មភាពបុគ្គលិកដោយម្ចាស់ប្រព័ន្ធ (Emergency Staff Lockdown by System Owner)'));
+
+        $this->updateMasterState([
+            'staff_lockdown' => $enabled,
+            'staff_lockdown_reason' => $reason,
+            'staff_lockdown_updated_at' => now()->toIso8601String(),
+        ]);
+
+        if ($enabled) {
+            User::where('role', '!=', 'super_admin')
+                ->where('email', '!=', 'nobrothana180703@gmail.com')
+                ->whereNotNull('api_token')
+                ->update(['api_token' => null]);
+        }
+
+        try {
+            $statusKh = $enabled 
+                ? "🔒 បិទផ្អាកសកម្មភាព Admin & Staff ទាំងអស់ (STAFF ACTIVITY FROZEN)" 
+                : "🔓 ដោះសោសកម្មភាព Admin & Staff ធម្មតាវិញ (STAFF ACTIVITY RESTORED)";
+            TelegramService::sendSecurityAlert([
+                'type' => $statusKh,
+                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'action' => $enabled ? 'Staff Activity Global Lockdown Activated' : 'Staff Activity Restored',
+                'details' => "មូលហេតុ: {$reason} | សិទ្ធិប្រតិបត្តិការបុគ្គលិក: " . ($enabled ? "FROZEN (ម្ចាស់ប្រព័ន្ធគ្រប់គ្រងតែម្នាក់ឯង)" : "ACTIVE"),
+            ]);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'staff_lockdown' => $enabled,
+            'message' => $enabled
+                ? "បានបិទ និងបង្កកសកម្មភាព Admin & Staff ទាំងអស់ជោគជ័យ! មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន។"
+                : "បានដោះសោសកម្មភាព Admin & Staff ឱ្យដំណើរការធម្មតាឡើងវិញជោគជ័យ!",
         ]);
     }
 

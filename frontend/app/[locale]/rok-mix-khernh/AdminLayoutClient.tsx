@@ -29,9 +29,12 @@ import {
   Layers,
   Crown,
   ShieldAlert,
-  Lock
+  Lock,
+  Palmtree,
+  Ban
 } from "lucide-react";
 import { AdminPWAController, AdminPWAInstallButton } from "@/components/admin/AdminPWAController";
+import { getPublicStoreStatus } from "@/lib/services/master.service";
 
 type AdminUser = {
   id: number;
@@ -53,6 +56,19 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<AdminUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [storeStatus, setStoreStatus] = useState<{
+    status: string;
+    vacationActive: boolean;
+    staffLockdownActive: boolean;
+    staffLockdownReason: string;
+    vacationEndTime: string | null;
+  }>({
+    status: "online",
+    vacationActive: false,
+    staffLockdownActive: false,
+    staffLockdownReason: "",
+    vacationEndTime: null,
+  });
 
   // If on admin login page, bypass the layout chrome
   const isLoginPage = pathname === "/rok-mix-khernh/login" || pathname.endsWith("/rok-mix-khernh/login");
@@ -122,6 +138,28 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       window.removeEventListener("storage", handleAuthUpdate);
     };
   }, []);
+
+  // Poll store status for Staff Lockdown & Vacation mode
+  useEffect(() => {
+    if (isLoginPage) return;
+
+    const checkStoreStatus = async () => {
+      try {
+        const res = await getPublicStoreStatus();
+        setStoreStatus({
+          status: res.status,
+          vacationActive: !!res.vacation?.active,
+          staffLockdownActive: !!res.staff_lockdown?.active,
+          staffLockdownReason: res.staff_lockdown?.reason || "",
+          vacationEndTime: res.vacation?.end_time || null,
+        });
+      } catch (e) {}
+    };
+
+    checkStoreStatus();
+    const interval = setInterval(checkStoreStatus, 15000);
+    return () => clearInterval(interval);
+  }, [isLoginPage]);
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
@@ -803,6 +841,53 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             </div>
           </div>
         </header>
+
+        {/* ── GLOBAL STAFF LOCKDOWN ALERT BANNER FOR NON-SUPERADMIN USERS ── */}
+        {!isSuperAdmin && storeStatus.staffLockdownActive && (
+          <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white px-4 py-3 shadow-lg flex items-center justify-between gap-3 text-xs font-bold border-b border-red-800 animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <Ban size={18} className="text-white shrink-0 animate-pulse" />
+              <span>
+                🚨 ការជូនដំណឹងបន្ទាន់៖ ម្ចាស់ប្រព័ន្ធបានដាក់បញ្ជាបង្កកសកម្មភាព Admin & Staff ទាំងអស់ (Global Activity Lockdown Active)! រាល់សកម្មភាពបន្ថែម កែប្រែ ឬលុបទិន្នន័យត្រូវបានផ្អាកបណ្ដោះអាសន្ន។
+              </span>
+            </div>
+            <span className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-black/40 text-[10px] uppercase font-mono tracking-wider shrink-0 border border-white/20">
+              🔒 READ-ONLY MODE
+            </span>
+          </div>
+        )}
+
+        {/* ── SUPER ADMIN STAFF LOCKDOWN ACTIVE INDICATOR ── */}
+        {isSuperAdmin && storeStatus.staffLockdownActive && (
+          <div className="bg-gradient-to-r from-red-950 via-rose-950 to-red-900 text-rose-200 px-4 py-2 shadow-sm flex items-center justify-between gap-3 text-xs font-bold border-b border-rose-800/40">
+            <div className="flex items-center gap-2">
+              <Ban size={14} className="text-rose-400 shrink-0" />
+              <span>
+                👑 មហាសិទ្ធិម្ចាស់ប្រព័ន្ធ៖ លោកអ្នកបានបើក Global Staff Lockdown (សកម្មភាព Admin & Staff ផ្សេងទៀតត្រូវបានផ្អាក)។
+              </span>
+            </div>
+            <Link href="/rok-mix-khernh/master-control" className="text-[11px] underline font-black text-rose-300 hover:text-white shrink-0">
+              គ្រប់គ្រង Master Control →
+            </Link>
+          </div>
+        )}
+
+        {/* ── VACATION MODE STOREFRONT NOTICE BANNER ── */}
+        {storeStatus.vacationActive && (
+          <div className="bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 text-amber-900 border-b border-amber-300/60 px-4 py-2 flex items-center justify-between gap-3 text-xs font-bold">
+            <div className="flex items-center gap-2">
+              <Palmtree size={15} className="text-amber-700 shrink-0" />
+              <span>
+                🏖️ Storefront កំពុងបើកផ្ទាំងឈប់សម្រាកបណ្តោះអាសន្ន (Vacation Mode + Live Countdown) — ហាងនឹង auto direct បើកវិញពេលដល់ម៉ោង!
+              </span>
+            </div>
+            {isSuperAdmin && (
+              <Link href="/rok-mix-khernh/master-control" className="text-[11px] underline font-black text-amber-800 hover:text-amber-950 shrink-0">
+                កែប្រែពេលសម្រាក →
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Page Content */}
         <main className="flex-1 p-2 sm:p-4 lg:p-8 overflow-x-hidden overflow-y-auto w-full">

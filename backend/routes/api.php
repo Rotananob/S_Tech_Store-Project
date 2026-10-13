@@ -1376,6 +1376,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 // Grand Master Privileges - Exclusively Reserved for System Owner (Super Admin)
 Route::middleware(SuperAdminMiddleware::class)->group(function () {
     Route::post('/admin/master/toggle-maintenance', [\App\Http\Controllers\MasterSystemController::class, 'toggleMaintenance']);
+    Route::post('/admin/master/toggle-vacation', [\App\Http\Controllers\MasterSystemController::class, 'toggleVacation']);
+    Route::post('/admin/master/toggle-staff-lockdown', [\App\Http\Controllers\MasterSystemController::class, 'toggleStaffLockdown']);
     Route::post('/admin/master/purge-caches', [\App\Http\Controllers\MasterSystemController::class, 'purgeCaches']);
     Route::post('/admin/master/toggle-financial-freeze', [\App\Http\Controllers\MasterSystemController::class, 'toggleFinancialFreeze']);
     Route::post('/admin/master/backup-database', [\App\Http\Controllers\MasterSystemController::class, 'backupDatabase']);
@@ -1384,6 +1386,9 @@ Route::middleware(SuperAdminMiddleware::class)->group(function () {
     Route::post('/admin/master/revoke-all-staff-sessions', [\App\Http\Controllers\MasterSystemController::class, 'revokeAllStaffSessions']);
     Route::post('/admin/master/coin-multiplier', [\App\Http\Controllers\MasterSystemController::class, 'updateCoinMultiplier']);
 });
+
+// Public Store Status (Vacation countdown, Maintenance, and System Mode)
+Route::get('/store-status', [\App\Http\Controllers\MasterSystemController::class, 'publicStatus']);
 
 // Public Telegram Webhook Endpoint
 Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramController::class, 'webhook'])->middleware('throttle:120,1');

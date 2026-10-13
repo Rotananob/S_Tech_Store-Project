@@ -5,6 +5,7 @@ import PWAUpdatePrompt from "@/components/ui/PWAUpdatePrompt";
 import FlyToCartOverlay from "@/components/cart/FlyToCartOverlay";
 import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
 import RealtimeCoinRewardPopup from "@/components/wallet/RealtimeCoinRewardPopup";
+import StoreModeGuard from "@/components/ui/StoreModeGuard";
 
 export default function ShopLayout({
   children,
@@ -13,6 +14,7 @@ export default function ShopLayout({
 }) {
   return (
     <div className="pb-20 lg:pb-0" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <StoreModeGuard />
       <Navbar />
       <main style={{ flex: 1 }}>{children}</main>
       <div className="hidden lg:block">

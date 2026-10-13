@@ -128,6 +128,18 @@ export default function MasterControlPage() {
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-800 font-medium">
               <tr>
+                <td className="p-3.5 font-bold">ប្តូរ UI ហាង៖ បិទសម្រាក (Vacation Mode + Live Countdown)</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
+                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+              </tr>
+              <tr>
+                <td className="p-3.5 font-bold">បិទសកម្មភាពពួក Admin & Staff ទាំងអស់ (Global Staff Lockdown)</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
+                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+              </tr>
+              <tr>
                 <td className="p-3.5 font-bold">បិទ/បើក Store Maintenance Mode (Lockdown)</td>
                 <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
                 <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>

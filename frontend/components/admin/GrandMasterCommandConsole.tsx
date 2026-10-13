@@ -23,11 +23,19 @@ import {
   Terminal,
   Activity,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Palmtree,
+  Calendar,
+  Timer,
+  Power,
+  Ban,
+  Unlock
 } from "lucide-react";
 import {
   getMasterSystemStatus,
   toggleMaintenanceMode,
+  toggleVacationMode,
+  toggleStaffLockdown,
   purgeGlobalCaches,
   toggleFinancialFreeze,
   backupDatabaseSnapshot,
@@ -50,7 +58,15 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
   const [isSuperAdmin, setIsSuperAdmin] = useState(isSuperAdminProp ?? false);
   const [currentRole, setCurrentRole] = useState<string>("admin");
   const [state, setState] = useState<MasterSystemState>({
+    mode: "online",
     maintenance_mode: false,
+    vacation_mode: false,
+    vacation_title: "ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)",
+    vacation_reason: "ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!",
+    vacation_days: 3,
+    vacation_end_time: null,
+    staff_lockdown: false,
+    staff_lockdown_reason: "សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ!",
     financial_freeze: false,
     coin_multiplier: 1.0,
     force_app_version: "1.1.0",
@@ -60,6 +76,22 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
     emergency_lockdown: false,
   });
   const [metrics, setMetrics] = useState<MasterSystemMetrics | null>(null);
+
+  // Vacation Modal & Configuration State
+  const [vacationModalOpen, setVacationModalOpen] = useState(false);
+  const [vacationFormDays, setVacationFormDays] = useState(3);
+  const [vacationFormHours, setVacationFormHours] = useState(0);
+  const [vacationFormTitle, setVacationFormTitle] = useState("ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)");
+  const [vacationFormReason, setVacationFormReason] = useState("ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗស្វ័យប្រវត្តិ!");
+
+  // Live Vacation Countdown State
+  const [countdown, setCountdown] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    isExpired: boolean;
+  }>({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
 
   // Action Loading states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -138,6 +170,49 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
   useEffect(() => {
     loadStatus();
   }, []);
+
+  // Live countdown timer for active Vacation Mode
+  useEffect(() => {
+    if (!state.vacation_mode || !state.vacation_end_time) {
+      setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const end = new Date(state.vacation_end_time!).getTime();
+      const diff = end - now;
+
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        return;
+      }
+
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setCountdown({ days: d, hours: h, minutes: m, seconds: s, isExpired: false });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [state.vacation_mode, state.vacation_end_time]);
+
+  // Compute re-opening projection in Khmer locale
+  const getProjectedReopenFormatted = (days: number, hours: number) => {
+    const target = new Date(Date.now() + (days * 24 + hours) * 3600 * 1000);
+    return target.toLocaleString("km-KH", {
+      weekday: "long",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   // Intercept button clicks: if not Super Admin, show View-Only Access Denied modal!
   const handleProtectedAction = (
@@ -257,10 +332,36 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
       {/* ── METRICS OVERVIEW TICKER ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4 border-b border-white/10 text-xs">
         <div className="p-3 rounded-2xl bg-black/40 border border-white/5">
-          <span className="text-gray-400 text-[10px] uppercase font-bold block">Store Status</span>
-          <span className={`text-sm font-black flex items-center gap-1.5 mt-0.5 ${state.maintenance_mode ? 'text-rose-400' : 'text-emerald-400'}`}>
-            <span className={`w-2 h-2 rounded-full ${state.maintenance_mode ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'}`} />
-            <span>{state.maintenance_mode ? "Maintenance Mode" : "Normal Live 24/7"}</span>
+          <span className="text-gray-400 text-[10px] uppercase font-bold block">Store Mode (Public UI)</span>
+          <span className={`text-sm font-black flex items-center gap-1.5 mt-0.5 ${
+            state.maintenance_mode 
+              ? 'text-rose-400' 
+              : state.vacation_mode 
+              ? 'text-amber-400' 
+              : 'text-emerald-400'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${
+              state.maintenance_mode 
+                ? 'bg-rose-500 animate-pulse' 
+                : state.vacation_mode 
+                ? 'bg-amber-400 animate-ping' 
+                : 'bg-emerald-400'
+            }`} />
+            <span className="truncate">
+              {state.maintenance_mode 
+                ? "Maintenance UI" 
+                : state.vacation_mode 
+                ? `សម្រាក (${countdown.days}d ${countdown.hours}h left)` 
+                : "Normal Live 24/7"}
+            </span>
+          </span>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-black/40 border border-white/5">
+          <span className="text-gray-400 text-[10px] uppercase font-bold block">Staff & Sub-Admin Control</span>
+          <span className={`text-sm font-black flex items-center gap-1.5 mt-0.5 ${state.staff_lockdown ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <span className={`w-2 h-2 rounded-full ${state.staff_lockdown ? 'bg-rose-500 animate-ping' : 'bg-emerald-400'}`} />
+            <span>{state.staff_lockdown ? "Frozen (Lockdown Active)" : "Active (Normal Staff)"}</span>
           </span>
         </div>
 
@@ -273,19 +374,373 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
         </div>
 
         <div className="p-3 rounded-2xl bg-black/40 border border-white/5">
-          <span className="text-gray-400 text-[10px] uppercase font-bold block">Coin Multiplier</span>
-          <span className="text-sm font-black text-yellow-400 flex items-center gap-1 mt-0.5">
-            <Coins size={14} className="text-yellow-400" />
-            <span>{state.coin_multiplier}x Reward Points</span>
-          </span>
-        </div>
-
-        <div className="p-3 rounded-2xl bg-black/40 border border-white/5">
-          <span className="text-gray-400 text-[10px] uppercase font-bold block">Active Staff Sessions</span>
+          <span className="text-gray-400 text-[10px] uppercase font-bold block">Staff Sessions / Coin</span>
           <span className="text-sm font-black text-sky-400 flex items-center gap-1.5 mt-0.5">
             <span className="w-2 h-2 rounded-full bg-sky-400" />
-            <span>{metrics?.active_staff_sessions || 1} Connected</span>
+            <span>{metrics?.active_staff_sessions || 1} Sessions • {state.coin_multiplier}x</span>
           </span>
+        </div>
+      </div>
+
+      {/* ── 1. STORE OPERATING MODE SWITCHER & PUBLIC UI (GRAND MASTER CORE) ── */}
+      <div className="pt-6 pb-2 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 flex items-center gap-1">
+                <Crown size={11} className="text-amber-400" />
+                <span>Store Public UI Switcher</span>
+              </span>
+              <span className="text-xs text-gray-400 font-medium">
+                (គ្រប់គ្រងផ្ទាំង UI លើ Storefront & Website សាធារណៈ)
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white mt-1">
+              ប្តូរផ្ទាំង UI ហាង៖ ដំណើរការធម្មតា, បិទសម្រាក (Vacation), ឬ ជួសជុល (Maintenance)
+            </h3>
+          </div>
+
+          {state.vacation_mode && (
+            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
+              <Timer size={14} className="animate-spin text-amber-400" />
+              <span>
+                Countdown: {String(countdown.days).padStart(2, '0')}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* 3 Main Mode Selector Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          
+          {/* Option A: Normal Live 24/7 */}
+          <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+            !state.vacation_mode && !state.maintenance_mode
+              ? "bg-emerald-950/30 border-emerald-500/60 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30"
+              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                  !state.vacation_mode && !state.maintenance_mode ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-gray-400"
+                }`}>
+                  <Activity size={18} />
+                </div>
+                {!state.vacation_mode && !state.maintenance_mode ? (
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>កំពុងដំណើរការ (Active)</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                )}
+              </div>
+
+              <h4 className="text-sm font-bold text-white">🟢 ដំណើរការធម្មតា (Normal 24/7)</h4>
+              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                អតិថិជនអាចមើលទំនិញ ដាក់បញ្ជាទិញ Checkout និងប្រើប្រាស់គ្រប់មុខងារទាំងអស់តាមធម្មតា។
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleProtectedAction(
+                  "switch_normal",
+                  "Switch to Normal Live Mode",
+                  async () => {
+                    if (state.vacation_mode) await toggleVacationMode(false);
+                    if (state.maintenance_mode) await toggleMaintenanceMode(false);
+                    showToast("បានបើកដំណើរការហាងជាធម្មតាវិញជោគជ័យ!");
+                  },
+                  true,
+                  "បើកដំណើរការហាងជាធម្មតាឡើងវិញ",
+                  "តើអ្នកចង់បិទមុខងារសម្រាក/Maintenance និងបើកឲ្យអតិថិជនទិញទំនិញធម្មតាឡើងវិញមែនទេ?",
+                  "warning"
+                );
+              }}
+              disabled={actionLoading === "switch_normal" || (!state.vacation_mode && !state.maintenance_mode)}
+              className={`mt-4 w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                !isSuperAdmin
+                  ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                  : !state.vacation_mode && !state.maintenance_mode
+                  ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 cursor-default"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+              }`}
+            >
+              {!isSuperAdmin ? (
+                <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+              ) : !state.vacation_mode && !state.maintenance_mode ? (
+                <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
+              ) : (
+                <><Power size={13} /><span>ប្តូរមក Normal Live វិញ</span></>
+              )}
+            </button>
+          </div>
+
+          {/* Option B: Vacation Mode (Temporary Closure + Countdown) */}
+          <div className={`relative p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+            state.vacation_mode
+              ? "bg-amber-950/40 border-amber-500/70 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/40"
+              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                  state.vacation_mode ? "bg-amber-500/20 text-amber-400" : "bg-white/10 text-gray-400"
+                }`}>
+                  <Palmtree size={18} />
+                </div>
+                {state.vacation_mode ? (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                    <span>កំពុងបិទសម្រាក ({state.vacation_days || 3} ថ្ងៃ)</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                )}
+              </div>
+
+              <h4 className="text-sm font-bold text-white">🏖️ បិទបណ្ដោះអាសន្ន / ឈប់សម្រាក</h4>
+              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                បិទសម្រាកតាមកាលកំណត់ (ឧ. ៣ ថ្ងៃ)។ UI បង្ហាញផ្ទាំង Luxury ជាមួយ Live Countdown និង auto direct បើកហាងឡើងវិញស្វ័យប្រវត្តពេលដល់ម៉ោង!
+              </p>
+
+              {/* Real-time Ticker Preview if Active */}
+              {state.vacation_mode && (
+                <div className="mt-2.5 p-2.5 rounded-xl bg-black/50 border border-amber-500/30 text-center">
+                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">
+                    ⏳ ពេលវេលានៅសល់មុនពេលបើកហាងវិញ
+                  </div>
+                  <div className="text-base font-black font-mono text-white flex items-center justify-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.days).padStart(2, '0')}d</span>:
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.hours).padStart(2, '0')}h</span>:
+                    <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.minutes).padStart(2, '0')}m</span>:
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">{String(countdown.seconds).padStart(2, '0')}s</span>
+                  </div>
+                  {state.vacation_end_time && (
+                    <div className="text-[9.5px] text-gray-400 mt-1 truncate">
+                      បើកវិញ: {new Date(state.vacation_end_time).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              {state.vacation_mode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleProtectedAction(
+                      "cancel_vacation",
+                      "Cancel Vacation & Open Store",
+                      async () => {
+                        const res = await toggleVacationMode(false);
+                        showToast(res.message);
+                      },
+                      true,
+                      "បញ្ចប់ការឈប់សម្រាក និងបើកហាងភ្លាមៗ",
+                      "តើអ្នកចង់បញ្ចប់ការឈប់សម្រាក និងបើកដំណើរការហាងជាសាធារណៈឡើងវិញភ្លាមៗមែនទេ?",
+                      "warning"
+                    );
+                  }}
+                  disabled={actionLoading === "cancel_vacation"}
+                  className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40"
+                >
+                  <Power size={13} />
+                  <span>បើកហាងវិញភ្លាមៗ</span>
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSuperAdmin) {
+                    playAlertChime("warn");
+                    setDeniedModal({
+                      show: true,
+                      buttonName: "កំណត់ការឈប់សម្រាក & UI Countdown",
+                      description: "លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានមហាសិទ្ធិចុចដំណើរការបិទហាងសម្រាកបានឡើយ!",
+                    });
+                    return;
+                  }
+                  setVacationModalOpen(true);
+                }}
+                disabled={actionLoading === "vacation_modal"}
+                className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  state.vacation_mode
+                    ? "bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/40 shrink-0"
+                    : !isSuperAdmin
+                    ? "w-full bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                    : "w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-md shadow-amber-950/40"
+                }`}
+              >
+                {!isSuperAdmin ? (
+                  <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+                ) : state.vacation_mode ? (
+                  <><Clock size={13} /><span>កែប្រែពេល</span></>
+                ) : (
+                  <><Palmtree size={13} /><span>កំណត់ថ្ងៃសម្រាក (Switch UI)</span></>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Option C: Maintenance Mode (Under Technical Maintenance) */}
+          <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+            state.maintenance_mode
+              ? "bg-rose-950/40 border-rose-500/70 shadow-lg shadow-rose-950/40 ring-1 ring-rose-500/40"
+              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                  state.maintenance_mode ? "bg-rose-500/20 text-rose-400" : "bg-white/10 text-gray-400"
+                }`}>
+                  <AlertOctagon size={18} />
+                </div>
+                {state.maintenance_mode ? (
+                  <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+                    <span>Maintenance Mode សកម្ម</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                )}
+              </div>
+
+              <h4 className="text-sm font-bold text-white">🛠️ ជួសជុលប្រព័ន្ធ (Maintenance)</h4>
+              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                បិទហាងដាក់ផ្ទាំងជួសជុលប្រព័ន្ធ (Technical Gears UI) ពេលធ្វើបច្ចុប្បន្នភាព Server ឬប្រព័ន្ធទូទាត់។
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleProtectedAction(
+                  "maintenance_toggle",
+                  "Store Maintenance Mode",
+                  async () => {
+                    const res = await toggleMaintenanceMode(!state.maintenance_mode);
+                    showToast(res.message);
+                  },
+                  true,
+                  state.maintenance_mode ? "បិទ Maintenance & បើកហាងឡើងវិញ" : "បើក Maintenance Mode",
+                  state.maintenance_mode 
+                    ? "តើអ្នកចង់បិទ Maintenance Mode និងបើកដំណើរការហាងជាធម្មតាឡើងវិញមែនទេ?" 
+                    : "ប្រយ័ត្ន! ការបើក Maintenance Mode នឹងធ្វើឲ្យអតិថិជនមិនអាចមើលទំនិញ ឬទិញបានឡើយ។ តើអ្នកចង់បន្តទេ?",
+                  state.maintenance_mode ? "warning" : "extreme"
+                );
+              }}
+              disabled={actionLoading === "maintenance_toggle"}
+              className={`mt-4 w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                !isSuperAdmin
+                  ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                  : state.maintenance_mode
+                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
+                  : "bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-950/40"
+              }`}
+            >
+              {!isSuperAdmin ? (
+                <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+              ) : state.maintenance_mode ? (
+                <><Power size={13} /><span>បិទ Maintenance (Go Live)</span></>
+              ) : (
+                <><AlertOctagon size={13} /><span>បើក Maintenance Mode</span></>
+              )}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── 2. STAFF & SUB-ADMIN GLOBAL ACTIVITY FREEZE / LOCKDOWN (GRAND MASTER CORE) ── */}
+      <div className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+        state.staff_lockdown
+          ? "bg-rose-950/40 border-rose-500/70 shadow-xl shadow-rose-950/50 ring-1 ring-rose-500/40"
+          : "bg-black/30 border-white/10"
+      }`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+              state.staff_lockdown ? "bg-rose-500/20 text-rose-400 ring-2 ring-rose-500/40" : "bg-white/5 text-gray-400 border border-white/10"
+            }`}>
+              <Ban size={22} className={state.staff_lockdown ? "animate-pulse" : ""} />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                  state.staff_lockdown
+                    ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
+                    : "bg-white/10 text-gray-400 border-white/10"
+                }`}>
+                  {state.staff_lockdown ? "🚨 STAFF LOCKDOWN ACTIVE" : "🛡️ STAFF NORMAL PERMISSIONS"}
+                </span>
+                <span className="text-xs text-gray-400 font-bold">
+                  (សិទ្ធិមហាកំពូលផ្តាច់មុខរបស់ម្ចាស់ប្រព័ន្ធ)
+                </span>
+              </div>
+
+              <h4 className="text-sm sm:text-base font-black text-white m-0">
+                {state.staff_lockdown 
+                  ? "សកម្មភាពបុគ្គលិក និង Sub-Admin ទាំងអស់ត្រូវបានបង្កក (Staff Activity Frozen)"
+                  : "បិទសកម្មភាពពួក Admin ឬ Staff ផ្សេងៗទាំងអស់ (Global Staff Lockdown)"}
+              </h4>
+              <p className="text-xs text-gray-300 max-w-3xl leading-relaxed">
+                {state.staff_lockdown
+                  ? "⚠️ រាល់សកម្មភាពបង្កើត កែប្រែ ឬលុបទិន្នន័យពីសំណាក់ Admin និង Staff ទាំងអស់ត្រូវបានបិទទាំងស្រុង (Status 423 Locked)។ មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន!"
+                  : "នៅពេលបើកដំណើរការ ប្រព័ន្ធនឹងកាត់ផ្តាច់ Session របស់ពួក Admin និង Staff ទាំងអស់ និងបិទមិនឱ្យកែប្រែទិន្នន័យអ្វីទាំងអស់ក្នុងប្រព័ន្ធហាងភ្លាមៗ។"}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              handleProtectedAction(
+                "toggle_staff_lockdown",
+                "Global Staff & Sub-Admin Activity Lockdown",
+                async () => {
+                  const res = await toggleStaffLockdown(!state.staff_lockdown);
+                  showToast(res.message);
+                },
+                true,
+                state.staff_lockdown ? "ដោះលែងសកម្មភាព Admin & Staff ទាំងអស់" : "បង្កកសកម្មភាព Admin & Staff ទាំងអស់ (LOCKDOWN)",
+                state.staff_lockdown
+                  ? "តើអ្នកចង់ដោះលែងសិទ្ធិ និងអនុញ្ញាតឱ្យ Admin និង Staff ទាំងអស់បំពេញភារកិច្ចឡើងវិញមែនទេ?"
+                  : "⚠️ ប្រយ័ត្នខ្ពស់បំផុត! ប្រព័ន្ធនឹងកាត់ផ្តាច់ Login Token របស់បុគ្គលិក និង Admin ទាំងអស់ភ្លាមៗ ហើយបិទរាល់សកម្មភាពកែប្រែទិន្នន័យទាំងអស់។ តើអ្នកចង់ដំណើរការ Lockdown ទេ?",
+                state.staff_lockdown ? "warning" : "extreme"
+              );
+            }}
+            disabled={actionLoading === "toggle_staff_lockdown"}
+            className={`px-5 py-3 rounded-xl font-black text-xs shrink-0 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
+              !isSuperAdmin
+                ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                : state.staff_lockdown
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50"
+                : "bg-rose-600 hover:bg-rose-500 text-white shadow-rose-950/50"
+            }`}
+          >
+            {actionLoading === "toggle_staff_lockdown" ? (
+              <RefreshCw size={14} className="animate-spin" />
+            ) : !isSuperAdmin ? (
+              <Lock size={14} className="text-amber-400" />
+            ) : state.staff_lockdown ? (
+              <Unlock size={14} />
+            ) : (
+              <Ban size={14} />
+            )}
+            <span>
+              {!isSuperAdmin 
+                ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)"
+                : state.staff_lockdown 
+                ? "ដោះលែង Staff ទាំងអស់ (Deactivate Lockdown)" 
+                : "បិទសកម្មភាពពួក Admin/Staff ទាំងអស់ (Activate Lockdown)"}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -827,6 +1282,189 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 យល់ព្រមដំណើរការ (Execute)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 3: VACATION MODE DURATION & COUNTDOWN CONFIGURATION MODAL ── */}
+      {vacationModalOpen && (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-[#15120e] border-2 border-amber-500/60 rounded-3xl p-6 sm:p-7 text-white shadow-[0_25px_70px_rgba(245,158,11,0.3)] space-y-4 max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                  <Palmtree size={24} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    👑 Grand Master Vacation Switcher
+                  </span>
+                  <h3 className="text-lg font-black text-white mt-1 m-0">
+                    កំណត់ពេលបិទហាងសម្រាក & UI Countdown
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setVacationModalOpen(false)}
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Description */}
+            <p className="text-xs text-gray-300 leading-relaxed">
+              ជ្រើសរើសចំនួនថ្ងៃ ឬម៉ោងដែលហាងត្រូវឈប់សម្រាក។ នៅពេលដំណើរការ Storefront នឹងប្តូរទៅជាផ្ទាំង Luxury ជាមួយ <span className="text-amber-400 font-bold">Live Countdown</span> និង <span className="text-emerald-400 font-bold">Auto-Direct បើកហាងវិញស្វ័យប្រវត្តិ</span> នៅពេលនាឡិការាប់ដល់សូន្យ!
+            </p>
+
+            {/* Preset Days Quick Selector */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                ជ្រើសរើសរយៈពេលរហ័ស (Preset Days):
+              </label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {[1, 2, 3, 5, 7, 14].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => {
+                      setVacationFormDays(d);
+                      setVacationFormHours(0);
+                    }}
+                    className={`py-2 px-1 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                      vacationFormDays === d && vacationFormHours === 0
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-amber-950 border-amber-400 shadow-md shadow-amber-950/50 scale-105"
+                        : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
+                    }`}
+                  >
+                    {d} ថ្ងៃ
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Days & Hours Input */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                  ចំនួនថ្ងៃ (Days):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="365"
+                  value={vacationFormDays}
+                  onChange={(e) => setVacationFormDays(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-white font-mono text-sm focus:outline-hidden focus:border-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                  ម៉ោងបន្ថែម (Hours):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="23"
+                  value={vacationFormHours}
+                  onChange={(e) => setVacationFormHours(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-white font-mono text-sm focus:outline-hidden focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            {/* Calculated Projected Reopen Preview Card */}
+            <div className="p-3.5 rounded-2xl bg-black/60 border border-amber-500/30 space-y-1">
+              <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold">
+                <Calendar size={14} />
+                <span>កាលបរិច្ឆេទបើកដំណើរការឡើងវិញស្វ័យប្រវត្តិ៖</span>
+              </div>
+              <div className="text-sm font-black text-white pl-5">
+                {getProjectedReopenFormatted(vacationFormDays, vacationFormHours)}
+              </div>
+              <div className="text-[10px] text-gray-400 pl-5 flex items-center gap-1 pt-0.5">
+                <Timer size={11} className="text-emerald-400" />
+                <span>Auto-Reopen & Live Direct Trigger When Countdown Reaches 00:00:00</span>
+              </div>
+            </div>
+
+            {/* Title Input */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                ចំណងជើងជូនដំណឹង (Title Notice):
+              </label>
+              <input
+                type="text"
+                value={vacationFormTitle}
+                onChange={(e) => setVacationFormTitle(e.target.value)}
+                placeholder="ឧ. ហាងសូមសម្រាកបណ្តោះអាសន្ន..."
+                className="w-full bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400"
+              />
+            </div>
+
+            {/* Reason Textarea */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
+                សារជូនដំណឹងដល់អតិថិជន (Customer Notice Message):
+              </label>
+              <textarea
+                rows={2}
+                value={vacationFormReason}
+                onChange={(e) => setVacationFormReason(e.target.value)}
+                placeholder="មូលហេតុឈប់សម្រាក..."
+                className="w-full bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400 resize-none"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setVacationModalOpen(false)}
+                className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs transition-all cursor-pointer border-none"
+              >
+                បោះបង់ (Cancel)
+              </button>
+
+              <button
+                type="button"
+                disabled={actionLoading === "apply_vacation" || (vacationFormDays === 0 && vacationFormHours === 0)}
+                onClick={async () => {
+                  setActionLoading("apply_vacation");
+                  try {
+                    const res = await toggleVacationMode(true, {
+                      days: vacationFormDays,
+                      hours: vacationFormHours,
+                      title: vacationFormTitle,
+                      reason: vacationFormReason,
+                    });
+                    playAlertChime("success");
+                    showToast(res.message);
+                    setVacationModalOpen(false);
+                    await loadStatus(true);
+                  } catch (e: any) {
+                    playAlertChime("warn");
+                    showToast(e.response?.data?.error || "បរាជ័យក្នុងការកំណត់ពេលសម្រាក", "error");
+                  } finally {
+                    setActionLoading(null);
+                  }
+                }}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-amber-950 font-black text-xs transition-all shadow-lg shadow-amber-950/60 cursor-pointer border-none flex items-center justify-center gap-1.5"
+              >
+                {actionLoading === "apply_vacation" ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                  <Palmtree size={14} />
+                )}
+                <span>ដំណើរការបិទសម្រាក {vacationFormDays} ថ្ងៃ</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}

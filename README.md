@@ -35,8 +35,10 @@ Production hardware retail platform, custom computer builder, and store manageme
 5. **📧 Account Settings Gmail Synchronization & Direct Alerts**:
    - Added email address validation in customer account profile settings.
    - Syncs real customer emails directly into the Operations portal for one-click admin email dispatch and order notifications.
-6. **🛡️ Grand Master Command Console & Super-Admin Matrix**:
-   - Built a high-privilege operations center with granular RBAC permissions.
+6. **🛡️ Grand Master Command Console & Store Operating Modes**:
+   - **Store Public UI Switcher**: System Owner can seamlessly transition the public storefront between Normal 24/7 Live, Vacation / Temporary Closure mode, and Technical Maintenance mode.
+   - **Vacation Mode with Real-Time Countdown**: System Owner can specify custom closure duration (e.g., 1, 2, 3, 5, 7 days or custom hours). The storefront renders a luxury temporary closure overlay with real-time ticking countdown and **automatically re-opens and redirects back to the live store** once the countdown completes without requiring manual intervention.
+   - **Global Staff & Sub-Admin Activity Lockdown**: Single-click killswitch allowing the System Owner to immediately freeze all subordinate administrator and staff mutation privileges (blocking product, category, order, and configuration writes with HTTP 423 Locked) and revoke non-superadmin tokens while preserving full owner control.
    - Provides live financial emergency lockouts, database snapshot creation, global cache flushes, and real-time PWA client update broadcasts.
 7. **👥 Customer Identity & Deduplication Protection**:
    - Added database constraint enforcement and intelligent query deduplication in the customer management directory.
