@@ -1406,6 +1406,7 @@ class TelegramService
             // 1. STRICT 1 TELEGRAM = 1 ACCOUNT RESOLUTION (PRESERVES EXISTING USER DATA JUST LIKE GOOGLE SIGN-IN)
             $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
                 ->orWhere('firebase_uid', 'tg_' . $tgId)
+                ->orWhere('email', $email)
                 ->first();
 
             $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
@@ -1852,9 +1853,6 @@ class TelegramService
                 $user->telegram = null;
                 $user->telegram_chat_id = null;
                 $user->notif_telegram = false;
-                if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
-                    $user->firebase_uid = 'usr_' . \Illuminate\Support\Str::random(20);
-                }
                 $user->save();
 
                 $disconnectMsg = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"

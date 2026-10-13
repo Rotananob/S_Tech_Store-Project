@@ -623,8 +623,10 @@ export default function UserProfilePage() {
     e.preventDefault();
     setIsSaving(true);
     try {
+      const cleanEmail = profile.email?.trim() || "";
       const res = await api.put("/user/profile", {
         display_name: profile.display_name,
+        email: cleanEmail,
         phone: profile.phone,
         address: profile.address,
         city: profile.city,
@@ -637,6 +639,25 @@ export default function UserProfilePage() {
         gps_lng: profile.gps_lng,
       });
 
+      if (res.data?.profile) {
+        setProfile((prev) => ({
+          ...prev,
+          ...res.data.profile,
+          email: res.data.profile.email || cleanEmail || prev.email,
+        }));
+        try {
+          const sessStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+          if (sessStr) {
+            const sessObj = JSON.parse(sessStr);
+            if (res.data.profile.email) sessObj.email = res.data.profile.email;
+            if (res.data.profile.display_name) sessObj.display_name = res.data.profile.display_name;
+            localStorage.setItem("stech_user_session", JSON.stringify(sessObj));
+            localStorage.setItem("user_session", JSON.stringify(sessObj));
+            window.dispatchEvent(new Event("user_session_updated"));
+          }
+        } catch (e) {}
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3500);
 
@@ -644,7 +665,7 @@ export default function UserProfilePage() {
         show: true,
         success: true,
         title: "Profile Saved Successfully! ✅",
-        message: "All personal details, delivery address, and GPS coordinates have been saved directly to PostgreSQL cloud database.",
+        message: "All personal details, real Gmail contact, delivery address, and GPS coordinates have been saved directly to PostgreSQL cloud database.",
       });
     } catch (err: any) {
       console.error("Save profile error:", err);
@@ -1986,21 +2007,38 @@ export default function UserProfilePage() {
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    <Mail size={14} className="text-gray-400" />
-                    <span>Email Address (អ៊ីមែល)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300">
+                      <Mail size={14} className="text-[#8B1A1A] dark:text-red-400" />
+                      <span>Real Gmail / Email Address (អ៊ីមែលសម្រាប់ទាក់ទង & ដំណឹង)</span>
+                    </label>
+                    {profile.email && !profile.email.endsWith("@s-tech-store.tech") && !profile.email.endsWith("@telegram.s-tech-store.tech") && !profile.email.startsWith("tg_") && profile.email.includes("@") ? (
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                        <Check size={10} /> Real Gmail Active
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 text-[10px] font-bold flex items-center gap-1">
+                        <AlertTriangle size={10} /> សូមបញ្ចូល Gmail ពិត
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type="email"
-                      value={user?.email || profile.email}
-                      disabled
-                      className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 pr-24 py-3 text-sm text-gray-500 cursor-not-allowed"
+                      value={profile.email}
+                      onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value.trim() }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 pr-10 py-3 text-sm outline-none focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-black transition-all font-mono"
+                      placeholder="e.g. yourname@gmail.com"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                      <Check size={10} /> Verified
-                    </span>
+                    {profile.email && !profile.email.endsWith("@s-tech-store.tech") && !profile.email.endsWith("@telegram.s-tech-store.tech") && !profile.email.startsWith("tg_") && profile.email.includes("@") && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500">
+                        <CheckCircle2 size={16} />
+                      </div>
+                    )}
                   </div>
+                  <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                    💡 បញ្ចូល Gmail ពិតប្រាកដរបស់អ្នក ដើម្បីឱ្យ Admin អាចទាក់ទង និងបញ្ជូនដំណឹងការបញ្ជាទិញចូលក្នុង Inbox របស់អ្នកបានពិតប្រាកដ។
+                  </p>
                 </div>
 
                 <div>

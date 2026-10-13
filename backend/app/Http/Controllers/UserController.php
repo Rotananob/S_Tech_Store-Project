@@ -60,7 +60,16 @@ class UserController extends Controller
 
     public function index()
     {
-        $profiles = UserProfile::orderBy('created_at', 'desc')->get();
+        $rawProfiles = UserProfile::orderBy('created_at', 'desc')->get();
+
+        // Safely deduplicate any identical email addresses, prioritizing accounts with wallet balance, points, or active chat ID
+        $profiles = $rawProfiles->groupBy(function($item) {
+            return strtolower(trim((string)$item->email)) ?: ('id_' . $item->id);
+        })->map(function($group) {
+            return $group->sortByDesc(function($item) {
+                return ((float)($item->wallet_balance ?? 0) * 1000) + ((int)($item->points ?? 0) * 10) + (!empty($item->telegram_chat_id) ? 50 : 0);
+            })->first();
+        })->values();
         
         $result = $profiles->map(function ($u) {
             $orders = Order::where(function ($q) use ($u) {
@@ -1276,9 +1285,32 @@ class UserController extends Controller
                 unset($validated['telegram']);
             }
         }
+        if (!empty($validated['email'])) {
+            $newEmail = strtolower(trim($validated['email']));
+            if (filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+                $validated['email'] = $newEmail;
+            } else {
+                unset($validated['email']);
+            }
+        }
 
         $profile = UserProfile::firstOrCreate(['firebase_uid' => $uid]);
         $profile->update($validated);
+
+        if (!empty($validated['email'])) {
+            try {
+                \App\Models\Order::where(function($q) use ($uid, $profile) {
+                    $q->where('user_id', $uid);
+                    if (!empty($profile->phone)) {
+                        $q->orWhere('customer_phone', $profile->phone);
+                    }
+                })->where(function($q) {
+                    $q->whereNull('customer_email')
+                      ->orWhere('customer_email', 'like', '%@s-tech-store.tech')
+                      ->orWhere('customer_email', 'like', '%@telegram.s-tech-store.tech');
+                })->update(['customer_email' => $validated['email']]);
+            } catch (\Throwable $t) {}
+        }
 
         // Create a notification for profile update
         UserNotification::create([

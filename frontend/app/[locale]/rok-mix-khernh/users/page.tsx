@@ -699,7 +699,14 @@ export default function AdminUsersPage() {
                               </span>
                             ) : null}
                           </div>
-                          <div className="text-[11px] text-gray-500 truncate">{u.email || "No email"}</div>
+                          <div className="text-[11px] text-gray-500 truncate flex items-center gap-1.5 font-mono">
+                            <span>{u.email || "No email"}</span>
+                            {u.email && !u.email.endsWith("@s-tech-store.tech") && !u.email.endsWith("@telegram.s-tech-store.tech") && !u.email.startsWith("tg_") && u.email.includes("@") && (
+                              <span className="px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 font-sans text-[9px] font-bold border border-emerald-200">
+                                Real
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>

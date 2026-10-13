@@ -54,7 +54,18 @@ class OrderController extends Controller
 
             $orderData = $order->toArray();
             $orderData['customer_account'] = $customerAccount;
-            if (empty($orderData['customer_email']) && $user && !empty($user->email)) {
+            
+            // Prioritize customer's real Gmail / contact email from account profile if available
+            $isOrderSynthetic = empty($orderData['customer_email']) || 
+                                str_ends_with($orderData['customer_email'], '@s-tech-store.tech') || 
+                                str_ends_with($orderData['customer_email'], '@telegram.s-tech-store.tech');
+            $userHasRealEmail = $user && !empty($user->email) && 
+                                !str_ends_with($user->email, '@s-tech-store.tech') && 
+                                !str_ends_with($user->email, '@telegram.s-tech-store.tech');
+
+            if ($userHasRealEmail && $isOrderSynthetic) {
+                $orderData['customer_email'] = $user->email;
+            } elseif (empty($orderData['customer_email']) && $user && !empty($user->email)) {
                 $orderData['customer_email'] = $user->email;
             }
             return $orderData;
@@ -483,12 +494,23 @@ class OrderController extends Controller
         $wantTelegram = $request->has('send_telegram') ? $request->boolean('send_telegram') : true;
         $wantWeb = $request->has('send_web') ? $request->boolean('send_web') : true;
 
+        $orderEmail = $order->customer_email;
+        $userEmail = $user?->email;
+        $isOrderSynthetic = empty($orderEmail) || 
+                            str_ends_with($orderEmail, '@s-tech-store.tech') || 
+                            str_ends_with($orderEmail, '@telegram.s-tech-store.tech');
+        $userHasRealEmail = !empty($userEmail) && 
+                            !str_ends_with($userEmail, '@s-tech-store.tech') && 
+                            !str_ends_with($userEmail, '@telegram.s-tech-store.tech');
+
         $customerEmail = !empty($validated['email'])
             ? trim($validated['email'])
-            : ($order->customer_email ?: ($user?->email ?: null));
+            : ($userHasRealEmail ? $userEmail : ($orderEmail ?: $userEmail));
 
         if (!empty($validated['email']) && $order->customer_email !== $validated['email']) {
             $order->update(['customer_email' => $validated['email']]);
+        } elseif ($userHasRealEmail && $isOrderSynthetic) {
+            $order->update(['customer_email' => $userEmail]);
         }
 
         $sentToWeb = false;
@@ -538,8 +560,13 @@ class OrderController extends Controller
             }
         }
 
-        // 3. Real Email Notification
-        if ($wantEmail && !empty($customerEmail)) {
+        // 3. Real Email Notification (Dispatch to customer's real Gmail / email inbox)
+        $isSyntheticEmail = empty($customerEmail) || 
+                            str_ends_with($customerEmail, '@s-tech-store.tech') || 
+                            str_ends_with($customerEmail, '@telegram.s-tech-store.tech') ||
+                            str_ends_with($customerEmail, '@tiktok.s-tech-store.tech');
+
+        if ($wantEmail && !empty($customerEmail) && !$isSyntheticEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             try {
                 $sentToEmail = self::sendOrderEmail($order, $customerEmail, $notificationTitle, $validated['message']);
             } catch (\Throwable $t) {

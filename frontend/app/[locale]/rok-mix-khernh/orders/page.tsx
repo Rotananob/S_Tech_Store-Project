@@ -104,6 +104,18 @@ const getStatusStyle = (status: string) => {
   return "bg-gray-100 text-gray-700 border-gray-200";
 };
 
+const isSyntheticEmail = (email?: string | null) => {
+  if (!email) return true;
+  const lower = email.toLowerCase().trim();
+  return (
+    lower.endsWith("@s-tech-store.tech") ||
+    lower.endsWith("@telegram.s-tech-store.tech") ||
+    lower.endsWith("@tiktok.s-tech-store.tech") ||
+    lower.startsWith("tg_") ||
+    !lower.includes("@")
+  );
+};
+
 const getPaymentStatusStyle = (status?: string) => {
   const s = (status || "").toLowerCase();
   if (s === "paid") return "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -351,9 +363,21 @@ export default function OrderManagementPage() {
       `ការបញ្ជាទិញ #${order.order_id} របស់អ្នកត្រូវបានបញ្ជាក់រួចរាល់ហើយ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`
     );
     setNotifyStatusSync((order.status || "processing").toLowerCase());
-    const email = order.customer_email || order.customer_account?.email || "";
+
+    // Prioritize customer's real Gmail if available in account profile or order
+    let email = "";
+    if (order.customer_account?.email && !isSyntheticEmail(order.customer_account.email)) {
+      email = order.customer_account.email;
+    } else if (order.customer_email && !isSyntheticEmail(order.customer_email)) {
+      email = order.customer_email;
+    } else {
+      email = order.customer_account?.email || order.customer_email || "";
+    }
+
+    const hasReal = Boolean(email && !isSyntheticEmail(email));
     setNotifyCustomEmail(email);
-    setNotifyEmail(Boolean(email));
+    // Real Gmail enables Channel 1 (ON) by default. If synthetic placeholder, default to OFF so admin sees prompt
+    setNotifyEmail(hasReal);
     setNotifyTelegram(true);
     setNotifyWeb(true);
   };
@@ -1196,8 +1220,19 @@ export default function OrderManagementPage() {
                     {capitalize(notifyOrder.status)}
                   </span>
                 </div>
-                <div className="text-[11px] text-gray-600 flex items-center gap-3">
-                  <span>✉️ {notifyOrder.customer_email || notifyOrder.customer_account?.email || "No email"}</span>
+                <div className="text-[11px] text-gray-600 flex flex-wrap items-center gap-3">
+                  <span className="flex items-center gap-1.5 font-mono">
+                    ✉️ {notifyCustomEmail || notifyOrder.customer_email || notifyOrder.customer_account?.email || "No email"}
+                    {!isSyntheticEmail(notifyCustomEmail || notifyOrder.customer_email || notifyOrder.customer_account?.email) ? (
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        Real Gmail
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                        Telegram Placeholder
+                      </span>
+                    )}
+                  </span>
                   <span>📞 {notifyOrder.customer_phone || "No phone"}</span>
                 </div>
                 <div className="mt-2 pt-2 border-t border-purple-200/60 flex items-center gap-2 text-[11px]">
@@ -1255,10 +1290,12 @@ export default function OrderManagementPage() {
                       </span>
                     </div>
                     <div className="text-[11px] font-mono truncate text-gray-700" title={notifyCustomEmail || "គ្មាន Email"}>
-                      {notifyCustomEmail || "(បញ្ចូល Gmail)"}
+                      {!isSyntheticEmail(notifyCustomEmail)
+                        ? notifyCustomEmail
+                        : notifyCustomEmail ? `${notifyCustomEmail}` : "(មិនទាន់មាន Gmail ពិត)"}
                     </div>
                     <span className="mt-1 text-[10px] font-semibold text-rose-700">
-                      HTML Email ផ្លូវការ
+                      {!isSyntheticEmail(notifyCustomEmail) ? "HTML Email ផ្លូវការ (Real Gmail)" : "ទាមទារ Real Gmail"}
                     </span>
                   </button>
 
@@ -1342,15 +1379,26 @@ export default function OrderManagementPage() {
 
                 {/* Inline editable verified Gmail */}
                 {notifyEmail && (
-                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center gap-2">
-                    <Mail size={15} className="text-rose-600 shrink-0" />
-                    <input
-                      type="email"
-                      value={notifyCustomEmail}
-                      onChange={(e) => setNotifyCustomEmail(e.target.value)}
-                      placeholder="ផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលអតិថិជន (e.g. customer@gmail.com)..."
-                      className="w-full bg-transparent text-xs text-gray-900 font-medium outline-none placeholder:text-gray-400 font-mono"
-                    />
+                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Mail size={15} className="text-rose-600 shrink-0" />
+                      <input
+                        type="email"
+                        value={notifyCustomEmail}
+                        onChange={(e) => setNotifyCustomEmail(e.target.value)}
+                        placeholder="បញ្ចូល Gmail ពិតប្រាកដរបស់អតិថិជន (e.g. customer@gmail.com)..."
+                        className="w-full bg-transparent text-xs text-gray-900 font-medium outline-none placeholder:text-gray-400 font-mono"
+                      />
+                    </div>
+                    {!isSyntheticEmail(notifyCustomEmail) ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded shrink-0">
+                        Valid Real Gmail
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded shrink-0">
+                        Placeholder
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
