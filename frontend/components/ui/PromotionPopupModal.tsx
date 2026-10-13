@@ -311,9 +311,12 @@ export default function PromotionPopupModal() {
 
                 {/* Festival Badge */}
                 <div className="absolute top-3.5 left-3.5 z-20 flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-amber-400/40 shadow-lg">
+                  <div className="w-4 h-4 rounded-full overflow-hidden bg-white shrink-0 border border-amber-300/40">
+                    <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" />
+                  </div>
                   <span className="text-sm">🇰🇭</span>
                   <span className="text-[10px] sm:text-[11px] font-black text-amber-300 uppercase tracking-wider">
-                    បុណ្យភ្ជំបិណ្ឌ • PCHUM BEN SPECIAL
+                    S Tech • PCHUM BEN SPECIAL
                   </span>
                 </div>
 
@@ -452,7 +455,10 @@ export default function PromotionPopupModal() {
             onClick={handleReopen}
           >
             <div className="flex items-center gap-2">
-              <span className="text-base animate-bounce">🎉</span>
+              <div className="w-5 h-5 rounded-full overflow-hidden bg-white shrink-0 border border-amber-300/40">
+                <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" />
+              </div>
+              <span className="text-sm">🎉</span>
               <div className="text-left pr-1">
                 <div className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1">
                   <span>ភ្ជំបិណ្ឌ 30% OFF</span>

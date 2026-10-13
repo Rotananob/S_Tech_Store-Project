@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Gift, Sparkles, X, Share2, Copy, Check, CheckCircle2, 
@@ -28,14 +29,19 @@ export default function WelcomeGiftModal() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setShareUrl(`${window.location.origin}/?gift=welcome5`);
+
+      // Open only if URL explicitly requests opening the gift modal
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("gift") === "welcome5" || urlParams.get("open_gift") === "true") {
+        setIsOpen(true);
+      }
     }
 
     const checkEligibility = async () => {
       const user = getEffectiveUser();
-      if (!user) return;
       setCurrentUser(user);
 
-      const uid = user.uid || user.firebase_uid || user.id || "guest";
+      const uid = user ? (user.uid || user.firebase_uid || user.id || "guest") : "guest";
       const localShared = localStorage.getItem(`stech_shared_gift_${uid}`) === "true";
       if (localShared) setHasShared(true);
 
@@ -45,42 +51,36 @@ export default function WelcomeGiftModal() {
         return;
       }
 
-      // Query cloud profile to check if already claimed
-      try {
-        const res = await api.get("/user/profile");
-        const profile = res.data?.profile;
-        if (profile?.has_claimed_welcome_gift) {
-          setHasClaimed(true);
-          localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
-        } else {
-          // If not claimed yet, show the gift after 1.8 seconds on initial login/visit
-          const hasDismissedThisSession = sessionStorage.getItem("stech_dismissed_gift_modal");
-          if (!hasDismissedThisSession) {
-            const timer = setTimeout(() => {
-              setIsOpen(true);
-            }, 1800);
-            return () => clearTimeout(timer);
+      // Query cloud profile if logged in
+      if (user) {
+        try {
+          const res = await api.get("/user/profile");
+          const profile = res.data?.profile;
+          if (profile?.has_claimed_welcome_gift) {
+            setHasClaimed(true);
+            localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
           }
-        }
-      } catch (err) {
-        // Fallback: check localStorage
-        if (!localClaimed) {
-          const timer = setTimeout(() => {
-            setIsOpen(true);
-          }, 1800);
-          return () => clearTimeout(timer);
+        } catch (err) {
+          // Gracefully fallback to localStorage
         }
       }
     };
 
     checkEligibility();
 
+    // Listen to custom open event from any button or component
+    const handleOpenModal = () => setIsOpen(true);
+    window.addEventListener("stech:open-welcome-gift", handleOpenModal);
+
     // Listen to login/logout events
     const handleAuthChange = () => {
       checkEligibility();
     };
     window.addEventListener("user_session_updated", handleAuthChange);
-    return () => window.removeEventListener("user_session_updated", handleAuthChange);
+    return () => {
+      window.removeEventListener("stech:open-welcome-gift", handleOpenModal);
+      window.removeEventListener("user_session_updated", handleAuthChange);
+    };
   }, []);
 
   // Action: Trigger share on social networks
@@ -194,20 +194,35 @@ export default function WelcomeGiftModal() {
       {/* ── Full Screen Confetti Particle Shower ── */}
       {showConfetti && <ConfettiShower duration={7000} />}
 
-      {/* ── Floating Gift Pill (when modal is closed but user hasn't claimed yet) ── */}
-      {!isOpen && !hasClaimed && currentUser && (
+      {/* ── Floating Gift Pill (Small button for user to click when they want) ── */}
+      {!isOpen && !hasClaimed && (
         <motion.button
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-24 right-4 sm:bottom-8 sm:right-8 z-40 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-2xl shadow-red-600/40 border-2 border-amber-300 ring-4 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer animate-bounce hover:brightness-110 active:scale-95"
+          className="fixed bottom-20 left-3.5 sm:bottom-7 sm:left-7 z-[7000] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-red-600/35 border-2 border-amber-300 ring-2 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all group backdrop-blur-md"
+          aria-label="បើកកាដូស្វាគមន៍ $5"
         >
-          <div className="w-7 h-7 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <Gift size={16} className="text-white" />
+          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 border border-amber-300 shadow-xs">
+            <Image
+              src="/logo.jpg"
+              alt="S Tech Store"
+              width={32}
+              height={32}
+              className="w-full h-full object-contain p-0.5"
+            />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
           </div>
           <div className="text-left">
-            <div className="leading-tight font-black">កាដូស្វាគមន៍ $5</div>
-            <div className="text-[10px] text-amber-200 font-medium">ចុច Claim ឥឡូវនេះ!</div>
+            <div className="leading-tight font-black flex items-center gap-1 text-[11px] sm:text-xs">
+              <span>កាដូ $5.00</span>
+              <Sparkles size={11} className="text-amber-200" />
+            </div>
+            <div className="text-[9.5px] sm:text-[10px] text-amber-100 font-medium leading-none mt-0.5">
+              ចុចបើក Voucher
+            </div>
           </div>
         </motion.button>
       )}
@@ -234,8 +249,19 @@ export default function WelcomeGiftModal() {
               {claimedSuccess ? (
                 /* ── SUCCESS CONGRATULATIONS SCREEN ── */
                 <div className="text-center py-4 space-y-5">
-                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-amber-400 via-red-500 to-rose-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-red-500/30 ring-8 ring-amber-400/20 animate-pulse">
-                    <Gift size={42} strokeWidth={2.5} />
+                  <div className="relative w-20 h-20 mx-auto">
+                    <div className="w-20 h-20 rounded-3xl overflow-hidden border-2 border-amber-300 shadow-xl shadow-red-500/30 ring-8 ring-amber-400/20 bg-white">
+                      <Image
+                        src="/logo.jpg"
+                        alt="S Tech Store"
+                        width={80}
+                        height={80}
+                        className="w-full h-full object-contain p-1"
+                      />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-red-600 text-white flex items-center justify-center shadow-md border-2 border-white">
+                      <Gift size={14} />
+                    </div>
                   </div>
 
                   <div>
@@ -304,15 +330,21 @@ export default function WelcomeGiftModal() {
                 /* ── STEP 1 & 2: PREVIEW CARD & SHARE TO CLAIM ── */
                 <div className="space-y-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-xs shrink-0">
-                      <Gift size={24} />
+                    <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-amber-400/50 shadow-md shrink-0 bg-white">
+                      <Image
+                        src="/logo.jpg"
+                        alt="S Tech Store Logo"
+                        width={48}
+                        height={48}
+                        className="w-full h-full object-contain p-0.5"
+                      />
                     </div>
                     <div>
                       <div className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
                         <Sparkles size={12} />
-                        <span>Exclusive Welcome Gift • សម្រាប់អតិថិជនថ្មី</span>
+                        <span>S Tech Store • Exclusive Gift</span>
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                      <h3 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
                         កាដូស្វាគមន៍ $5.00 Voucher ឥតគិតថ្លៃ!
                       </h3>
                     </div>
@@ -324,13 +356,24 @@ export default function WelcomeGiftModal() {
                     <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-red-600/20 rounded-full blur-2xl pointer-events-none" />
 
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-amber-400 text-black flex items-center justify-center font-black text-xs">
-                          S
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl overflow-hidden border border-amber-400/50 shadow-md bg-white shrink-0">
+                          <Image
+                            src="/logo.jpg"
+                            alt="S Tech Store Logo"
+                            width={32}
+                            height={32}
+                            className="w-full h-full object-contain"
+                          />
                         </div>
-                        <span className="font-black text-xs uppercase tracking-wider text-amber-300 font-mono">
-                          S TECH STORE CAMBODIA
-                        </span>
+                        <div>
+                          <span className="font-black text-xs uppercase tracking-wider text-amber-300 font-mono block leading-tight">
+                            S TECH STORE CAMBODIA
+                          </span>
+                          <span className="text-[9px] text-amber-200/70 font-mono">
+                            Official IT Hardware Store
+                          </span>
+                        </div>
                       </div>
                       <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-[10px] font-black">
                         100% Genuine
