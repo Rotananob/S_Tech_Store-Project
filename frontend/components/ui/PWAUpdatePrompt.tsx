@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { useUpdateStore } from "@/store/updateStore";
-import { Sparkles, RefreshCw, X, ArrowUpRight, CheckCircle2, Zap } from "lucide-react";
+import { useUpdateStore, OFFICIAL_APP_VERSION } from "@/store/updateStore";
+import { Sparkles, RefreshCw, X, ArrowRight, CheckCircle2, Zap, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 
 export default function PWAUpdatePrompt() {
   const {
+    currentVersion,
     hasUpdate,
     updateInfo,
     isUpdating,
@@ -37,7 +39,7 @@ export default function PWAUpdatePrompt() {
           if (newWorker) {
             newWorker.addEventListener("statechange", () => {
               if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                // New content is available; please refresh.
+                // New content is available
                 setHasUpdate(true, null, newWorker);
               }
             });
@@ -45,10 +47,10 @@ export default function PWAUpdatePrompt() {
         });
       });
 
-      // 3. Periodic check every 3 minutes or when page refocuses
+      // 3. Periodic check every 2.5 minutes or when page refocuses
       const interval = setInterval(() => {
         checkForUpdates(false);
-      }, 180000);
+      }, 150000);
 
       const onFocus = () => {
         checkForUpdates(false);
@@ -64,88 +66,101 @@ export default function PWAUpdatePrompt() {
 
   if (!hasUpdate || dismissed) return null;
 
-  const version = updateInfo?.version || "2.4.2";
+  const targetVersion = updateInfo?.version || OFFICIAL_APP_VERSION;
+  const installedVer = currentVersion || OFFICIAL_APP_VERSION;
+  const releaseName = updateInfo?.releaseName || "S Tech Store Official Update";
   const changelog = updateInfo?.changelog || [
-    "Taobao visual camera search scanner",
-    "Edge 50ms instant loading speed",
-    "VIP Profile settings & hardware hub",
+    "Official Release v1.0.0 with universal Bakong KHQR & ABA PAY",
+    "Real-Time Coin Reward & Auto-Popup for product browsing",
+    "$5.00 USD Welcome Gift directly credited to S-Tech Wallet",
+    "World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout",
   ];
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 30, scale: 0.95 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed z-50 bottom-24 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-[420px]"
-      >
-        <div className="relative bg-[#111317]/95 backdrop-blur-xl border border-red-500/30 text-white rounded-3xl p-4 sm:p-5 shadow-[0_20px_50px_rgba(139,26,26,0.25)] overflow-hidden">
-          {/* Subtle ambient corner glow */}
-          <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-red-600/20 to-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-600/10 rounded-full blur-xl pointer-events-none" />
+      <div className="fixed inset-0 z-[160] flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm">
+        <motion.div
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 30, scale: 0.95 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative w-full max-w-md bg-[#101217] border-2 border-red-500/40 text-white rounded-3xl p-5 sm:p-6 shadow-[0_25px_60px_rgba(139,26,26,0.35)] overflow-hidden"
+        >
+          {/* Subtle ambient glows */}
+          <div className="absolute top-0 right-0 w-44 h-44 bg-gradient-to-br from-red-600/25 to-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-36 h-36 bg-blue-600/15 rounded-full blur-2xl pointer-events-none" />
 
           {/* Close button */}
           <button
             type="button"
             onClick={dismissUpdate}
-            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white flex items-center justify-center transition-colors border-none cursor-pointer"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white flex items-center justify-center transition-colors border-none cursor-pointer z-10"
             aria-label="Dismiss update"
           >
-            <X size={14} />
+            <X size={15} />
           </button>
 
           {/* Header Row */}
-          <div className="flex items-start gap-3 relative z-10 pr-6">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-[#e74c3c] flex items-center justify-center text-white shrink-0 shadow-lg border border-red-400/30">
-              <Sparkles size={20} className="animate-spin text-amber-200" style={{ animationDuration: "6s" }} />
+          <div className="flex items-start gap-3.5 relative z-10 pr-6">
+            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-amber-500 flex items-center justify-center text-white shrink-0 shadow-lg border border-red-400/40 p-1">
+              <Image
+                src="/logo.jpg"
+                alt="S Tech Store"
+                width={40}
+                height={40}
+                className="w-full h-full object-contain rounded-xl"
+              />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
             </div>
 
             <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 text-[10px] font-black uppercase tracking-wider">
-                  Update Available
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  New Release Available
                 </span>
-                <span className="text-[11px] font-bold text-gray-400">
-                  v{version}
+                <span className="font-mono text-[11px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                  v{installedVer} ➔ v{targetVersion}
                 </span>
               </div>
-              <h4 className="text-sm sm:text-base font-extrabold text-white leading-tight">
-                កំណែទម្រង់ថ្មីមានរួចរាល់ហើយ! 🎉
+              <h4 className="text-base sm:text-lg font-black text-white leading-tight">
+                មានកំណែអាប់ដេតថ្មី v{targetVersion}! 🎉
               </h4>
-              <p className="text-[11px] text-gray-300 mt-1 leading-snug">
-                S Tech Store បានបន្ថែមមុខងារថ្មីៗ និងបង្កើនល្បឿនកាន់តែលឿន។
+              <p className="text-xs text-gray-300 mt-1 leading-snug">
+                {releaseName}
               </p>
             </div>
           </div>
 
-          {/* Quick Changelog Pills */}
-          <div className="mt-3.5 pt-3 border-t border-white/10 relative z-10 space-y-1.5">
-            {changelog.slice(0, 2).map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2 text-[11px] text-gray-300">
-                <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
-                <span className="line-clamp-1">{item}</span>
+          {/* Dynamic Changelog Bullets */}
+          <div className="mt-4 pt-3 border-t border-white/10 relative z-10 space-y-2">
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              មុខងារថ្មីៗក្នុង Version {targetVersion}:
+            </div>
+            {changelog.slice(0, 4).map((item, idx) => (
+              <div key={idx} className="flex items-start gap-2 text-xs text-gray-200">
+                <CheckCircle2 size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+                <span className="leading-snug">{item}</span>
               </div>
             ))}
           </div>
 
           {/* Actions */}
-          <div className="mt-4 pt-2 flex items-center gap-2.5 relative z-10">
+          <div className="mt-5 pt-3 border-t border-white/10 flex items-center gap-2.5 relative z-10">
             <button
               type="button"
-              onClick={applyUpdate}
+              onClick={() => applyUpdate()}
               disabled={isUpdating}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-red-900/40 transition-all cursor-pointer border-none disabled:opacity-60"
+              className="flex-1 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#8B1A1A] hover:brightness-110 text-white text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-xl shadow-red-950/60 transition-all cursor-pointer border-none disabled:opacity-60"
             >
               {isUpdating ? (
                 <>
-                  <RefreshCw size={15} className="animate-spin" />
-                  <span>Updating...</span>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>កំពុងអាប់ដេត...</span>
                 </>
               ) : (
                 <>
-                  <Zap size={15} className="text-amber-300 fill-amber-300" />
-                  <span>Update Now</span>
+                  <Zap size={16} className="text-amber-300 fill-amber-300" />
+                  <span>អាប់ដេតឥឡូវនេះ (Update to v{targetVersion})</span>
                 </>
               )}
             </button>
@@ -153,13 +168,13 @@ export default function PWAUpdatePrompt() {
             <button
               type="button"
               onClick={dismissUpdate}
-              className="py-2.5 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer border border-white/10"
+              className="py-3 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white text-xs font-bold transition-colors cursor-pointer border border-white/10"
             >
-              Later
+              ទុកពេលក្រោយ
             </button>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </AnimatePresence>
   );
 }

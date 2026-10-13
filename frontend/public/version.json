@@ -1,12 +1,13 @@
 {
-  "version": "2.4.2",
-  "build": "20261009.01",
-  "releaseName": "S Tech Store - Performance & Visual Lens Update",
-  "buildTime": "2026-10-09T03:55:00Z",
+  "version": "1.0.0",
+  "build": "20261013.01",
+  "releaseName": "S Tech Store Official Release v1.0.0",
+  "buildTime": "2026-10-13T08:00:00Z",
   "changelog": [
-    "Added Taobao-style visual camera product scanner",
-    "Optimized Edge ISR caching for instant ~50ms page loads",
-    "Enhanced VIP Profile settings & hardware warranty hub",
-    "PWA real-time update alerts with instant reload"
+    "Official Release v1.0.0 with universal Bakong KHQR & ABA PAY",
+    "Real-Time Coin Reward & Auto-Popup for product browsing",
+    "$5.00 USD Welcome Gift directly credited to S-Tech Wallet",
+    "World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout",
+    "Enhanced Security with 2FA OTP confirmation via Telegram & Gmail"
   ]
 }

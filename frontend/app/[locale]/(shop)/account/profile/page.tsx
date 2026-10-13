@@ -253,7 +253,16 @@ export default function UserProfilePage() {
   }, []);
 
   // PWA update store
-  const { isChecking, checkForUpdates, applyUpdate, hasUpdate } = useUpdateStore();
+  const {
+    currentVersion,
+    hasUpdate,
+    updateInfo,
+    isChecking,
+    isUpdating,
+    checkForUpdates,
+    applyUpdate,
+    openUpdateModal,
+  } = useUpdateStore();
   const [updateStatusMsg, setUpdateStatusMsg] = useState<string | null>(null);
 
   // 100% Real cloud data from Neon PostgreSQL / Laravel API
@@ -1088,10 +1097,13 @@ export default function UserProfilePage() {
   };
 
   const handleManualCheckUpdates = async () => {
-    setUpdateStatusMsg("Checking for latest S Tech Store update...");
+    setUpdateStatusMsg("កំពុងពិនិត្យមើលកំណែ Update ចុងក្រោយ...");
     const res = await checkForUpdates(true);
     setUpdateStatusMsg(res.message);
-    setTimeout(() => setUpdateStatusMsg(null), 5000);
+    if (res.hasUpdate) {
+      openUpdateModal();
+    }
+    setTimeout(() => setUpdateStatusMsg(null), 6000);
   };
 
   const copyMemberId = () => {
@@ -2516,42 +2528,76 @@ export default function UserProfilePage() {
               </div>
 
               {/* PWA Version & Real-Time Update Checker Box */}
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-500/20 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <Zap size={16} className="text-red-500" />
-                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                        S Tech Store PWA Release
-                      </h4>
-                      <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black">
-                        v2.4.2
-                      </span>
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-500/20 space-y-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="w-8 h-8 rounded-xl bg-[#8B1A1A]/10 dark:bg-[#8B1A1A]/20 flex items-center justify-center text-[#8B1A1A] dark:text-red-400">
+                        <Zap size={16} />
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                          S Tech Store PWA Release
+                        </h4>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[11px] font-black tracking-wide">
+                          v{currentVersion || "1.0.0"}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+                          Official Release
+                        </span>
+                        {hasUpdate && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500 text-black text-[10px] font-black animate-pulse">
+                            New Update v{updateInfo?.version || "1.0.X"}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Stay updated with the latest performance boosts, bug fixes & Taobao camera lens.
+                      {hasUpdate
+                        ? `🎉 មានកំណែអាប់ដេតថ្មី v${updateInfo?.version || "1.0.X"} រួចរាល់! ចុចប៊ូតុង Update ដើម្បីទទួលបានមុខងារថ្មីៗ និង Performance លឿនបំផុត។`
+                        : "ប្រព័ន្ធដំណើរការលើ Official Release v1.0.0 ចុងក្រោយបង្អស់ (Universal KHQR Bakong, ABA PAY, Welcome Gift $5.00, Real-Time Coins Reward)"}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                    {/* Check for Updates button */}
                     <button
                       type="button"
                       onClick={handleManualCheckUpdates}
                       disabled={isChecking}
-                      className="px-4 py-2.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-2 shrink-0 disabled:opacity-50"
+                      className="px-3.5 py-2.5 rounded-xl bg-white dark:bg-black/40 hover:bg-gray-50 dark:hover:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 disabled:opacity-50 shadow-sm"
                     >
-                      <RefreshCw size={13} className={isChecking ? "animate-spin" : ""} />
-                      <span>{isChecking ? "Checking..." : "Check for Updates"}</span>
+                      <RefreshCw size={13} className={isChecking ? "animate-spin text-red-500" : ""} />
+                      <span>{isChecking ? "កំពុងពិនិត្យ..." : "Check for Updates"}</span>
                     </button>
 
-                    {hasUpdate && (
+                    {/* Update to Latest Version button */}
+                    {hasUpdate ? (
                       <button
                         type="button"
-                        onClick={applyUpdate}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5"
+                        onClick={openUpdateModal}
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/25 cursor-pointer flex items-center gap-1.5 shrink-0 animate-pulse"
                       >
-                        <Download size={13} />
-                        <span>Update Now</span>
+                        <Sparkles size={13} />
+                        <span>Update to Latest Version ({updateInfo?.version ? `v${updateInfo.version}` : "v1.0.0"})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await checkForUpdates(true);
+                          if (res.hasUpdate) {
+                            openUpdateModal();
+                          } else {
+                            await applyUpdate();
+                          }
+                        }}
+                        disabled={isUpdating || isChecking}
+                        className="px-4 py-2.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-50 shadow-sm"
+                        title="ពិនិត្យ និង Refresh ទៅកាន់កំណែចុងក្រោយបង្អស់"
+                      >
+                        <Download size={13} className={isUpdating ? "animate-bounce" : ""} />
+                        <span>{isUpdating ? "Updating..." : "Update to Latest Version"}</span>
                       </button>
                     )}
                   </div>
@@ -2559,7 +2605,7 @@ export default function UserProfilePage() {
 
                 {updateStatusMsg && (
                   <div className="p-2.5 rounded-xl bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-xs font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                     <span>{updateStatusMsg}</span>
                   </div>
                 )}
