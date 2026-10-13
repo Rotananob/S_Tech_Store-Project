@@ -263,6 +263,8 @@ class WalletController extends Controller
         $user->lifetime_free_coins = $lifetimeFree + $actualCoinsGiven;
         $user->save();
 
+        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
+
         if ($actualCoinsGiven > 0) {
             WalletTransaction::create([
                 'firebase_uid' => $user->firebase_uid,

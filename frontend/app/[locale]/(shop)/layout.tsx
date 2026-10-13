@@ -4,6 +4,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import PWAUpdatePrompt from "@/components/ui/PWAUpdatePrompt";
 import FlyToCartOverlay from "@/components/cart/FlyToCartOverlay";
 import PromotionPopupModal from "@/components/ui/PromotionPopupModal";
+import RealtimeCoinRewardPopup from "@/components/wallet/RealtimeCoinRewardPopup";
 
 export default function ShopLayout({
   children,
@@ -21,6 +22,7 @@ export default function ShopLayout({
       <PWAUpdatePrompt />
       <FlyToCartOverlay />
       <PromotionPopupModal />
+      <RealtimeCoinRewardPopup />
     </div>
   );
 }
