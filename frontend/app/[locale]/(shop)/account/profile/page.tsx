@@ -445,19 +445,27 @@ export default function UserProfilePage() {
     }
   };
 
+  const isTelegramConnected = Boolean(
+    profile.telegram_chat_id ||
+    (profile.telegram && profile.telegram.trim() !== "")
+  );
+
   const isTelegramAuthUser = Boolean(
-    profile.provider === "telegram" ||
-    profile.firebase_uid?.startsWith("tg_") ||
-    user?.uid?.startsWith("tg_") ||
-    (typeof window !== "undefined" && (
-      (() => {
-        try {
-          const s1 = JSON.parse(localStorage.getItem("user_session") || "{}");
-          const s2 = JSON.parse(localStorage.getItem("stech_user_session") || "{}");
-          return s1?.provider === "telegram" || s2?.provider === "telegram" || Boolean(s1?.telegram_id || s2?.telegram_id);
-        } catch { return false; }
-      })()
-    ))
+    isTelegramConnected && (
+      profile.provider === "telegram" ||
+      profile.firebase_uid?.startsWith("tg_") ||
+      user?.uid?.startsWith("tg_") ||
+      (typeof window !== "undefined" && (
+        (() => {
+          try {
+            const s1 = JSON.parse(localStorage.getItem("user_session") || "{}");
+            const s2 = JSON.parse(localStorage.getItem("stech_user_session") || "{}");
+            return Boolean((s1?.provider === "telegram" && (s1?.telegram_id || s1?.telegram)) ||
+                           (s2?.provider === "telegram" && (s2?.telegram_id || s2?.telegram)));
+          } catch { return false; }
+        })()
+      ))
+    )
   );
 
   // Load persisted font preference
@@ -969,22 +977,38 @@ export default function UserProfilePage() {
   };
 
   const executeUnlinkTelegram = async () => {
-    setShowDisconnectModal(false);
+    // Keep modal open and show clear, active loading state
+    setTelegramUnlinking(true);
     try {
-      setTelegramUnlinking(true);
+      const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
       const res = await api.post("/user/telegram/unlink", {
-        telegram_chat_id: profile.telegram_chat_id,
+        telegram_chat_id: userTelegramChatId,
         telegram: profile.telegram,
+        firebase_uid: profile.firebase_uid || user?.uid,
+        email: user?.email || profile.email,
       });
+
       if (res.data?.success) {
+        setShowDisconnectModal(false);
+        const newUid = res.data?.new_firebase_uid || profile.firebase_uid;
+
         setProfile((prev) => ({
           ...prev,
           telegram: "",
           telegram_chat_id: undefined,
           notif_telegram: false,
+          provider: prev.provider === "telegram" ? "email" : prev.provider,
+          firebase_uid: newUid,
         }));
 
-        // Clean up locally stored session
+        if (newUid && user) {
+          setUser((prev: any) => ({
+            ...prev,
+            uid: newUid,
+          }));
+        }
+
+        // Clean up locally stored session so re-renders don't resurrect telegram state
         if (typeof window !== "undefined") {
           try {
             const sess = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
@@ -993,6 +1017,11 @@ export default function UserProfilePage() {
               delete p.telegram;
               delete p.telegram_chat_id;
               delete p.telegram_id;
+              if (p.provider === "telegram") p.provider = "email";
+              if (newUid) {
+                p.firebase_uid = newUid;
+                p.uid = newUid;
+              }
               localStorage.setItem("stech_user_session", JSON.stringify(p));
               localStorage.setItem("user_session", JSON.stringify(p));
               window.dispatchEvent(new Event("user_session_updated"));
@@ -1000,15 +1029,21 @@ export default function UserProfilePage() {
           } catch (err) {}
         }
 
+        // Final Alert & Modal
         setSaveModal({
           show: true,
           success: true,
-          title: "ផ្តាច់ការភ្ជាប់ជោគជ័យ ✅",
-          message: "គណនី Telegram ត្រូវបានផ្តាច់ចេញពីគណនីរបស់អ្នករួចរាល់។ ឥឡូវនេះគណនី Telegram នេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនីផ្សេងបាន។",
+          title: "ផ្តាច់ការភ្ជាប់ជោគជ័យ ១០០% ✅",
+          message: "គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ចេញពី S Tech Store រួចរាល់ហើយ! ដំណឹងបញ្ជាក់ការផ្តាច់ត្រូវបានផ្ញើចូល Telegram Bot (@S_TECH_ASSISTANTBOT) របស់អ្នករួចរាល់។ លោកអ្នកអាចភ្ជាប់គណនី Telegram នេះជាមួយគណនីផ្សេងបានគ្រប់ពេល។",
         });
+
+        setPrivacyToast("🔓 បានផ្តាច់ Telegram ដោយជោគជ័យ ១០០%!");
+        setTimeout(() => setPrivacyToast(null), 4000);
+      } else {
+        alert(res.data?.message || res.data?.error || "មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
       }
     } catch (e: any) {
-      alert("មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
+      alert(e?.response?.data?.message || e?.response?.data?.error || "មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
     } finally {
       setTelegramUnlinking(false);
     }
@@ -1158,7 +1193,7 @@ export default function UserProfilePage() {
                   </div>
 
                   {/* Telegram Verified Avatar Badge */}
-                  {(isTelegramAuthUser || profile.telegram_chat_id) && (
+                  {isTelegramConnected && (
                     <div
                       className="absolute -top-1.5 -left-1.5 w-7 h-7 rounded-full bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center shadow-lg border-2 border-[#12141a] z-10"
                       title="Telegram Verified Account"
@@ -1292,19 +1327,19 @@ export default function UserProfilePage() {
               <div className="space-y-0.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-1.5">
-                    <span>{isTelegramAuthUser || profile.telegram_chat_id ? "Official Telegram Bot" : "Telegram Bot ផ្លូវការ"}</span>
+                    <span>{isTelegramConnected ? "Official Telegram Bot" : "Telegram Bot ផ្លូវការ"}</span>
                     <BadgeCheck size={16} className="text-[#229ED9] fill-[#229ED9]/20" />
                   </h3>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    isTelegramAuthUser || profile.telegram_chat_id
+                    isTelegramConnected
                       ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                       : "bg-white/10 text-gray-300 border border-white/10"
                   }`}>
-                    {isTelegramAuthUser || profile.telegram_chat_id ? "Active • ភ្ជាប់រួចរាល់" : "ជម្រើសបន្ថែម (Optional)"}
+                    {isTelegramConnected ? "Active • ភ្ជាប់រួចរាល់" : "ជម្រើសបន្ថែម (Optional)"}
                   </span>
                 </div>
                 <p className="text-xs text-gray-300/90 leading-relaxed max-w-xl">
-                  {isTelegramAuthUser || profile.telegram_chat_id
+                  {isTelegramConnected
                     ? `ទទួលបានវិក្កយបត្រ (E-Receipts) ដំណឹងបញ្ជាទិញ និង Login 1-Click ផ្ទាល់ខ្លួន (${profile.telegram ? `@${profile.telegram.replace('@', '')}` : ""} ${profile.telegram_chat_id ? `• ID: ${profile.telegram_chat_id}` : ""})`
                     : "ភ្ជាប់ជាមួយ Telegram Bot ផ្លូវការរបស់ S Tech ដើម្បីទទួលវិក្កយបត្រ (E-Receipts) និងដំណឹងកុម្ម៉ង់ 24/7 (🛡️ សុវត្ថិភាព 100% មិនទាមទារលេខសម្ងាត់ ឬព័ត៌មានផ្ទាល់ខ្លួន Telegram ឡើយ)"}
                 </p>
@@ -1312,7 +1347,7 @@ export default function UserProfilePage() {
             </div>
 
             <div className="shrink-0 w-full sm:w-auto">
-              {isTelegramAuthUser || profile.telegram_chat_id ? (
+              {isTelegramConnected ? (
                 <div className="grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:gap-2.5 w-full sm:w-auto">
                   <button
                     type="button"
@@ -1872,7 +1907,7 @@ export default function UserProfilePage() {
                       <Send size={14} className="text-[#0088cc]" />
                       <span>Telegram Username (@username for shipping)</span>
                     </label>
-                    {(profile.telegram_chat_id || isTelegramAuthUser) ? (
+                    {isTelegramConnected ? (
                       <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                         <CheckCircle2 size={11} />
                         <span>{isTelegramAuthUser ? "Auto-Connected (Telegram)" : "Bot Linked"}</span>
@@ -2280,7 +2315,7 @@ export default function UserProfilePage() {
                             <CheckCircle2 size={12} />
                             <span>Auto-Connected (ចូលតាម Telegram)</span>
                           </span>
-                        ) : (profile.telegram_chat_id || profile.telegram) ? (
+                        ) : isTelegramConnected ? (
                           <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
                             <CheckCircle2 size={12} />
                             <span>បានភ្ជាប់ជោគជ័យ (Linked)</span>
@@ -2302,7 +2337,7 @@ export default function UserProfilePage() {
                 </div>
 
                 {/* Status & Details */}
-                {(profile.telegram_chat_id || profile.telegram || isTelegramAuthUser) ? (
+                {isTelegramConnected ? (
                   <div className="p-4 rounded-xl bg-white/80 dark:bg-black/30 border border-sky-500/20 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -2473,7 +2508,7 @@ export default function UserProfilePage() {
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
                             Auto-Connected ({profile.telegram || "Telegram"})
                           </span>
-                        ) : (profile.telegram_chat_id || profile.telegram) ? (
+                        ) : isTelegramConnected ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
                             Linked ({profile.telegram || "Bot Active"})
                           </span>
@@ -2486,7 +2521,7 @@ export default function UserProfilePage() {
                       <span className="text-[11px] text-gray-400 block">
                         ទទួលវិក្កយបត្រអេឡិចត្រូនិច និងដំណឹងកុម្ម៉ង់ទំនិញតាម Official Bot (@S_TECH_ASSISTANTBOT)។
                       </span>
-                      {(!profile.telegram_chat_id && !isTelegramAuthUser) && (
+                      {!isTelegramConnected && (
                         <button
                           type="button"
                           onClick={handleConnectTelegram}
@@ -4010,13 +4045,20 @@ export default function UserProfilePage() {
                     ID: {profile.telegram_chat_id} {profile.telegram ? `(@${profile.telegram.replace('@', '')})` : ''}
                   </div>
                 )}
+                {telegramUnlinking && (
+                  <div className="mt-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold flex items-center justify-center gap-2.5 animate-pulse shadow-xs">
+                    <RefreshCw size={15} className="animate-spin text-amber-500 shrink-0" />
+                    <span>ប្រព័ន្ធកំពុងដំណើរការផ្តាច់ Telegram ពី Database & Bot...</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowDisconnectModal(false)}
-                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                  disabled={telegramUnlinking}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   ទេ (បោះបង់)
                 </button>
@@ -4024,10 +4066,10 @@ export default function UserProfilePage() {
                   type="button"
                   onClick={executeUnlinkTelegram}
                   disabled={telegramUnlinking}
-                  className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-md shadow-red-600/30 border-none cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:opacity-75 text-white text-xs font-bold transition-all shadow-md shadow-red-600/30 border-none cursor-pointer flex items-center justify-center gap-2 disabled:cursor-not-allowed"
                 >
                   {telegramUnlinking ? <RefreshCw size={14} className="animate-spin" /> : null}
-                  <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "យល់ព្រមផ្តាច់"}</span>
+                  <span>{telegramUnlinking ? "កំពុងដំណើរការផ្តាច់..." : "យល់ព្រមផ្តាច់"}</span>
                 </button>
               </div>
             </motion.div>
