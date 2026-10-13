@@ -109,14 +109,18 @@ export default function OrdersPage() {
       setOrders(list);
       setLoggedIn(true);
 
-      // Auto-open specific order receipt if query param order_id matches
+      // Auto-open specific order receipt if query param order_id or id matches
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
-        const targetId = urlParams.get("order_id") || window.location.hash.replace("#", "");
+        const targetId = urlParams.get("order_id") || urlParams.get("id") || window.location.hash.replace("#", "");
         if (targetId) {
           const match = list.find((o: Order) => o.order_id === targetId || String(o.id) === targetId);
           if (match) {
             handleViewReceipt(match);
+            setTimeout(() => {
+              const el = document.getElementById(`order-${match.order_id}`) || document.getElementById(`order-${match.id}`);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 300);
           }
         }
       }
@@ -308,6 +312,7 @@ export default function OrdersPage() {
               return (
                 <div
                   key={order.id}
+                  id={`order-${order.order_id || order.id}`}
                   style={{
                     background: "#fff",
                     border: "1px solid #e5e5e5",

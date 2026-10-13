@@ -3063,7 +3063,7 @@ export default function UserProfilePage() {
                               </button>
 
                               <Link
-                                href={`/orders/${order.id}`}
+                                href={order.order_id ? `/orders?order_id=${encodeURIComponent(order.order_id)}` : `/orders?order_id=${order.id}`}
                                 className="px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-700 dark:text-gray-200 text-xs font-bold transition-all no-underline shadow-sm"
                               >
                                 Details &rarr;
