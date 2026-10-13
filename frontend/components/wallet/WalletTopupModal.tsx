@@ -5,9 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, QrCode, CreditCard, ArrowRight,
   Download, Copy, Check, ExternalLink, Loader2, Sparkles, AlertCircle,
-  Clock, RefreshCw
+  Clock, RefreshCw, ShieldCheck, Lock, ChevronLeft, Eye, EyeOff
 } from "lucide-react";
-import { createTopupSession, confirmTopup, TopupSessionResponse } from "@/lib/services/wallet.service";
+import {
+  createTopupSession,
+  confirmTopup,
+  processCardTopup,
+  TopupSessionResponse
+} from "@/lib/services/wallet.service";
 import { playCelebrationFanfare } from "@/lib/celebration-audio";
 import ConfettiShower from "@/components/promotions/ConfettiShower";
 
@@ -18,48 +23,73 @@ interface WalletTopupModalProps {
   initialAmount?: number;
 }
 
+interface SuccessReceipt {
+  amount: number;
+  deposit_id: string;
+  method: string;
+}
+
 const STORAGE_KEY = "stech_pending_wallet_topup";
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes validity
 const MAX_VERIFY_ATTEMPTS = 5; // Max 5 verification attempts per generated QR to protect Bakong Open API
 const PRESET_AMOUNTS = [0.01, 5, 10, 20, 50, 100];
 
+// Only keep Bakong KHQR, ABA PAY, and Credit / Debit Card (Wing & ACLEDA removed per user request)
 const BANK_CHANNELS = [
   {
     id: "bakong",
     name: "Bakong KHQR",
-    sub: "All 36+ Cambodian Banks (ABA, Wing, ACLEDA...)",
-    badge: "NBC Universal",
-    color: "from-red-600 to-rose-700",
+    sub: "All 36+ Cambodian Banks (ABA, Wing, ACLEDA, Canadia...)",
+    badge: "NBC National Standard",
+    color: "from-[#E1232E] to-[#B01720]",
+    iconText: "KHQR",
   },
   {
     id: "aba",
     name: "ABA PAY",
-    sub: "Direct Deeplink & QR",
-    badge: "1-Tap Mobile",
-    color: "from-[#004B87] to-blue-800",
+    sub: "Direct Deeplink & QR (ABA Mobile App)",
+    badge: "1-Tap ABA Mobile",
+    color: "from-[#004B87] to-[#002D5A]",
+    iconText: "ABA",
   },
   {
-    id: "wing",
-    name: "Wing Bank",
-    sub: "Wing App & KHQR",
-    badge: "Fast Scan",
-    color: "from-lime-600 to-green-700",
-  },
-  {
-    id: "acleda",
-    name: "ACLEDA ToanChet",
-    sub: "ACLEDA Mobile QR",
-    badge: "Instant Pay",
-    color: "from-blue-700 to-cyan-800",
-  },
-  {
-    id: "visa",
-    name: "Card (Visa/Master)",
-    sub: "Local & International",
-    badge: "3D Secure",
+    id: "card",
+    name: "Credit / Debit Card",
+    sub: "Visa, Mastercard, JCB, UnionPay",
+    badge: "3D Secure 2.0",
     color: "from-indigo-600 to-purple-800",
+    iconText: "CARD",
   },
 ];
+
+// Helper to detect card brand
+function detectCardBrand(num: string): "visa" | "mastercard" | "jcb" | "amex" | "unionpay" | "card" {
+  const clean = num.replace(/\D/g, "");
+  if (/^4/.test(clean)) return "visa";
+  if (/^(5[1-5]|2[2-7])/.test(clean)) return "mastercard";
+  if (/^35(2[89]|[3-8][0-9])/.test(clean)) return "jcb";
+  if (/^3[47]/.test(clean)) return "amex";
+  if (/^62/.test(clean)) return "unionpay";
+  return "card";
+}
+
+// Luhn Algorithm validation on client
+function validateLuhn(num: string): boolean {
+  const clean = num.replace(/\D/g, "");
+  if (clean.length < 13 || clean.length > 19) return false;
+  let sum = 0;
+  let flag = false;
+  for (let i = clean.length - 1; i >= 0; i--) {
+    let digit = parseInt(clean.charAt(i), 10);
+    if (flag) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    flag = !flag;
+  }
+  return sum % 10 === 0;
+}
 
 export default function WalletTopupModal({
   isOpen,
@@ -70,7 +100,7 @@ export default function WalletTopupModal({
   const [selectedAmount, setSelectedAmount] = useState<number>(initialAmount);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [selectedChannel, setSelectedChannel] = useState<string>("bakong");
-  const [step, setStep] = useState<"select" | "qr" | "success">("select");
+  const [step, setStep] = useState<"select" | "qr" | "card_form" | "success">("select");
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<TopupSessionResponse | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -81,8 +111,17 @@ export default function WalletTopupModal({
   const [timeLeft, setTimeLeft] = useState<number>(30 * 60);
   const [savingImage, setSavingImage] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [successReceipt, setSuccessReceipt] = useState<SuccessReceipt | null>(null);
 
-  // Restore pending session from localStorage on open / refresh / tab-switch
+  // Card form states
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardholderName, setCardholderName] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [showCvv, setShowCvv] = useState(false);
+  const [cardSubmitting, setCardSubmitting] = useState(false);
+
+  // Restore pending session from localStorage on open / refresh / tab-switch (Never reload!)
   useEffect(() => {
     if (isOpen) {
       try {
@@ -92,6 +131,7 @@ export default function WalletTopupModal({
           const now = Date.now();
           if (parsed?.expiresAt && parsed.expiresAt > now && parsed.session) {
             setSession(parsed.session);
+            setSelectedChannel(parsed.channel || "bakong");
             setStep("qr");
             setCheckAttempts(parsed.checkAttempts || 0);
             setTimeLeft(Math.max(0, Math.floor((parsed.expiresAt - now) / 1000)));
@@ -117,7 +157,7 @@ export default function WalletTopupModal({
           setTimeLeft(rem);
           if (rem <= 0) {
             localStorage.removeItem(STORAGE_KEY);
-            setErrorMsg("កូដ KHQR នេះផុតកំណត់រយៈពេល 30 នាទីហើយ។ សូមចុច 'បង្កើតកូដថ្មី'។");
+            setErrorMsg("កូដទូទាត់នេះផុតកំណត់រយៈពេល 30 នាទីហើយ។ សូមចុច 'បង្កើតកូដថ្មី'។");
           }
         }
       } catch (e) {}
@@ -132,15 +172,22 @@ export default function WalletTopupModal({
     return selectedAmount;
   };
 
-  const handleGenerateQR = async () => {
+  const handleProceedFromSelect = async () => {
     const amt = getEffectiveAmount();
     if (amt < 0.01) {
       setErrorMsg("ចំនួនទឹកប្រាក់អប្បបរមាគឺ $0.01 USD");
       return;
     }
     setErrorMsg(null);
-    setLoading(true);
 
+    // If card payment selected, navigate to world-class card checkout form
+    if (selectedChannel === "card") {
+      setStep("card_form");
+      return;
+    }
+
+    // Otherwise generate Bank KHQR / ABA session
+    setLoading(true);
     try {
       const res = await createTopupSession(amt, selectedChannel);
       setSession(res);
@@ -150,11 +197,12 @@ export default function WalletTopupModal({
       const expiresAt = now + SESSION_TTL_MS;
       setTimeLeft(30 * 60);
 
-      // Persist in localStorage so switching tabs or reloading preserves QR for 30 mins
+      // Persist in localStorage so switching to mobile banking app or switching tabs NEVER reloads/resets!
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           session: res,
+          channel: selectedChannel,
           createdAt: now,
           expiresAt,
           checkAttempts: 0,
@@ -164,6 +212,66 @@ export default function WalletTopupModal({
       setErrorMsg(err.response?.data?.message || "មិនអាចបង្កើតកូដទូទាត់បានទេ។ សូមព្យាយាមម្តងទៀត។");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Card Payment Submit Handler
+  const handleCardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    const cleanNum = cardNumber.replace(/\D/g, "");
+    if (cleanNum.length < 13 || cleanNum.length > 19) {
+      setErrorMsg("លេខកាតត្រូវតែមានចន្លោះពី 13 ដល់ 19 ខ្ទង់");
+      return;
+    }
+
+    if (!validateLuhn(cleanNum)) {
+      setErrorMsg("លេខកាតមិនត្រឹមត្រូវតាមស្ដង់ដារអន្តរជាតិឡើយ (Invalid Card Number)");
+      return;
+    }
+
+    if (!cardholderName.trim()) {
+      setErrorMsg("សូមបញ្ចូលឈ្មោះម្ចាស់កាត (Cardholder Name)");
+      return;
+    }
+
+    const [expM, expY] = cardExpiry.split("/");
+    if (!expM || !expY || Number(expM) < 1 || Number(expM) > 12) {
+      setErrorMsg("កាលបរិច្ឆេទផុតកំណត់មិនត្រឹមត្រូវទេ (ទម្រង់: MM/YY)");
+      return;
+    }
+
+    const cleanCvv = cardCvv.replace(/\D/g, "");
+    if (cleanCvv.length < 3 || cleanCvv.length > 4) {
+      setErrorMsg("លេខសម្ងាត់ CVV/CVC ត្រូវតែមាន 3 ឬ 4 ខ្ទង់");
+      return;
+    }
+
+    setCardSubmitting(true);
+    try {
+      const res = await processCardTopup({
+        amount: getEffectiveAmount(),
+        card_number: cleanNum,
+        cardholder_name: cardholderName.trim(),
+        exp_month: expM,
+        exp_year: expY,
+        cvv: cleanCvv,
+      });
+
+      playCelebrationFanfare();
+      setShowConfetti(true);
+      setSuccessReceipt({
+        amount: res.amount_added,
+        deposit_id: res.deposit_id,
+        method: `${res.card_brand} (${res.masked_card})`,
+      });
+      setStep("success");
+      onSuccess(res.new_balance);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "ការកាត់ប្រាក់តាមកាតមិនជោគជ័យទេ។ សូមពិនិត្យព័ត៌មានកាតឡើងវិញ។");
+    } finally {
+      setCardSubmitting(false);
     }
   };
 
@@ -196,6 +304,11 @@ export default function WalletTopupModal({
       const res = await confirmTopup(session.deposit_id);
       playCelebrationFanfare();
       setShowConfetti(true);
+      setSuccessReceipt({
+        amount: session.amount,
+        deposit_id: session.deposit_id,
+        method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
+      });
       setStep("success");
       localStorage.removeItem(STORAGE_KEY);
       onSuccess(res.new_balance);
@@ -215,7 +328,7 @@ export default function WalletTopupModal({
     try {
       const resp = await fetch(session.qr_image_url);
       const blob = await resp.blob();
-      const fileName = `KHQR-${session.deposit_id}.png`;
+      const fileName = `${selectedChannel === "aba" ? "ABA-PAY" : "KHQR"}-${session.deposit_id}.png`;
 
       // If Mobile Web Share API with files is supported (e.g. iOS Safari / Android Chrome)
       if (navigator.canShare && typeof File !== "undefined") {
@@ -223,8 +336,8 @@ export default function WalletTopupModal({
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: `S-Tech KHQR $${session.amount.toFixed(2)}`,
-            text: `ស្កេនទូទាត់ Bakong KHQR $${session.amount.toFixed(2)} USD គ្រប់ធនាគារទាំងអស់`,
+            title: `S-Tech ${selectedChannel === "aba" ? "ABA PAY" : "KHQR"} $${session.amount.toFixed(2)}`,
+            text: `ស្កេនទូទាត់ ${selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR"} $${session.amount.toFixed(2)} USD`,
           });
           setSaveSuccess(true);
           setTimeout(() => setSaveSuccess(false), 3000);
@@ -245,7 +358,7 @@ export default function WalletTopupModal({
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
-      // Fallback: Open in new tab so user can long-press to save
+      // Fallback: Open in new tab
       window.open(session.qr_image_url, "_blank");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -267,10 +380,14 @@ export default function WalletTopupModal({
     setErrorMsg(null);
     setCheckAttempts(0);
     setTimeLeft(30 * 60);
+    setCardNumber("");
+    setCardholderName("");
+    setCardExpiry("");
+    setCardCvv("");
   };
 
   const handleClose = () => {
-    // Preserve pending session in localStorage so returning within 30 mins restores it!
+    // Preserve pending session in localStorage so returning within 30 mins restores it
     setErrorMsg(null);
     setShowConfetti(false);
     onClose();
@@ -282,9 +399,30 @@ export default function WalletTopupModal({
     return `${m}:${s < 10 ? "0" : ""}${s}`;
   };
 
+  // Card formatting helpers
+  const handleCardNumberChange = (val: string) => {
+    const clean = val.replace(/\D/g, "").slice(0, 19);
+    const parts = [];
+    for (let i = 0; i < clean.length; i += 4) {
+      parts.push(clean.substring(i, i + 4));
+    }
+    setCardNumber(parts.join(" "));
+  };
+
+  const handleExpiryChange = (val: string) => {
+    const clean = val.replace(/\D/g, "").slice(0, 4);
+    if (clean.length >= 2) {
+      setCardExpiry(`${clean.slice(0, 2)}/${clean.slice(2)}`);
+    } else {
+      setCardExpiry(clean);
+    }
+  };
+
   if (!isOpen) return null;
 
+  const currentBrand = detectCardBrand(cardNumber);
   const universalDeeplink = session?.deeplinks?.universal || (session?.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(session.khqr_string)}` : "#");
+  const isAbaChannel = selectedChannel === "aba";
 
   return (
     <>
@@ -311,7 +449,11 @@ export default function WalletTopupModal({
                   </span>
                 </h3>
                 <p className="text-[11px] text-gray-400">
-                  ស្កេនបានគ្រប់ធនាគារ Bakong KHQR, ABA, Wing, ACLEDA
+                  {step === "card_form"
+                    ? "Credit & Debit Card Checkout (Visa • Mastercard • JCB)"
+                    : isAbaChannel
+                    ? "ABA PAY • 1-Tap Mobile Deeplink & QR"
+                    : "Bakong KHQR • ស្កេនបានគ្រប់ 36+ ធនាគារក្នុងប្រទេសកម្ពុជា"}
                 </p>
               </div>
             </div>
@@ -334,7 +476,7 @@ export default function WalletTopupModal({
               </div>
             )}
 
-            {/* STEP 1: Select Amount and Bank */}
+            {/* STEP 1: Select Amount and Payment Channel */}
             {step === "select" && (
               <div className="space-y-5">
                 {/* Amount Selection */}
@@ -384,32 +526,32 @@ export default function WalletTopupModal({
                   </div>
                 </div>
 
-                {/* Bank / Payment Channel Selection */}
+                {/* Bank / Payment Channel Selection (Only KHQR, ABA, and Card) */}
                 <div>
                   <label className="block text-xs font-bold text-gray-300 mb-2">
-                    ជ្រើសរើសធនាគារ ឬវិធីសាស្ត្រទូទាត់
+                    ជ្រើសរើសវិធីសាស្ត្រទូទាត់ (Payment Method)
                   </label>
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     {BANK_CHANNELS.map((ch) => {
                       const isSelected = selectedChannel === ch.id;
                       return (
                         <div
                           key={ch.id}
                           onClick={() => setSelectedChannel(ch.id)}
-                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                             isSelected
                               ? "bg-white/10 border-red-500/80 shadow-md ring-1 ring-red-500/50"
                               : "bg-white/5 hover:bg-white/[0.08] border-white/10"
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${ch.color} flex items-center justify-center text-white text-xs font-black shadow-sm`}>
-                              {ch.id === "bakong" ? "KHQR" : ch.id === "aba" ? "ABA" : ch.id === "wing" ? "WING" : ch.id === "acleda" ? "ACL" : "CARD"}
+                            <div className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${ch.color} flex items-center justify-center text-white text-xs font-black shadow-sm`}>
+                              {ch.iconText}
                             </div>
                             <div>
                               <div className="text-xs font-bold text-white flex items-center gap-2">
                                 <span>{ch.name}</span>
-                                <span className="text-[10px] text-gray-400 font-normal">({ch.badge})</span>
+                                <span className="text-[10px] text-amber-400/90 font-medium">({ch.badge})</span>
                               </div>
                               <p className="text-[11px] text-gray-400">{ch.sub}</p>
                             </div>
@@ -426,7 +568,7 @@ export default function WalletTopupModal({
                   </div>
                 </div>
 
-                {/* Summary & Generate Button */}
+                {/* Summary & Proceed Button */}
                 <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
                   <div>
                     <span className="text-[11px] text-gray-400">សរុបទឹកប្រាក់ត្រូវបញ្ចូល:</span>
@@ -444,18 +586,23 @@ export default function WalletTopupModal({
 
                 <button
                   type="button"
-                  onClick={handleGenerateQR}
+                  onClick={handleProceedFromSelect}
                   disabled={loading}
                   className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#8B1A1A] text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-red-950/60 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer border-none disabled:opacity-50"
                 >
                   {loading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      <span>កំពុងបង្កើត KHQR Code...</span>
+                      <span>កំពុងរៀបចំប្រព័ន្ធទូទាត់...</span>
+                    </>
+                  ) : selectedChannel === "card" ? (
+                    <>
+                      <span>បន្តទៅបញ្ចូលព័ត៌មានកាត (Enter Card Details)</span>
+                      <ArrowRight size={16} />
                     </>
                   ) : (
                     <>
-                      <span>បន្តទៅស្កេនទូទាត់ (Generate QR)</span>
+                      <span>បន្តទៅស្កេនទូទាត់ (Generate {selectedChannel === "aba" ? "ABA QR" : "KHQR"})</span>
                       <ArrowRight size={16} />
                     </>
                   )}
@@ -463,83 +610,130 @@ export default function WalletTopupModal({
               </div>
             )}
 
-            {/* STEP 2: KHQR Display & Confirmation */}
+            {/* STEP 2A: KHQR / ABA Display & Confirmation */}
             {step === "qr" && session && (
               <div className="space-y-4 text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/30">
                   <QrCode size={14} />
-                  <span>ស្កេនទូទាត់បានគ្រប់ធនាគារ (Bakong KHQR • All Banks)</span>
+                  <span>
+                    {isAbaChannel
+                      ? "ABA PAY • 1-Tap Mobile App & QR"
+                      : "ស្កេនទូទាត់បានគ្រប់ធនាគារ (Bakong KHQR • All Banks)"}
+                  </span>
                 </div>
 
-                {/* Official EMVCo KHQR Visual Card */}
-                <div className="max-w-xs mx-auto p-4 rounded-3xl bg-white text-gray-900 shadow-2xl border-4 border-red-700 space-y-3">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded bg-[#E1251B] text-white font-black text-[11px] tracking-tight">
-                        KHQR
+                {/* STANDARDIZED NATIONAL KHQR / ABA STAND-STYLE CARD */}
+                <div className={`max-w-xs mx-auto rounded-3xl bg-white text-gray-900 shadow-2xl overflow-hidden border-4 ${
+                  isAbaChannel ? "border-[#004B87]" : "border-[#E1232E]"
+                }`}>
+                  {/* National Standard Header */}
+                  <div className={`px-4 py-3 flex items-center justify-between text-white ${
+                    isAbaChannel
+                      ? "bg-gradient-to-r from-[#004B87] via-[#003B6D] to-[#002D5A]"
+                      : "bg-gradient-to-r from-[#E1232E] to-[#B01720]"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded font-black text-xs tracking-tight ${
+                        isAbaChannel ? "bg-white text-[#004B87]" : "bg-white text-[#E1232E]"
+                      }`}>
+                        {isAbaChannel ? "ABA PAY" : "KHQR"}
                       </span>
-                      <span className="text-[11px] font-black text-gray-800">
-                        {session.merchant?.name || "ROTANA NOB"}
+                      <span className="text-[11px] font-bold tracking-wide uppercase opacity-95">
+                        {isAbaChannel ? "ABA Bank" : "Bakong National QR"}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
-                      All Banks & ABA
+
+                    <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full border border-white/30">
+                      {isAbaChannel ? "Instant ABA P2P" : "All 36+ Banks"}
                     </span>
                   </div>
 
-                  {/* QR Image with universal KHQR center badge */}
-                  <div className="bg-gray-50 p-2.5 rounded-2xl flex items-center justify-center shadow-inner relative">
-                    <img
-                      src={session.qr_image_url}
-                      alt="Bakong KHQR Deposit Code"
-                      className="w-48 h-48 object-contain rounded-lg"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-9 h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 border-red-600">
-                        <div className="w-full h-full rounded-full bg-[#E1251B] flex items-center justify-center text-white text-[8px] font-black tracking-tighter">
-                          KHQR
+                  {/* Merchant Details Bar */}
+                  <div className="px-4 py-2 bg-gray-50 border-b flex items-center justify-between text-left">
+                    <div>
+                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Merchant</div>
+                      <div className="text-xs font-black text-gray-800">
+                        {session.merchant?.name || "ROTANA NOB"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Currency</div>
+                      <div className="text-xs font-bold text-gray-800">USD & KHR</div>
+                    </div>
+                  </div>
+
+                  {/* QR Image with centered emblem */}
+                  <div className="p-3 bg-white flex items-center justify-center relative">
+                    <div className="p-2 bg-gray-50 rounded-2xl border shadow-inner flex items-center justify-center relative">
+                      <img
+                        src={session.qr_image_url}
+                        alt="Deposit QR Code"
+                        className="w-48 h-48 object-contain rounded-lg"
+                      />
+                      {/* Centered Emblem Logo */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className={`w-9 h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 ${
+                          isAbaChannel ? "border-[#004B87]" : "border-[#E1232E]"
+                        }`}>
+                          <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[8px] font-black tracking-tighter ${
+                            isAbaChannel ? "bg-[#004B87]" : "bg-[#E1232E]"
+                          }`}>
+                            {isAbaChannel ? "ABA" : "KHQR"}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Bank Accounts Info */}
-                  <div className="grid grid-cols-2 gap-1.5 text-left bg-gray-50 p-2 rounded-xl text-[10px] border">
-                    <div>
-                      <span className="text-gray-400">៛ KHR acc:</span>
-                      <div className="font-mono font-bold text-gray-800">{session.merchant?.khr_account || "006 822 995"}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-400">$ USD acc:</span>
-                      <div className="font-mono font-bold text-gray-800">{session.merchant?.usd_account || "014 579 634"}</div>
+                  {/* Dual Bank Accounts Info */}
+                  <div className="px-3 pb-2">
+                    <div className="grid grid-cols-2 gap-1.5 text-left bg-gray-50 p-2 rounded-xl text-[10px] border">
+                      <div>
+                        <span className="text-gray-400">៛ KHR acc:</span>
+                        <div className="font-mono font-bold text-gray-800">{session.merchant?.khr_account || "006 822 995"}</div>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">$ USD acc:</span>
+                        <div className="font-mono font-bold text-gray-800">{session.merchant?.usd_account || "014 579 634"}</div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Amount display (Locked Amount) */}
-                  <div className="text-center pt-1 border-t">
-                    <div className="text-lg font-black text-red-700 font-mono">
+                  <div className="px-4 py-2.5 bg-gray-50 border-t text-center">
+                    <div className={`text-xl font-black font-mono ${
+                      isAbaChannel ? "text-[#004B87]" : "text-red-700"
+                    }`}>
                       ${session.amount.toFixed(2)} USD
                     </div>
                     <div className="text-[11px] font-bold text-gray-500 font-mono">
                       ~ {session.amount_khr.toLocaleString()} KHR
                     </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
+                    <div className="text-[9px] text-gray-400 mt-0.5 font-mono">
                       Ref: {session.deposit_id}
                     </div>
                   </div>
                 </div>
 
                 {/* Quick Action & Deeplink Buttons */}
-                <div className="space-y-2 pt-1">
-                  {/* Universal Mobile Banking Deeplink (HTTPS Universal Link — Never throws Safari Invalid Scheme Error) */}
+                <div className="space-y-2 pt-1 max-w-xs mx-auto">
+                  {/* Direct Mobile Deeplink: Never reloads the page on return! */}
                   <a
                     href={universalDeeplink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs font-black flex items-center justify-center gap-2 no-underline transition-all shadow-md"
+                    className={`w-full py-2.5 px-3 rounded-xl hover:brightness-110 text-white text-xs font-black flex items-center justify-center gap-2 no-underline transition-all shadow-md ${
+                      isAbaChannel
+                        ? "bg-gradient-to-r from-[#004B87] to-blue-700 shadow-blue-950/50"
+                        : "bg-gradient-to-r from-red-600 to-rose-600 shadow-red-950/50"
+                    }`}
                   >
                     <ExternalLink size={14} />
-                    <span>បើកកម្មវិធីធនាគារ (Open Banking App • 1-Tap Pay)</span>
+                    <span>
+                      {isAbaChannel
+                        ? "បើក ABA Mobile (1-Tap Pay)"
+                        : "បើកកម្មវិធីធនាគារ (Open Banking App • 1-Tap Pay)"}
+                    </span>
                   </a>
 
                   {/* Save QR Image & Copy KHQR Code */}
@@ -572,7 +766,7 @@ export default function WalletTopupModal({
                 </div>
 
                 {/* Verification Quota & Action Controls */}
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2 pt-2 max-w-xs mx-auto">
                   {/* Countdown Timer & 5-Attempt Limit Indicator */}
                   <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-[11px]">
                     <div className="flex items-center gap-1.5 text-gray-300">
@@ -624,6 +818,203 @@ export default function WalletTopupModal({
               </div>
             )}
 
+            {/* STEP 2B: World-Class Credit / Debit Card Checkout */}
+            {step === "card_form" && (
+              <div className="space-y-4">
+                {/* Back to Amount Selection */}
+                <button
+                  type="button"
+                  onClick={() => setStep("select")}
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 bg-transparent border-none cursor-pointer p-0"
+                >
+                  <ChevronLeft size={14} />
+                  <span>ត្រឡប់ទៅជ្រើសរើសចំនួនទឹកប្រាក់ (Back)</span>
+                </button>
+
+                {/* VIRTUAL CREDIT / DEBIT CARD PREVIEW */}
+                <div className="relative w-full aspect-[1.586/1] max-w-[360px] mx-auto rounded-2xl p-5 shadow-2xl overflow-hidden border border-white/20 bg-gradient-to-br from-[#1a1f36] via-[#111424] to-[#0a0d18] flex flex-col justify-between">
+                  {/* Background Accents */}
+                  <div className="absolute top-0 right-0 w-44 h-44 bg-gradient-to-br from-indigo-500/20 to-purple-500/0 rounded-full blur-2xl pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-40 h-40 bg-gradient-to-tr from-rose-500/15 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+                  {/* Top Row: Chip + Contactless + Card Brand Logo */}
+                  <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-3">
+                      {/* EMV Smart Chip */}
+                      <div className="w-10 h-7 rounded-md bg-gradient-to-tr from-amber-300 via-yellow-400 to-amber-200 shadow border border-yellow-500/40 relative overflow-hidden flex items-center justify-center">
+                        <div className="w-full h-full border border-amber-600/30 rounded flex items-center justify-center">
+                          <div className="w-5 h-3 border border-amber-700/30 rounded-sm"></div>
+                        </div>
+                      </div>
+                      {/* Contactless Waves Icon */}
+                      <svg className="w-5 h-5 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8.5 10a4 4 0 0 1 0 4" />
+                        <path d="M12 7a8 8 0 0 1 0 10" />
+                        <path d="M15.5 4a12 12 0 0 1 0 16" />
+                      </svg>
+                    </div>
+
+                    {/* Brand Logo Display */}
+                    <div className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/15">
+                      <span className="font-black text-xs tracking-wider text-white uppercase">
+                        {currentBrand === "visa"
+                          ? "VISA"
+                          : currentBrand === "mastercard"
+                          ? "Mastercard"
+                          : currentBrand === "jcb"
+                          ? "JCB"
+                          : currentBrand === "amex"
+                          ? "AMEX"
+                          : currentBrand === "unionpay"
+                          ? "UnionPay"
+                          : "CARD"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Middle Row: Formatted Card Number */}
+                  <div className="relative z-10 py-1">
+                    <div className="font-mono text-base sm:text-lg font-bold tracking-widest text-white/95">
+                      {cardNumber ? cardNumber : "•••• •••• •••• ••••"}
+                    </div>
+                  </div>
+
+                  {/* Bottom Row: Cardholder + Expiry */}
+                  <div className="flex items-end justify-between relative z-10 pt-1">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Cardholder</div>
+                      <div className="font-mono text-xs font-bold text-white uppercase tracking-wider truncate max-w-[170px]">
+                        {cardholderName || "YOUR NAME"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[9px] uppercase tracking-wider text-white/50 font-medium">Expires</div>
+                      <div className="font-mono text-xs font-bold text-white tracking-widest">
+                        {cardExpiry || "MM/YY"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CARD PAYMENT FORM */}
+                <form onSubmit={handleCardSubmit} className="space-y-3.5">
+                  {/* Cardholder Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 mb-1">
+                      ឈ្មោះម្ចាស់កាត (Cardholder Name)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={cardholderName}
+                      onChange={(e) => setCardholderName(e.target.value.toUpperCase())}
+                      placeholder="e.g. ROTANA NOB"
+                      className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-xs sm:text-sm text-white uppercase placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Card Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 mb-1">
+                      លេខកាត (Card Number)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        maxLength={23}
+                        value={cardNumber}
+                        onChange={(e) => handleCardNumberChange(e.target.value)}
+                        placeholder="4242 •••• •••• ••••"
+                        className="w-full pl-3.5 pr-14 py-2.5 bg-white/5 border border-white/10 rounded-2xl font-mono text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 tracking-wider"
+                      />
+                      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 uppercase">
+                        {currentBrand}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expiry & CVV */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-300 mb-1">
+                        កាលបរិច្ឆេទ (MM/YY)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={5}
+                        value={cardExpiry}
+                        onChange={(e) => handleExpiryChange(e.target.value)}
+                        placeholder="12/28"
+                        className="w-full px-3.5 py-2.5 bg-white/5 border border-white/10 rounded-2xl font-mono text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-center tracking-wider"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center justify-between">
+                        <span>CVV / CVC</span>
+                        <span className="text-[10px] text-gray-400">3-4 ខ្ទង់</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showCvv ? "text" : "password"}
+                          required
+                          maxLength={4}
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))}
+                          placeholder="•••"
+                          className="w-full pl-3.5 pr-9 py-2.5 bg-white/5 border border-white/10 rounded-2xl font-mono text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-center tracking-widest"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCvv(!showCvv)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white bg-transparent border-none cursor-pointer p-0"
+                        >
+                          {showCvv ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security Certifications */}
+                  <div className="grid grid-cols-3 gap-2 py-1 text-[10px] text-gray-400 text-center">
+                    <div className="p-1.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-1">
+                      <Lock size={11} className="text-emerald-400" />
+                      <span>256-Bit SSL</span>
+                    </div>
+                    <div className="p-1.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-1">
+                      <ShieldCheck size={11} className="text-indigo-400" />
+                      <span>PCI-DSS Level 1</span>
+                    </div>
+                    <div className="p-1.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-1">
+                      <Sparkles size={11} className="text-amber-400" />
+                      <span>3D Secure 2.0</span>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={cardSubmitting}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-indigo-950/60 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer border-none disabled:opacity-50"
+                  >
+                    {cardSubmitting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>កំពុងកាត់ប្រាក់តាមកាត & បញ្ចូលទឹកប្រាក់...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={15} />
+                        <span>បង់ប្រាក់ & បញ្ចូល ${getEffectiveAmount().toFixed(2)} USD ឥឡូវនេះ</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            )}
+
             {/* STEP 3: Success Screen */}
             {step === "success" && (
               <div className="py-6 text-center space-y-4">
@@ -636,14 +1027,18 @@ export default function WalletTopupModal({
                     បញ្ចូលទឹកប្រាក់ជោគជ័យ 100%! 🎉
                   </h3>
                   <p className="text-xs text-gray-400 max-w-sm mx-auto">
-                    ទឹកប្រាក់ចំនួន <strong className="text-emerald-400">${getEffectiveAmount().toFixed(2)} USD</strong> ត្រូវបានបញ្ចូលទៅកាន់កាបូប S-Tech Wallet របស់អ្នករួចរាល់ហើយ។
+                    ទឹកប្រាក់ចំនួន <strong className="text-emerald-400">${(successReceipt?.amount || getEffectiveAmount()).toFixed(2)} USD</strong> ត្រូវបានបញ្ចូលទៅកាន់កាបូប S-Tech Wallet របស់អ្នករួចរាល់ហើយ។
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 max-w-xs mx-auto text-xs space-y-1.5">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 max-w-xs mx-auto text-xs space-y-2">
                   <div className="flex justify-between text-gray-400">
                     <span>ប្រតិបត្តិការ:</span>
-                    <span className="font-bold text-white">{session?.deposit_id}</span>
+                    <span className="font-mono font-bold text-white text-[11px]">{successReceipt?.deposit_id || session?.deposit_id}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>វិធីសាស្ត្រ:</span>
+                    <span className="font-bold text-white text-[11px]">{successReceipt?.method || selectedChannel.toUpperCase()}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>ស្ថានភាព:</span>

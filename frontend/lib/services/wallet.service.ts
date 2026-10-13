@@ -164,6 +164,34 @@ export const confirmTopup = async (depositId: string): Promise<{
   return res.data;
 };
 
+export interface CardTopupPayload {
+  amount: number;
+  card_number: string;
+  cardholder_name: string;
+  exp_month: string | number;
+  exp_year: string | number;
+  cvv: string;
+}
+
+export interface CardTopupResponse {
+  success: boolean;
+  message: string;
+  amount_added: number;
+  new_balance: number;
+  deposit_id: string;
+  card_brand: string;
+  masked_card: string;
+  auth_code: string;
+}
+
+export const processCardTopup = async (data: CardTopupPayload): Promise<CardTopupResponse> => {
+  const res = await api.post("/user/wallet/topup/card", data);
+  if (res.data?.success && res.data?.new_balance !== undefined) {
+    updateCachedWallet({ balance: Number(res.data.new_balance) });
+  }
+  return res.data;
+};
+
 export const convertCoinsToUSD = async (coins: number): Promise<{
   success: boolean;
   message: string;

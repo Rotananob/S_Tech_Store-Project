@@ -1204,6 +1204,7 @@ Route::post('/user/wallet/activity-reward', [\App\Http\Controllers\WalletControl
 Route::post('/user/wallet/topup/session', [\App\Http\Controllers\WalletController::class, 'createTopupSession'])->middleware('throttle:10,1');
 Route::get('/user/wallet/topup/status/{depositId}', [\App\Http\Controllers\WalletController::class, 'checkTopupStatus'])->middleware('throttle:60,1');
 Route::post('/user/wallet/topup/confirm', [\App\Http\Controllers\WalletController::class, 'confirmTopup'])->middleware('throttle:10,1');
+Route::post('/user/wallet/topup/card', [\App\Http\Controllers\WalletController::class, 'processCardTopup'])->middleware('throttle:10,1');
 Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins'])->middleware('throttle:10,1');
 Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet'])->middleware('throttle:15,1');
 

@@ -486,7 +486,7 @@ class PaymentService
     /**
      * Luhn Card algorithm verification
      */
-    private static function validateLuhn(string $number): bool
+    public static function validateLuhn(string $number): bool
     {
         $sum = 0;
         $flag = 0;
