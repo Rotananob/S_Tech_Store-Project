@@ -11,7 +11,7 @@ import {
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
   Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike,
-  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2
+  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2, Unlink
 } from "lucide-react";
 import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
@@ -1273,24 +1273,27 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <div className="shrink-0 w-full sm:w-auto">
               {isTelegramAuthUser || profile.telegram_chat_id ? (
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:gap-2.5 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
-                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1b8fc5] text-white text-xs font-bold transition-all shadow-md shadow-[#0088cc]/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/25 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border-none"
+                    title="បើក Chat ជាមួយ Telegram Bot ផ្លូវការ"
                   >
-                    <Send size={13} />
+                    <Send size={14} className="shrink-0" />
                     <span>បើក Bot</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleUnlinkTelegram}
                     disabled={telegramUnlinking}
-                    className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-gray-300 hover:text-red-300 text-xs font-semibold transition-colors border border-white/10 cursor-pointer"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/35 text-red-200 hover:text-white border border-red-500/40 hover:border-red-500/70 text-xs sm:text-sm font-bold transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer backdrop-blur-md disabled:opacity-50"
+                    title="ផ្តាច់ការតភ្ជាប់ Telegram ពីគណនីនេះ"
                   >
-                    <span>ផ្តាច់</span>
+                    <Unlink size={14} className="shrink-0 text-red-400" />
+                    <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ Telegram"}</span>
                   </button>
                 </div>
               ) : (
@@ -1313,7 +1316,11 @@ export default function UserProfilePage() {
           {/* Card 1: Real Cash Wallet & Loyalty Coins */}
           <Link
             href="/account/wallet"
-            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-emerald-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between no-underline"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push("/account/wallet");
+            }}
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-emerald-500/40 active:scale-[0.99] transition-all shadow-xs hover:shadow-md flex items-center justify-between no-underline cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -1338,14 +1345,17 @@ export default function UserProfilePage() {
           </Link>
 
           {/* Card 2: Welcome Gift Voucher */}
-          <div 
-            onClick={() => {
+          <Link 
+            href="/promotions"
+            onClick={(e) => {
               if (!profile.has_claimed_welcome_gift) {
                 sessionStorage.removeItem("stech_dismissed_gift_modal");
                 window.dispatchEvent(new Event("user_session_updated"));
               }
+              e.preventDefault();
+              router.push("/promotions");
             }}
-            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-rose-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between cursor-pointer"
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-rose-500/40 active:scale-[0.99] transition-all shadow-xs hover:shadow-md flex items-center justify-between no-underline cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -1367,12 +1377,16 @@ export default function UserProfilePage() {
               <span>{profile.has_claimed_welcome_gift ? "មើល" : "Claim"}</span>
               <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </Link>
 
           {/* Card 3: Saver Pass VIP */}
-          <div 
-            onClick={() => setShowCoinsModal(true)}
-            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-amber-500/40 transition-all shadow-xs hover:shadow-md flex items-center justify-between cursor-pointer"
+          <Link 
+            href="/build-pc"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push("/build-pc");
+            }}
+            className="group relative overflow-hidden rounded-2xl bg-white dark:bg-[#12141a] p-4 border border-gray-100 dark:border-white/5 hover:border-amber-500/40 active:scale-[0.99] transition-all shadow-xs hover:shadow-md flex items-center justify-between no-underline cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
@@ -1394,7 +1408,7 @@ export default function UserProfilePage() {
               <span>អត្ថប្រយោជន៍</span>
               <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* ── 4. My Orders (Order Status Matrix) ────────────────── */}
