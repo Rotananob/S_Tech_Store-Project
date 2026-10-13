@@ -742,9 +742,9 @@ class TelegramService
 
                 $vipTier = match(true) {
                     $points >= 5000 => '💎 Diamond VIP Member',
-                    $points >= 2000 => '🥇 Gold Member',
-                    $points >= 500 => '🥈 Silver Member',
-                    default => '🥉 Bronze Member',
+                    $points >= 2000 => '👑 Platinum VIP Member',
+                    $points >= 500 => '🥇 Gold Member',
+                    default => '🥈 Silver Member',
                 };
 
                 $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)
@@ -2066,9 +2066,9 @@ class TelegramService
 
             $vipTier = match(true) {
                 $points >= 5000 => '💎 Diamond VIP Member',
-                $points >= 2000 => '🥇 Gold Member',
-                $points >= 500 => '🥈 Silver Member',
-                default => '🥉 Bronze Member',
+                $points >= 2000 => '👑 Platinum VIP Member',
+                $points >= 500 => '🥇 Gold Member',
+                default => '🥈 Silver Member',
             };
 
             $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)

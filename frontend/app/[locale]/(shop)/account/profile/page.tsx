@@ -333,7 +333,7 @@ export default function UserProfilePage() {
           if (uid) {
             const pseudoUser = {
               uid: uid,
-              displayName: sUser.display_name || sUser.name || "S Tech VIP Member",
+              displayName: sUser.display_name || sUser.name || "S Tech Member",
               email: sUser.email,
               photoURL: sUser.photo_url || sUser.avatar,
             } as any;
@@ -345,7 +345,7 @@ export default function UserProfilePage() {
               ...prev,
               firebase_uid: uid,
               provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : prev.provider),
-              display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech VIP Member",
+              display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech Member",
               email: sUser.email || prev.email,
               phone: sUser.phone || prev.phone,
               photo_url: sUser.photo_url || sUser.avatar || prev.photo_url,
@@ -367,7 +367,7 @@ export default function UserProfilePage() {
         setProfile((prev) => ({
           ...prev,
           firebase_uid: u.uid,
-          display_name: u.displayName || prev.display_name || "S Tech VIP Member",
+          display_name: u.displayName || prev.display_name || "S Tech Member",
           email: u.email || prev.email,
         }));
         loadProfile(u);
@@ -694,7 +694,7 @@ export default function UserProfilePage() {
       const res = await api.post("/user/send-reset-email", {
         channel,
         email: isRealEmail ? rawEmail : undefined,
-        username: profile.display_name || user?.displayName || "VIP Member",
+        username: profile.display_name || user?.displayName || "S Tech Member",
         telegram_chat_id: userTelegramChatId,
         firebase_uid: profile.firebase_uid || user?.uid,
       });
@@ -1146,6 +1146,69 @@ export default function UserProfilePage() {
   const shippedCount = orders.filter((o) => o.status === "shipped").length;
   const reviewsCount = orders.filter((o) => o.status === "completed" || o.status === "delivered").length;
 
+  // Dynamic S Tech Loyalty Tier based on points progression (Silver -> Gold -> Platinum -> Diamond)
+  const loyaltyTier = (() => {
+    const pts = Math.max(0, Number(stats.points) || 0);
+    if (pts >= 5000) {
+      return {
+        name: "Diamond VIP",
+        khName: "កម្រិតពេជ្រ VIP",
+        badgeText: "DIAMOND VIP",
+        icon: "💎",
+        badgeClass: "bg-gradient-to-r from-purple-500 via-fuchsia-500 to-indigo-600 text-white shadow-purple-500/30",
+        colorClass: "text-purple-400",
+        barGradient: "from-purple-500 via-fuchsia-500 to-indigo-400",
+        progressPercent: 100,
+        nextTierText: "Max Level • កម្រិតកំពូល",
+        benefitKh: "VIP Concierge 24/7 & Extra Warranty",
+      };
+    }
+    if (pts >= 2000) {
+      const prog = Math.min(100, Math.max(6, ((pts - 2000) / (5000 - 2000)) * 100));
+      return {
+        name: "Platinum VIP",
+        khName: "កម្រិតផ្លាទីន",
+        badgeText: "PLATINUM VIP",
+        icon: "👑",
+        badgeClass: "bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-black shadow-cyan-500/25 font-black",
+        colorClass: "text-cyan-400",
+        barGradient: "from-cyan-400 to-blue-500",
+        progressPercent: prog,
+        nextTierText: "Next: Diamond VIP (5,000 Coins)",
+        benefitKh: "VIP Deals & Birthday Gift",
+      };
+    }
+    if (pts >= 500) {
+      const prog = Math.min(100, Math.max(6, ((pts - 500) / (2000 - 500)) * 100));
+      return {
+        name: "Gold Member",
+        khName: "កម្រិតមាស",
+        badgeText: "GOLD MEMBER",
+        icon: "🥇",
+        badgeClass: "bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black shadow-amber-500/30 font-black",
+        colorClass: "text-amber-400",
+        barGradient: "from-amber-400 to-yellow-500",
+        progressPercent: prog,
+        nextTierText: "Next: Platinum VIP (2,000 Coins)",
+        benefitKh: "Free Shipping & 5% Coin Boost",
+      };
+    }
+    // Base tier: Silver Member (0 - 499 coins)
+    const prog = Math.min(100, Math.max(pts > 0 ? 6 : 0, (pts / 500) * 100));
+    return {
+      name: "Silver Member",
+      khName: "កម្រិតប្រាក់",
+      badgeText: "SILVER MEMBER",
+      icon: "🥈",
+      badgeClass: "bg-gradient-to-r from-slate-200 via-gray-200 to-zinc-300 text-gray-900 shadow-slate-400/20 border border-white/30 font-black",
+      colorClass: "text-slate-300",
+      barGradient: "from-slate-300 via-gray-200 to-zinc-400",
+      progressPercent: prog,
+      nextTierText: "Next: Gold Member (500 Coins)",
+      benefitKh: "សន្សំពិន្ទុ S-Coins លើរាល់ការទិញ",
+    };
+  })();
+
   return (
     <div className="min-h-screen bg-[#f6f8fb] dark:bg-[#0c0e12] text-gray-900 dark:text-gray-100 pt-6 pb-36 sm:pb-16">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
@@ -1271,8 +1334,8 @@ export default function UserProfilePage() {
                     {profile.display_name || user?.displayName || "S Tech Member"}
                   </h1>
                   <BadgeCheck size={20} className="text-blue-400 fill-blue-400/20" />
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm flex items-center gap-1">
-                    <Award size={11} /> VIP GOLD
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shadow-sm flex items-center gap-1 ${loyaltyTier.badgeClass}`}>
+                    <Award size={11} /> {loyaltyTier.badgeText}
                   </span>
                 </div>
 
@@ -1314,14 +1377,17 @@ export default function UserProfilePage() {
 
               {/* Tier Progress Bar */}
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
-                  <span>VIP Gold</span>
-                  <span>Next: VIP Diamond (1,000)</span>
+                <div className="flex justify-between items-center text-[10px] text-gray-400 font-semibold">
+                  <span className="flex items-center gap-1 text-gray-200">
+                    <span>{loyaltyTier.icon}</span>
+                    <span>{loyaltyTier.name} ({loyaltyTier.khName})</span>
+                  </span>
+                  <span className="text-gray-300">{loyaltyTier.nextTierText}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-red-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, (stats.points / 1000) * 100)}%` }}
+                    className={`h-full bg-gradient-to-r ${loyaltyTier.barGradient} rounded-full transition-all duration-500`}
+                    style={{ width: `${loyaltyTier.progressPercent}%` }}
                   />
                 </div>
               </div>
@@ -3242,7 +3308,7 @@ export default function UserProfilePage() {
                     {profile.display_name || user?.displayName || "S Tech Member"}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {user?.email || profile.email || profile.phone || "VIP Member"}
+                    {user?.email || profile.email || profile.phone || "S Tech Member"}
                   </div>
                 </div>
               </div>
@@ -3322,9 +3388,12 @@ export default function UserProfilePage() {
                   <span className="text-gray-400">Current Balance Value</span>
                   <span className="font-bold text-amber-400">${(stats.points / 100).toFixed(2)} USD</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Tier Status</span>
-                  <span className="font-bold text-white">VIP Gold (Free Shipping)</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Tier Status (កម្រិតសមាជិក)</span>
+                  <span className={`font-bold flex items-center gap-1.5 ${loyaltyTier.colorClass}`}>
+                    <span>{loyaltyTier.icon} {loyaltyTier.name}</span>
+                    <span className="text-[10px] text-gray-300 font-normal">({loyaltyTier.benefitKh})</span>
+                  </span>
                 </div>
               </div>
 
