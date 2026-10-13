@@ -53,7 +53,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
     maintenance_mode: false,
     financial_freeze: false,
     coin_multiplier: 1.0,
-    force_app_version: "1.0.0",
+    force_app_version: "1.1.0",
     last_cache_purge: null,
     last_backup_at: null,
     last_backup_file: null,
@@ -233,7 +233,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white m-0 flex items-center gap-2">
             <span>មជ្ឈមណ្ឌលមហាសិទ្ធិម្ចាស់ប្រព័ន្ធ</span>
-            <span className="text-amber-400 font-mono text-xs sm:text-sm">CONSOLE v1.0.0</span>
+            <span className="text-amber-400 font-mono text-xs sm:text-sm">CONSOLE v1.1.0</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl leading-relaxed">
             {isSuperAdmin
@@ -547,7 +547,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             </div>
             <h4 className="text-sm font-bold text-white m-0">Force App Update Broadcast</h4>
             <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-              បង្ខំរាល់ Browser អតិថិជនទូទាំងប្រទេស Refresh យក version v1.0.0 ថ្មី។
+              បង្ខំរាល់ Browser អតិថិជនទូទាំងប្រទេស Refresh យក version v1.1.0 ថ្មី។
             </p>
           </div>
 
@@ -558,7 +558,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 "force_update",
                 "Force App Update Broadcast",
                 async () => {
-                  const res = await forceClientUpdateBroadcast("1.0.0", true);
+                  const res = await forceClientUpdateBroadcast("1.1.0", true);
                   showToast(res.message);
                 },
                 true,

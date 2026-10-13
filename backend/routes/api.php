@@ -1211,21 +1211,27 @@ Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::c
 
 // App Version & Real-Time Release Check
 Route::get('/app-version', function () {
+    $dynamic = \Illuminate\Support\Facades\Cache::get('app_dynamic_version');
+    if ($dynamic && !empty($dynamic['version'])) {
+        return response()->json($dynamic);
+    }
+
     $settings = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'app_version')->first();
     $data = $settings && !empty($settings->value) ? (is_string($settings->value) ? json_decode($settings->value, true) : (array)$settings->value) : null;
     if (!$data) {
         $data = [
-            'version' => '1.0.0',
-            'build' => '20261013.01',
-            'release_name' => 'S Tech Store Official Release v1.0.0',
+            'version' => '1.1.0',
+            'build' => '20261013.02',
+            'release_name' => 'S Tech Store Official Release v1.1.0',
             'release_date' => '2026-10-13',
             'min_supported_version' => '1.0.0',
             'changelog' => [
-                'Official Release v1.0.0 with universal Bakong KHQR & ABA PAY',
-                'Real-Time Coin Reward & Auto-Popup for product browsing',
+                'Instant Telegram Webhook & 0ms Local-First Cache optimization',
+                'Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout',
+                'Real-Time Coin Reward & Auto-Popup for live product browsing',
                 '$5.00 USD Welcome Gift directly credited to S-Tech Wallet',
-                'World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout',
-                'Enhanced Security with 2FA OTP confirmation via Telegram & Gmail'
+                'Account Settings Real Gmail Sync & Order Notification Dispatch',
+                'Grand Master Command Console with Super-Admin Control & Security Vault'
             ],
             'force_update' => false,
         ];

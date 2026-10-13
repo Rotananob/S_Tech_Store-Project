@@ -1,13 +1,14 @@
 {
-  "version": "1.0.0",
-  "build": "20261013.01",
-  "releaseName": "S Tech Store Official Release v1.0.0",
-  "buildTime": "2026-10-13T08:00:00Z",
+  "version": "1.1.0",
+  "build": "20261013.02",
+  "releaseName": "S Tech Store Official Release v1.1.0",
+  "buildTime": "2026-10-13T17:40:00Z",
   "changelog": [
-    "Official Release v1.0.0 with universal Bakong KHQR & ABA PAY",
-    "Real-Time Coin Reward & Auto-Popup for product browsing",
+    "Instant Telegram Webhook & 0ms Local-First Cache optimization",
+    "Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout",
+    "Real-Time Coin Reward & Auto-Popup for live product browsing",
     "$5.00 USD Welcome Gift directly credited to S-Tech Wallet",
-    "World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout",
-    "Enhanced Security with 2FA OTP confirmation via Telegram & Gmail"
+    "Account Settings Real Gmail Sync & Order Notification Dispatch",
+    "Grand Master Command Console with Super-Admin Control & Security Vault"
   ]
 }

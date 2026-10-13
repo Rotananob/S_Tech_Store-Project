@@ -32,7 +32,7 @@ class MasterSystemController extends Controller
             'maintenance_mode' => false,
             'financial_freeze' => false,
             'coin_multiplier' => 1.0,
-            'force_app_version' => '1.0.0',
+            'force_app_version' => '1.1.0',
             'last_cache_purge' => null,
             'last_backup_at' => null,
             'last_backup_file' => null,
@@ -232,7 +232,7 @@ class MasterSystemController extends Controller
      */
     public function forceClientUpdate(Request $request)
     {
-        $version = trim((string)$request->input('version', '1.0.0'));
+        $version = trim((string)$request->input('version', '1.1.0'));
         $force = (bool)$request->input('force', true);
         $notes = $request->input('notes', ['Official update broadcast triggered by System Owner']);
 

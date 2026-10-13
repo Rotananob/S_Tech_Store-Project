@@ -28,7 +28,7 @@ interface UpdateState {
 }
 
 // Official base release version
-export const OFFICIAL_APP_VERSION = "1.0.0";
+export const OFFICIAL_APP_VERSION = "1.1.0";
 
 function isNewerVersion(latest: string, current: string): boolean {
   if (!latest || !current) return false;
@@ -115,10 +115,12 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
             releaseName: data.release_name || data.releaseName || `S Tech Store v${remoteVersion}`,
             releaseDate: data.release_date || data.buildTime || "2026-10-13",
             changelog: data.changelog || [
-              "Official Release v1.0.0 with universal Bakong KHQR & ABA PAY",
-              "Real-Time Coin Reward & Auto-Popup for product browsing",
+              "Instant Telegram Webhook & 0ms Local-First Cache optimization",
+              "Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout",
+              "Real-Time Coin Reward & Auto-Popup for live product browsing",
               "$5.00 USD Welcome Gift directly credited to S-Tech Wallet",
-              "World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout",
+              "Account Settings Real Gmail Sync & Order Notification Dispatch",
+              "Grand Master Command Console with Super-Admin Control & Security Vault",
             ],
             forceUpdate: data.force_update || false,
           };
@@ -137,13 +139,15 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       const finalInfo = detectedInfo || {
         version: OFFICIAL_APP_VERSION,
         currentVersion: installedVersion,
-        releaseName: "S Tech Store Official Release v1.0.0",
+        releaseName: "S Tech Store Official Release v1.1.0",
         releaseDate: "2026-10-13",
         changelog: [
-          "Official Release v1.0.0 with universal Bakong KHQR & ABA PAY",
-          "Real-Time Coin Reward & Auto-Popup for product browsing",
+          "Instant Telegram Webhook & 0ms Local-First Cache optimization",
+          "Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout",
+          "Real-Time Coin Reward & Auto-Popup for live product browsing",
           "$5.00 USD Welcome Gift directly credited to S-Tech Wallet",
-          "World-Class Credit / Debit Card (Visa, Mastercard, JCB) checkout",
+          "Account Settings Real Gmail Sync & Order Notification Dispatch",
+          "Grand Master Command Console with Super-Admin Control & Security Vault",
         ],
       };
 

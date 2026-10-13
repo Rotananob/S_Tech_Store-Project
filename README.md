@@ -1,6 +1,45 @@
 # S Tech Store
 
+[![Release Version](https://img.shields.io/badge/Release-v1.1.0-emerald.svg)](https://www.s-tech-store.tech)
+[![Build](https://img.shields.io/badge/Build-20261013.02-blue.svg)](https://www.s-tech-store.tech)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.10-black.svg)](https://nextjs.org/)
+[![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/)
+[![Bakong KHQR](https://img.shields.io/badge/Bakong-KHQR_EMVCo-crimson.svg)](https://bakong.nbc.org.kh/)
+[![Status](https://img.shields.io/badge/Production-Verified-success.svg)]()
+
 Production hardware retail platform, custom computer builder, and store management system built for the Cambodian technology market. The system connects a Next.js 16 storefront with a Laravel 11 backend, integrating National Bank of Cambodia Bakong KHQR payments, dual Telegram bot automation, progressive web applications, and an obfuscated operations portal.
+
+---
+
+## 🚀 Release v1.1.0 (Enterprise Production Edition)
+
+* **Version**: `v1.1.0`
+* **Build Identifier**: `20261013.02`
+* **Release Date**: October 13, 2026
+* **Status**: Production Stable (Live)
+
+### 🌟 Key Highlights & Changelog in v1.1.0:
+1. **⚡ Zero-Latency Telegram Bot & Webhooks**:
+   - Implemented direct `answerCallbackQuery` fast-ack within the Webhook controller, completely eliminating the perpetual "Loading in server..." spinner on mobile Telegram.
+   - Decoupled heavy background tasks using PHP `fastcgi_finish_request()` and local-first memory caching (`Cache::remember`).
+   - Integrated intelligent cache eviction hooks (`booted` listeners) on `UserProfile`, `WalletTransaction`, and `Order` models.
+2. **🪙 Real-Time Coin Rewards & Auto-Popup**:
+   - Engineered client-side browsing activity listeners that detect authentic engagement on product pages.
+   - Pops up an interactive reward modal with particle animations without requiring users to navigate to their account profile to claim manually.
+3. **🎁 $5.00 USD Welcome Gift Integration**:
+   - Automated initial account welcome credits, depositing $5.00 USD directly into customer S-Tech Wallets for use on store merchandise.
+4. **💳 Universal Payment Engine**:
+   - Unified National Bank of Cambodia Bakong KHQR dynamic EMVCo payloads.
+   - Dedicated ABA Mobile deep linking (`aba://` / `abamobile://`) locking exact transaction sums.
+   - Integrated international Credit / Debit Card checkout module (Visa, Mastercard, JCB).
+5. **📧 Account Settings Gmail Synchronization & Direct Alerts**:
+   - Added email address validation in customer account profile settings.
+   - Syncs real customer emails directly into the Operations portal for one-click admin email dispatch and order notifications.
+6. **🛡️ Grand Master Command Console & Super-Admin Matrix**:
+   - Built a high-privilege operations center with granular RBAC permissions.
+   - Provides live financial emergency lockouts, database snapshot creation, global cache flushes, and real-time PWA client update broadcasts.
+7. **👥 Customer Identity & Deduplication Protection**:
+   - Added database constraint enforcement and intelligent query deduplication in the customer management directory.
 
 ---
 

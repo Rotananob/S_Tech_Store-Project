@@ -1,7 +1,8 @@
 # 📘 S Tech Store — សៀវភៅណែនាំការប្រើប្រាស់ និងលក្ខណៈពិសេសទាំងមូល (Master Features & User Manual)
 
 > **ឯកសារផ្លូវការសម្រាប់អតិថិជន និងម្ចាស់អាជីវកម្ម (Official Client & Operations Manual)**  
-> កំណែប្រែ៖ **2026 Enterprise Production Edition**  
+> កំណែប្រែ៖ **Version 1.1.0 (Build 20261013.02) — Enterprise Production Edition**  
+> ស្ថានភាព៖ **Production Verified & Live**  
 > ភាសា៖ **ខ្មែរ (Khmer) & English Reference**
 
 ---
