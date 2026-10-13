@@ -10,6 +10,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\ShiftController;
 use App\Models\Category;
 use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\SuperAdminMiddleware;
 
 /*
 |--------------------------------------------------------------------------
@@ -1361,6 +1362,21 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/settings/toggle-2fa', [\App\Http\Controllers\AdminSettingsController::class, 'toggle2FA']);
     Route::post('/admin/settings/send-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'send2FACode']);
     Route::post('/admin/settings/verify-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'verify2FACode']);
+
+    // Master System Status (Viewable by Admin & Super Admin)
+    Route::get('/admin/master/status', [\App\Http\Controllers\MasterSystemController::class, 'status']);
+});
+
+// Grand Master Privileges - Exclusively Reserved for System Owner (Super Admin)
+Route::middleware(SuperAdminMiddleware::class)->group(function () {
+    Route::post('/admin/master/toggle-maintenance', [\App\Http\Controllers\MasterSystemController::class, 'toggleMaintenance']);
+    Route::post('/admin/master/purge-caches', [\App\Http\Controllers\MasterSystemController::class, 'purgeCaches']);
+    Route::post('/admin/master/toggle-financial-freeze', [\App\Http\Controllers\MasterSystemController::class, 'toggleFinancialFreeze']);
+    Route::post('/admin/master/backup-database', [\App\Http\Controllers\MasterSystemController::class, 'backupDatabase']);
+    Route::post('/admin/master/force-client-update', [\App\Http\Controllers\MasterSystemController::class, 'forceClientUpdate']);
+    Route::post('/admin/master/sos-broadcast', [\App\Http\Controllers\MasterSystemController::class, 'sosBroadcast']);
+    Route::post('/admin/master/revoke-all-staff-sessions', [\App\Http\Controllers\MasterSystemController::class, 'revokeAllStaffSessions']);
+    Route::post('/admin/master/coin-multiplier', [\App\Http\Controllers\MasterSystemController::class, 'updateCoinMultiplier']);
 });
 
 // Public Telegram Webhook Endpoint

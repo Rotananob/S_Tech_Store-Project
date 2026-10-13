@@ -26,7 +26,10 @@ import {
   ChevronRight,
   Globe,
   Sparkles,
-  Layers
+  Layers,
+  Crown,
+  ShieldAlert,
+  Lock
 } from "lucide-react";
 import { AdminPWAController, AdminPWAInstallButton } from "@/components/admin/AdminPWAController";
 
@@ -454,6 +457,72 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             </div>
           </div>
 
+          {/* Section 1.5: Grand Master Control (Reserved for System Owner) */}
+          <div>
+            <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase select-none">
+              <span className="flex items-center gap-1.5 text-amber-400">
+                <Crown size={13} className="text-amber-400" />
+                <span>{isKm ? "មហាសិទ្ធិម្ចាស់ប្រព័ន្ធ" : "GRAND MASTER CONTROL"}</span>
+              </span>
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                isSuperAdmin 
+                  ? "bg-amber-400/20 text-amber-300 border border-amber-400/40" 
+                  : "bg-white/5 text-gray-400 border border-white/10"
+              }`}>
+                {isSuperAdmin ? "MASTER ACTIVE" : "VIEW ONLY"}
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <Link 
+                href="/rok-mix-khernh/master-control" 
+                onClick={() => setSidebarOpen(false)} 
+                className={`group relative flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all duration-200 no-underline border ${
+                  pathname === "/rok-mix-khernh/master-control"
+                    ? "bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 text-white shadow-xl shadow-amber-950/70 border-amber-400/60 ring-1 ring-amber-300/40" 
+                    : isSuperAdmin
+                    ? "bg-gradient-to-r from-amber-950/40 via-yellow-950/20 to-black/40 hover:bg-amber-950/60 text-gray-200 border-amber-500/30 hover:border-amber-400/60 shadow-xs"
+                    : "bg-white/[0.03] hover:bg-white/[0.08] text-gray-200 border-white/5 hover:border-white/15"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                    isSuperAdmin 
+                      ? "bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-600 text-amber-950 shadow-amber-400/40 group-hover:scale-105 group-active:scale-95 transition-transform" 
+                      : "bg-gradient-to-tr from-zinc-700 via-zinc-800 to-zinc-900 text-amber-300/80 shadow-black"
+                  }`}>
+                    {isSuperAdmin ? <Crown size={22} className="drop-shadow-xs" /> : <Lock size={20} />}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight truncate ${
+                        pathname === "/rok-mix-khernh/master-control" ? "text-white font-extrabold" : "text-gray-100 group-hover:text-white"
+                      }`}>
+                        Master Controls
+                      </span>
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 border ${
+                        isSuperAdmin 
+                          ? "bg-amber-400/30 text-amber-300 border-amber-400/50" 
+                          : "bg-white/10 text-gray-400 border-white/20"
+                      }`}>
+                        {isSuperAdmin ? "Owner" : "View Only"}
+                      </span>
+                    </div>
+                    <div className="text-[11px] truncate mt-0.5 text-gray-400 group-hover:text-gray-300 font-medium">
+                      {isKm ? "បញ្ជាបិទ/បើកហាង & Killswitches" : "Infrastructure & Killswitches"}
+                    </div>
+                  </div>
+                </div>
+
+                <ChevronRight 
+                  size={18} 
+                  className="shrink-0 ml-2 text-gray-500 group-hover:text-white group-hover:translate-x-0.5 transition-transform" 
+                />
+              </Link>
+            </div>
+          </div>
+
           {/* Section 2: Administration & System */}
           <div>
             <div className="px-2 pt-2 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase text-gray-400 select-none">
@@ -656,6 +725,29 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
 
             {/* PWA Install Button in Top Header */}
             <AdminPWAInstallButton variant="pill" />
+
+            {/* Grand Master Status Quick Pill */}
+            <Link
+              href="/rok-mix-khernh/master-control"
+              className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all no-underline ${
+                isSuperAdmin
+                  ? "bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border-amber-400/50 text-amber-800 hover:bg-amber-100 shadow-xs"
+                  : "bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700"
+              }`}
+              title={isSuperAdmin ? "មហាសិទ្ធិម្ចាស់ប្រព័ន្ធសកម្ម • Master Privileges Active" : "Admin ធម្មតា • View-Only Master Controls"}
+            >
+              {isSuperAdmin ? (
+                <>
+                  <Crown size={14} className="text-amber-600 animate-pulse" />
+                  <span className="font-black">👑 Master Control</span>
+                </>
+              ) : (
+                <>
+                  <Lock size={12} className="text-gray-500" />
+                  <span>Master (View-Only)</span>
+                </>
+              )}
+            </Link>
 
             {/* Language Switcher */}
             <LanguageSwitcher />

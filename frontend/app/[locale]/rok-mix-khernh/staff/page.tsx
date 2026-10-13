@@ -34,6 +34,18 @@ export default function AdminStaffPage() {
   const [status, setStatus] = useState<"active" | "inactive">("active");
 
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const u = localStorage.getItem("stech_admin_user");
+        if (u) setCurrentUser(JSON.parse(u));
+      } catch (e) {}
+    }
+  }, []);
+
+  const isSuperAdmin = currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com";
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -84,6 +96,11 @@ export default function AdminStaffPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSuperAdmin && (role === "admin" || role === "super_admin")) {
+      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលអាចតែងតាំង ឬបង្កើតតួនាទីជា Admin / Super Admin។", "error");
+      return;
+    }
+
     try {
       if (editTarget) {
         // Update
@@ -113,12 +130,17 @@ export default function AdminStaffPage() {
       setModalOpen(false);
       fetchStaff();
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Operation failed.";
+      const msg = err.response?.data?.message || err.response?.data?.error || "Operation failed.";
       showToast(msg, "error");
     }
   };
 
   const handleDelete = async (id: number, staffName: string) => {
+    if (!isSuperAdmin) {
+      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានមហាសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete staff account: "${staffName}"?`)) return;
 
     try {
@@ -330,6 +352,17 @@ export default function AdminStaffPage() {
                             <Lock size={11} />
                             <span>ការពារ</span>
                           </span>
+                        ) : !isSuperAdmin ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានមហាសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
+                            title="🔒 មហាសិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Owner Only)"
+                          >
+                            <Lock size={15} />
+                          </button>
                         ) : (
                           <button
                             onClick={() => handleDelete(s.id, s.name)}
@@ -394,8 +427,12 @@ export default function AdminStaffPage() {
                     onChange={(e) => setRole(e.target.value as any)}
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white font-medium"
                   >
-                    <option value="super_admin">មហាសិទ្ធិ • System Owner (Ultimate Privilege)</option>
-                    <option value="admin">Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ</option>
+                    <option value="super_admin" disabled={!isSuperAdmin}>
+                      {isSuperAdmin ? "👑 មហាសិទ្ធិ • System Owner (Ultimate Privilege)" : "🔒 System Owner (មហាសិទ្ធិប៉ុណ្ណោះ)"}
+                    </option>
+                    <option value="admin" disabled={!isSuperAdmin}>
+                      {isSuperAdmin ? "🛡️ Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ" : "🔒 Admin (មហាសិទ្ធិប៉ុណ្ណោះ)"}
+                    </option>
                     <option value="staff">Store Staff • បុគ្គលិកលក់ និងរៀបចំទំនិញ</option>
                     <option value="manager">Store Manager • ប្រធានសាខា</option>
                   </select>

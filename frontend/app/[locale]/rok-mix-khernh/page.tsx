@@ -16,6 +16,7 @@ import {
   MessageSquare, ExternalLink, Zap, ShieldAlert, Lock, Cpu, Eye, Gift, Clock, Terminal, Check,
   Calendar, ChevronDown, Layers
 } from "lucide-react";
+import GrandMasterCommandConsole from "@/components/admin/GrandMasterCommandConsole";
 
 const MONTH_OPTIONS = [
   { value: "all", label: "All Months (ពេញមួយឆ្នាំ)" },
@@ -431,6 +432,9 @@ export default function AdminDashboardOverview() {
           </div>
         </div>
       </div>
+
+      {/* ── GRAND MASTER SYSTEM CONTROLS CONSOLE ── */}
+      <GrandMasterCommandConsole onRefreshStats={() => fetchData(selectedYear, selectedMonth, true)} />
 
       {/* ── TELEGRAM QUICK NOTIFICATION & BROADCAST CENTER ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
