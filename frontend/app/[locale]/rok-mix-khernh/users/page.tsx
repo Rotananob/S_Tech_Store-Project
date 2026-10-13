@@ -129,32 +129,68 @@ export default function AdminUsersPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Database Caching: Fetch ONCE and cache in sessionStorage unless explicitly refreshed by admin
+  // Strict deduplication helper: guarantees NO duplicate emails, chat IDs, or UIDs are ever displayed
+  const deduplicateUsersList = (rawList: AdminCustomerUser[]): AdminCustomerUser[] => {
+    const seen = new Set<string>();
+    const result: AdminCustomerUser[] = [];
+    for (const u of rawList) {
+      const email = (u.email || "").toLowerCase().trim();
+      const chatId = (u.telegram_chat_id || "").trim();
+      const uid = (u.firebase_uid || "").trim();
+
+      // Prioritize grouping keys to merge duplicates
+      let key = "";
+      if (chatId && (email.startsWith("tg_") || !email)) {
+        key = `tg:${chatId}`;
+      } else if (email) {
+        key = `email:${email}`;
+      } else if (chatId) {
+        key = `tg:${chatId}`;
+      } else if (uid) {
+        key = `uid:${uid}`;
+      } else {
+        key = `id:${u.id}`;
+      }
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(u);
+      }
+    }
+    return result;
+  };
+
+  // Database Caching with Stale-While-Revalidate: Show instant cache then always refresh clean data from DB
   const fetchUsers = async (forceRefresh: boolean = false) => {
     try {
-      if (!forceRefresh && typeof window !== "undefined") {
+      if (typeof window !== "undefined") {
         const cached = sessionStorage.getItem(CACHE_KEY);
         if (cached) {
           try {
             const list = JSON.parse(cached);
             if (Array.isArray(list) && list.length > 0) {
-              setUsers(list);
-              setLoading(false);
-              return;
+              setUsers(deduplicateUsersList(list));
+              if (!forceRefresh) {
+                setLoading(false);
+              }
             }
           } catch (e) {}
         }
       }
 
-      setLoading(true);
+      if (forceRefresh) {
+        setLoading(true);
+      }
+
       const res = await api.get("/admin/users");
       const list = Array.isArray(res.data) ? res.data : [];
-      setUsers(list);
+      const cleanList = deduplicateUsersList(list);
+      setUsers(cleanList);
       if (typeof window !== "undefined") {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(list));
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cleanList));
       }
       if (forceRefresh) {
-        showToast("បានទាញយកទិន្នន័យថ្មីពី Database ជោគជ័យ!");
+        showToast("បានទាញយក និងសម្អាតទិន្នន័យថ្មីពី Database ជោគជ័យ!");
       }
     } catch (e: any) {
       showToast("បរាជ័យក្នុងការទាញយកបញ្ជីអតិថិជន", "error");

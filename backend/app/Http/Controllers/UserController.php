@@ -62,12 +62,31 @@ class UserController extends Controller
     {
         $rawProfiles = UserProfile::orderBy('created_at', 'desc')->get();
 
-        // Safely deduplicate any identical email addresses, prioritizing accounts with wallet balance, points, or active chat ID
+        // Safely deduplicate: prioritize real Gmail over tg_ dummy emails, and merge accounts sharing the same telegram_chat_id or identical email
         $profiles = $rawProfiles->groupBy(function($item) {
-            return strtolower(trim((string)$item->email)) ?: ('id_' . $item->id);
+            $email = strtolower(trim((string)$item->email));
+            $chatId = trim((string)$item->telegram_chat_id);
+            $uid = trim((string)$item->firebase_uid);
+
+            if (!empty($chatId) && (empty($email) || str_starts_with($email, 'tg_'))) {
+                return 'tg_' . $chatId;
+            }
+            if (!empty($email)) {
+                return 'email_' . $email;
+            }
+            if (!empty($chatId)) {
+                return 'tg_' . $chatId;
+            }
+            if (!empty($uid)) {
+                return 'uid_' . $uid;
+            }
+            return 'id_' . $item->id;
         })->map(function($group) {
             return $group->sortByDesc(function($item) {
-                return ((float)($item->wallet_balance ?? 0) * 1000) + ((int)($item->points ?? 0) * 10) + (!empty($item->telegram_chat_id) ? 50 : 0);
+                $hasRealEmail = (!empty($item->email) && !str_starts_with($item->email, 'tg_')) ? 10000 : 0;
+                $isOwner = strtolower(trim($item->email ?? '')) === 'nobrothana180703@gmail.com' ? 50000 : 0;
+                $isAdmin = $item->is_admin ? 20000 : 0;
+                return $isOwner + $isAdmin + $hasRealEmail + ((float)($item->wallet_balance ?? 0) * 1000) + ((int)($item->points ?? 0) * 10) + (!empty($item->telegram_chat_id) ? 50 : 0);
             })->first();
         })->values();
         
