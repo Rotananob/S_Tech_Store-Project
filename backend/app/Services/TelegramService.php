@@ -3302,11 +3302,27 @@ class TelegramService
         }
 
         if (is_string($orderOrUser)) {
-            if (str_starts_with($orderOrUser, 'tg_')) {
-                $raw = substr($orderOrUser, 3);
+            $trimmed = trim($orderOrUser);
+            if (str_starts_with($trimmed, 'tg_')) {
+                $raw = substr($trimmed, 3);
                 if (is_numeric($raw)) return $raw;
             }
-            if (is_numeric($orderOrUser)) return $orderOrUser;
+            if (is_numeric($trimmed)) return $trimmed;
+
+            // Search UserProfile by telegram username or email
+            $cleanUser = ltrim($trimmed, '@');
+            $u = \App\Models\UserProfile::where('telegram', '@' . $cleanUser)
+                ->orWhere('telegram', $cleanUser)
+                ->orWhere('email', $trimmed)
+                ->orWhere('email', $cleanUser . '@telegram.s-tech-store.tech')
+                ->first();
+            if ($u) {
+                if (!empty($u->telegram_chat_id)) return (string)$u->telegram_chat_id;
+                if (!empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
+                    $raw = substr($u->firebase_uid, 3);
+                    if (is_numeric($raw)) return $raw;
+                }
+            }
         }
 
         if ($orderOrUser instanceof \App\Models\UserProfile) {
@@ -3578,6 +3594,40 @@ class TelegramService
         ];
 
         return self::sendMessageWithKeyboard($chatId, $text, $kb, 'HTML', null, self::getCustomerBotToken());
+    }
+
+    /**
+     * Send direct 2FA OTP verification code to customer 1-on-1 Telegram chat via Customer Bot
+     */
+    public static function sendCustomerTwoFactorOtp($customerOrChatId, string $otp, ?string $customerName = null): array
+    {
+        $chatId = self::resolveCustomerChatId($customerOrChatId);
+        if (!$chatId) {
+            return ['ok' => false, 'error' => 'No linked Telegram chat for customer'];
+        }
+
+        $botToken = self::getCustomerBotToken();
+        $name = htmlspecialchars($customerName ?: 'អតិថិជន S Tech Store');
+
+        $text = "🛡️ <b>[S TECH STORE] លេខកូដសុវត្ថិភាព 2FA របស់អ្នក</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n\n"
+            . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
+            . "🔐 <b>លេខកូដផ្ទៀងផ្ទាត់សុវត្ថិភាព (OTP Code):</b>\n"
+            . "👉 <code>{$otp}</code> 👈 <i>(ចុចលើលេខកូដដើម្បី Copy)</i>\n\n"
+            . "⏱️ <b>សុពលភាព:</b> <b>១០ នាទី</b>\n"
+            . "🌐 <b>គេហទំព័រ:</b> https://www.s-tech-store.tech\n"
+            . "🛡️ <b>សកម្មភាព:</b> បើកប្រព័ន្ធការពារពីរកត្តា (Two-Factor Authentication)\n\n"
+            . "⚠️ <i>សូមកុំប្រាប់លេខកូដនេះដល់អ្នកដទៃជាដាច់ខាត! ក្រុមការងារយើងខ្ញុំមិនដែលទាមទារសួររកលេខកូដនេះពីអ្នកឡើយ។</i>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🌐 បើកទំព័រ Profile បញ្ចូលលេខកូដ', 'url' => 'https://www.s-tech-store.tech/account/profile'],
+                ],
+            ],
+        ];
+
+        return self::sendMessageWithKeyboard($chatId, $text, $kb, 'HTML', null, $botToken);
     }
 
     /**

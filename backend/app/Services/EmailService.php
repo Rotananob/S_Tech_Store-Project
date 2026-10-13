@@ -266,11 +266,11 @@ HTML;
     /**
      * Send Luxury Two-Factor Authentication OTP Email Alert
      */
-    public static function sendTwoFactorOtpEmail(string $email, ?string $username = null, ?string $action = 'verify'): array
+    public static function sendTwoFactorOtpEmail(string $email, ?string $username = null, ?string $action = 'verify', ?string $customOtp = null): array
     {
         $cleanUsername = !empty($username) ? ltrim($username, '@') : 'អតិថិជនកិត្តិយស';
         $domain = self::DOMAIN;
-        $otp = sprintf('%06d', mt_rand(100000, 999999));
+        $otp = $customOtp ?: sprintf('%06d', mt_rand(100000, 999999));
 
         // Cache OTP for 10 minutes
         Cache::put("2fa_otp_{$email}", $otp, 10 * 60);
@@ -346,11 +346,7 @@ HTML;
                 ]);
 
                 if (!empty($user->telegram_chat_id)) {
-                    TelegramService::sendOrderNotification([
-                        'type' => 'security',
-                        'chat_id' => $user->telegram_chat_id,
-                        'message' => "🛡️ *លេខកូដសុវត្ថិភាព 2FA របស់ S-Tech*\n\nលេខកូដ OTP របស់អ្នកគឺ: `{$otp}`\n⏱️ សុពលភាព 10 នាទី។ សូមកុំប្រាប់លេខកូដនេះដល់អ្នកដទៃ។",
-                    ]);
+                    TelegramService::sendCustomerTwoFactorOtp($user->telegram_chat_id, $otp, $cleanUsername);
                 }
             }
         } catch (\Exception $e) {
@@ -362,6 +358,10 @@ HTML;
         return [
             'success' => true,
             'email_sent' => $sent,
+            'recipient' => $email,
+            'otp' => $otp,
+        ];
+    }
     /**
      * Send 2FA Activation / Security Alert Email
      */

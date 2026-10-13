@@ -830,38 +830,158 @@ class UserController extends Controller
 
     /**
      * POST /api/user/request-2fa-otp
-     * Sends a 6-digit OTP code to the user's email & Telegram to enable or verify 2FA.
+     * Sends a 6-digit OTP code to the user's Telegram or real Gmail/email.
+     * Supports intelligent channel selection:
+     * 1. Telegram user -> sends OTP directly to Telegram private chat via Customer Bot (@S_TECH_ASSISTANTBOT)
+     * 2. Email/Gmail user -> sends OTP directly to real Gmail/email address
+     * 3. Both Email & Telegram -> lets user choose or respects 'channel' parameter ('telegram' | 'email')
      */
     public function requestTwoFactorOtp(Request $request)
     {
+        $requestedChannel = strtolower(trim((string)$request->input('channel', 'auto')));
         $email = $request->input('email');
         $username = $request->input('username');
+        $telegramChatId = $request->input('telegram_chat_id');
 
-        if (empty($email)) {
-            $uid = $this->getUid($request);
-            if ($uid) {
-                $user = UserProfile::where('firebase_uid', $uid)->first();
-                if ($user && !empty($user->email)) {
-                    $email = $user->email;
-                    if (empty($username)) {
-                        $username = $user->username ?: $user->display_name;
-                    }
+        $user = null;
+        $uid = $this->getUid($request) ?: $request->input('firebase_uid');
+        if ($uid) {
+            $user = UserProfile::where('firebase_uid', $uid)->first();
+        }
+        if (!$user && !empty($email)) {
+            $user = UserProfile::where('email', $email)->first();
+        }
+        if (!$user && !empty($telegramChatId)) {
+            $user = UserProfile::where('telegram_chat_id', (string)$telegramChatId)->first();
+        }
+
+        // Resolve customer data from user record if found
+        if ($user) {
+            if (empty($email)) $email = $user->email;
+            if (empty($username)) $username = $user->display_name ?: $user->username;
+            if (empty($telegramChatId)) {
+                $telegramChatId = $user->telegram_chat_id;
+                if (empty($telegramChatId) && !empty($user->firebase_uid) && str_starts_with($user->firebase_uid, 'tg_')) {
+                    $telegramChatId = substr($user->firebase_uid, 3);
+                } elseif (empty($telegramChatId) && !empty($user->telegram) && is_numeric($user->telegram)) {
+                    $telegramChatId = (string)$user->telegram;
+                }
+                if (empty($telegramChatId)) {
+                    $telegramChatId = \App\Services\TelegramService::resolveCustomerChatId($user);
                 }
             }
         }
 
-        if (empty($email)) {
+        if (empty($telegramChatId) && !empty($email)) {
+            $telegramChatId = \App\Services\TelegramService::resolveCustomerChatId($email);
+        }
+
+        // Determine real email vs Telegram placeholder
+        $isRealEmail = !empty($email) 
+            && !str_ends_with(strtolower($email), '@telegram.s-tech-store.tech') 
+            && !str_ends_with(strtolower($email), '@tiktok.s-tech-store.tech');
+        
+        $hasTelegram = !empty($telegramChatId);
+
+        if (!$hasTelegram && !$isRealEmail) {
             return response()->json([
                 'success' => false,
-                'message' => 'មិនមានអ៊ីមែលសម្រាប់ផ្ញើលេខកូដ OTP ឡើយ',
+                'message' => 'មិនមានព័ត៌មាន Telegram ឬ Gmail សម្រាប់ផ្ញើលេខកូដ 2FA ឡើយ! សូមភ្ជាប់ Telegram ឬបញ្ចូល Gmail ក្នុងគណនីរបស់អ្នក។',
             ], 422);
         }
 
-        $res = \App\Services\EmailService::sendTwoFactorOtpEmail($email, $username);
+        // Determine destination channel
+        $targetChannel = $requestedChannel;
+        if ($targetChannel === 'auto' || empty($targetChannel)) {
+            if ($hasTelegram && !$isRealEmail) {
+                $targetChannel = 'telegram';
+            } elseif ($isRealEmail && !$hasTelegram) {
+                $targetChannel = 'email';
+            } else {
+                // If user has both, default based on login provider
+                $targetChannel = ($user && (str_starts_with($user->firebase_uid ?? '', 'tg_') || ($user->provider ?? '') === 'telegram')) 
+                    ? 'telegram' 
+                    : 'email';
+            }
+        }
+
+        // Safety check requested channel availability
+        if ($targetChannel === 'telegram' && !$hasTelegram) {
+            return response()->json([
+                'success' => false,
+                'message' => 'គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ Telegram Bot នៅឡើយទេ។ សូមជ្រើសរើសផ្ញើតាម Gmail ឬភ្ជាប់ Telegram ជាមុនសិន!',
+            ], 422);
+        }
+
+        if ($targetChannel === 'email' && !$isRealEmail) {
+            return response()->json([
+                'success' => false,
+                'message' => 'គណនីរបស់អ្នកបានចុះឈ្មោះតាម Telegram មិនទាន់មានអាសយដ្ឋាន Gmail ពិតប្រាកដឡើយ។ សូមជ្រើសរើសផ្ញើតាម Telegram!',
+            ], 422);
+        }
+
+        // Generate 6-digit OTP code
+        $otp = sprintf('%06d', mt_rand(100000, 999999));
+        $ttl = 10 * 60; // 10 minutes
+
+        // Cache OTP under all possible keys so verifyTwoFactorOtp ALWAYS finds it
+        if ($user) {
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_uid_{$user->firebase_uid}", $otp, $ttl);
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_id_{$user->id}", $otp, $ttl);
+        }
+        if (!empty($email)) {
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_{$email}", $otp, $ttl);
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_email_{$email}", $otp, $ttl);
+        }
+        if (!empty($telegramChatId)) {
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_{$telegramChatId}", $otp, $ttl);
+            \Illuminate\Support\Facades\Cache::put("2fa_otp_tg_{$telegramChatId}", $otp, $ttl);
+        }
+
+        $customerName = $username ?: ($user->display_name ?? 'អតិថិជន S Tech Store');
+
+        if ($targetChannel === 'telegram') {
+            $tgRes = \App\Services\TelegramService::sendCustomerTwoFactorOtp($telegramChatId, $otp, $customerName);
+            if (!($tgRes['ok'] ?? false)) {
+                $desc = $tgRes['description'] ?? '';
+                \Illuminate\Support\Facades\Log::warning("Telegram 2FA OTP error for {$telegramChatId}: " . json_encode($tgRes));
+                if (str_contains(strtolower($desc), 'blocked') || str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'can\'t initiate')) {
+                    $botName = \App\Services\TelegramService::getCustomerBotUsername();
+                    return response()->json([
+                        'success' => false,
+                        'error_type' => 'bot_not_started',
+                        'bot_username' => $botName,
+                        'message' => "មិនអាចផ្ញើសារចូល Telegram បានទេ! សូមចុច /start ក្នុង Bot @{$botName} រួចចុចផ្ញើម្ដងទៀត។",
+                    ], 400);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'channel' => 'telegram',
+                'has_telegram' => $hasTelegram,
+                'has_email' => $isRealEmail,
+                'telegram_chat_id' => $telegramChatId,
+                'telegram_handle' => $user ? ($user->telegram ?? null) : null,
+                'email' => $isRealEmail ? $email : null,
+                'message' => "លេខកូដសុវត្ថិភាព 2FA ត្រូវបានផ្ញើទៅកាន់ Telegram របស់អ្នក (@" . ltrim(($user && !empty($user->telegram)) ? $user->telegram : 'Bot', '@') . ") រួចរាល់ហើយ! (សុពលភាព ១០ នាទី)",
+            ]);
+        }
+
+        // Otherwise target channel is 'email'
+        try {
+            \App\Services\EmailService::sendTwoFactorOtpEmail($email, $customerName, 'verify', $otp);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Email 2FA dispatch warning: " . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
-            'message' => "បានផ្ញើលេខកូដសុវត្ថិភាព OTP ទៅកាន់ {$email} និង Telegram រួចរាល់ហើយ (សុពលភាព 10 នាទី)",
+            'channel' => 'email',
+            'has_telegram' => $hasTelegram,
+            'has_email' => $isRealEmail,
+            'email' => $email,
+            'message' => "លេខកូដសុវត្ថិភាព 2FA ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល {$email} រួចរាល់ហើយ! (សុពលភាព ១០ នាទី)",
         ]);
     }
 
@@ -874,39 +994,62 @@ class UserController extends Controller
         $validated = $request->validate([
             'otp' => 'required|string',
             'enable' => 'nullable|boolean',
-            'email' => 'nullable|email',
+            'email' => 'nullable|string',
+            'telegram_chat_id' => 'nullable|string',
         ]);
 
-        $email = $validated['email'] ?? null;
-        $uid = $this->getUid($request);
+        $otp = trim($validated['otp']);
+        $uid = $this->getUid($request) ?: $request->input('firebase_uid');
         $user = null;
 
         if ($uid) {
             $user = UserProfile::where('firebase_uid', $uid)->first();
-            if ($user && empty($email)) {
-                $email = $user->email;
+        }
+        if (!$user && !empty($validated['email'])) {
+            $user = UserProfile::where('email', $validated['email'])->first();
+        }
+        if (!$user && !empty($validated['telegram_chat_id'])) {
+            $user = UserProfile::where('telegram_chat_id', (string)$validated['telegram_chat_id'])->first();
+        }
+
+        $email = $user ? $user->email : ($validated['email'] ?? null);
+        $tgChatId = $user ? ($user->telegram_chat_id ?? (str_starts_with($user->firebase_uid ?? '', 'tg_') ? substr($user->firebase_uid, 3) : null)) : ($validated['telegram_chat_id'] ?? null);
+
+        // Check cached OTP against all possible keys
+        $cachedOtp = null;
+        $keysToCheck = [];
+        if ($user) {
+            $keysToCheck[] = "2fa_otp_uid_{$user->firebase_uid}";
+            $keysToCheck[] = "2fa_otp_id_{$user->id}";
+        }
+        if (!empty($email)) {
+            $keysToCheck[] = "2fa_otp_{$email}";
+            $keysToCheck[] = "2fa_otp_email_{$email}";
+        }
+        if (!empty($tgChatId)) {
+            $keysToCheck[] = "2fa_otp_{$tgChatId}";
+            $keysToCheck[] = "2fa_otp_tg_{$tgChatId}";
+        }
+
+        foreach ($keysToCheck as $k) {
+            $val = \Illuminate\Support\Facades\Cache::get($k);
+            if (!empty($val)) {
+                $cachedOtp = $val;
+                break;
             }
-        } elseif (!empty($email)) {
-            $user = UserProfile::where('email', $email)->first();
         }
 
-        if (empty($email)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'មិនអាចកំណត់អត្តសញ្ញាណគណនីបានទេ',
-            ], 422);
-        }
-
-        $cachedOtp = \Illuminate\Support\Facades\Cache::get("2fa_otp_{$email}");
-        if (!$cachedOtp || trim((string)$cachedOtp) !== trim((string)$validated['otp'])) {
+        if (!$cachedOtp || trim((string)$cachedOtp) !== $otp) {
             return response()->json([
                 'success' => false,
                 'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់សុពលភាពហើយ សូមស្នើសុំលេខកូដថ្មី!',
             ], 400);
         }
 
-        // OTP verified - clear cache
-        \Illuminate\Support\Facades\Cache::forget("2fa_otp_{$email}");
+        // OTP verified - clear all cached keys
+        foreach ($keysToCheck as $k) {
+            \Illuminate\Support\Facades\Cache::forget($k);
+        }
 
         $enable = $request->boolean('enable', true);
 

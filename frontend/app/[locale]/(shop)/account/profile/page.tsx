@@ -172,6 +172,9 @@ export default function UserProfilePage() {
   const [otpError, setOtpError] = useState("");
   const [otpSentNotice, setOtpSentNotice] = useState("");
   const [otpTargetAction, setOtpTargetAction] = useState<"enable" | "disable">("enable");
+  const [otpChannel, setOtpChannel] = useState<"telegram" | "email">("telegram");
+  const [otpErrorType, setOtpErrorType] = useState<string | null>(null);
+  const [otpBotUsername, setOtpBotUsername] = useState<string>("S_TECH_ASSISTANTBOT");
 
   // Luxury Password Reset Alert State (https://www.s-tech-store.tech)
   const [resetLoading, setResetLoading] = useState(false);
@@ -673,15 +676,9 @@ export default function UserProfilePage() {
     }
   };
 
-  const handleToggle2FA = async () => {
-    const targetEmail = user?.email || profile.email;
-    if (!targetEmail) {
-      alert("សូមភ្ជាប់អ៊ីមែលដើម្បីអាចប្រើប្រាស់ប្រព័ន្ធ Two-Factor Authentication បាន!");
-      return;
-    }
-
+  const handleToggle2FA = async (overrideChannel?: "telegram" | "email") => {
+    // 1. Prompt user to disable if currently enabled
     if (profile.two_fa_enabled) {
-      // Prompt user to disable
       if (confirm("តើអ្នកពិតជាចង់បិទប្រព័ន្ធការពារ Two-Factor Authentication មែនទេ?")) {
         try {
           await api.put("/user/profile", { two_fa_enabled: false });
@@ -693,21 +690,60 @@ export default function UserProfilePage() {
       return;
     }
 
-    // Opening 2FA: request OTP code via email & telegram
+    // 2. Identify available channels (Telegram vs Real Gmail)
+    const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+    const hasTelegram = Boolean(isTelegramAuthUser || userTelegramChatId || profile.telegram);
+    const rawEmail = (user?.email || profile.email || "").toLowerCase().trim();
+    const isRealEmail = Boolean(rawEmail && !rawEmail.endsWith("@telegram.s-tech-store.tech") && !rawEmail.endsWith("@tiktok.s-tech-store.tech") && rawEmail.includes("@"));
+
+    if (!hasTelegram && !isRealEmail) {
+      alert("សូមភ្ជាប់ Telegram ឬបញ្ចូលអាសយដ្ឋាន Gmail ពិតប្រាកដក្នុងគណនីរបស់អ្នកជាមុនសិន ដើម្បីអាចប្រើប្រាស់ប្រព័ន្ធ Two-Factor Authentication បាន!");
+      return;
+    }
+
+    // Determine target channel
+    let channelToSend: "telegram" | "email" = "telegram";
+    if (overrideChannel) {
+      channelToSend = overrideChannel;
+    } else if (hasTelegram && !isRealEmail) {
+      channelToSend = "telegram";
+    } else if (isRealEmail && !hasTelegram) {
+      channelToSend = "email";
+    } else {
+      // Both exist: default based on auth provider
+      channelToSend = isTelegramAuthUser ? "telegram" : "email";
+    }
+
+    setOtpChannel(channelToSend);
     setOtpLoading(true);
     setOtpError("");
+    setOtpErrorType(null);
     setOtpInput("");
     setOtpTargetAction("enable");
     setShow2faModal(true);
 
     try {
       const res = await api.post("/user/request-2fa-otp", {
-        email: targetEmail,
+        channel: channelToSend,
+        email: isRealEmail ? rawEmail : (user?.email || profile.email),
         username: profile.display_name || user?.displayName,
+        telegram_chat_id: userTelegramChatId,
+        firebase_uid: profile.firebase_uid || user?.uid,
       });
-      setOtpSentNotice(res.data?.message || `លេខកូដសុវត្ថិភាព OTP ត្រូវបានផ្ញើទៅកាន់ ${targetEmail}!`);
+
+      if (res.data?.success) {
+        if (res.data.channel) setOtpChannel(res.data.channel);
+        setOtpSentNotice(res.data.message || (channelToSend === "telegram" ? "លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់ Telegram របស់អ្នករួចរាល់ហើយ!" : `លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល ${rawEmail} រួចរាល់ហើយ!`));
+      } else {
+        setOtpError(res.data?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ");
+        if (res.data?.error_type) setOtpErrorType(res.data.error_type);
+        if (res.data?.bot_username) setOtpBotUsername(res.data.bot_username);
+      }
     } catch (err: any) {
-      setOtpError(err.response?.data?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ សូមព្យាយាមម្តងទៀត");
+      const errData = err.response?.data;
+      setOtpError(errData?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ សូមព្យាយាមម្តងទៀត");
+      if (errData?.error_type) setOtpErrorType(errData.error_type);
+      if (errData?.bot_username) setOtpBotUsername(errData.bot_username);
     } finally {
       setOtpLoading(false);
     }
@@ -723,11 +759,13 @@ export default function UserProfilePage() {
     setOtpLoading(true);
     setOtpError("");
     try {
-      const targetEmail = user?.email || profile.email;
+      const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
       const res = await api.post("/user/verify-2fa-otp", {
         otp: otpInput.trim(),
         enable: true,
-        email: targetEmail,
+        email: user?.email || profile.email,
+        telegram_chat_id: userTelegramChatId,
+        firebase_uid: profile.firebase_uid || user?.uid,
       });
 
       if (res.data?.success) {
@@ -2132,7 +2170,7 @@ export default function UserProfilePage() {
                     តម្រូវឱ្យបញ្ចូលលេខកូដសុវត្ថិភាព ៦ ខ្ទង់ដែលផ្ញើទៅ Email & Telegram រាល់ពេលចូលប្រើលើឧបករណ៍ថ្មី។
                   </p>
                 </div>
-                <Toggle value={profile.two_fa_enabled} onChange={handleToggle2FA} />
+                <Toggle value={profile.two_fa_enabled} onChange={() => handleToggle2FA()} />
               </div>
 
               {/* Active Device Sessions List */}
@@ -3681,104 +3719,184 @@ export default function UserProfilePage() {
 
       {/* ── Two-Factor Authentication (2FA) OTP Modal ───────────── */}
       <AnimatePresence>
-        {show2faModal && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-blue-500/30 shadow-2xl"
-            >
-              <button
-                type="button"
-                onClick={() => setShow2faModal(false)}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+        {show2faModal && (() => {
+          const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+          const hasTelegramChannel = Boolean(isTelegramAuthUser || userTelegramChatId || profile.telegram);
+          const rawUserEmail = (user?.email || profile.email || "").toLowerCase().trim();
+          const hasRealEmailChannel = Boolean(rawUserEmail && !rawUserEmail.endsWith("@telegram.s-tech-store.tech") && !rawUserEmail.endsWith("@tiktok.s-tech-store.tech") && rawUserEmail.includes("@"));
+
+          return (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-blue-500/30 shadow-2xl"
               >
-                <X size={18} />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setShow2faModal(false)}
+                  className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
 
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
-                  <ShieldCheck size={36} />
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-gray-900 dark:text-white">
-                    ផ្ទៀងផ្ទាត់លេខកូដសុវត្ថិភាព 2FA
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                    {otpSentNotice || `លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល ${user?.email || profile.email} និង Telegram របស់អ្នក។`}
-                  </p>
-                </div>
-
-                {otpError && (
-                  <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-600 dark:text-red-400 font-bold">
-                    {otpError}
+                <div className="text-center space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto">
+                    <ShieldCheck size={36} />
                   </div>
-                )}
 
-                <form onSubmit={handleVerify2faOtp} className="space-y-4 pt-2">
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
-                      បញ្ចូលលេខកូដ OTP (៦ ខ្ទង់)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      required
-                      autoFocus
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      placeholder="• • • • • •"
-                      className="w-full text-center tracking-[12px] text-2xl font-black font-mono py-3.5 px-4 bg-gray-50 dark:bg-black/40 border-2 border-blue-500/30 focus:border-blue-500 rounded-2xl outline-none text-gray-900 dark:text-white transition-all"
-                    />
-                    <span className="text-[11px] text-gray-400 block mt-1.5">
-                      ⏱️ សុពលភាពលេខកូដត្រឹម ១០ នាទី
-                    </span>
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                      ផ្ទៀងផ្ទាត់លេខកូដសុវត្ថិភាព 2FA
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                      {otpSentNotice || (otpChannel === "telegram"
+                        ? `លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់ Telegram របស់អ្នក (@${profile.telegram ? profile.telegram.replace(/^@/, '') : 'Bot'})។`
+                        : `លេខកូដសុវត្ថិភាព ៦ ខ្ទង់ ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល ${hasRealEmailChannel ? rawUserEmail : 'របស់អ្នក'}។`)}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
+                  {/* ── Case 3: Both Telegram & Real Email available -> Channel Selector Switcher ── */}
+                  {hasTelegramChannel && hasRealEmailChannel && (
+                    <div className="pt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-1.5">
+                        ជ្រើសរើសច្រកទទួលលេខកូដ (Channel)
+                      </span>
+                      <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-white/10">
+                        <button
+                          type="button"
+                          disabled={otpLoading}
+                          onClick={() => handleToggle2FA("telegram")}
+                          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer disabled:opacity-50 ${
+                            otpChannel === "telegram"
+                              ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md"
+                              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          }`}
+                        >
+                          <Send size={13} className={otpChannel === "telegram" ? "text-white" : "text-sky-500"} />
+                          <span className="truncate">Telegram</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={otpLoading}
+                          onClick={() => handleToggle2FA("email")}
+                          className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer disabled:opacity-50 ${
+                            otpChannel === "email"
+                              ? "bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white shadow-md"
+                              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                          }`}
+                        >
+                          <Mail size={13} className={otpChannel === "email" ? "text-white" : "text-red-500"} />
+                          <span className="truncate">Gmail</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Case 1: Telegram Only Badge ── */}
+                  {hasTelegramChannel && !hasRealEmailChannel && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-[11px] font-bold text-sky-600 dark:text-sky-400 mx-auto">
+                      <Send size={12} />
+                      <span>ច្រកទទួលកូដ: Telegram Private Bot (@{profile.telegram ? profile.telegram.replace(/^@/, '') : 'S_TECH_ASSISTANTBOT'})</span>
+                    </div>
+                  )}
+
+                  {/* ── Case 2: Email Only Badge ── */}
+                  {!hasTelegramChannel && hasRealEmailChannel && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-[11px] font-bold text-red-600 dark:text-red-400 mx-auto">
+                      <Mail size={12} />
+                      <span>ច្រកទទួលកូដ: Gmail ({rawUserEmail})</span>
+                    </div>
+                  )}
+
+                  {/* Error Banner */}
+                  {otpError && (
+                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-600 dark:text-red-400 font-bold space-y-2 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={15} className="shrink-0 text-red-500" />
+                        <span>{otpError}</span>
+                      </div>
+
+                      {/* Bot Not Started helper button */}
+                      {(otpErrorType === "bot_not_started" || otpError.includes("/start") || otpError.includes("Bot")) && (
+                        <a
+                          href={`https://t.me/${otpBotUsername || "S_TECH_ASSISTANTBOT"}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full mt-1.5 py-2 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 no-underline shadow-sm"
+                        >
+                          <Send size={13} />
+                          <span>ចុចទីនេះដើម្បីបើក Telegram Bot @{otpBotUsername || "S_TECH_ASSISTANTBOT"} (/start)</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleVerify2faOtp} className="space-y-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-gray-400 mb-1.5 uppercase tracking-wider">
+                        បញ្ចូលលេខកូដ OTP (៦ ខ្ទង់)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        required
+                        autoFocus
+                        value={otpInput}
+                        onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ""))}
+                        placeholder="• • • • • •"
+                        className="w-full text-center tracking-[12px] text-2xl font-black font-mono py-3.5 px-4 bg-gray-50 dark:bg-black/40 border-2 border-blue-500/30 focus:border-blue-500 rounded-2xl outline-none text-gray-900 dark:text-white transition-all"
+                      />
+                      <span className="text-[11px] text-gray-400 block mt-1.5">
+                        ⏱️ សុពលភាពលេខកូដត្រឹម ១០ នាទី • ចុច Copy ពី {otpChannel === "telegram" ? "Telegram Bot" : "Gmail"} រួច Paste ទីនេះ
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setShow2faModal(false)}
+                        className="flex-1 py-3.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                      >
+                        បោះបង់ (Cancel)
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={otpLoading || otpInput.length < 4}
+                        className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold transition-all shadow-lg shadow-blue-500/25 border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {otpLoading ? (
+                          <>
+                            <RefreshCw size={14} className="animate-spin" />
+                            <span>កំពុងផ្ទៀងផ្ទាត់...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check size={16} />
+                            <span>បញ្ជាក់ & បើក 2FA</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-center gap-1.5">
+                    <span>មិនបានទទួលលេខកូដ?</span>
                     <button
                       type="button"
-                      onClick={() => setShow2faModal(false)}
-                      className="flex-1 py-3.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                      disabled={otpLoading}
+                      onClick={() => handleToggle2FA(otpChannel)}
+                      className="text-blue-500 hover:underline font-bold border-none bg-transparent cursor-pointer p-0 disabled:opacity-50"
                     >
-                      បោះបង់ (Cancel)
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={otpLoading || otpInput.length < 4}
-                      className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold transition-all shadow-lg shadow-blue-500/25 border-none cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {otpLoading ? (
-                        <>
-                          <RefreshCw size={14} className="animate-spin" />
-                          <span>កំពុងផ្ទៀងផ្ទាត់...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check size={16} />
-                          <span>បញ្ជាក់ & បើក 2FA</span>
-                        </>
-                      )}
+                      {otpLoading ? "កំពុងផ្ញើ..." : "ចុចផ្ញើម្តងទៀត"}
                     </button>
                   </div>
-                </form>
-
-                <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 dark:border-white/5">
-                  មិនបានទទួលលេខកូដ?{" "}
-                  <button
-                    type="button"
-                    onClick={handleToggle2FA}
-                    className="text-blue-500 hover:underline font-bold border-none bg-transparent cursor-pointer p-0"
-                  >
-                    ចុចផ្ញើម្តងទៀត
-                  </button>
                 </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* ── Luxury Password Reset Success Modal ─────────────────── */}
