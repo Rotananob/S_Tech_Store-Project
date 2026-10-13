@@ -4120,22 +4120,23 @@ class TelegramService
 
         // Channel A: If Customer is Connected to Telegram, send PRIVATELY to customer (100% Private, Zero Admin Alert)
         if (!empty($customerChatId)) {
-            $activeToken = self::getBotToken();
+            $activeToken = self::getCustomerBotToken() ?: self::getBotToken();
             if (empty($activeToken)) {
                 return ['ok' => false, 'error' => 'Telegram Bot token is not configured'];
             }
 
-            $privateText = "🔑 <b>តំណភ្ជាប់ចូលគណនីផ្ទាល់ / Magic Login & Reset Password</b>\n\n"
+            $privateText = "🔑 <b>តំណភ្ជាប់ចូលគណនីផ្ទាល់ & Reset Password</b>\n\n"
                 . "ជម្រាបសួរ <b>{$userName}</b>!\n"
-                . "Admin បានបង្កើតតំណភ្ជាប់សម្រាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញជូនលោកអ្នកដោយសុវត្ថិភាព។\n\n"
+                . "លោកអ្នកបានស្នើសុំតំណភ្ជាប់សម្រាប់ចូលគណនី (Magic Login) និងកំណត់ពាក្យសម្ងាត់ឡើងវិញ (Reset Password) ពី S Tech Store Cambodia ដោយសុវត្ថិភាព។\n\n"
                 . "⏰ <b>សុពលភាព:</b> ២៤ ម៉ោង (Valid for 24 Hours)\n"
                 . "🔒 <b>សុវត្ថិភាព:</b> តំណភ្ជាប់នេះប្រើប្រាស់បានតែម្តងគត់ (One-time secure login)\n\n"
-                . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលគណនីភ្លាមៗ៖</b>";
+                . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលគណនីភ្លាមៗ៖</b>\n"
+                . "🔗 <code>{$magicLink}</code>";
 
             $privateKeyboard = [
                 'inline_keyboard' => [
                     [
-                        ['text' => '🚀 ចូលគណនីឥឡូវនេះ (Magic Login)', 'url' => $magicLink],
+                        ['text' => '🚀 ចូលគណនី & Reset Password', 'url' => $magicLink],
                     ],
                 ]
             ];

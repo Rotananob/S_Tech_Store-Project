@@ -178,7 +178,15 @@ export default function UserProfilePage() {
 
   // Luxury Password Reset Alert State (https://www.s-tech-store.tech)
   const [resetLoading, setResetLoading] = useState(false);
-  const [resetSuccessModal, setResetSuccessModal] = useState<{ show: boolean; email: string; resetLink?: string } | null>(null);
+  const [showResetChannelModal, setShowResetChannelModal] = useState(false);
+  const [resetSuccessModal, setResetSuccessModal] = useState<{
+    show: boolean;
+    channel?: "telegram" | "email";
+    email?: string;
+    telegramUsername?: string;
+    telegramChatId?: string;
+    resetLink?: string;
+  } | null>(null);
 
   // Privacy and Cache Toast
   const [privacyToast, setPrivacyToast] = useState<string | null>(null);
@@ -644,41 +652,71 @@ export default function UserProfilePage() {
   };
 
   const handlePasswordReset = async () => {
-    const targetEmail = user?.email || profile.email;
-    if (!targetEmail) {
-      alert("សូមផ្ទៀងផ្ទាត់ ឬបញ្ចូលអ៊ីមែលគណនីរបស់អ្នកជាមុនសិន");
+    // 1. Resolve available channels
+    const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+    const hasTelegram = Boolean(isTelegramConnected || userTelegramChatId || profile.telegram);
+    const rawEmail = (user?.email || profile.email || "").toLowerCase().trim();
+    const isRealEmail = Boolean(rawEmail && !rawEmail.endsWith("@telegram.s-tech-store.tech") && !rawEmail.endsWith("@tiktok.s-tech-store.tech") && rawEmail.includes("@"));
+
+    if (!hasTelegram && !isRealEmail) {
+      alert("សូមភ្ជាប់ Telegram ឬបញ្ចូលអាសយដ្ឋាន Gmail/Email ពិតប្រាកដក្នុងគណនីរបស់អ្នកជាមុនសិន ដើម្បីអាចទទួលតំណភ្ជាប់ Reset Password បាន!");
       return;
     }
 
+    // 2. If both exist: let user choose via modal
+    if (hasTelegram && isRealEmail) {
+      setShowResetChannelModal(true);
+      return;
+    }
+
+    // 3. Otherwise dispatch directly to the single available channel
+    const targetChannel: "telegram" | "email" = hasTelegram ? "telegram" : "email";
+    executePasswordReset(targetChannel);
+  };
+
+  const executePasswordReset = async (channel: "telegram" | "email") => {
+    setShowResetChannelModal(false);
     setResetLoading(true);
+
+    const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+    const rawEmail = (user?.email || profile.email || "").toLowerCase().trim();
+    const isRealEmail = Boolean(rawEmail && !rawEmail.endsWith("@telegram.s-tech-store.tech") && !rawEmail.endsWith("@tiktok.s-tech-store.tech") && rawEmail.includes("@"));
+
     try {
-      // 1. Firebase built-in reset email
-      try {
-        await sendPasswordResetEmail(auth, targetEmail);
-      } catch (fbErr) {
-        console.warn("Firebase reset notice:", fbErr);
+      if (channel === "email" && isRealEmail) {
+        try {
+          await sendPasswordResetEmail(auth, rawEmail);
+        } catch (fbErr) {
+          console.warn("Firebase reset notice:", fbErr);
+        }
       }
 
-      // 2. Custom backend branded luxury Khmer HTML email with domain https://www.s-tech-store.tech
       const res = await api.post("/user/send-reset-email", {
-        email: targetEmail,
+        channel,
+        email: isRealEmail ? rawEmail : undefined,
         username: profile.display_name || user?.displayName || "VIP Member",
+        telegram_chat_id: userTelegramChatId,
+        firebase_uid: profile.firebase_uid || user?.uid,
       });
 
-      setResetSent(true);
-      setResetSuccessModal({
-        show: true,
-        email: targetEmail,
-        resetLink: res.data?.data?.reset_link,
-      });
-      setTimeout(() => setResetSent(false), 5000);
+      if (res.data?.success) {
+        setResetSent(true);
+        setResetSuccessModal({
+          show: true,
+          channel: res.data?.channel || channel,
+          email: res.data?.email || (channel === "email" ? rawEmail : undefined),
+          telegramUsername: res.data?.telegram_username || profile.telegram,
+          telegramChatId: res.data?.telegram_chat_id || (userTelegramChatId ? String(userTelegramChatId) : undefined),
+          resetLink: res.data?.magic_link,
+        });
+        setTimeout(() => setResetSent(false), 5000);
+      } else {
+        alert(res.data?.message || "បរាជ័យក្នុងការផ្ញើតំណភ្ជាប់ Reset Password សូមព្យាយាមម្តងទៀត");
+      }
     } catch (err: any) {
       console.error("Password reset dispatch error:", err);
-      setResetSent(true);
-      setResetSuccessModal({
-        show: true,
-        email: targetEmail,
-      });
+      const errMsg = err?.response?.data?.message || err?.message || "បរាជ័យក្នុងការផ្ញើតំណភ្ជាប់ Reset Password";
+      alert(errMsg);
     } finally {
       setResetLoading(false);
     }
@@ -3934,6 +3972,102 @@ export default function UserProfilePage() {
         })()}
       </AnimatePresence>
 
+      {/* ── Password Reset Channel Selector Modal ─────────────────── */}
+      <AnimatePresence>
+        {showResetChannelModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-white/20 shadow-2xl text-center space-y-4"
+            >
+              <button
+                type="button"
+                onClick={() => setShowResetChannelModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-[#0088cc] flex items-center justify-center mx-auto shadow-md">
+                <Key size={30} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                  ជ្រើសរើសមធ្យោបាយ Reset Password 🔑
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
+                  គណនីរបស់អ្នកមានទាំង Telegram Bot និង Email ផ្ទាល់ខ្លួន។ តើលោកអ្នកចង់ឱ្យប្រព័ន្ធផ្ញើតំណភ្ជាប់ Reset Password / Magic Login ទៅកាន់មធ្យោបាយណា?
+                </p>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {/* Option 1: Telegram Bot */}
+                <button
+                  type="button"
+                  onClick={() => executePasswordReset("telegram")}
+                  disabled={resetLoading}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 to-blue-500/10 hover:from-sky-500/20 hover:to-blue-500/20 border border-sky-500/30 text-left transition-all cursor-pointer flex items-center gap-3.5 group active:scale-98"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center shadow-md shrink-0">
+                    <Send size={18} className="-translate-x-0.5 translate-y-0.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover:text-sky-500 transition-colors">
+                        Telegram Bot ផ្លូវការ
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-[#0088cc]/15 text-[#0088cc]">
+                        1-Click លឿនបំផុត
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                      ផ្ញើចូលឆាត @S_TECH_ASSISTANTBOT {profile.telegram ? `(@${profile.telegram.replace('@', '')})` : ""}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                </button>
+
+                {/* Option 2: Real Email / Gmail */}
+                <button
+                  type="button"
+                  onClick={() => executePasswordReset("email")}
+                  disabled={resetLoading}
+                  className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-left transition-all cursor-pointer flex items-center gap-3.5 group active:scale-98"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-rose-600 to-red-500 text-white flex items-center justify-center shadow-md shrink-0">
+                    <Mail size={18} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover:text-red-500 transition-colors">
+                        អាសយដ្ឋាន Email / Gmail
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                      {user?.email || profile.email}
+                    </p>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResetChannelModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-600 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                >
+                  បោះបង់ (Cancel)
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ── Luxury Password Reset Success Modal ─────────────────── */}
       <AnimatePresence>
         {resetSuccessModal && resetSuccessModal.show && (
@@ -3952,21 +4086,59 @@ export default function UserProfilePage() {
                 <X size={18} />
               </button>
 
-              <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto shadow-md">
-                <Lock size={32} />
-              </div>
+              {resetSuccessModal.channel === "telegram" ? (
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0088cc] to-[#229ED9] text-white flex items-center justify-center mx-auto shadow-lg shadow-[#0088cc]/30">
+                  <Send size={28} className="-translate-x-0.5 translate-y-0.5" />
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto shadow-md">
+                  <Lock size={32} />
+                </div>
+              )}
 
               <div>
                 <h3 className="text-lg font-black text-gray-900 dark:text-white">
-                  បានផ្ញើតំណភ្ជាប់ Reset Password រួចរាល់! 🔑
+                  {resetSuccessModal.channel === "telegram"
+                    ? "បានផ្ញើតំណភ្ជាប់ Reset Password ទៅ Telegram! 🔑📱"
+                    : "បានផ្ញើតំណភ្ជាប់ Reset Password រួចរាល់! 🔑"}
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                  លិខិតផ្លូវការពី <strong>S Tech Store Cambodia (www.s-tech-store.tech)</strong> ត្រូវបានបញ្ជូនទៅកាន់:
+                  {resetSuccessModal.channel === "telegram"
+                    ? "លិខិតផ្លូវការ និងតំណភ្ជាប់ Magic Login & Reset Password ត្រូវបានបញ្ជូនចូលឆាត Bot ផ្ទាល់ខ្លួនរបស់អ្នក:"
+                    : "លិខិតផ្លូវការពី S Tech Store Cambodia (www.s-tech-store.tech) ត្រូវបានបញ្ជូនទៅកាន់:"}
                 </p>
-                <div className="mt-2 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 font-mono text-xs font-bold text-gray-800 dark:text-gray-200">
-                  {resetSuccessModal.email}
-                </div>
+
+                {resetSuccessModal.channel === "telegram" ? (
+                  <div className="mt-2.5 p-3 rounded-2xl bg-sky-500/10 border border-sky-500/25 space-y-1">
+                    <div className="text-xs font-bold text-sky-600 dark:text-sky-400 flex items-center justify-center gap-1.5">
+                      <Send size={13} />
+                      <span>Official Bot: @S_TECH_ASSISTANTBOT</span>
+                    </div>
+                    {(resetSuccessModal.telegramChatId || resetSuccessModal.telegramUsername) && (
+                      <div className="font-mono text-[11px] text-gray-600 dark:text-gray-300">
+                        {resetSuccessModal.telegramUsername ? `@${resetSuccessModal.telegramUsername.replace('@', '')}` : ""}
+                        {resetSuccessModal.telegramChatId ? ` (ID: ${resetSuccessModal.telegramChatId})` : ""}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-2 p-2.5 rounded-xl bg-gray-50 dark:bg-white/5 font-mono text-xs font-bold text-gray-800 dark:text-gray-200">
+                    {resetSuccessModal.email}
+                  </div>
+                )}
               </div>
+
+              {resetSuccessModal.channel === "telegram" && (
+                <button
+                  type="button"
+                  onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs font-bold transition-all shadow-md shadow-[#0088cc]/25 cursor-pointer border-none flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <Send size={14} />
+                  <span>បើកឆាត Telegram Bot (@S_TECH_ASSISTANTBOT)</span>
+                  <ExternalLink size={13} />
+                </button>
+              )}
 
               {resetSuccessModal.resetLink && (
                 <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-left space-y-1.5">
@@ -3996,7 +4168,9 @@ export default function UserProfilePage() {
               )}
 
               <p className="text-[11px] text-gray-400 leading-relaxed">
-                សូមពិនិត្យមើលប្រអប់សំបុត្រ Inbox ឬ Spam ក្នុង Email របស់អ្នក។ តំណភ្ជាប់នេះមានសុពលភាព ៦០ នាទី។
+                {resetSuccessModal.channel === "telegram"
+                  ? "សូមបើកឆាត Telegram Bot ឬចុចប៊ូតុងខាងលើដើម្បីចូលគណនី និង Reset Password ភ្លាមៗ។ តំណភ្ជាប់នេះមានសុពលភាព ២៤ ម៉ោង។"
+                  : "សូមពិនិត្យមើលប្រអប់សំបុត្រ Inbox ឬ Spam ក្នុង Email របស់អ្នក។ តំណភ្ជាប់នេះមានសុពលភាព ៦០ នាទី។"}
               </p>
 
               <button

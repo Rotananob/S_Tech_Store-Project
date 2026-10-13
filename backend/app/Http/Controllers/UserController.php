@@ -792,38 +792,145 @@ class UserController extends Controller
 
     /**
      * POST /api/user/send-reset-email
-     * Sends the luxury password reset link email with domain https://www.s-tech-store.tech.
+    /**
+     * POST /api/user/send-reset-email
+     * Intelligent Password Reset & Magic Login dispatcher:
+     * 1. Telegram user -> Sends magic reset link directly to customer Telegram private chat (@S_TECH_ASSISTANTBOT)
+     * 2. Google / Real Email user -> Sends official password reset email to real Gmail
+     * 3. Hybrid user (Email + Telegram) -> Honors selected 'channel' parameter ('telegram' | 'email')
      */
     public function sendResetEmail(Request $request)
     {
+        $requestedChannel = strtolower(trim((string)$request->input('channel', 'auto')));
         $email = $request->input('email');
         $username = $request->input('username');
+        $telegramChatId = $request->input('telegram_chat_id');
+        $firebaseUid = $request->input('firebase_uid') ?: $this->getUid($request);
 
-        if (empty($email)) {
-            $uid = $this->getUid($request);
-            if ($uid) {
-                $user = UserProfile::where('firebase_uid', $uid)->first();
-                if ($user && !empty($user->email)) {
-                    $email = $user->email;
-                    if (empty($username)) {
-                        $username = $user->username ?: $user->display_name;
-                    }
-                }
+        $user = null;
+        if ($firebaseUid) {
+            $user = UserProfile::where('firebase_uid', $firebaseUid)->first();
+        }
+        if (!$user && !empty($telegramChatId)) {
+            $user = UserProfile::where('telegram_chat_id', (string)$telegramChatId)->first();
+        }
+        if (!$user && !empty($email)) {
+            $user = UserProfile::where('email', $email)->first();
+        }
+
+        if ($user) {
+            if (empty($email)) $email = $user->email;
+            if (empty($username)) $username = $user->display_name ?: $user->username;
+            if (empty($telegramChatId)) $telegramChatId = $user->telegram_chat_id;
+            if (empty($telegramChatId) && !empty($user->firebase_uid) && str_starts_with($user->firebase_uid, 'tg_')) {
+                $telegramChatId = preg_replace('/\D/', '', substr($user->firebase_uid, 3));
             }
         }
 
-        if (empty($email)) {
+        $cleanEmail = strtolower(trim((string)$email));
+        $isSyntheticEmail = str_ends_with($cleanEmail, '@telegram.s-tech-store.tech') || 
+                            str_ends_with($cleanEmail, '@tiktok.s-tech-store.tech');
+        $hasRealEmail = !empty($cleanEmail) && filter_var($cleanEmail, FILTER_VALIDATE_EMAIL) && !$isSyntheticEmail;
+        $hasTelegram = !empty($telegramChatId) || ($user && (!empty($user->telegram_chat_id) || !empty($user->telegram)));
+
+        // Resolve destination channel
+        $finalChannel = 'email';
+        if ($requestedChannel === 'telegram') {
+            $finalChannel = 'telegram';
+        } elseif ($requestedChannel === 'email') {
+            $finalChannel = 'email';
+        } else {
+            // Auto detection:
+            if ($hasTelegram && !$hasRealEmail) {
+                $finalChannel = 'telegram';
+            } elseif ($hasRealEmail && !$hasTelegram) {
+                $finalChannel = 'email';
+            } elseif ($hasTelegram && $hasRealEmail) {
+                $isTgAuth = ($user && $user->provider === 'telegram') || str_starts_with($firebaseUid ?? '', 'tg_');
+                $finalChannel = $isTgAuth ? 'telegram' : 'email';
+            } else {
+                $finalChannel = $hasTelegram ? 'telegram' : 'email';
+            }
+        }
+
+        // If email was chosen or defaulted, but the only email on file is synthetic @telegram... -> re-route to Telegram!
+        if ($finalChannel === 'email' && $isSyntheticEmail && $hasTelegram) {
+            $finalChannel = 'telegram';
+        }
+
+        $frontendUrl = env('FRONTEND_URL', 'https://www.s-tech-store.tech');
+
+        // ── Telegram Channel ──────────────────────────────────────────────────
+        if ($finalChannel === 'telegram') {
+            if (!$user && $firebaseUid) {
+                $user = UserProfile::firstOrCreate(
+                    ['firebase_uid' => $firebaseUid],
+                    [
+                        'display_name' => $username ?: 'អតិថិជន VIP',
+                        'telegram_chat_id' => $telegramChatId,
+                        'provider' => 'telegram'
+                    ]
+                );
+            }
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'មិនអាចស្វែងរកគណនី Telegram របស់អ្នកបានឡើយ។ សូមប្រាកដថាអ្នកបានភ្ជាប់គណនីរួចរាល់។',
+                ], 422);
+            }
+
+            $user->magic_login_token = \Illuminate\Support\Str::random(60);
+            $user->magic_token_expires_at = now()->addHours(24);
+            $user->last_password_reset_at = now();
+            if ($telegramChatId && empty($user->telegram_chat_id)) {
+                $user->telegram_chat_id = (string)$telegramChatId;
+            }
+            $user->save();
+
+            $magicLink = rtrim($frontendUrl, '/') . '/km/magic-login?token=' . $user->magic_login_token;
+            $alertRes = \App\Services\TelegramService::sendCustomerMagicLinkAlert($user, $magicLink, $telegramChatId);
+            $tgSuccess = ($alertRes['ok'] ?? false) === true;
+
+            return response()->json([
+                'success' => $tgSuccess,
+                'channel' => 'telegram',
+                'telegram_chat_id' => $telegramChatId ?: $user->telegram_chat_id,
+                'telegram_username' => $user->telegram,
+                'magic_link' => $magicLink,
+                'message' => $tgSuccess
+                    ? "បានផ្ញើតំណភ្ជាប់ Reset Password / Magic Login ទៅកាន់ Telegram Bot (@S_TECH_ASSISTANTBOT) រួចរាល់ហើយ! 🔑📱"
+                    : ($alertRes['message'] ?? "មិនអាចផ្ញើសារទៅកាន់ Telegram Bot បានទេ សូមចុច START Bot ជាមុនសិន!"),
+            ]);
+        }
+
+        // ── Real Email Channel ─────────────────────────────────────────────────
+        if (!$hasRealEmail) {
             return response()->json([
                 'success' => false,
-                'message' => 'សូមបញ្ជាក់អ៊ីមែលគណនីរបស់អ្នក',
+                'message' => 'សូមបញ្ចូលអាសយដ្ឋាន Gmail/Email ពិតប្រាកដរបស់អ្នក ដើម្បីទទួលតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់',
             ], 422);
         }
 
-        $res = \App\Services\EmailService::sendPasswordResetEmail($email, $username);
+        if ($user) {
+            $user->magic_login_token = \Illuminate\Support\Str::random(60);
+            $user->magic_token_expires_at = now()->addHours(24);
+            $user->last_password_reset_at = now();
+            $user->save();
+        }
+
+        $magicLink = ($user && $user->magic_login_token)
+            ? rtrim($frontendUrl, '/') . '/km/magic-login?token=' . $user->magic_login_token
+            : null;
+
+        $res = \App\Services\EmailService::sendPasswordResetEmail($cleanEmail, $username);
 
         return response()->json([
             'success' => true,
-            'message' => "បានផ្ញើតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ទៅកាន់ {$email} រួចរាល់ហើយ!",
+            'channel' => 'email',
+            'email' => $cleanEmail,
+            'magic_link' => $magicLink,
+            'message' => "បានផ្ញើតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ទៅកាន់ {$cleanEmail} រួចរាល់ហើយ! 🔑",
             'data' => $res,
         ]);
     }
