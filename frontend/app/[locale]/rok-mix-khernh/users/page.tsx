@@ -8,7 +8,7 @@ import {
   Key, RefreshCw, MapPin, Phone, Mail, Send, Calendar, 
   ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X,
   Copy, ExternalLink, MessageCircle, Check, Link2, Coins, MessageSquare, ChevronRight,
-  UserPlus, Edit, AlertTriangle, ShieldAlert
+  UserPlus, Edit, AlertTriangle, ShieldAlert, Crown, Briefcase, Globe
 } from "lucide-react";
 
 export interface AdminCustomerUser {
@@ -30,6 +30,11 @@ export interface AdminCustomerUser {
   profession: string | null;
   gender: string | null;
   birthday: string | null;
+  role?: "customer" | "staff" | "admin" | "super_admin";
+  role_label?: string;
+  is_system_owner?: boolean;
+  is_staff?: boolean;
+  is_customer?: boolean;
   is_admin: boolean;
   is_active: boolean;
   status: string;
@@ -44,11 +49,24 @@ const CACHE_KEY = "admin_cached_customer_users";
 const MASTER_OWNER_EMAIL = "nobrothana180703@gmail.com";
 const isSystemOwner = (email?: string | null) => (email || "").toLowerCase().trim() === MASTER_OWNER_EMAIL;
 
+const isUserAdminOrOwner = (u: AdminCustomerUser) => {
+  return isSystemOwner(u.email) || u.role === "super_admin" || u.role === "admin" || (u.is_admin && u.role !== "staff");
+};
+
+const isUserStaff = (u: AdminCustomerUser) => {
+  return u.role === "staff" || u.is_staff || (u.email && u.email.toLowerCase().trim() === "staff@stechstore.com");
+};
+
+const isUserCustomer = (u: AdminCustomerUser) => {
+  return !isUserAdminOrOwner(u) && !isUserStaff(u);
+};
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminCustomerUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+  const [roleTab, setRoleTab] = useState<"customers" | "staff" | "admins" | "all">("customers");
 
   // Current Admin user & Role
   const [currentAdminRole, setCurrentAdminRole] = useState<string>("admin");
@@ -510,8 +528,22 @@ export default function AdminUsersPage() {
     }
   };
 
+  const roleCounts = useMemo(() => {
+    const customers = users.filter(isUserCustomer).length;
+    const staff = users.filter(isUserStaff).length;
+    const admins = users.filter(isUserAdminOrOwner).length;
+    const all = users.length;
+    return { customers, staff, admins, all };
+  }, [users]);
+
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
+      // 1. Role classification filter
+      if (roleTab === "customers" && !isUserCustomer(u)) return false;
+      if (roleTab === "staff" && !isUserStaff(u)) return false;
+      if (roleTab === "admins" && !isUserAdminOrOwner(u)) return false;
+
+      // 2. Search query filter
       const q = searchQuery.toLowerCase().trim();
       const matchSearch =
         !q ||
@@ -521,6 +553,7 @@ export default function AdminUsersPage() {
         (u.city && u.city.toLowerCase().includes(q)) ||
         (u.telegram && u.telegram.toLowerCase().includes(q));
 
+      // 3. Status filter
       const matchStatus =
         statusFilter === "all" ||
         (statusFilter === "active" && u.is_active) ||
@@ -528,7 +561,7 @@ export default function AdminUsersPage() {
 
       return matchSearch && matchStatus;
     });
-  }, [users, searchQuery, statusFilter]);
+  }, [users, roleTab, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
     const total = users.length;
@@ -602,8 +635,17 @@ export default function AdminUsersPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500">អតិថិជនសរុប</span>
             <Users size={18} className="text-[#8B1A1A]" />
           </div>
-          <div className="text-2xl font-black text-gray-900">{stats.total}</div>
-          <div className="text-[11px] text-gray-400 mt-1">គណនីចុះឈ្មោះក្នុងប្រព័ន្ធ</div>
+          <div className="text-2xl font-black text-gray-900">{roleCounts.customers}</div>
+          <div className="text-[11px] text-gray-400 mt-1">អតិថិជនពិតប្រាកដក្នុងប្រព័ន្ធ</div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-teal-700">បុគ្គលិក & ADMIN</span>
+            <Briefcase size={18} className="text-teal-600" />
+          </div>
+          <div className="text-2xl font-black text-teal-700">{roleCounts.staff + roleCounts.admins}</div>
+          <div className="text-[11px] text-gray-400 mt-1">បុគ្គលិក ({roleCounts.staff}) • អ្នកគ្រប់គ្រង ({roleCounts.admins})</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
@@ -617,21 +659,87 @@ export default function AdminUsersPage() {
 
         <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-red-600">គណនីបានផ្អាក</span>
-            <UserX size={18} className="text-red-500" />
-          </div>
-          <div className="text-2xl font-black text-red-600">{stats.disabled}</div>
-          <div className="text-[11px] text-gray-400 mt-1">ត្រូវបិទដោយ Admin</div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-700">ការកុម្ម៉ង់សរុប</span>
             <ShoppingBag size={18} className="text-sky-600" />
           </div>
           <div className="text-2xl font-black text-gray-900">{stats.totalOrders}</div>
           <div className="text-[11px] text-gray-400 mt-1">Orders ពីអតិថិជនទាំងអស់</div>
         </div>
+      </div>
+
+      {/* Role Classification Tabs: Customers vs Staff vs Admins & Owner */}
+      <div className="bg-white p-2 rounded-2xl border border-gray-200/80 shadow-xs mb-4 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          onClick={() => setRoleTab("customers")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap border-none ${
+            roleTab === "customers"
+              ? "bg-[#8B1A1A] text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+          }`}
+        >
+          <Users size={16} />
+          <span>👤 អតិថិជន (Customers)</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            roleTab === "customers" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+          }`}>
+            {roleCounts.customers}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRoleTab("staff")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap border-none ${
+            roleTab === "staff"
+              ? "bg-teal-700 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+          }`}
+        >
+          <Briefcase size={16} />
+          <span>💼 បុគ្គលិក (Staff)</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            roleTab === "staff" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+          }`}>
+            {roleCounts.staff}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRoleTab("admins")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap border-none ${
+            roleTab === "admins"
+              ? "bg-indigo-700 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+          }`}
+        >
+          <ShieldCheck size={16} />
+          <span>🛡️ អ្នកគ្រប់គ្រង & មហាសិទ្ធិ (Admins & Owner)</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            roleTab === "admins" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+          }`}>
+            {roleCounts.admins}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setRoleTab("all")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap border-none ${
+            roleTab === "all"
+              ? "bg-gray-900 text-white shadow-sm"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-transparent"
+          }`}
+        >
+          <Globe size={16} />
+          <span>🌐 ទាំងអស់ (All Accounts)</span>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            roleTab === "all" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
+          }`}>
+            {roleCounts.all}
+          </span>
+        </button>
       </div>
 
       {/* Filter and Search Bar */}
@@ -724,16 +832,26 @@ export default function AdminUsersPage() {
                         <div className="min-w-0">
                           <div className="font-bold text-gray-900 truncate flex items-center gap-1.5">
                             <span>{u.display_name}</span>
-                            {isSystemOwner(u.email) ? (
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
-                                <ShieldCheck size={11} className="text-amber-700" />
-                                <span>ម្ចាស់ប្រព័ន្ធ (System Owner)</span>
+                            {isSystemOwner(u.email) || u.role === "super_admin" ? (
+                              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-400 flex items-center gap-1 shadow-xs">
+                                <Crown size={12} className="text-amber-700" />
+                                <span>💎 ម្ចាស់ប្រព័ន្ធ (System Owner)</span>
                               </span>
-                            ) : u.is_admin ? (
-                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded bg-red-100 text-[#8B1A1A]">
-                                Admin
+                            ) : isUserStaff(u) ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-300 flex items-center gap-1 shadow-xs">
+                                <Briefcase size={11} className="text-teal-600" />
+                                <span>បុគ្គលិក (Staff)</span>
                               </span>
-                            ) : null}
+                            ) : isUserAdminOrOwner(u) ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-300 flex items-center gap-1 shadow-xs">
+                                <ShieldCheck size={11} className="text-indigo-600" />
+                                <span>អ្នកគ្រប់គ្រង (Admin)</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 flex items-center gap-1">
+                                <span>👤 អតិថិជន</span>
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] text-gray-500 truncate flex items-center gap-1.5 font-mono">
                             <span>{u.email || "No email"}</span>

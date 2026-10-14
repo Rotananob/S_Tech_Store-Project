@@ -91,6 +91,210 @@ const CAMBODIA_PROVINCES = [
   "Tbong Khmum",
 ];
 
+interface CambodiaProvinceDetail {
+  name: string;
+  nameKm: string;
+  keys: string[];
+  lat: number;
+  lng: number;
+  isProvincial: boolean;
+  courierName: string;
+  courierBadge: string;
+  courierVehicle: string;
+  vehiclePlate: string;
+  transitRoute: string;
+  speed: string;
+  dist: string;
+  estTime: string;
+}
+
+const CAMBODIA_PROVINCES_REGISTRY: CambodiaProvinceDetail[] = [
+  {
+    name: "Kampong Cham",
+    nameKm: "ខេត្តកំពង់ចាម",
+    keys: ["kampong cham", "កំពង់ចាម", "kpc", "kompong cham", "cham"],
+    lat: 11.9924,
+    lng: 105.4645,
+    isProvincial: true,
+    courierName: "S Tech Provincial Express • វីរៈ ប៊ុនថាំ (Virak Buntham VET)",
+    courierBadge: "VET Express Inter-Province",
+    courierVehicle: "Express Delivery Van (ឡានដឹកទំនិញរហ័ស VET #ST-88)",
+    vehiclePlate: "ភ្នំពេញ 2B-6689 (GPS Active)",
+    transitRoute: "Phnom Penh Central Distribution Hub → ផ្លូវជាតិលេខ ៧ → ស្ពានគីហ្សូណា → ក្រុងកំពង់ចាម",
+    speed: "65 km/h",
+    dist: "124 km (ឆ្លងកាត់ស្ពានគីហ្សូណា)",
+    estTime: "ថ្ងៃនេះ (Today ~ 2-3 ម៉ោង)",
+  },
+  {
+    name: "Siem Reap",
+    nameKm: "ខេត្តសៀមរាប",
+    keys: ["siem reap", "សៀមរាប", "sr"],
+    lat: 13.3633,
+    lng: 103.8564,
+    isProvincial: true,
+    courierName: "S Tech Provincial Express • Virak Buntham / J&T",
+    courierBadge: "Inter-Province Priority",
+    courierVehicle: "Express Delivery Van (ឡានដឹកទំនិញរហ័ស)",
+    vehiclePlate: "ភ្នំពេញ 2C-1192",
+    transitRoute: "Phnom Penh Central Hub → ផ្លូវជាតិលេខ ៦ → សាខាក្រុងសៀមរាប",
+    speed: "70 km/h",
+    dist: "314 km",
+    estTime: "ថ្ងៃនេះ (Today ~ 4-5 ម៉ោង)",
+  },
+  {
+    name: "Battambang",
+    nameKm: "ខេត្តបាត់ដំបង",
+    keys: ["battambang", "បាត់ដំបង", "btb"],
+    lat: 13.0957,
+    lng: 103.2022,
+    isProvincial: true,
+    courierName: "S Tech Provincial Express • Virak Buntham",
+    courierBadge: "Inter-Province Priority",
+    courierVehicle: "Express Delivery Van",
+    vehiclePlate: "ភ្នំពេញ 2A-8831",
+    transitRoute: "Phnom Penh Central Hub → ផ្លូវជាតិលេខ ៥ → សាខាបាត់ដំបង",
+    speed: "68 km/h",
+    dist: "292 km",
+    estTime: "ថ្ងៃនេះ (Today ~ 4-5 ម៉ោង)",
+  },
+  {
+    name: "Preah Sihanouk",
+    nameKm: "ខេត្តព្រះសីហនុ",
+    keys: ["sihanoukville", "ព្រះសីហនុ", "កំពង់សោម", "kampong som", "shv"],
+    lat: 10.6275,
+    lng: 103.5221,
+    isProvincial: true,
+    courierName: "S Tech Express • Expressway Fast Transit",
+    courierBadge: "Expressway Transit",
+    courierVehicle: "Fast Van (ផ្លូវល្បឿនលឿនភ្នំពេញ-ព្រះសីហនុ)",
+    vehiclePlate: "ភ្នំពេញ 2X-7749",
+    transitRoute: "Phnom Penh Central Hub → ផ្លូវល្បឿនលឿន (PP-SHV) → ក្រុងព្រះសីហនុ",
+    speed: "95 km/h",
+    dist: "187 km",
+    estTime: "ថ្ងៃនេះ (Today ~ 2 ម៉ោង)",
+  },
+  {
+    name: "Kandal",
+    nameKm: "ខេត្តកណ្តាល",
+    keys: ["kandal", "កណ្តាល", "តាខ្មៅ", "ta khmau", "takhmao"],
+    lat: 11.4554,
+    lng: 104.9547,
+    isProvincial: false,
+    courierName: "S Tech Fast Courier • PassApp Delivery",
+    courierBadge: "PassApp Live",
+    courierVehicle: "Honda Wave 125i (ម៉ូតូដឹកទំនិញ PassApp Express)",
+    vehiclePlate: "ភ្នំពេញ 1JC-8924",
+    transitRoute: "S Tech Central Flagship Store → ផ្លូវតាខ្មៅ → ដល់មាត់ទ្វារផ្ទះ",
+    speed: "40 km/h",
+    dist: "8.5 km",
+    estTime: "30-45 នាទី",
+  },
+  {
+    name: "Phnom Penh",
+    nameKm: "រាជធានីភ្នំពេញ",
+    keys: ["phnom penh", "ភ្នំពេញ", "pp", "chamkarmon", "daun penh", "tuol kouk", "sensok", "chroy changvar", "russey keo", "meanchey", "boeng keng kang", "por senchey"],
+    lat: 11.5564,
+    lng: 104.9282,
+    isProvincial: false,
+    courierName: "S Tech Fast Courier • PassApp Delivery",
+    courierBadge: "PassApp Live",
+    courierVehicle: "Honda Wave 125i (ម៉ូតូដឹកទំនិញ PassApp Express)",
+    vehiclePlate: "ភ្នំពេញ 1JC-8924",
+    transitRoute: "S Tech Central Flagship Store → ផ្លូវកណ្តាលរាជធានី → ដល់មាត់ទ្វារផ្ទះ",
+    speed: "35 km/h",
+    dist: "2.4 km",
+    estTime: "15-30 នាទី",
+  },
+];
+
+const resolveDeliveryLocation = (order: any, prof: ProfileData): {
+  info: CambodiaProvinceDetail;
+  lat: number;
+  lng: number;
+  destinationText: string;
+} => {
+  const combined = `${order?.shipping_address || ""} ${order?.customer_city || ""} ${prof?.address || ""} ${prof?.city || ""} ${prof?.khan || ""}`.toLowerCase();
+
+  const realLat = order?.gps_lat || prof?.gps_lat;
+  const realLng = order?.gps_lng || prof?.gps_lng;
+  const hasRealGps = Boolean(realLat && realLat !== 0 && realLng && realLng !== 0);
+
+  // Match province
+  let matched = CAMBODIA_PROVINCES_REGISTRY.find((p) =>
+    p.keys.some((k) => combined.includes(k))
+  );
+
+  // If real GPS near Kampong Cham (11.8 - 12.3 lat, 105.1 - 105.8 lng)
+  if (!matched && hasRealGps && realLat && realLng) {
+    if (realLat >= 11.8 && realLat <= 12.3 && realLng >= 105.1 && realLng <= 105.8) {
+      matched = CAMBODIA_PROVINCES_REGISTRY[0]; // Kampong Cham
+    }
+  }
+
+  // Fallback check for Kampong Cham if user email / username is MMO KPC, mmokompongcham, etc.
+  if (!matched && (combined.includes("kpc") || combined.includes("cham") || combined.includes("កំពង់ចាម") || (prof?.email && prof.email.includes("kompongcham")))) {
+    matched = CAMBODIA_PROVINCES_REGISTRY[0]; // Kampong Cham
+  }
+
+  // Fallback to Kampong Cham if user's city/address has Kampong Cham or default to Phnom Penh
+  if (!matched) {
+    matched = CAMBODIA_PROVINCES_REGISTRY[CAMBODIA_PROVINCES_REGISTRY.length - 1]; // Phnom Penh
+  }
+
+  const finalLat = (hasRealGps && realLat) ? realLat : matched.lat;
+  const finalLng = (hasRealGps && realLng) ? realLng : matched.lng;
+
+  const destinationText = order?.shipping_address || prof?.address || `${matched.nameKm} (ទីរួមខេត្ត)`;
+
+  return {
+    info: matched,
+    lat: finalLat,
+    lng: finalLng,
+    destinationText,
+  };
+};
+
+const getDeliveryTimeline = (orderCreatedAt: string | undefined | null, isProvincial: boolean, destName: string) => {
+  const base = orderCreatedAt ? new Date(orderCreatedAt) : new Date();
+  const validBase = isNaN(base.getTime()) ? new Date() : base;
+
+  const t1 = new Date(validBase.getTime()).toLocaleTimeString("km-KH", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const t2 = new Date(validBase.getTime() + 14 * 60000).toLocaleTimeString("km-KH", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const t3 = new Date(validBase.getTime() + 32 * 60000).toLocaleTimeString("km-KH", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const t4 = isProvincial
+    ? new Date(validBase.getTime() + 180 * 60000).toLocaleTimeString("km-KH", { hour: "2-digit", minute: "2-digit", hour12: true })
+    : new Date(validBase.getTime() + 50 * 60000).toLocaleTimeString("km-KH", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  return [
+    {
+      title: "បានបញ្ជាក់ការកុម្ម៉ង់ & ទូទាត់ជោគជ័យ",
+      subtitle: `បានផ្ទៀងផ្ទាត់ដោយស្វ័យប្រវត្ត (${t1})`,
+      status: "done",
+    },
+    {
+      title: "វេចខ្ចប់ & ពិនិត្យ QC នៅ S Tech Flagship Hub",
+      subtitle: `វេចខ្ចប់ការពារប៉ះទង្គិច ៣ ជាន់ (${t2})`,
+      status: "done",
+    },
+    {
+      title: isProvincial
+        ? `ចេញដំណើរពីភ្នំពេញ ឆ្ពោះទៅកាន់ ${destName}`
+        : "អ្នកដឹកជញ្ជូន PassApp ទទួលកញ្ចប់ & កំពុងធ្វើដំណើរ",
+      subtitle: isProvincial
+        ? `កំពុងធ្វើដំណើរតាមផ្លូវជាតិលេខ ៧ (${t3})`
+        : `កាត់តាមផ្លូវកណ្តាលរាជធានី (${t3})`,
+      status: "active",
+    },
+    {
+      title: `ទៅដល់ទីតាំងទទួលទំនិញរបស់អ្នកនៅ ${destName}`,
+      subtitle: isProvincial
+        ? `ប៉ាន់ស្មានមកដល់ក្នុងរង្វង់ ~ ${t4} (ថ្ងៃនេះ)`
+        : `ប៉ាន់ស្មានមកដល់ក្នុងរង្វង់ ~ ${t4} (15-30 នាទី)`,
+      status: "pending",
+    },
+  ];
+};
+
 const PRESET_AVATARS = [
   { label: "Pro Gamer", url: "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=160&q=80" },
   { label: "Tech Lead", url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80" },
@@ -3609,201 +3813,248 @@ export default function UserProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* ── PassApp-Style Real-Time Live Delivery Tracking Modal ─ */}
+      {/* ── Real-Time Live Delivery Tracking Modal (Province-Aware: Kampong Cham VET & Phnom Penh PassApp) ─ */}
       <AnimatePresence>
-        {showPassAppModal && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-lg bg-[#111318] text-white rounded-3xl overflow-hidden border border-white/10 shadow-2xl flex flex-col max-h-[92vh]"
-            >
-              {/* Header */}
-              <div className="p-4 sm:p-5 bg-black/40 border-b border-white/10 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md">
-                    <Bike size={22} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm sm:text-base font-black text-white">
-                        PassApp Live Delivery Tracking
-                      </h3>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
-                        Live GPS
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-gray-400">
-                      Order #{trackedOrder?.id || (orders[0]?.id || "Live Order")} • Estimated Arrival: <strong className="text-amber-400">15-30 Mins</strong>
-                    </p>
-                  </div>
-                </div>
+        {showPassAppModal && (() => {
+          const loc = resolveDeliveryLocation(trackedOrder, profile);
+          const isProvincial = loc.info.isProvincial;
+          const timelineSteps = getDeliveryTimeline(trackedOrder?.created_at, isProvincial, loc.info.nameKm);
+          const deltaLat = isProvincial ? 0.025 : 0.012;
+          const deltaLng = isProvincial ? 0.035 : 0.018;
 
-                <button
-                  type="button"
-                  onClick={() => setShowPassAppModal(false)}
-                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border-none"
-                  aria-label="Close"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-                {/* ── Interactive Live Map Simulation ─────────────── */}
-                <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#161a23] h-60 sm:h-72">
-                  {/* Map tile background */}
-                  <iframe
-                    title="Live Driver Tracking Route"
-                    width="100%"
-                    height="100%"
-                    className="border-none opacity-85"
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${(profile.gps_lng || 104.9282) - 0.02}%2C${(profile.gps_lat || 11.5564) - 0.015}%2C${(profile.gps_lng || 104.9282) + 0.02}%2C${(profile.gps_lat || 11.5564) + 0.015}&layer=mapnik`}
-                  />
-
-                  {/* PassApp Animated Courier Pin Overlay */}
-                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                    {/* Customer Destination Pin */}
-                    <div className="absolute top-1/4 right-1/4 flex flex-col items-center">
-                      <div className="px-2 py-0.5 rounded-md bg-[#8B1A1A] text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap">
-                        Your Destination
-                      </div>
-                      <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center shadow-xl border-2 border-white">
-                        <MapPin size={16} />
-                      </div>
-                    </div>
-
-                    {/* Animated Moving Driver Pin */}
-                    <motion.div
-                      animate={{
-                        x: [-40, 20, 60],
-                        y: [30, 0, -20],
-                      }}
-                      transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                        ease: "easeInOut",
-                      }}
-                      className="absolute left-1/3 bottom-1/3 flex flex-col items-center"
-                    >
-                      <div className="px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        <span>Driver (35 km/h)</span>
-                      </div>
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl border-2 border-white">
-                          <Bike size={20} />
-                        </div>
-                        {/* Radar wave ping */}
-                        <div className="absolute -inset-1 rounded-full border-2 border-blue-400 animate-ping opacity-60" />
-                      </div>
-                    </motion.div>
-                  </div>
-
-                  {/* Floating Map HUD */}
-                  <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="font-bold text-gray-200">Courier On The Way</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-300 font-semibold">
-                      <span>Speed: 35 km/h</span>
-                      <span>•</span>
-                      <span>Dist: 1.8 km</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── Driver Information Card ──────────────────────── */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-800 border-2 border-blue-500 shrink-0">
-                      <img
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=160&q=80"
-                        alt="S Tech Express Driver"
-                        className="w-full h-full object-cover"
-                      />
+          return (
+            <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-lg bg-[#111318] text-white rounded-3xl overflow-hidden border border-white/10 shadow-2xl flex flex-col max-h-[92vh]"
+              >
+                {/* Header */}
+                <div className="p-4 sm:p-5 bg-black/40 border-b border-white/10 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-md ${
+                      isProvincial
+                        ? "bg-gradient-to-tr from-emerald-600 to-teal-600"
+                        : "bg-gradient-to-tr from-blue-600 to-indigo-600"
+                    }`}>
+                      {isProvincial ? <Truck size={22} className="text-white" /> : <Bike size={22} className="text-white" />}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="text-sm font-black text-white">S Tech Express Courier (ក្រុមដឹកជញ្ជូន)</h4>
-                        <span className="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold">
-                          Official Courier
+                        <h3 className="text-sm sm:text-base font-black text-white">
+                          {isProvincial ? "S Tech Provincial Express" : "PassApp Live Delivery Tracking"}
+                        </h3>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          isProvincial
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        }`}>
+                          {loc.info.courierBadge}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        S Tech Fast Doorstep Delivery • PassApp Integration
+                      <p className="text-[11px] text-gray-400">
+                        Order #{trackedOrder?.id || (orders[0]?.id || "Live Order")} • គោលដៅ: <strong className="text-white">{loc.info.nameKm}</strong> • រយៈពេល: <strong className="text-amber-400">{loc.info.estTime}</strong>
                       </p>
-                      <div className="flex items-center gap-1 text-[11px] text-amber-400 font-bold mt-1">
-                        <span>★ 5.0</span>
-                        <span className="text-gray-500 font-normal">(Verified Store Courier)</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassAppModal(false)}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border-none"
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                  {/* ── Interactive Live Map Simulation ─────────────── */}
+                  <div className="relative rounded-2xl overflow-hidden border border-white/10 bg-[#161a23] h-60 sm:h-72">
+                    {/* Map tile background centered accurately in Kampong Cham or destination province */}
+                    <iframe
+                      title="Live Driver Tracking Route"
+                      width="100%"
+                      height="100%"
+                      className="border-none opacity-85"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${(loc.lng - deltaLng).toFixed(5)}%2C${(loc.lat - deltaLat).toFixed(5)}%2C${(loc.lng + deltaLng).toFixed(5)}%2C${(loc.lat + deltaLat).toFixed(5)}&layer=mapnik&marker=${loc.lat.toFixed(5)}%2C${loc.lng.toFixed(5)}`}
+                    />
+
+                    {/* Animated Courier Pin Overlay */}
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                      {/* Customer Destination Pin */}
+                      <div className="absolute top-1/4 right-1/4 flex flex-col items-center">
+                        <div className="px-2 py-0.5 rounded-md bg-[#8B1A1A] text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap max-w-[200px] truncate">
+                          📍 {loc.destinationText}
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center shadow-xl border-2 border-white">
+                          <MapPin size={16} />
+                        </div>
+                      </div>
+
+                      {/* Animated Moving Courier Pin */}
+                      <motion.div
+                        animate={{
+                          x: [-40, 20, 60],
+                          y: [30, 0, -20],
+                        }}
+                        transition={{
+                          duration: 8,
+                          repeat: Infinity,
+                          repeatType: "reverse",
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-1/3 bottom-1/3 flex flex-col items-center"
+                      >
+                        <div className={`px-2 py-0.5 rounded-md text-white text-[10px] font-bold shadow-lg mb-1 whitespace-nowrap flex items-center gap-1 ${
+                          isProvincial ? "bg-teal-700" : "bg-blue-600"
+                        }`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          <span>{isProvincial ? "VET Express Van" : "Courier"} ({loc.info.speed})</span>
+                        </div>
+                        <div className="relative">
+                          <div className={`w-10 h-10 rounded-full text-white flex items-center justify-center shadow-xl border-2 border-white ${
+                            isProvincial ? "bg-teal-700" : "bg-blue-600"
+                          }`}>
+                            {isProvincial ? <Truck size={20} /> : <Bike size={20} />}
+                          </div>
+                          {/* Radar wave ping */}
+                          <div className={`absolute -inset-1 rounded-full border-2 animate-ping opacity-60 ${
+                            isProvincial ? "border-teal-400" : "border-blue-400"
+                          }`} />
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    {/* Floating Map HUD */}
+                    <div className="absolute bottom-3 left-3 right-3 p-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="font-bold text-gray-200">
+                          {isProvincial ? "ឡានដឹកទំនិញកំពុងធ្វើដំណើរ" : "អ្នកដឹកទំនិញកំពុងធ្វើដំណើរ"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-gray-300 font-semibold text-[11px]">
+                        <span>Speed: {loc.info.speed}</span>
+                        <span>•</span>
+                        <span>Dist: {loc.info.dist}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href="tel:+85512345678"
-                      className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm"
-                    >
-                      <Phone size={14} />
-                      <span>Call Driver</span>
-                    </a>
-                    <a
-                      href="https://t.me/stechstore"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm"
-                    >
-                      <Send size={14} />
-                      <span>Telegram</span>
-                    </a>
+                  {/* ── Driver Information Card (Realistic Cambodian Courier) ──────────────────────── */}
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="relative w-14 h-14 rounded-2xl overflow-hidden bg-gray-800 border-2 border-emerald-500 shrink-0 shadow-md">
+                        <img
+                          src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80"
+                          alt="S Tech Official Courier"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-[8px] text-center font-black py-0.5 text-emerald-400">
+                          VERIFIED
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-black text-white">សុខ វណ្ណា (Sok Vanna)</h4>
+                          <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                            Official Courier #ST-88
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {loc.info.courierVehicle} • <span className="font-mono text-gray-300 font-bold">{loc.info.vehiclePlate}</span>
+                        </p>
+                        <div className="flex items-center gap-1.5 text-[11px] text-amber-400 font-bold mt-1">
+                          <span>★ 4.98</span>
+                          <span className="text-gray-400 font-normal">(1,480+ ការដឹកជញ្ជូនជោគជ័យ)</span>
+                          <span className="text-gray-600">•</span>
+                          <span className="text-emerald-400 font-semibold">{loc.info.courierName}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href="tel:+855968280888"
+                        className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm cursor-pointer"
+                      >
+                        <Phone size={14} />
+                        <span>Call Driver</span>
+                      </a>
+                      <a
+                        href="https://t.me/stechstore"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm cursor-pointer"
+                      >
+                        <Send size={14} />
+                        <span>Telegram</span>
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* ── Order Delivery Steps Timeline (Dynamic Real-World Timestamps) ────────────────── */}
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                        ដំណើរការដឹកជញ្ជូនជាក់ស្តែង (Real-Time Timeline)
+                      </h4>
+                      <span className="text-[10px] text-gray-400 font-medium truncate max-w-[200px]">
+                        {loc.info.transitRoute}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      {timelineSteps.map((step, idx) => (
+                        <div key={idx} className="flex items-start gap-2.5">
+                          {step.status === "done" ? (
+                            <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                          ) : step.status === "active" ? (
+                            isProvincial ? (
+                              <Truck size={16} className="text-teal-400 shrink-0 mt-0.5 animate-pulse" />
+                            ) : (
+                              <Bike size={16} className="text-blue-400 shrink-0 mt-0.5 animate-pulse" />
+                            )
+                          ) : (
+                            <MapPin size={16} className="text-gray-500 shrink-0 mt-0.5" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-bold ${
+                              step.status === "done" ? "text-emerald-400" :
+                              step.status === "active" ? (isProvincial ? "text-teal-400" : "text-blue-400") : "text-gray-400"
+                            }`}>
+                              {step.title}
+                            </div>
+                            <div className="text-[11px] text-gray-400 mt-0.5">
+                              {step.subtitle}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* ── Order Delivery Steps Timeline ────────────────── */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                  <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                    Delivery Progress Status
-                  </h4>
-
-                  <div className="space-y-2.5 text-xs">
-                    <div className="flex items-center gap-2.5 text-emerald-400 font-bold">
-                      <CheckCircle2 size={16} className="shrink-0" />
-                      <span>Order Confirmed & Payment Verified (10:15 AM)</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-emerald-400 font-bold">
-                      <CheckCircle2 size={16} className="shrink-0" />
-                      <span>Inspected & Packed at S Tech Hub (10:28 AM)</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-blue-400 font-black animate-pulse">
-                      <Bike size={16} className="shrink-0" />
-                      <span>Courier Picked Up & On Route — PassApp Active (10:35 AM)</span>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-gray-500 font-medium">
-                      <MapPin size={16} className="shrink-0" />
-                      <span>Arrival at Your Pinned Address (Estimated ~ 10:50 AM)</span>
-                    </div>
+                {/* Modal Footer */}
+                <div className="p-4 bg-black/40 border-t border-white/10 flex justify-between items-center shrink-0">
+                  <div className="text-[11px] text-gray-400 truncate max-w-[250px]">
+                    ដៃគូដឹកជញ្ជូនផ្លូវការ: <strong className="text-gray-200">{loc.info.courierName}</strong>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPassAppModal(false)}
+                    className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border-none cursor-pointer"
+                  >
+                    បិទផ្ទាំង (Close)
+                  </button>
                 </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="p-4 bg-black/40 border-t border-white/10 flex justify-end shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowPassAppModal(false)}
-                  className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all border-none cursor-pointer"
-                >
-                  Close Tracking
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* ── Language Change Confirmation Modal ───────────────────── */}

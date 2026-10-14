@@ -89,8 +89,38 @@ class UserController extends Controller
                 return $isOwner + $isAdmin + $hasRealEmail + ((float)($item->wallet_balance ?? 0) * 1000) + ((int)($item->points ?? 0) * 10) + (!empty($item->telegram_chat_id) ? 50 : 0);
             })->first();
         })->values();
+
+        // Load internal users table to match staff & admin accounts
+        $internalUsers = \App\Models\User::all()->keyBy(function($u) {
+            return strtolower(trim($u->email));
+        });
         
-        $result = $profiles->map(function ($u) {
+        $result = $profiles->map(function ($u) use ($internalUsers) {
+            $email = strtolower(trim((string)$u->email));
+            $internal = $internalUsers->get($email);
+
+            $isSystemOwner = ($email === 'nobrothana180703@gmail.com');
+
+            $role = 'customer';
+            if ($isSystemOwner) {
+                $role = 'super_admin';
+            } elseif ($internal && $internal->role === 'staff') {
+                $role = 'staff';
+            } elseif ($internal && in_array($internal->role, ['admin', 'super_admin'])) {
+                $role = 'admin';
+            } elseif ($email === 'staff@stechstore.com') {
+                $role = 'staff';
+            } elseif ($u->is_admin && $email !== 'nobrothana180703@gmail.com') {
+                $role = 'admin';
+            }
+
+            $roleLabel = match($role) {
+                'super_admin' => 'ម្ចាស់ប្រព័ន្ធ (System Owner)',
+                'admin' => 'អ្នកគ្រប់គ្រង (Admin)',
+                'staff' => 'បុគ្គលិក (Staff)',
+                default => 'អតិថិជន (Customer)',
+            };
+
             $orders = Order::where(function ($q) use ($u) {
                 if (!empty($u->firebase_uid)) {
                     $q->where('user_id', $u->firebase_uid);
@@ -105,7 +135,7 @@ class UserController extends Controller
             return [
                 'id' => $u->id,
                 'firebase_uid' => $u->firebase_uid,
-                'display_name' => $u->display_name ?: ('អតិថិជន #' . $u->id),
+                'display_name' => $u->display_name ?: ($isSystemOwner ? 'Rotana Nob (System Owner)' : ('អតិថិជន #' . $u->id)),
                 'email' => $u->email,
                 'photo_url' => $u->photo_url ?: $u->avatar_url,
                 'phone' => $u->phone,
@@ -121,7 +151,12 @@ class UserController extends Controller
                 'profession' => $u->profession,
                 'gender' => $u->gender,
                 'birthday' => $u->birthday,
-                'is_admin' => (bool)$u->is_admin,
+                'role' => $role,
+                'role_label' => $roleLabel,
+                'is_system_owner' => $isSystemOwner,
+                'is_staff' => ($role === 'staff'),
+                'is_admin' => ($role === 'admin' || $role === 'super_admin'),
+                'is_customer' => ($role === 'customer'),
                 'is_active' => (bool)($u->is_active ?? true),
                 'status' => $u->status ?? 'active',
                 'points' => (int)($u->points ?? 0),
