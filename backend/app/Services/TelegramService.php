@@ -277,6 +277,12 @@ class TelegramService
                     'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
                 ]);
                 $allOk = $allOk && (($resp->json()['ok'] ?? false) === true);
+
+                // Auto-sync commands, menu button, and descriptions once a day (or on webhook refresh)
+                if (!Cache::has('tg_customer_bot_synced_v1')) {
+                    self::setupCustomerBotCommandsAndMenu($authBotToken);
+                    Cache::put('tg_customer_bot_synced_v1', 1, 86400);
+                }
             } catch (\Throwable $e) {}
         }
 
@@ -3403,6 +3409,89 @@ class TelegramService
             return self::OFFICIAL_CUSTOMER_BOT_USERNAME;
         }
         return $username;
+    }
+
+    /**
+     * Setup official Customer Bot commands, native Mini App chat menu button, and descriptions
+     */
+    public static function setupCustomerBotCommandsAndMenu(?string $token = null): array
+    {
+        $botToken = $token ?: self::getCustomerBotToken();
+        if (empty($botToken)) {
+            return ['success' => false, 'error' => 'Customer Bot token is missing'];
+        }
+
+        $results = [];
+
+        // 1. Set commands (11 interactive customer commands)
+        $commands = [
+            ['command' => 'start', 'description' => '🏠 មឺនុយមេ & បើក Mini App (Main Menu)'],
+            ['command' => 'shop', 'description' => '💻 មើលផលិតផល Laptops, PC, Parts (Shop)'],
+            ['command' => 'orders', 'description' => '📦 តាមដានការបញ្ជាទិញ (My Orders)'],
+            ['command' => 'wallet', 'description' => '💰 កាបូបលុយ & សមតុល្យ (My Balance)'],
+            ['command' => 'points', 'description' => '🪙 ពិន្ទុ S-Coins & VIP Rewards'],
+            ['command' => 'promo', 'description' => '🔥 ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ (Discounts)'],
+            ['command' => 'repair', 'description' => '🔧 សេវាជួសជុល & Upgrade (Repairs)'],
+            ['command' => 'ask', 'description' => '❓ សំណួរញឹកញាប់ & ជំនួយរហ័ស (FAQ)'],
+            ['command' => 'contact', 'description' => '📞 ទំនាក់ទំនង & ទីតាំងហាង (Contact)'],
+            ['command' => 'help', 'description' => '📋 របៀបប្រើប្រាស់ពាក្យបញ្ជា (Help)'],
+            ['command' => 'unlink', 'description' => '🔌 ផ្តាច់គណនី Telegram (Disconnect)'],
+        ];
+
+        try {
+            $cmdResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyCommands", [
+                'commands' => $commands,
+            ]);
+            $results['setMyCommands'] = $cmdResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyCommands'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 2. Set native Mini App chat menu button (persistent in lower-left corner)
+        try {
+            $menuResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setChatMenuButton", [
+                'menu_button' => [
+                    'type' => 'web_app',
+                    'text' => '🛍️ S Tech Store',
+                    'web_app' => [
+                        'url' => 'https://www.s-tech-store.tech',
+                    ],
+                ],
+            ]);
+            $results['setChatMenuButton'] = $menuResp->json();
+        } catch (\Throwable $e) {
+            $results['setChatMenuButton'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 3. Set bot description (About screen before user starts bot)
+        try {
+            $descResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyDescription", [
+                'description' => "🏪 ជំនួយការផ្លូវការរបស់ S Tech Store Cambodia\n\n• 💻 ទិញកុំព្យូទ័រ Laptops & Custom PC\n• 📦 តាមដានស្ថានភាពការបញ្ជាទិញ (Orders)\n• 💰 កាបូបលុយ & សមតុល្យ (Smart Wallet)\n• 🪙 ពិន្ទុ S-Coins & VIP Member\n• 🔧 សេវាជួសជុល & Upgrade ឧបករណ៍បច្ចេកវិទ្យា\n\n👉 ចុច Start ដើម្បីចាប់ផ្តើម ឬបើកទិញក្នុង Mini App ភ្លាមៗ!",
+            ]);
+            $results['setMyDescription'] = $descResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyDescription'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 4. Set bot short description
+        try {
+            $shortResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyShortDescription", [
+                'short_description' => "🛍️ S Tech Store Cambodia — Laptops, PC, កាបូបលុយ, តាមដាន Orders និង Mini App ទំនើប",
+            ]);
+            $results['setMyShortDescription'] = $shortResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyShortDescription'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        $allOk = (($results['setMyCommands']['ok'] ?? false) === true)
+            && (($results['setChatMenuButton']['ok'] ?? false) === true);
+
+        return [
+            'success' => $allOk,
+            'bot_username' => self::getCustomerBotUsername(),
+            'commands_count' => count($commands),
+            'details' => $results,
+        ];
     }
 
     /**

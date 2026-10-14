@@ -1480,6 +1480,7 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/telegram/disconnect', [\App\Http\Controllers\TelegramController::class, 'disconnect']);
     Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
     Route::post('/admin/telegram/broadcast', [\App\Http\Controllers\TelegramController::class, 'broadcast']);
+    Route::match(['get', 'post'], '/admin/telegram/setup-customer-bot', [\App\Http\Controllers\TelegramController::class, 'setupCustomerBot']);
 
     // System Settings & Real 2FA (Two-Factor Authentication)
     Route::get('/admin/settings', [\App\Http\Controllers\AdminSettingsController::class, 'getSettings']);

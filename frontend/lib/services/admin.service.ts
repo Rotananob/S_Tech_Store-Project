@@ -254,6 +254,9 @@ export interface TelegramStatus {
   connected_at?: string | null;
   connected_by?: string | null;
   bot_username?: string | null;
+  customer_bot_username?: string | null;
+  customer_bot_configured?: boolean;
+  customer_bot_miniapp_url?: string;
   notify_orders: boolean;
   notify_low_stock: boolean;
   notify_repairs: boolean;
@@ -326,6 +329,11 @@ export const updateTelegramSettings = async (settings: Partial<TelegramStatus> &
 
 export const broadcastTelegramMessage = async (message: string, topic: string = "chat", sender?: string): Promise<{ success: boolean; message: string; error?: string }> => {
   const res = await api.post("/admin/telegram/broadcast", { message, topic, sender });
+  return res.data;
+};
+
+export const setupCustomerBot = async (): Promise<{ success: boolean; bot_username?: string; commands_count?: number; details?: any; error?: string }> => {
+  const res = await api.post("/admin/telegram/setup-customer-bot");
   return res.data;
 };
 

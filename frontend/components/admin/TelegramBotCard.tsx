@@ -10,7 +10,7 @@ import {
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
   disconnectTelegram, updateTelegramSettings, setupTelegramTopics, 
-  pairTelegramGroup, TelegramStatus, TelegramPairLink 
+  pairTelegramGroup, setupCustomerBot, TelegramStatus, TelegramPairLink 
 } from "@/lib/services/admin.service";
 
 const OFFICIAL_BOT_USERNAME = "s_tech_storeBot";
@@ -22,6 +22,8 @@ export default function TelegramBotCard() {
   const [testing, setTesting] = useState(false);
   const [settingUpTopics, setSettingUpTopics] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [syncingCustomerBot, setSyncingCustomerBot] = useState(false);
+  const [showBotFatherGuide, setShowBotFatherGuide] = useState(false);
   const [pairData, setPairData] = useState<TelegramPairLink | null>(null);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -60,6 +62,23 @@ export default function TelegramBotCard() {
       showToast(err.response?.data?.error || "បរាជ័យក្នុងការភ្ជាប់ Telegram Group", "error");
     } finally {
       setManualConnecting(false);
+    }
+  };
+
+  const handleSyncCustomerBot = async () => {
+    setSyncingCustomerBot(true);
+    try {
+      const res = await setupCustomerBot();
+      if (res.success) {
+        showToast("បានធ្វើសមកាលកម្ម Commands & Mini App Menu ជោគជ័យ ១០០%!");
+        fetchStatus(false);
+      } else {
+        showToast(res.error || "បរាជ័យក្នុងការធ្វើសមកាលកម្ម", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.error || "បរាជ័យក្នុងការធ្វើសមកាលកម្ម Bot", "error");
+    } finally {
+      setSyncingCustomerBot(false);
     }
   };
 
@@ -293,37 +312,178 @@ export default function TelegramBotCard() {
 
       <div className="p-5 sm:p-8 flex flex-col gap-6">
 
-        {/* ── STORE BOT VERIFIED IDENTITY STRIP ── */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-sky-50/80 via-white to-gray-50 border border-sky-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-[#0088cc] text-white flex items-center justify-center shrink-0 shadow-md">
-              <Bot size={26} />
+        {/* ── DUAL BOT ARCHITECTURE SYSTEM ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          
+          {/* BOT 1: STAFF & ORDER NOTIFICATIONS SENTINEL */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-sky-50/90 via-white to-gray-50 border border-sky-100 flex flex-col justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#0088cc] text-white flex items-center justify-center shrink-0 shadow-md">
+                <Bot size={26} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Bot 1 • Staff Sentinel</span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                    Group Alerts & Topics
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-base font-black text-gray-900 font-mono truncate">
+                    @{botUsername}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 size={12} className="text-emerald-600" /> Active
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                  ទទួលបន្ទុកបាញ់ Alert ការបញ្ជាទិញថ្មី (Orders), ជួសជុល (Repairs), ស្តុកទំនិញ (Stock), និង Chat ចូលក្នុង Telegram Group
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="text-[11px] text-gray-500 font-extrabold uppercase tracking-wider">
-                Official Store Bot
-              </div>
-              <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                <span className="text-base sm:text-lg font-black text-gray-900 font-mono">
-                  @{botUsername}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  <CheckCircle2 size={12} className="text-emerald-600" /> Pre-Configured & Verified
-                </span>
-              </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-sky-100/70">
+              <span className="text-[11px] font-bold text-gray-400">
+                {status?.connected ? `✅ ភ្ជាប់ទៅ Group: ${status.chat_title || 'Store Team'}` : '⏳ កំពុងរង់ចាំភ្ជាប់ Group'}
+              </span>
+              <a
+                href={`https://t.me/${botUsername}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-[#0088cc] border border-sky-200 transition-colors shadow-xs no-underline shrink-0"
+              >
+                <ExternalLink size={12} />
+                <span>បើកមើល Bot 1</span>
+              </a>
             </div>
           </div>
 
-          <a
-            href={`https://t.me/${botUsername}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-[#0088cc] border border-sky-200 transition-colors shadow-xs no-underline shrink-0"
-          >
-            <ExternalLink size={13} />
-            <span>ពិនិត្យមើល Bot លើ Telegram</span>
-          </a>
+          {/* BOT 2: CUSTOMER ASSISTANT & MINI APP BOT */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-white to-sky-50/50 border border-indigo-100 flex flex-col justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                <Sparkles size={24} className="text-amber-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Bot 2 • Customer Assistant</span>
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                    Mini App & Customer 1-Click
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-base font-black text-gray-900 font-mono truncate">
+                    @{status?.customer_bot_username || "S_TECH_ASSISTANTBOT"}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 size={12} className="text-emerald-600" /> 11 Commands & Mini App
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                  ទទួលបន្ទុក Private Chat អតិថិជន, 1-Click Login, បើក Mini App, ឆែកកាបូបលុយ, S-Coins, និងតាមដាន Orders
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-indigo-100/70">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleSyncCustomerBot}
+                  disabled={syncingCustomerBot}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw size={12} className={syncingCustomerBot ? "animate-spin" : ""} />
+                  <span>{syncingCustomerBot ? "កំពុង Sync..." : "⚡ Sync Commands & Menu"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBotFatherGuide(!showBotFatherGuide)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Settings size={12} />
+                  <span>{showBotFatherGuide ? "បិទ Guide" : "BotFather Guide"}</span>
+                </button>
+              </div>
+
+              <a
+                href={`https://t.me/${status?.customer_bot_username || "S_TECH_ASSISTANTBOT"}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-gray-100 text-indigo-600 border border-indigo-200 transition-colors shadow-xs no-underline shrink-0"
+              >
+                <ExternalLink size={12} />
+                <span>សាកល្បង Chat</span>
+              </a>
+            </div>
+          </div>
         </div>
+
+        {/* ── BOTFATHER GUIDE ACCORDION / COLLAPSIBLE ── */}
+        {showBotFatherGuide && (
+          <div className="p-5 rounded-2xl bg-gray-900 text-gray-100 border border-gray-800 shadow-xl flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings size={18} className="text-amber-400" />
+                <h4 className="text-sm font-black text-white m-0">
+                  ការកំណត់ BotFather សម្រាប់ Customer Assistant Bot (@{status?.customer_bot_username || "S_TECH_ASSISTANTBOT"})
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBotFatherGuide(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed m-0">
+              ប្រព័ន្ធបានបញ្ជាទៅ Telegram API ដោយស្វ័យប្រវត្តរួចរាល់ហើយ! ប៉ុន្តែប្រសិនបើអ្នកចង់ផ្ទៀងផ្ទាត់ ឬកែប្រែដោយផ្ទាល់ក្នុង <b>@BotFather</b> លើ Telegram សូមអនុវត្តតាមជំហានខាងក្រោម៖
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Step 1: Menu Button */}
+              <div className="p-4 rounded-xl bg-gray-800/80 border border-gray-700/80 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-amber-300">១. កំណត់ Mini App Menu Button</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">/setmenubutton</span>
+                </div>
+                <p className="text-xs text-gray-300 m-0">
+                  ក្នុង @BotFather វាយ <code>/setmenubutton</code> រួចជ្រើសរើស <code>@{status?.customer_bot_username || "S_TECH_ASSISTANTBOT"}</code>៖
+                </p>
+                <div className="text-[11px] font-mono bg-black/50 p-2.5 rounded-lg border border-gray-700 flex flex-col gap-1 text-gray-200">
+                  <div>• URL: <span className="text-emerald-400 select-all">https://www.s-tech-store.tech</span></div>
+                  <div>• Button Text: <span className="text-sky-300 select-all">🛍️ S Tech Store</span></div>
+                </div>
+              </div>
+
+              {/* Step 2: Commands */}
+              <div className="p-4 rounded-xl bg-gray-800/80 border border-gray-700/80 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-sky-300">២. កំណត់ Commands List</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">/setcommands</span>
+                </div>
+                <p className="text-xs text-gray-300 m-0">
+                  ក្នុង @BotFather វាយ <code>/setcommands</code> រួច Copy អត្ថបទខាងក្រោមបិទចូល៖
+                </p>
+                <div className="text-[10px] font-mono bg-black/50 p-2 rounded-lg border border-gray-700 max-h-28 overflow-y-auto text-gray-300">
+                  start - 🏠 មឺនុយមេ &amp; បើក Mini App<br/>
+                  shop - 💻 មើលផលិតផល Laptops, PC, Parts<br/>
+                  orders - 📦 តាមដានការបញ្ជាទិញ<br/>
+                  wallet - 💰 កាបូបលុយ &amp; សមតុល្យ<br/>
+                  points - 🪙 ពិន្ទុ S-Coins &amp; VIP<br/>
+                  promo - 🔥 ប្រូម៉ូសិន &amp; បញ្ចុះតម្លៃ<br/>
+                  repair - 🔧 សេវាជួសជុល &amp; Upgrade<br/>
+                  ask - ❓ សំណួរញឹកញាប់ &amp; FAQ<br/>
+                  contact - 📞 ទំនាក់ទំនង &amp; ទីតាំង<br/>
+                  help - 📋 ជំនួយការប្រើប្រាស់<br/>
+                  unlink - 🔌 ផ្តាច់គណនី Telegram
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── CASE 1: GROUP CONNECTED ── */}
         {status?.connected ? (

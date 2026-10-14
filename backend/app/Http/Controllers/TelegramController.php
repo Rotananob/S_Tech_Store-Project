@@ -35,6 +35,9 @@ class TelegramController extends Controller
             'connected_at' => $settings['connected_at'] ?? null,
             'connected_by' => $settings['connected_by'] ?? null,
             'bot_username' => $settings['bot_username'] ?? null,
+            'customer_bot_username' => TelegramService::getCustomerBotUsername(),
+            'customer_bot_configured' => !empty(TelegramService::getCustomerBotToken()),
+            'customer_bot_miniapp_url' => 'https://www.s-tech-store.tech',
             'notify_orders' => (bool)($settings['notify_orders'] ?? true),
             'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
             'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
@@ -278,6 +281,15 @@ class TelegramController extends Controller
                 'notify_shifts' => (bool)($settings['notify_shifts'] ?? true),
             ],
         ]);
+    }
+
+    /**
+     * Setup Customer Assistant Bot (Commands, native Mini App chat menu button, descriptions)
+     */
+    public function setupCustomerBot(Request $request)
+    {
+        $res = TelegramService::setupCustomerBotCommandsAndMenu();
+        return response()->json($res);
     }
 
     /**
