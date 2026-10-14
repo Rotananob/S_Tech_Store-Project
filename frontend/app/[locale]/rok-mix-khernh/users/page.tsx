@@ -679,7 +679,7 @@ export default function AdminUsersPage() {
           }`}
         >
           <Users size={16} />
-          <span>👤 អតិថិជន (Customers)</span>
+          <span>អតិថិជន (Customers)</span>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
             roleTab === "customers" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
@@ -697,7 +697,7 @@ export default function AdminUsersPage() {
           }`}
         >
           <Briefcase size={16} />
-          <span>💼 បុគ្គលិក (Staff)</span>
+          <span>បុគ្គលិក (Staff)</span>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
             roleTab === "staff" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
@@ -715,7 +715,7 @@ export default function AdminUsersPage() {
           }`}
         >
           <ShieldCheck size={16} />
-          <span>🛡️ អ្នកគ្រប់គ្រង & មហាសិទ្ធិ (Admins & Owner)</span>
+          <span>អ្នកគ្រប់គ្រង & ម្ចាស់ប្រព័ន្ធ (Admins & System Owner)</span>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
             roleTab === "admins" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
@@ -733,7 +733,7 @@ export default function AdminUsersPage() {
           }`}
         >
           <Globe size={16} />
-          <span>🌐 ទាំងអស់ (All Accounts)</span>
+          <span>ទាំងអស់ (All Accounts)</span>
           <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
             roleTab === "all" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
@@ -835,7 +835,7 @@ export default function AdminUsersPage() {
                             {isSystemOwner(u.email) || u.role === "super_admin" ? (
                               <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-400 flex items-center gap-1 shadow-xs">
                                 <Crown size={12} className="text-amber-700" />
-                                <span>💎 ម្ចាស់ប្រព័ន្ធ (System Owner)</span>
+                                <span>ម្ចាស់ប្រព័ន្ធ (System Owner)</span>
                               </span>
                             ) : isUserStaff(u) ? (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-300 flex items-center gap-1 shadow-xs">
@@ -849,7 +849,8 @@ export default function AdminUsersPage() {
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200 flex items-center gap-1">
-                                <span>👤 អតិថិជន</span>
+                                <UserCheck size={11} className="text-gray-500" />
+                                <span>អតិថិជន (Customer)</span>
                               </span>
                             )}
                           </div>

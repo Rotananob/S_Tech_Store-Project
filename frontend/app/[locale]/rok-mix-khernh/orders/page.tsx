@@ -45,16 +45,16 @@ const ITEMS_PER_PAGE = 8;
 const NOTIF_TEMPLATES = [
   {
     id: "confirmed",
-    name: "📦 បញ្ជាក់ការបញ្ជាទិញ (Confirmed)",
-    title: "📦 ការបញ្ជាទិញត្រូវបានបញ្ជាក់ (Order Confirmed)",
+    name: "បញ្ជាក់ការបញ្ជាទិញ (Confirmed)",
+    title: "ការបញ្ជាទិញត្រូវបានបញ្ជាក់ (Order Confirmed)",
     status: "processing",
     message: (orderId: string) =>
       `ការបញ្ជាទិញ #${orderId} របស់អ្នកត្រូវបានបញ្ជាក់ដោយជោគជ័យ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`,
   },
   {
     id: "shipping",
-    name: "🚚 កំពុងដឹកជញ្ជូន (Out for Delivery)",
-    title: "🚚 ទំនិញកំពុងដឹកជញ្ជូន (Out for Delivery)",
+    name: "កំពុងដឹកជញ្ជូន (Out for Delivery)",
+    title: "ទំនិញកំពុងដឹកជញ្ជូន (Out for Delivery)",
     status: "shipped",
     message: (orderId: string, tracking?: string) =>
       `ទំនិញ #${orderId} របស់អ្នកកំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូន${
@@ -63,32 +63,32 @@ const NOTIF_TEMPLATES = [
   },
   {
     id: "delivered",
-    name: "✅ ដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
-    title: "✅ ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
+    name: "ដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
+    title: "ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ (Delivered)",
     status: "delivered",
     message: (orderId: string) =>
       `ការបញ្ជាទិញ #${orderId} ត្រូវបានប្រគល់ជូនដោយជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store!`,
   },
   {
     id: "paid",
-    name: "💳 ផ្ទៀងផ្ទាត់ការបង់ប្រាក់ (Payment Verified)",
-    title: "💳 ការទូទាត់ប្រាក់ទទួលបានជោគជ័យ",
+    name: "ផ្ទៀងផ្ទាត់ការបង់ប្រាក់ (Payment Verified)",
+    title: "ការទូទាត់ប្រាក់ទទួលបានជោគជ័យ",
     status: "processing",
     message: (orderId: string) =>
       `ការទូទាត់ប្រាក់សម្រាប់ការបញ្ជាទិញ #${orderId} ត្រូវបានផ្ទៀងផ្ទាត់ដោយជោគជ័យ។ ហាងកំពុងដំណើរការកញ្ចប់ទំនិញជូនអ្នក!`,
   },
   {
     id: "cancelled",
-    name: "❌ បោះបង់ការបញ្ជាទិញ (Order Cancelled)",
-    title: "❌ ការបញ្ជាទិញត្រូវបានបោះបង់",
+    name: "បោះបង់ការបញ្ជាទិញ (Order Cancelled)",
+    title: "ការបញ្ជាទិញត្រូវបានបោះបង់",
     status: "cancelled",
     message: (orderId: string) =>
       `ការបញ្ជាទិញ #${orderId} ត្រូវបានបោះបង់។ ប្រសិនបើលោកអ្នកមានចម្ងល់ ឬសំណូមពរ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin របស់ S Tech Store។`,
   },
   {
     id: "delay",
-    name: "⚠️ ដំណឹងបន្ទាន់ / ព័ត៌មានបន្ថែម (Notice)",
-    title: "⚠️ ព័ត៌មានបន្ថែមទាក់ទងនឹងការបញ្ជាទិញ",
+    name: "ដំណឹងបន្ទាន់ / ព័ត៌មានបន្ថែម (Notice)",
+    title: "ព័ត៌មានបន្ថែមទាក់ទងនឹងការបញ្ជាទិញ",
     status: "",
     message: (orderId: string) =>
       `ជំរាបសួរ! ក្រុមការងារ S Tech Store សូមជម្រាបជូនដំណឹងបន្ថែមអំពីការបញ្ជាទិញ #${orderId} របស់អ្នក...`,
@@ -358,7 +358,7 @@ export default function OrderManagementPage() {
   // Push Notification Modal
   const openPushModal = (order: Order) => {
     setNotifyOrder(order);
-    setNotifyTitle(`📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #${order.order_id}`);
+    setNotifyTitle(`បច្ចុប្បន្នភាពការបញ្ជាទិញ #${order.order_id}`);
     setNotifyMessage(
       `ការបញ្ជាទិញ #${order.order_id} របស់អ្នកត្រូវបានបញ្ជាក់រួចរាល់ហើយ! បុគ្គលិកកំពុងរៀបចំវេចខ្ចប់ទំនិញជូនលោកអ្នក។`
     );
@@ -961,10 +961,10 @@ export default function OrderManagementPage() {
                       onChange={(e) => setEditForm({ ...editForm, payment_status: e.target.value })}
                       className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white"
                     >
-                      <option value="pending">⏳ Pending (រង់ចាំទូទាត់)</option>
-                      <option value="paid">✅ Paid (បង់ប្រាក់រួច)</option>
-                      <option value="failed">❌ Failed (បរាជ័យ)</option>
-                      <option value="refunded">🔄 Refunded (បានសងប្រាក់វិញ)</option>
+                      <option value="pending">Pending (រង់ចាំទូទាត់)</option>
+                      <option value="paid">Paid (បង់ប្រាក់រួច)</option>
+                      <option value="failed">Failed (បរាជ័យ)</option>
+                      <option value="refunded">Refunded (បានសងប្រាក់វិញ)</option>
                     </select>
                     <ChevronDown
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -1044,8 +1044,8 @@ export default function OrderManagementPage() {
                     onChange={(e) => setEditForm({ ...editForm, delivery_type: e.target.value })}
                     className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 bg-white"
                   >
-                    <option value="pnompenh">🛵 ភ្នំពេញ (Delivery Fee: $2.00)</option>
-                    <option value="province">🚚 ខេត្ត-ក្រុង (Delivery Fee: $3.00)</option>
+                    <option value="pnompenh">ភ្នំពេញ (Delivery Fee: $2.00)</option>
+                    <option value="province">ខេត្ត-ក្រុង (Delivery Fee: $3.00)</option>
                   </select>
                 </div>
 
@@ -1222,7 +1222,8 @@ export default function OrderManagementPage() {
                 </div>
                 <div className="text-[11px] text-gray-600 flex flex-wrap items-center gap-3">
                   <span className="flex items-center gap-1.5 font-mono">
-                    ✉️ {notifyCustomEmail || notifyOrder.customer_email || notifyOrder.customer_account?.email || "No email"}
+                    <Mail size={12} className="text-gray-500" />
+                    <span>{notifyCustomEmail || notifyOrder.customer_email || notifyOrder.customer_account?.email || "No email"}</span>
                     {!isSyntheticEmail(notifyCustomEmail || notifyOrder.customer_email || notifyOrder.customer_account?.email) ? (
                       <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                         Real Gmail
@@ -1233,7 +1234,10 @@ export default function OrderManagementPage() {
                       </span>
                     )}
                   </span>
-                  <span>📞 {notifyOrder.customer_phone || "No phone"}</span>
+                  <span className="flex items-center gap-1 font-mono">
+                    <Phone size={12} className="text-gray-500" />
+                    <span>{notifyOrder.customer_phone || "No phone"}</span>
+                  </span>
                 </div>
                 <div className="mt-2 pt-2 border-t border-purple-200/60 flex items-center gap-2 text-[11px]">
                   {notifyOrder.customer_account?.has_telegram ? (
@@ -1436,7 +1440,7 @@ export default function OrderManagementPage() {
                   type="text"
                   value={notifyTitle}
                   onChange={(e) => setNotifyTitle(e.target.value)}
-                  placeholder="e.g. 📦 ការបញ្ជាទិញត្រូវបានបញ្ជាក់"
+                  placeholder="e.g. ការបញ្ជាទិញត្រូវបានបញ្ជាក់"
                   className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                 />
               </div>
@@ -1646,8 +1650,8 @@ export default function OrderManagementPage() {
                 className="w-full py-2.5 pl-3.5 pr-10 border border-gray-200 rounded-xl text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all bg-white"
               >
                 <option value="all">ទាំងអស់ (All Accounts)</option>
-                <option value="telegram">🟢 Telegram Connected Only</option>
-                <option value="web_only">🌐 Web Account Only</option>
+                <option value="telegram">Telegram Connected Only</option>
+                <option value="web_only">Web Account Only</option>
               </select>
               <ChevronDown
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"

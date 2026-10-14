@@ -160,7 +160,7 @@ export default function TelegramBotCard() {
     try {
       const res = await testTelegramNotification();
       if (res.success) {
-        showToast("✓ សារសាកល្បងត្រូវបានផ្ញើទៅ Telegram Group ជោគជ័យ!");
+        showToast("សារសាកល្បងត្រូវបានផ្ញើទៅ Telegram Group ជោគជ័យ!");
       } else {
         showToast((res as any).error || res.message || "បរាជ័យក្នុងការផ្ញើសារសាកល្បង", "error");
       }
@@ -176,9 +176,9 @@ export default function TelegramBotCard() {
     try {
       const res = await setupTelegramTopics();
       if ((res as any).already_exists) {
-        showToast("✓ Forum Topics ត្រូវបានរៀបចំរួចរាល់ហើយ ដំណើរការល្អ!");
+        showToast("Forum Topics ត្រូវបានរៀបចំរួចរាល់ហើយ ដំណើរការល្អ!");
       } else if (res.success) {
-        showToast("✓ Forum Topics ត្រូវបានបង្កើត និងរៀបចំជោគជ័យ!");
+        showToast("Forum Topics ត្រូវបានបង្កើត និងរៀបចំជោគជ័យ!");
         fetchStatus();
       } else {
         showToast(res.message || (res as any).error || "សូមបើកសិទ្ធិ Admin ឲ្យ Bot ជាមុនសិន", "error");
@@ -956,15 +956,15 @@ export default function TelegramBotCard() {
                     <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2 text-xs text-gray-700">
                       <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
                         <span>Manage Topics</span>
-                        <span className="text-emerald-600 text-xs">Enabled ✓ (Auto Pre-selected)</span>
+                        <span className="text-emerald-600 text-xs inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Enabled (Auto Pre-selected)</span>
                       </div>
                       <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
                         <span>Change Group Info</span>
-                        <span className="text-emerald-600 text-xs">Enabled ✓</span>
+                        <span className="text-emerald-600 text-xs inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Enabled</span>
                       </div>
                       <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 font-bold">
                         <span>Pin Messages</span>
-                        <span className="text-emerald-600 text-xs">Enabled ✓</span>
+                        <span className="text-emerald-600 text-xs inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Enabled</span>
                       </div>
                     </div>
                   </div>

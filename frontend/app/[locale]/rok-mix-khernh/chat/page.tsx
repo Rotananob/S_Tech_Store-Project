@@ -49,11 +49,11 @@ import {
 } from "@/lib/services/chat.service";
 
 const QUICK_REPLIES = [
-  "👋 សួស្តីបាទ! តើ S Tech Store អាចជួយអ្វីបានដែរ?",
-  "📦 ទំនិញនេះមានក្នុងស្តុកស្រាប់ អាចកម្ម៉ង់បានភ្លាមៗបាទ!",
-  "🚚 យើងមានសេវាដឹកជញ្ជូនរហ័ស ២៥ ខេត្ត-ក្រុងបាទ!",
-  "💵 តម្លៃនេះមានការធានាផ្លូវការជូនត្រឹមត្រូវបាទ!",
-  "📍 សូមជួយផ្ញើលេខទូរស័ព្ទ និងទីតាំងដឹកជញ្ជូនមកបាទ!",
+  "សួស្តីបាទ! តើ S Tech Store អាចជួយអ្វីបានដែរ?",
+  "ទំនិញនេះមានក្នុងស្តុកស្រាប់ អាចកម្ម៉ង់បានភ្លាមៗបាទ!",
+  "យើងមានសេវាដឹកជញ្ជូនរហ័ស ២៥ ខេត្ត-ក្រុងបាទ!",
+  "តម្លៃនេះមានការធានាផ្លូវការជូនត្រឹមត្រូវបាទ!",
+  "សូមជួយផ្ញើលេខទូរស័ព្ទ និងទីតាំងដឹកជញ្ជូនមកបាទ!",
 ];
 
 export default function AdminRealtimeChatPage() {
@@ -193,10 +193,10 @@ export default function AdminRealtimeChatPage() {
     showToast("កំពុងផ្អាក AI Bot...", "info");
     try {
       await setChatAiStatus(selectedChatId, true, currentStaff.name);
-      showToast("✅ បានផ្អាក AI Bot ជោគជ័យ! អ្នកអាចជជែកផ្ទាល់ជាមួយអតិថិជន", "success");
+      showToast("បានផ្អាក AI Bot ជោគជ័យ! អ្នកអាចជជែកផ្ទាល់ជាមួយអតិថិជន", "success");
     } catch (err) {
       console.error("Failed to pause AI:", err);
-      showToast("❌ មិនអាចផ្អាក AI បានទេ", "error");
+      showToast("មិនអាចផ្អាក AI បានទេ", "error");
     } finally {
       setTogglingAi(false);
     }
@@ -209,10 +209,10 @@ export default function AdminRealtimeChatPage() {
     showToast("កំពុងបើកដំណើរការ AI Bot ឡើងវិញ...", "info");
     try {
       await setChatAiStatus(selectedChatId, false, currentStaff.name);
-      showToast("✅ បានបើកដំណើរការ AI Bot ឡើងវិញជោគជ័យ", "success");
+      showToast("បានបើកដំណើរការ AI Bot ឡើងវិញជោគជ័យ", "success");
     } catch (err) {
       console.error("Failed to resume AI:", err);
-      showToast("❌ មិនអាចបើកដំណើរការ AI ឡើងវិញបានទេ", "error");
+      showToast("មិនអាចបើកដំណើរការ AI ឡើងវិញបានទេ", "error");
     } finally {
       setTogglingAi(false);
     }
@@ -224,9 +224,9 @@ export default function AdminRealtimeChatPage() {
     setIsUpdatingStatus(true);
     try {
       await setChatTicketStatus(selectedChatId, "resolved", currentStaff.name);
-      showToast("✅ Ticket ការសន្ទនាត្រូវបានបញ្ចប់ជោគជ័យ!", "success");
+      showToast("Ticket ការសន្ទនាត្រូវបានបញ្ចប់ជោគជ័យ!", "success");
     } catch (err) {
-      showToast("❌ មិនអាចបញ្ចប់ Ticket បានទេ", "error");
+      showToast("មិនអាចបញ្ចប់ Ticket បានទេ", "error");
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -238,9 +238,9 @@ export default function AdminRealtimeChatPage() {
     setIsUpdatingStatus(true);
     try {
       await setChatTicketStatus(selectedChatId, "in_progress", currentStaff.name);
-      showToast("🔄 Ticket ត្រូវបានបើកដំណើរការឡើងវិញ", "success");
+      showToast("Ticket ត្រូវបានបើកដំណើរការឡើងវិញ", "success");
     } catch (err) {
-      showToast("❌ មិនអាចបើក Ticket បានទេ", "error");
+      showToast("មិនអាចបើក Ticket បានទេ", "error");
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -252,9 +252,9 @@ export default function AdminRealtimeChatPage() {
     const nextState = !activeChat.is_archived;
     try {
       await archiveChatSession(selectedChatId, nextState);
-      showToast(nextState ? "🗄️ បានដាក់ក្នុងបណ្ណសារ (Archived)" : "📂 បានដកចេញពីបណ្ណសារ (Unarchived)", "info");
+      showToast(nextState ? "បានដាក់ក្នុងបណ្ណសារ (Archived)" : "បានដកចេញពីបណ្ណសារ (Unarchived)", "info");
     } catch {
-      showToast("❌ មិនអាចផ្លាស់ប្តូរបណ្ណសារបានទេ", "error");
+      showToast("មិនអាចផ្លាស់ប្តូរបណ្ណសារបានទេ", "error");
     }
   };
 
@@ -264,12 +264,12 @@ export default function AdminRealtimeChatPage() {
     setIsDeleting(true);
     try {
       await deleteChatSession(selectedChatId);
-      showToast("🗑️ បានលុបការសន្ទនាចេញពីប្រព័ន្ធដោយជោគជ័យ", "success");
+      showToast("បានលុបការសន្ទនាចេញពីប្រព័ន្ធដោយជោគជ័យ", "success");
       setDeleteConfirmOpen(false);
       const remaining = chats.filter((c) => c.id !== selectedChatId);
       setSelectedChatId(remaining.length > 0 ? remaining[0].id : null);
     } catch (err) {
-      showToast("❌ បរាជ័យក្នុងការលុបការសន្ទនា", "error");
+      showToast("បរាជ័យក្នុងការលុបការសន្ទនា", "error");
     } finally {
       setIsDeleting(false);
     }
@@ -278,7 +278,7 @@ export default function AdminRealtimeChatPage() {
   const handleCopy = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
-    showToast(`📋 បានចម្លង ${field}`, "info");
+    showToast(`បានចម្លង ${field}`, "info");
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -356,11 +356,11 @@ export default function AdminRealtimeChatPage() {
       });
 
       if (alertRes.telegram_alerted) {
-        showToast("✅ បានឆ្លើយតប និងបាញ់ Alert ទៅ Telegram របស់អតិថិជនជោគជ័យ!", "success");
+        showToast("បានឆ្លើយតប និងបាញ់ Alert ទៅ Telegram របស់អតិថិជនជោគជ័យ!", "success");
       }
     } catch (err) {
       console.error("Failed to send reply:", err);
-      showToast("❌ បរាជ័យក្នុងការផ្ញើសារ! សូមព្យាយាមម្តងទៀត", "error");
+      showToast("បរាជ័យក្នុងការផ្ញើសារ! សូមព្យាយាមម្តងទៀត", "error");
     } finally {
       setSending(false);
     }
@@ -850,8 +850,15 @@ export default function AdminRealtimeChatPage() {
                         className={`flex flex-col ${isStaff ? "items-end" : "items-start"}`}
                       >
                         {/* Sender Label */}
-                        <span className="text-[10px] font-bold text-gray-400 mb-1 px-1">
-                          {isStaff ? `🛡️ ${msg.senderName} (Staff)` : activeChat.userName}
+                        <span className="text-[10px] font-bold text-gray-400 mb-1 px-1 flex items-center gap-1">
+                          {isStaff ? (
+                            <>
+                              <ShieldCheck size={11} className="text-[#8B1A1A]" />
+                              <span>{msg.senderName} (Staff)</span>
+                            </>
+                          ) : (
+                            <span>{activeChat.userName}</span>
+                          )}
                         </span>
 
                         {/* Message Bubble */}

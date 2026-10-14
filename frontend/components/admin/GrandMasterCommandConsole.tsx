@@ -29,7 +29,8 @@ import {
   Timer,
   Power,
   Ban,
-  Unlock
+  Unlock,
+  Wrench
 } from "lucide-react";
 import {
   getMasterSystemStatus,
@@ -229,7 +230,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
       setDeniedModal({
         show: true,
         buttonName: buttonTitle,
-        description: `លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានមហាសិទ្ធិចុចដំណើរការប៊ូតុង "${buttonTitle}" នេះបានឡើយ។ មហាសិទ្ធិនេះត្រូវបានរក្សាទុកសម្រាប់តែម្ចាស់ប្រព័ន្ធ (Super Admin / Master Owner) ប៉ុណ្ណោះ!`,
+        description: `លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការប៊ូតុង "${buttonTitle}" នេះបានឡើយ។ សិទ្ធិនេះត្រូវបានរក្សាទុកសម្រាប់តែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះ!`,
       });
       return;
     }
@@ -296,7 +297,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             {isSuperAdmin ? (
               <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-black uppercase flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                <span>មហាសិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ (Master Active)</span>
+                <span>សិទ្ធិម្ចាស់ប្រព័ន្ធកំពូល (Master Active)</span>
               </span>
             ) : (
               <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-gray-300 text-[10px] font-bold uppercase flex items-center gap-1.5">
@@ -307,12 +308,12 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white m-0 flex items-center gap-2">
-            <span>មជ្ឈមណ្ឌលមហាសិទ្ធិម្ចាស់ប្រព័ន្ធ</span>
+            <span>មជ្ឈមណ្ឌលបញ្ជាកំពូលម្ចាស់ប្រព័ន្ធ</span>
             <span className="text-amber-400 font-mono text-xs sm:text-sm">CONSOLE v1.1.0</span>
           </h2>
           <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl leading-relaxed">
             {isSuperAdmin
-              ? "លោកអ្នកមានមហាសិទ្ធិបញ្ជាគ្រប់គ្រងពេញលេញលើប្រព័ន្ធហាង សុវត្ថិភាពសាច់ប្រាក់ Cache និងការបិទ/បើកហាងបន្ទាន់។"
+              ? "លោកអ្នកមានសិទ្ធិបញ្ជាគ្រប់គ្រងពេញលេញលើប្រព័ន្ធហាង សុវត្ថិភាពសាច់ប្រាក់ Cache និងការបិទ/បើកហាងបន្ទាន់។"
               : "លោកអ្នកជា Admin ធម្មតាអាចមើលឃើញស្ថានភាពបច្ចុប្បន្នបាន ប៉ុន្តែរាល់ប៊ូតុងបញ្ជាទាំងអស់ត្រូវបានការពារ (View-Only)។"}
           </p>
         </div>
@@ -469,7 +470,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               }`}
             >
               {!isSuperAdmin ? (
-                <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+                <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
               ) : !state.vacation_mode && !state.maintenance_mode ? (
                 <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
               ) : (
@@ -501,7 +502,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white">🏖️ បិទបណ្ដោះអាសន្ន / ឈប់សម្រាក</h4>
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <Palmtree size={15} className="text-amber-400" />
+                <span>បិទបណ្ដោះអាសន្ន / ឈប់សម្រាក</span>
+              </h4>
               <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
                 បិទសម្រាកតាមកាលកំណត់ (ឧ. ៣ ថ្ងៃ)។ UI បង្ហាញផ្ទាំង Luxury ជាមួយ Live Countdown និង auto direct បើកហាងឡើងវិញស្វ័យប្រវត្តពេលដល់ម៉ោង!
               </p>
@@ -509,8 +513,9 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               {/* Real-time Ticker Preview if Active */}
               {state.vacation_mode && (
                 <div className="mt-2.5 p-2.5 rounded-xl bg-black/50 border border-amber-500/30 text-center">
-                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1">
-                    ⏳ ពេលវេលានៅសល់មុនពេលបើកហាងវិញ
+                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Clock size={11} className="text-amber-400" />
+                    <span>ពេលវេលានៅសល់មុនពេលបើកហាងវិញ</span>
                   </div>
                   <div className="text-base font-black font-mono text-white flex items-center justify-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.days).padStart(2, '0')}d</span>:
@@ -561,7 +566,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                     setDeniedModal({
                       show: true,
                       buttonName: "កំណត់ការឈប់សម្រាក & UI Countdown",
-                      description: "លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានមហាសិទ្ធិចុចដំណើរការបិទហាងសម្រាកបានឡើយ!",
+                      description: "លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការបិទហាងសម្រាកបានឡើយ!",
                     });
                     return;
                   }
@@ -577,7 +582,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 }`}
               >
                 {!isSuperAdmin ? (
-                  <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+                  <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
                 ) : state.vacation_mode ? (
                   <><Clock size={13} /><span>កែប្រែពេល</span></>
                 ) : (
@@ -610,7 +615,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white">🛠️ ជួសជុលប្រព័ន្ធ (Maintenance)</h4>
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <Wrench size={15} className="text-amber-400" />
+                <span>ជួសជុលប្រព័ន្ធ (Maintenance)</span>
+              </h4>
               <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
                 បិទហាងដាក់ផ្ទាំងជួសជុលប្រព័ន្ធ (Technical Gears UI) ពេលធ្វើបច្ចុប្បន្នភាព Server ឬប្រព័ន្ធទូទាត់។
               </p>
@@ -644,7 +652,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               }`}
             >
               {!isSuperAdmin ? (
-                <><Lock size={12} className="text-amber-400" /><span>🔒 មហាសិទ្ធិប៉ុណ្ណោះ</span></>
+                <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
               ) : state.maintenance_mode ? (
                 <><Power size={13} /><span>បិទ Maintenance (Go Live)</span></>
               ) : (
@@ -672,15 +680,16 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 ${
                   state.staff_lockdown
                     ? "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse"
                     : "bg-white/10 text-gray-400 border-white/10"
                 }`}>
-                  {state.staff_lockdown ? "🚨 STAFF LOCKDOWN ACTIVE" : "🛡️ STAFF NORMAL PERMISSIONS"}
+                  {state.staff_lockdown ? <AlertTriangle size={11} className="text-rose-400" /> : <ShieldCheck size={11} className="text-gray-400" />}
+                  <span>{state.staff_lockdown ? "STAFF LOCKDOWN ACTIVE" : "STAFF NORMAL PERMISSIONS"}</span>
                 </span>
                 <span className="text-xs text-gray-400 font-bold">
-                  (សិទ្ធិមហាកំពូលផ្តាច់មុខរបស់ម្ចាស់ប្រព័ន្ធ)
+                  (សិទ្ធិផ្តាច់មុខរបស់ម្ចាស់ប្រព័ន្ធ)
                 </span>
               </div>
 
@@ -691,7 +700,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               </h4>
               <p className="text-xs text-gray-300 max-w-3xl leading-relaxed">
                 {state.staff_lockdown
-                  ? "⚠️ រាល់សកម្មភាពបង្កើត កែប្រែ ឬលុបទិន្នន័យពីសំណាក់ Admin និង Staff ទាំងអស់ត្រូវបានបិទទាំងស្រុង (Status 423 Locked)។ មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន!"
+                  ? "រាល់សកម្មភាពបង្កើត កែប្រែ ឬលុបទិន្នន័យពីសំណាក់ Admin និង Staff ទាំងអស់ត្រូវបានបិទទាំងស្រុង (Status 423 Locked)។ មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន!"
                   : "នៅពេលបើកដំណើរការ ប្រព័ន្ធនឹងកាត់ផ្តាច់ Session របស់ពួក Admin និង Staff ទាំងអស់ និងបិទមិនឱ្យកែប្រែទិន្នន័យអ្វីទាំងអស់ក្នុងប្រព័ន្ធហាងភ្លាមៗ។"}
               </p>
             </div>
@@ -711,7 +720,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 state.staff_lockdown ? "ដោះលែងសកម្មភាព Admin & Staff ទាំងអស់" : "បង្កកសកម្មភាព Admin & Staff ទាំងអស់ (LOCKDOWN)",
                 state.staff_lockdown
                   ? "តើអ្នកចង់ដោះលែងសិទ្ធិ និងអនុញ្ញាតឱ្យ Admin និង Staff ទាំងអស់បំពេញភារកិច្ចឡើងវិញមែនទេ?"
-                  : "⚠️ ប្រយ័ត្នខ្ពស់បំផុត! ប្រព័ន្ធនឹងកាត់ផ្តាច់ Login Token របស់បុគ្គលិក និង Admin ទាំងអស់ភ្លាមៗ ហើយបិទរាល់សកម្មភាពកែប្រែទិន្នន័យទាំងអស់។ តើអ្នកចង់ដំណើរការ Lockdown ទេ?",
+                  : "ប្រយ័ត្នខ្ពស់បំផុត! ប្រព័ន្ធនឹងកាត់ផ្តាច់ Login Token របស់បុគ្គលិក និង Admin ទាំងអស់ភ្លាមៗ ហើយបិទរាល់សកម្មភាពកែប្រែទិន្នន័យទាំងអស់។ តើអ្នកចង់ដំណើរការ Lockdown ទេ?",
                 state.staff_lockdown ? "warning" : "extreme"
               );
             }}
@@ -735,7 +744,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)"
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)"
                 : state.staff_lockdown 
                 ? "ដោះលែង Staff ទាំងអស់ (Deactivate Lockdown)" 
                 : "បិទសកម្មភាពពួក Admin/Staff ទាំងអស់ (Activate Lockdown)"}
@@ -808,7 +817,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" 
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" 
                 : state.maintenance_mode 
                 ? "បិទ Maintenance (Go Live)" 
                 : "បើក Maintenance Mode"}
@@ -862,7 +871,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Zap size={13} />
             )}
-            <span>{!isSuperAdmin ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" : "កម្ទេច Cache ទាំងអស់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "កម្ទេច Cache ទាំងអស់"}</span>
           </button>
         </div>
 
@@ -927,7 +936,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" 
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" 
                 : state.financial_freeze 
                 ? "ដោះលែងហិរញ្ញវត្ថុ (Unfreeze)" 
                 : "បង្កកហិរញ្ញវត្ថុ (Freeze)"}
@@ -983,7 +992,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Download size={13} />
             )}
-            <span>{!isSuperAdmin ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" : "Export Snapshot ភ្លាមៗ"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Export Snapshot ភ្លាមៗ"}</span>
           </button>
         </div>
 
@@ -1036,7 +1045,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Radio size={13} />
             )}
-            <span>{!isSuperAdmin ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" : "Broadcast Force Update"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Broadcast Force Update"}</span>
           </button>
         </div>
 
@@ -1089,7 +1098,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Radio size={13} />
             )}
-            <span>{!isSuperAdmin ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" : "បាញ់សារ SOS បន្ទាន់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "បាញ់សារ SOS បន្ទាន់"}</span>
           </button>
         </div>
 
@@ -1142,7 +1151,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <UserX size={13} />
             )}
-            <span>{!isSuperAdmin ? "🔒 មហាសិទ្ធិប៉ុណ្ណោះ (Locked)" : "Logout បុគ្គលិកទាំងអស់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Logout បុគ្គលិកទាំងអស់"}</span>
           </button>
         </div>
 
@@ -1209,10 +1218,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
             <div className="text-center space-y-1">
               <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                🔒 Security Privilege Guard
+                Security Privilege Guard
               </span>
               <h3 className="text-lg font-black text-white mt-1">
-                មហាសិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ!
+                សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ!
               </h3>
               <p className="text-xs text-gray-300 leading-relaxed pt-1">
                 {deniedModal.description}
@@ -1229,7 +1238,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 <span className="font-bold text-amber-400">View-Only (ត្រឹមតែមើល)</span>
               </div>
               <div className="flex justify-between">
-                <span>មហាសិទ្ធិបញ្ជា:</span>
+                <span>សិទ្ធិបញ្ជាកំពូល:</span>
                 <span className="font-bold text-rose-400">Super Admin Required</span>
               </div>
             </div>
@@ -1256,7 +1265,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
             <div className="text-center space-y-1">
               <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/40">
-                ⚠️ Super Admin Authorization
+                Super Admin Authorization
               </span>
               <h3 className="text-lg font-black text-white mt-1">
                 {confirmModal.title}
@@ -1299,7 +1308,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 </div>
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    👑 Grand Master Vacation Switcher
+                    Grand Master Vacation Switcher
                   </span>
                   <h3 className="text-lg font-black text-white mt-1 m-0">
                     កំណត់ពេលបិទហាងសម្រាក & UI Countdown

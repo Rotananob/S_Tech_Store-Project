@@ -339,7 +339,7 @@ export default function EditProductPage(props: {
                 <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-2.5 text-xs text-left">
                   <div className="flex items-center gap-2.5">
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 1 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      ✓
+                      <Check size={11} strokeWidth={3} />
                     </span>
                     <span className={savingStep >= 1 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ផ្ទៀងផ្ទាត់ទិន្នន័យ និងតម្លៃថ្មី
@@ -347,7 +347,7 @@ export default function EditProductPage(props: {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 2 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      {savingStep >= 2 ? "✓" : "2"}
+                      {savingStep >= 2 ? <Check size={11} strokeWidth={3} /> : "2"}
                     </span>
                     <span className={savingStep >= 2 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ធ្វើបច្ចុប្បន្នភាពរូបភាព និង PostgreSQL Cloud
@@ -355,7 +355,7 @@ export default function EditProductPage(props: {
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 3 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      {savingStep >= 3 ? "✓" : "3"}
+                      {savingStep >= 3 ? <Check size={11} strokeWidth={3} /> : "3"}
                     </span>
                     <span className={savingStep >= 3 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ធ្វើសមកាលកម្មទិន្នន័យក្នុងប្រព័ន្ធរួចរាល់
@@ -607,14 +607,14 @@ export default function EditProductPage(props: {
                     disabled={loadingCats}
                     className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all bg-white font-semibold text-gray-800"
                   >
-                    <optgroup label="🌟 Shop by Category (ប្រភេទពេញនិយម)">
+                    <optgroup label="Shop by Category (ប្រភេទពេញនិយម)">
                       {shopByCategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
                     </optgroup>
-                    <optgroup label="⚙️ PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
+                    <optgroup label="PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
                       {pcComponents.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -882,8 +882,9 @@ export default function EditProductPage(props: {
                         onError={() => setImagePreviewError(true)} 
                       />
                     ) : (
-                      <div className="text-[11px] text-red-500 py-3 text-center">
-                        ⚠️ មិនអាចផ្ទុករូបភាពពីតំណភ្ជាប់នេះបានទេ។ សូមពិនិត្យតំណភ្ជាប់ឡើងវិញ។
+                      <div className="text-[11px] text-red-500 py-3 text-center flex items-center justify-center gap-1.5">
+                        <AlertCircle size={13} className="text-red-500 shrink-0" />
+                        <span>មិនអាចផ្ទុករូបភាពពីតំណភ្ជាប់នេះបានទេ។ សូមពិនិត្យតំណភ្ជាប់ឡើងវិញ។</span>
                       </div>
                     )}
                   </div>

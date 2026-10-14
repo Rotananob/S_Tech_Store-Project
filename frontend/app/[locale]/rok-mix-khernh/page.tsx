@@ -14,7 +14,7 @@ import {
   ArrowDownRight, Settings, Send, Volume2, VolumeX, Radio, Sparkles, 
   CheckCircle2, AlertTriangle, Search, Activity, ShieldCheck, RefreshCw, 
   MessageSquare, ExternalLink, Zap, ShieldAlert, Lock, Cpu, Eye, Gift, Clock, Terminal, Check,
-  Calendar, ChevronDown, Layers
+  Calendar, ChevronDown, Layers, X
 } from "lucide-react";
 import GrandMasterCommandConsole from "@/components/admin/GrandMasterCommandConsole";
 
@@ -963,9 +963,9 @@ export default function AdminDashboardOverview() {
               <button 
                 type="button"
                 onClick={() => setShowPentestModal(false)}
-                className="text-gray-400 hover:text-white text-xs font-bold px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 cursor-pointer"
+                className="text-gray-400 hover:text-white text-xs font-bold px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 cursor-pointer inline-flex items-center gap-1.5"
               >
-                Close ✕
+                <X className="w-3.5 h-3.5" /> Close
               </button>
             </div>
 

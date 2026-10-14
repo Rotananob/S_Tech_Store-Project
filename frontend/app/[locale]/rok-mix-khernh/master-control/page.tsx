@@ -19,7 +19,10 @@ import {
   Flame,
   UserCheck,
   Building2,
-  CalendarCheck
+  CalendarCheck,
+  Users,
+  X,
+  Eye
 } from "lucide-react";
 import { Link } from "@/i18n/routing";
 
@@ -70,7 +73,7 @@ export default function MasterControlPage() {
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight m-0">
-            មហាសិទ្ធិម្ចាស់ប្រព័ន្ធ • Master Operations
+            ផ្ទាំងបញ្ជាកំពូលម្ចាស់ប្រព័ន្ធ • Master Operations
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed">
             ផ្ទាំងបញ្ជាកំពូលសម្រាប់គ្រប់គ្រង Store Infrastructure, Maintenance Mode, Killswitches, 
@@ -103,7 +106,7 @@ export default function MasterControlPage() {
         <div>
           <h3 className="text-lg font-black text-gray-900 m-0 flex items-center gap-2">
             <ShieldCheck size={20} className="text-[#8B1A1A]" />
-            <span>តារាងបែងចែកសិទ្ធិ និងមហាសិទ្ធិប្រព័ន្ធ (Role & Permission Matrix)</span>
+            <span>តារាងបែងចែកសិទ្ធិអ្នកគ្រប់គ្រង និងម្ចាស់ប្រព័ន្ធ (Role & Permission Matrix)</span>
           </h3>
           <p className="text-xs text-gray-500 mt-0.5">
             ការបែងចែកកម្រិតសិទ្ធិយ៉ាងតឹងរ៉ឹងរវាង ម្ចាស់ប្រព័ន្ធ (Super Admin), Administrator, និងបុគ្គលិកទូទៅ (Staff)។
@@ -116,82 +119,157 @@ export default function MasterControlPage() {
               <tr>
                 <th className="p-3.5">មុខងារ / ប្រតិបត្តិការ (Operations)</th>
                 <th className="p-3.5 text-center text-amber-700 bg-amber-50/50">
-                  👑 ម្ចាស់ប្រព័ន្ធ (Super Admin)
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <Crown size={14} className="text-amber-600" />
+                    <span>ម្ចាស់ប្រព័ន្ធ (Super Admin)</span>
+                  </span>
                 </th>
                 <th className="p-3.5 text-center text-blue-700 bg-blue-50/30">
-                  🛡️ Administrator
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <ShieldCheck size={14} className="text-blue-600" />
+                    <span>Administrator</span>
+                  </span>
                 </th>
                 <th className="p-3.5 text-center text-gray-600">
-                  👥 បុគ្គលិក (Staff)
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    <Users size={14} className="text-gray-500" />
+                    <span>បុគ្គលិក (Staff)</span>
+                  </span>
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-800 font-medium">
               <tr>
                 <td className="p-3.5 font-bold">ប្តូរ UI ហាង៖ បិទសម្រាក (Vacation Mode + Live Countdown)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">បិទសកម្មភាពពួក Admin & Staff ទាំងអស់ (Global Staff Lockdown)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">បិទ/បើក Store Maintenance Mode (Lockdown)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">កម្ទេច Global System Cache & Redis Storage</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">បង្កកប្រតិបត្តិការហិរញ្ញវត្ថុបន្ទាន់ (Financial Freeze)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">ទាញយក Live Database Snapshot & Cloud Backup</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">កាត់ផ្តាច់ Session Login បុគ្គលិកទាំងអស់ (Revoke Tokens)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">កែប្រែអត្រាពិន្ទុ Coin Reward Promotion</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ មហាសិទ្ធិពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">🔒 បានត្រឹមមើល (View-Only)</td>
-                <td className="p-3.5 text-center text-rose-500">❌ គ្មានសិទ្ធិ</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> សិទ្ធិម្ចាស់ប្រព័ន្ធពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400 bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><Lock size={12} className="text-gray-400" /> បានត្រឹមមើល (View-Only)</span>
+                </td>
+                <td className="p-3.5 text-center text-rose-500">
+                  <span className="inline-flex items-center gap-1"><X size={13} className="text-rose-500" /> គ្មានសិទ្ធិ</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">គ្រប់គ្រងការបញ្ជាទិញ (Orders & Shipping)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-emerald-600">✅ ដំណើរការបាន</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-emerald-600">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ដំណើរការបាន</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">គ្រប់គ្រងទំនិញ & ស្តុក (Inventory Catalog)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-gray-400">👀 មើលស្តុកបាន</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-gray-400">
+                  <span className="inline-flex items-center gap-1"><Eye size={13} className="text-gray-500" /> មើលស្តុកបាន</span>
+                </td>
               </tr>
               <tr>
                 <td className="p-3.5 font-bold">ឆាតផ្ទាល់ជាមួយអតិថិជន (Live Customer Support)</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">✅ ពេញលេញ</td>
-                <td className="p-3.5 text-center text-emerald-600">✅ ឆ្លើយតបបាន</td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-amber-50/20">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-emerald-600 font-bold bg-blue-50/10">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ពេញលេញ</span>
+                </td>
+                <td className="p-3.5 text-center text-emerald-600">
+                  <span className="inline-flex items-center gap-1"><CheckCircle2 size={13} className="text-emerald-600" /> ឆ្លើយតបបាន</span>
+                </td>
               </tr>
             </tbody>
           </table>

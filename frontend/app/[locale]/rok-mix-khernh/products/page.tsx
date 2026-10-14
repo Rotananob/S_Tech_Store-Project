@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
+import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop } from "lucide-react";
 
 type Category = {
   id: number;
@@ -306,7 +306,7 @@ export default function AdminProductsPage() {
                             {prod.image_url ? (
                               <img src={prod.image_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-xl">💻</span>
+                              <Laptop size={20} className="text-gray-400" />
                             )}
                         </div>
                         <div>

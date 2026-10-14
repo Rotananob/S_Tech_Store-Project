@@ -500,7 +500,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase select-none">
               <span className="flex items-center gap-1.5 text-amber-400">
                 <Crown size={13} className="text-amber-400" />
-                <span>{isKm ? "មហាសិទ្ធិម្ចាស់ប្រព័ន្ធ" : "GRAND MASTER CONTROL"}</span>
+                <span>{isKm ? "ផ្ទាំងបញ្ជាកំពូលម្ចាស់ប្រព័ន្ធ" : "GRAND MASTER CONTROL"}</span>
               </span>
               <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
                 isSuperAdmin 
@@ -772,12 +772,12 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                   ? "bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border-amber-400/50 text-amber-800 hover:bg-amber-100 shadow-xs"
                   : "bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700"
               }`}
-              title={isSuperAdmin ? "មហាសិទ្ធិម្ចាស់ប្រព័ន្ធសកម្ម • Master Privileges Active" : "Admin ធម្មតា • View-Only Master Controls"}
+              title={isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធកំពូលសកម្ម • Master Privileges Active" : "Admin ធម្មតា • View-Only Master Controls"}
             >
               {isSuperAdmin ? (
                 <>
                   <Crown size={14} className="text-amber-600 animate-pulse" />
-                  <span className="font-black">👑 Master Control</span>
+                  <span className="font-black">Master Control</span>
                 </>
               ) : (
                 <>
@@ -848,11 +848,11 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             <div className="flex items-center gap-2.5">
               <Ban size={18} className="text-white shrink-0 animate-pulse" />
               <span>
-                🚨 ការជូនដំណឹងបន្ទាន់៖ ម្ចាស់ប្រព័ន្ធបានដាក់បញ្ជាបង្កកសកម្មភាព Admin & Staff ទាំងអស់ (Global Activity Lockdown Active)! រាល់សកម្មភាពបន្ថែម កែប្រែ ឬលុបទិន្នន័យត្រូវបានផ្អាកបណ្ដោះអាសន្ន។
+                ការជូនដំណឹងបន្ទាន់៖ ម្ចាស់ប្រព័ន្ធបានដាក់បញ្ជាបង្កកសកម្មភាព Admin & Staff ទាំងអស់ (Global Activity Lockdown Active)! រាល់សកម្មភាពបន្ថែម កែប្រែ ឬលុបទិន្នន័យត្រូវបានផ្អាកបណ្ដោះអាសន្ន។
               </span>
             </div>
             <span className="hidden sm:inline-block px-2.5 py-1 rounded-full bg-black/40 text-[10px] uppercase font-mono tracking-wider shrink-0 border border-white/20">
-              🔒 READ-ONLY MODE
+              READ-ONLY MODE
             </span>
           </div>
         )}
@@ -863,7 +863,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             <div className="flex items-center gap-2">
               <Ban size={14} className="text-rose-400 shrink-0" />
               <span>
-                👑 មហាសិទ្ធិម្ចាស់ប្រព័ន្ធ៖ លោកអ្នកបានបើក Global Staff Lockdown (សកម្មភាព Admin & Staff ផ្សេងទៀតត្រូវបានផ្អាក)។
+                ម្ចាស់ប្រព័ន្ធ៖ លោកអ្នកបានបើក Global Staff Lockdown (សកម្មភាព Admin & Staff ផ្សេងទៀតត្រូវបានផ្អាក)។
               </span>
             </div>
             <Link href="/rok-mix-khernh/master-control" className="text-[11px] underline font-black text-rose-300 hover:text-white shrink-0">
@@ -878,7 +878,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             <div className="flex items-center gap-2">
               <Palmtree size={15} className="text-amber-700 shrink-0" />
               <span>
-                🏖️ Storefront កំពុងបើកផ្ទាំងឈប់សម្រាកបណ្តោះអាសន្ន (Vacation Mode + Live Countdown) — ហាងនឹង auto direct បើកវិញពេលដល់ម៉ោង!
+                Storefront កំពុងបើកផ្ទាំងឈប់សម្រាកបណ្តោះអាសន្ន (Vacation Mode + Live Countdown) — ហាងនឹង auto direct បើកវិញពេលដល់ម៉ោង!
               </span>
             </div>
             {isSuperAdmin && (

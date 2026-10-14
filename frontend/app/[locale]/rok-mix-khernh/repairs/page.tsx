@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import api from "@/lib/api";
 import { sendRepairAlert } from "@/lib/services/admin.service";
-import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2, Mail, Send, Bell, Globe } from "lucide-react";
+import { Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, CheckCircle2, Mail, Send, Bell, Globe, Smartphone, Phone, DollarSign } from "lucide-react";
 
 type Ticket = {
   id: number;
@@ -649,9 +649,9 @@ export default function RepairManagementPage() {
                   </span>
                 </div>
                 <div className="text-[11px] text-gray-600 flex items-center gap-3">
-                  <span>📱 {alertTicket.device}</span>
-                  <span>📞 {alertTicket.phone}</span>
-                  <span>💵 ${alertTicket.estCost}</span>
+                  <span className="flex items-center gap-1"><Smartphone size={12} className="text-gray-500" /> {alertTicket.device}</span>
+                  <span className="flex items-center gap-1"><Phone size={12} className="text-gray-500" /> {alertTicket.phone}</span>
+                  <span className="flex items-center gap-1"><DollarSign size={12} className="text-gray-500" /> ${alertTicket.estCost}</span>
                 </div>
               </div>
 

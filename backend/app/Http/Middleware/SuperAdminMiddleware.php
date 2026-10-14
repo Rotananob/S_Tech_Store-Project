@@ -40,19 +40,19 @@ class SuperAdminMiddleware
                 // Regular Admin / Staff trying to execute Super Admin actions
                 try {
                     TelegramService::sendSecurityAlert([
-                        'type' => '⛔ ការប៉ុនប៉ងប្រើប្រាស់មហាសិទ្ធិដោយគ្មានការអនុញ្ញាត (Non-Owner Master Attempt)',
+                        'type' => 'ការប៉ុនប៉ងប្រើប្រាស់សិទ្ធិម្ចាស់ប្រព័ន្ធដោយគ្មានការអនុញ្ញាត (Unauthorized Owner Attempt)',
                         'ip' => $request->ip() ?? 'Unknown IP',
                         'device' => $request->userAgent() ?? 'Unknown Device',
                         'user' => "{$user->name} ({$user->email}) [Role: {$user->role}]",
                         'action' => 'Access Denied (403 Forbidden)',
-                        'details' => "បុគ្គលិក/Admin ធម្មតា បានព្យាយាមដំណើរការប៊ូតុងមហាសិទ្ធិម្ចាស់ប្រព័ន្ធលើ: /" . ltrim($request->path(), '/'),
+                        'details' => "បុគ្គលិក/Admin ធម្មតា បានព្យាយាមដំណើរការមុខងារម្ចាស់ប្រព័ន្ធលើ: /" . ltrim($request->path(), '/'),
                     ]);
                 } catch (\Throwable $t) {}
 
                 return response()->json([
                     'success' => false,
                     'code' => 'SUPER_ADMIN_REQUIRED',
-                    'error' => 'សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានមហាសិទ្ធិបញ្ជា ឬកែប្រែបាន។',
+                    'error' => 'សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានសិទ្ធិបញ្ជា ឬកែប្រែបាន។',
                     'message' => 'Forbidden: Super Administrator (System Owner) privileges required.',
                 ], 403);
             }

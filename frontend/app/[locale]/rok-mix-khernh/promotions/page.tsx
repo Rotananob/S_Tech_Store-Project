@@ -4,7 +4,7 @@ import api from "@/lib/api";
 import { 
   Plus, Filter, Clock, Tag, TrendingUp, Trash2, ChevronDown, 
   CheckCircle2, X, Edit, Upload, Image as ImageIcon, Sparkles, 
-  ExternalLink, Layers, Loader2
+  ExternalLink, Layers, Loader2, AlertCircle
 } from "lucide-react";
 
 type Promotion = {
@@ -122,7 +122,7 @@ export default function PromotionManagementPage() {
         } else {
           setNewPromo(prev => ({ ...prev, image_url: res.data.url }));
         }
-        showToast("✓ បាន Upload រូបភាពប្រូម៉ូសិនជោគជ័យ! • Image uploaded");
+        showToast("បាន Upload រូបភាពប្រូម៉ូសិនជោគជ័យ! • Image uploaded");
       }
     } catch (err: any) {
       showToast(err.response?.data?.message || "បរាជ័យក្នុងការ Upload រូបភាព", "error");
@@ -183,7 +183,7 @@ export default function PromotionManagementPage() {
       await fetchPromos();
       setShowCreate(false);
       setNewPromo(DEFAULT_FORM_STATE);
-      showToast("🎉 បានបង្កើតប្រូម៉ូសិនថ្មីដោយជោគជ័យ! • Promotion created!");
+      showToast("បានបង្កើតប្រូម៉ូសិនថ្មីដោយជោគជ័យ! • Promotion created!");
     } catch (e: any) {
       const err = e.response?.data?.message || "បរាជ័យក្នុងការបង្កើតប្រូម៉ូសិន";
       showToast(err, "error");
@@ -223,7 +223,7 @@ export default function PromotionManagementPage() {
       await fetchPromos();
       setShowEdit(false);
       setEditingPromo(null);
-      showToast("✓ បានកែប្រែប្រូម៉ូសិនដោយជោគជ័យ! • Promotion updated!");
+      showToast("បានកែប្រែប្រូម៉ូសិនដោយជោគជ័យ! • Promotion updated!");
     } catch (e: any) {
       const err = e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែប្រូម៉ូសិន";
       showToast(err, "error");
@@ -238,7 +238,7 @@ export default function PromotionManagementPage() {
       const nextVal = !promo.show_popup;
       await api.put(`/promo-codes/${promo.id}`, { show_popup: nextVal });
       setPromos(prev => prev.map(p => p.id === promo.id ? { ...p, show_popup: nextVal } : p));
-      showToast(nextVal ? "✓ បានបើកបង្ហាញ Popup នៅលើ Website! • Popup enabled" : "✓ បានបិទ Popup នៅលើ Website! • Popup disabled");
+      showToast(nextVal ? "បានបើកបង្ហាញ Popup នៅលើ Website! • Popup enabled" : "បានបិទ Popup នៅលើ Website! • Popup disabled");
     } catch (e) {
       showToast("បរាជ័យក្នុងការប្តូរស្ថានភាព Popup", "error");
     }
@@ -250,7 +250,7 @@ export default function PromotionManagementPage() {
     try {
       await api.delete(`/promo-codes/${id}`);
       setPromos(prev => prev.filter(p => p.id !== id));
-      showToast("✓ បានលុបប្រូម៉ូសិនដោយជោគជ័យ! • Promotion deleted.");
+      showToast("បានលុបប្រូម៉ូសិនដោយជោគជ័យ! • Promotion deleted.");
     } catch (e) {
       showToast("បរាជ័យក្នុងការលុបប្រូម៉ូសិន", "error");
     }
@@ -405,8 +405,9 @@ export default function PromotionManagementPage() {
               {/* Image Input (URL + Direct File Upload) */}
               <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
-                    🖼️ រូបភាព Slide Banner / Hero Banner (URL & File Upload)
+                  <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon size={14} className="text-gray-700" />
+                    <span>រូបភាព Slide Banner / Hero Banner (URL & File Upload)</span>
                   </label>
                   {newPromo.image_url && (
                     <button 
@@ -503,7 +504,10 @@ export default function PromotionManagementPage() {
                       onChange={e => setNewPromo({ ...newPromo, show_popup: e.target.checked })} 
                       className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500" 
                     />
-                    <span>✨ បង្ហាញជា Popup លើ Website Real-time • Live Homepage Popup</span>
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-red-600" />
+                      <span>បង្ហាញជា Popup លើ Website Real-time • Live Homepage Popup</span>
+                    </span>
                   </label>
                   <p className="text-[11px] text-red-700 mt-1 pl-6">
                     នៅពេលបើក ផ្ទាំងនេះនឹងលោត Pop up នៅលើ Home page នៃ Website ជូនអតិថិជន Real-time ភ្លាមៗ!
@@ -512,13 +516,13 @@ export default function PromotionManagementPage() {
 
                 <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200/60">
                   <div className="flex items-center gap-2 text-sm font-bold text-blue-950">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                    <span>🖼️ បង្ហាញក្នុង Hero Slide Banner លើ Website • Live Hero Carousel Slide</span>
+                    <ImageIcon size={14} className="text-blue-600" />
+                    <span>បង្ហាញក្នុង Hero Slide Banner លើ Website • Live Hero Carousel Slide</span>
                   </div>
                   <p className="text-[11px] text-blue-700 mt-1 pl-5">
                     {newPromo.image_url 
-                      ? "✓ ប្រូម៉ូសិននេះមានរូបភាព Banner រួចរាល់ ហើយនឹងបង្ហាញជា Slide នៅលើ Hero Carousel នៃទំព័រដើម website ដោយស្វ័យប្រវត្តិ!" 
-                      : "⚠️ សូមបញ្ចូល Image URL ឬ Upload File រូបភាពខាងលើ ដើម្បីឲ្យ Banner បង្ហាញលើ Hero Carousel!"}
+                      ? "ប្រូម៉ូសិននេះមានរូបភាព Banner រួចរាល់ ហើយនឹងបង្ហាញជា Slide នៅលើ Hero Carousel នៃទំព័រដើម website ដោយស្វ័យប្រវត្តិ!" 
+                      : "សូមបញ្ចូល Image URL ឬ Upload File រូបភាពខាងលើ ដើម្បីឲ្យ Banner បង្ហាញលើ Hero Carousel!"}
                   </p>
                 </div>
               </div>
@@ -692,8 +696,9 @@ export default function PromotionManagementPage() {
               {/* Image Input (URL + Direct File Upload) */}
               <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
-                    🖼️ រូបភាព Slide Banner / Hero Banner (URL & File Upload)
+                  <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <ImageIcon size={14} className="text-gray-700" />
+                    <span>រូបភាព Slide Banner / Hero Banner (URL & File Upload)</span>
                   </label>
                   {editPromo.image_url && (
                     <button 
@@ -790,7 +795,10 @@ export default function PromotionManagementPage() {
                       onChange={e => setEditPromo({ ...editPromo, show_popup: e.target.checked })} 
                       className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500" 
                     />
-                    <span>✨ បង្ហាញជា Popup លើ Website Real-time • Live Homepage Popup</span>
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-red-600" />
+                      <span>បង្ហាញជា Popup លើ Website Real-time • Live Homepage Popup</span>
+                    </span>
                   </label>
                   <p className="text-[11px] text-red-700 mt-1 pl-6">
                     នៅពេលបើក ផ្ទាំងនេះនឹងលោត Pop up នៅលើ Home page នៃ Website ជូនអតិថិជន Real-time ភ្លាមៗ!
@@ -799,13 +807,13 @@ export default function PromotionManagementPage() {
 
                 <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200/60">
                   <div className="flex items-center gap-2 text-sm font-bold text-blue-950">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse" />
-                    <span>🖼️ បង្ហាញក្នុង Hero Slide Banner លើ Website • Live Hero Carousel Slide</span>
+                    <ImageIcon size={14} className="text-blue-600" />
+                    <span>បង្ហាញក្នុង Hero Slide Banner លើ Website • Live Hero Carousel Slide</span>
                   </div>
                   <p className="text-[11px] text-blue-700 mt-1 pl-5">
                     {editPromo.image_url 
-                      ? "✓ ប្រូម៉ូសិននេះមានរូបភាព Banner រួចរាល់ ហើយនឹងបង្ហាញជា Slide នៅលើ Hero Carousel នៃទំព័រដើម website ដោយស្វ័យប្រវត្តិ!" 
-                      : "⚠️ សូមបញ្ចូល Image URL ឬ Upload File រូបភាពខាងលើ ដើម្បីឲ្យ Banner បង្ហាញលើ Hero Carousel!"}
+                      ? "ប្រូម៉ូសិននេះមានរូបភាព Banner រួចរាល់ ហើយនឹងបង្ហាញជា Slide នៅលើ Hero Carousel នៃទំព័រដើម website ដោយស្វ័យប្រវត្តិ!" 
+                      : "សូមបញ្ចូល Image URL ឬ Upload File រូបភាពខាងលើ ដើម្បីឲ្យ Banner បង្ហាញលើ Hero Carousel!"}
                   </p>
                 </div>
               </div>

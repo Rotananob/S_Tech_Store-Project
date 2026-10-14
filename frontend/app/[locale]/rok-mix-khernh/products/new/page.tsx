@@ -295,7 +295,7 @@ export default function AddNewProductPage() {
                         savingStep >= 1 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
                       }`}
                     >
-                      ✓
+                      <Check size={11} strokeWidth={3} />
                     </span>
                     <span className={savingStep >= 1 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ផ្ទៀងផ្ទាត់ទិន្នន័យ និងលក្ខណៈសម្បត្តិទំនិញ
@@ -307,7 +307,7 @@ export default function AddNewProductPage() {
                         savingStep >= 2 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
                       }`}
                     >
-                      {savingStep >= 2 ? "✓" : "2"}
+                      {savingStep >= 2 ? <Check size={11} strokeWidth={3} /> : "2"}
                     </span>
                     <span className={savingStep >= 2 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ផ្ទុករូបភាព និងរក្សាទុកទិន្នន័យផលិតផល
@@ -319,7 +319,7 @@ export default function AddNewProductPage() {
                         savingStep >= 3 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
                       }`}
                     >
-                      {savingStep >= 3 ? "✓" : "3"}
+                      {savingStep >= 3 ? <Check size={11} strokeWidth={3} /> : "3"}
                     </span>
                     <span className={savingStep >= 3 ? "font-bold text-gray-900" : "text-gray-400"}>
                       ធ្វើសមកាលកម្មទិន្នន័យស្តុកទំនិញ
@@ -553,14 +553,14 @@ export default function AddNewProductPage() {
                   disabled={loadingCats}
                   className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all bg-white font-semibold text-gray-800"
                 >
-                  <optgroup label="🌟 Shop by Category (ប្រភេទពេញនិយម)">
+                  <optgroup label="Shop by Category (ប្រភេទពេញនិយម)">
                     {shopByCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="⚙️ PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
+                  <optgroup label="PC Builder Components (គ្រឿងតម្លើងកុំព្យូទ័រ)">
                     {pcComponents.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -588,7 +588,7 @@ export default function AddNewProductPage() {
                         "smartphones",
                       ].includes(c.slug || "")
                   ).length > 0 && (
-                    <optgroup label="📦 ប្រភេទផ្សេងៗ (Other Categories)">
+                    <optgroup label="ប្រភេទផ្សេងៗ (Other Categories)">
                       {categories
                         .filter(
                           (c) =>

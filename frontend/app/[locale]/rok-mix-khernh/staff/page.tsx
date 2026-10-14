@@ -137,7 +137,7 @@ export default function AdminStaffPage() {
 
   const handleDelete = async (id: number, staffName: string) => {
     if (!isSuperAdmin) {
-      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានមហាសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
+      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
       return;
     }
 
@@ -301,7 +301,7 @@ export default function AdminStaffPage() {
                         {s.role === 'super_admin' ? (
                           <>
                             <ShieldCheck size={13} className="text-amber-800" />
-                            <span>មហាសិទ្ធិ (Owner)</span>
+                            <span>ម្ចាស់ប្រព័ន្ធ (Owner)</span>
                           </>
                         ) : s.role === 'admin' ? (
                           'Admin'
@@ -348,7 +348,7 @@ export default function AdminStaffPage() {
                           <Edit size={16} />
                         </button>
                         {s.role === 'super_admin' || s.email === 'nobrothana180703@gmail.com' ? (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 inline-flex items-center gap-1" title="គណនីមហាសិទ្ធិត្រូវបានការពារ">
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 inline-flex items-center gap-1" title="គណនីម្ចាស់ប្រព័ន្ធត្រូវបានការពារ">
                             <Lock size={11} />
                             <span>ការពារ</span>
                           </span>
@@ -356,10 +356,10 @@ export default function AdminStaffPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានមហាសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
+                              showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
                             }}
                             className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
-                            title="🔒 មហាសិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Owner Only)"
+                            title="សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Owner Only)"
                           >
                             <Lock size={15} />
                           </button>
@@ -428,10 +428,10 @@ export default function AdminStaffPage() {
                     className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] bg-white font-medium"
                   >
                     <option value="super_admin" disabled={!isSuperAdmin}>
-                      {isSuperAdmin ? "👑 មហាសិទ្ធិ • System Owner (Ultimate Privilege)" : "🔒 System Owner (មហាសិទ្ធិប៉ុណ្ណោះ)"}
+                      {isSuperAdmin ? "System Owner • ម្ចាស់ប្រព័ន្ធ" : "System Owner (សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ)"}
                     </option>
                     <option value="admin" disabled={!isSuperAdmin}>
-                      {isSuperAdmin ? "🛡️ Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ" : "🔒 Admin (មហាសិទ្ធិប៉ុណ្ណោះ)"}
+                      {isSuperAdmin ? "Admin • អ្នកគ្រប់គ្រងប្រព័ន្ធ" : "Admin (សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ)"}
                     </option>
                     <option value="staff">Store Staff • បុគ្គលិកលក់ និងរៀបចំទំនិញ</option>
                     <option value="manager">Store Manager • ប្រធានសាខា</option>

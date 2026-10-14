@@ -90,7 +90,7 @@ class AdminAndStaffSeeder extends Seeder
             ]
         );
 
-        // 3. Seed Super Admin (មហាសិទ្ធិ / System Owner) Accounts with Cost 12 Bcrypt Hash
+        // 3. Seed Super Admin (ម្ចាស់ប្រព័ន្ធ / System Owner) Accounts with Cost 12 Bcrypt Hash
         $ownerEmails = [
             'owner@stechstore.com',
             'nobrothana180703@gmail.com',

@@ -344,7 +344,7 @@ class AdminAuthController extends Controller
 
         // Strictly protect super_admin / owner from deletion
         if ($user->role === 'super_admin' || $user->email === 'nobrothana180703@gmail.com') {
-            return response()->json(['message' => 'Forbidden: Super-Admin (គណនីមហាសិទ្ធិ) cannot be deleted.'], 403);
+            return response()->json(['message' => 'Forbidden: Super-Admin (គណនីម្ចាស់ប្រព័ន្ធ) cannot be deleted.'], 403);
         }
 
         $user->delete();
