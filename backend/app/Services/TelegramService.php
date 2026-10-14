@@ -643,18 +643,17 @@ class TelegramService
             // Customer My Orders & Track Order (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) && $chatId) {
                 // Local-First Cached Profile & Orders (< 1ms on repeat clicks)
-                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
-                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                        ->orWhere('telegram_chat_id', (string)$chatId)
-                        ->select(['id', 'phone', 'firebase_uid', 'wallet_balance', 'points'])
-                        ->first();
-                });
+                $user = self::resolveActiveUser((string)$chatId);
 
-                $orders = Cache::remember("tg_orders_{$chatId}", 30, function() use ($chatId, $user) {
+                $orders = Cache::remember("tg_orders_{$chatId}", 15, function() use ($chatId, $user) {
                     return \App\Models\Order::where(function ($q) use ($chatId, $user) {
                         $q->where('user_id', 'tg_' . $chatId);
-                        if ($user && !empty($user->phone)) {
-                            $q->orWhere('customer_phone', $user->phone);
+                        if ($user) {
+                            $q->orWhere('user_id', $user->firebase_uid)
+                              ->orWhere('user_id', (string)$user->id);
+                            if (!empty($user->phone)) {
+                                $q->orWhere('customer_phone', $user->phone);
+                            }
                         }
                     })
                     ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
@@ -745,12 +744,7 @@ class TelegramService
             // Customer My Wallet & Cash Balance (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_wallet', 'btn_my_wallet']) && $chatId) {
                 // Local-First Cached Profile & Transactions (< 1ms on repeat clicks)
-                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
-                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                        ->orWhere('telegram_chat_id', (string)$chatId)
-                        ->select(['id', 'firebase_uid', 'wallet_balance', 'points', 'phone'])
-                        ->first();
-                });
+                $user = self::resolveActiveUser((string)$chatId);
 
                 $walletBalance = (float)($user->wallet_balance ?? 0.00);
                 $points = (int)($user->points ?? 0);
@@ -833,12 +827,7 @@ class TelegramService
 
             // Customer My Points & VIP Rewards (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
-                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
-                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                        ->orWhere('telegram_chat_id', (string)$chatId)
-                        ->select(['id', 'points', 'phone', 'firebase_uid', 'wallet_balance'])
-                        ->first();
-                });
+                $user = self::resolveActiveUser((string)$chatId);
                 $points = (int)($user->points ?? 0);
                 $dollarVal = number_format($points * 0.01, 2);
 
@@ -849,10 +838,22 @@ class TelegramService
                     default => '🥈 Silver Member',
                 };
 
-                $completedOrders = Cache::remember("tg_orders_cnt_{$chatId}", 60, function() use ($chatId) {
-                    return \App\Models\Order::where('user_id', 'tg_' . $chatId)
-                        ->whereIn('status', ['completed', 'delivered'])
-                        ->count();
+                $userIds = ['tg_' . $chatId];
+                if ($user) {
+                    if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+                    if (!empty($user->id)) $userIds[] = (string)$user->id;
+                }
+                $userIds = array_unique(array_filter($userIds));
+
+                $completedOrders = Cache::remember("tg_orders_cnt_{$chatId}", 60, function() use ($userIds, $user) {
+                    return \App\Models\Order::where(function ($q) use ($userIds, $user) {
+                        $q->whereIn('user_id', $userIds);
+                        if ($user && !empty($user->phone)) {
+                            $q->orWhere('customer_phone', $user->phone);
+                        }
+                    })
+                    ->whereIn('status', ['completed', 'delivered'])
+                    ->count();
                 });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
@@ -890,12 +891,7 @@ class TelegramService
 
             // Customer My Repairs & Warranty Service (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_repairs', 'btn_my_repairs', 'cust_repair']) && $chatId) {
-                $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
-                    return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                        ->orWhere('telegram_chat_id', (string)$chatId)
-                        ->select(['id', 'phone', 'email', 'firebase_uid', 'wallet_balance', 'points'])
-                        ->first();
-                });
+                $user = self::resolveActiveUser((string)$chatId);
 
                 $repairs = Cache::remember("tg_repairs_{$chatId}", 30, function() use ($user) {
                     return \App\Models\Repair::where(function ($q) use ($user) {
@@ -1276,27 +1272,29 @@ class TelegramService
             // Customer Confirm Disconnect (Executes Unlink)
             if ($callbackData === 'cust_confirm_disconnect' && $chatId) {
                 $tgId = (string)($from['id'] ?? $chatId);
-                $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
-                    ->orWhere('firebase_uid', 'tg_' . $tgId)
-                    ->first();
+                $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
 
-                if ($user) {
-                    $oldUid = $user->firebase_uid;
-                    $user->telegram = null;
-                    $user->telegram_chat_id = null;
-                    $user->notif_telegram = false;
-                    if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
-                        $user->firebase_uid = 'stech_u_' . $user->id . '_' . \Illuminate\Support\Str::random(10);
-                    }
-                    $user->save();
+                // Unlink all accounts linked to this Telegram ID
+                \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+                    ->orWhere('telegram_chat_id', (string)$tgId)
+                    ->update([
+                        'telegram' => null,
+                        'telegram_chat_id' => null,
+                        'notif_telegram' => false,
+                    ]);
 
-                    Cache::forget("tg_u_prof_{$tgId}");
-                    Cache::forget("tg_link_{$tgId}");
-                    Cache::forget("customer_sess_{$tgId}");
-                    if (!empty($oldUid)) {
-                        Cache::forget("tg_u_prof_{$oldUid}");
-                    }
-                }
+                // Store disconnected flag for 30 days to enforce Mini App auto-logout
+                Cache::put("tg_disconnected_{$cleanTgId}", true, 86400 * 30);
+                Cache::put("tg_disconnected_{$tgId}", true, 86400 * 30);
+
+                Cache::forget("tg_u_prof_{$cleanTgId}");
+                Cache::forget("tg_u_prof_{$tgId}");
+                Cache::forget("tg_orders_{$cleanTgId}");
+                Cache::forget("tg_orders_{$tgId}");
+                Cache::forget("tg_link_{$cleanTgId}");
+                Cache::forget("tg_link_{$tgId}");
+                Cache::forget("customer_sess_{$cleanTgId}");
+                Cache::forget("customer_sess_{$tgId}");
 
                 $doneText = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -1518,11 +1516,22 @@ class TelegramService
                 return;
             }
 
+            $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
+            Cache::forget("tg_disconnected_{$cleanTgId}");
+            Cache::forget("tg_disconnected_{$tgId}");
+
             // 1. STRICT 1 TELEGRAM = 1 ACCOUNT RESOLUTION (PRESERVES EXISTING USER DATA JUST LIKE GOOGLE SIGN-IN)
-            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
-                ->orWhere('firebase_uid', 'tg_' . $tgId)
-                ->orWhere('email', $email)
+            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+                ->orWhere('telegram_chat_id', (string)$tgId)
+                ->orderByDesc('updated_at')
                 ->first();
+
+            if (!$user) {
+                $user = \App\Models\UserProfile::where('email', $email)
+                    ->orWhere('firebase_uid', 'tg_' . $cleanTgId)
+                    ->orWhere('firebase_uid', 'tg_' . $tgId)
+                    ->first();
+            }
 
             $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
 
@@ -1794,7 +1803,18 @@ class TelegramService
                 return;
             }
 
-            // 1. UPDATE USER PROFILE & MARK CACHE/DB COMPLETED
+            // 1. CLEAR DISCONNECTED FLAG & ENSURE CLEAN 1-TO-1 MAPPING
+            $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
+            Cache::forget("tg_disconnected_{$cleanTgId}");
+            Cache::forget("tg_disconnected_{$tgId}");
+
+            // Unlink any other account that previously had this telegram_chat_id
+            \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+                ->orWhere('telegram_chat_id', (string)$tgId)
+                ->where('id', '!=', $user->id)
+                ->update(['telegram_chat_id' => null, 'telegram' => null]);
+
+            // UPDATE USER PROFILE & MARK CACHE/DB COMPLETED
             $user->telegram = $tgUsername ?: ("ID: {$tgId}");
             $user->telegram_chat_id = (string)$tgId;
             $user->notif_telegram = true;
@@ -1852,7 +1872,9 @@ class TelegramService
             }
 
             // 3. EDIT MESSAGE TO 100% LINKED
-            $profileUrl = "https://www.s-tech-store.tech/account/profile";
+            $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
+            $miniAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+            $profileUrl = "https://www.s-tech-store.tech/account/profile?tg_token={$sessionToken}";
             $phoneNumber = !empty($user->phone) ? $user->phone : 'ភ្ជាប់តាម Telegram ID (' . $tgId . ')';
 
             $linkedMsg = "🎉 <b>ភ្ជាប់គណនី S Tech Store ជោគជ័យ ១០០%!</b>\n"
@@ -1873,8 +1895,9 @@ class TelegramService
 
             $linkedKb = [
                 'inline_keyboard' => [
-                    [['text' => '🌐 ត្រឡប់ទៅកាន់ Profile វិញ', 'url' => $profileUrl]],
+                    [['text' => '📱 បើក Mini App (Auto-Login គណនីថ្មី)', 'web_app' => ['url' => $miniAppUrl]]],
                     [['text' => '📦 ពិនិត្យការបញ្ជាទិញរបស់ខ្ញុំ', 'callback_data' => 'cust_my_orders']],
+                    [['text' => '🌐 ត្រឡប់ទៅកាន់ Profile វិញ', 'url' => $profileUrl]],
                 ],
             ];
 
@@ -2017,16 +2040,33 @@ class TelegramService
         // Customer /disconnect or /unlink or ផ្តាច់
         if (preg_match('/^\/(?:disconnect|unlink|logout)(?:@\w+)?/i', $text) || in_array(mb_strtolower($text), ['ផ្តាច់', 'ផ្ដាច់', 'ផ្តាច់គណនី', 'ផ្ដាច់គណនី', 'ផ្តាច់ការភ្ជាប់', 'ផ្ដាច់ការភ្ជាប់'])) {
             $tgId = (string)($from['id'] ?? $chatId);
-            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
-                ->orWhere('firebase_uid', 'tg_' . $tgId)
-                ->first();
+            $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
 
-            if ($user && (!empty($user->telegram_chat_id) || !empty($user->telegram))) {
+            $user = self::resolveActiveUser($cleanTgId);
+
+            if ($user) {
                 $userDisplayName = $user->display_name ?: 'អតិថិជន';
-                $user->telegram = null;
-                $user->telegram_chat_id = null;
-                $user->notif_telegram = false;
-                $user->save();
+
+                // Unlink all accounts associated with this telegram_chat_id
+                \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+                    ->orWhere('telegram_chat_id', (string)$tgId)
+                    ->update([
+                        'telegram' => null,
+                        'telegram_chat_id' => null,
+                        'notif_telegram' => false,
+                    ]);
+
+                Cache::put("tg_disconnected_{$cleanTgId}", true, 86400 * 30);
+                Cache::put("tg_disconnected_{$tgId}", true, 86400 * 30);
+
+                Cache::forget("tg_u_prof_{$cleanTgId}");
+                Cache::forget("tg_u_prof_{$tgId}");
+                Cache::forget("tg_orders_{$cleanTgId}");
+                Cache::forget("tg_orders_{$tgId}");
+                Cache::forget("tg_link_{$cleanTgId}");
+                Cache::forget("tg_link_{$tgId}");
+                Cache::forget("customer_sess_{$cleanTgId}");
+                Cache::forget("customer_sess_{$tgId}");
 
                 $disconnectMsg = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2070,18 +2110,20 @@ class TelegramService
                 ? ($from['username'] . '@telegram.s-tech-store.tech')
                 : ("tg_{$tgId}@s-tech-store.tech");
 
-            $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
-            $user->display_name = $fullName;
+            $user = self::resolveActiveUser((string)$tgId);
+            if (!$user) {
+                $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
+                $user->telegram_chat_id = (string)$tgId;
+            }
+            $user->display_name = $user->display_name ?: $fullName;
             if (empty($user->email)) $user->email = $email;
-            $user->telegram = $tgUsername;
+            if ($tgUsername) $user->telegram = $tgUsername;
             $user->is_active = true;
             $user->status = 'active';
             $user->save();
 
-            $directToken = 'tg_direct_' . \Illuminate\Support\Str::random(50);
-            Cache::put("customer_sess_{$directToken}", $user->id, 30 * 24 * 60 * 60);
-
-            $directUrl = "https://www.s-tech-store.tech/?tg_token={$directToken}";
+            $directToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
+            $directUrl = !empty($directToken) ? "https://www.s-tech-store.tech/?tg_token={$directToken}" : "https://www.s-tech-store.tech";
 
             $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
                 . "ជម្រាបសួរ <b>{$fullName}</b>!\n"
@@ -2151,9 +2193,16 @@ class TelegramService
                 return;
             }
 
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
-            $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
-                $q->where('user_id', 'tg_' . $chatId);
+            $user = self::resolveActiveUser((string)$chatId);
+            $userIds = ['tg_' . $chatId];
+            if ($user) {
+                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+                if (!empty($user->id)) $userIds[] = (string)$user->id;
+            }
+            $userIds = array_unique(array_filter($userIds));
+
+            $orders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
+                $q->whereIn('user_id', $userIds);
                 if ($user && !empty($user->phone)) {
                     $q->orWhere('customer_phone', $user->phone);
                 }
@@ -2231,7 +2280,7 @@ class TelegramService
 
         // Customer /points or /coins
         if (preg_match('/^\/(?:points|coins|rewards)(?:@\w+)?/i', $text)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $user = self::resolveActiveUser((string)$chatId);
             $points = (int)($user->points ?? 0);
             $dollarVal = number_format($points * 0.01, 2);
 
@@ -2242,9 +2291,19 @@ class TelegramService
                 default => '🥈 Silver Member',
             };
 
-            $completedOrders = \App\Models\Order::where('user_id', 'tg_' . $chatId)
-                ->whereIn('status', ['completed', 'delivered'])
-                ->count();
+            $userIds = ['tg_' . $chatId];
+            if ($user) {
+                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+                if (!empty($user->id)) $userIds[] = (string)$user->id;
+            }
+            $userIds = array_unique(array_filter($userIds));
+
+            $completedOrders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
+                $q->whereIn('user_id', $userIds);
+                if ($user && !empty($user->phone)) {
+                    $q->orWhere('customer_phone', $user->phone);
+                }
+            })->whereIn('status', ['completed', 'delivered'])->count();
 
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
             $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
@@ -2277,11 +2336,7 @@ class TelegramService
 
         // Customer /wallet, /balance, /money, /funds, /topup (Local-First Real Wallet Lookup)
         if (preg_match('/^\/(?:wallet|balance|money|funds|topup)(?:@\w+)?/i', $text)) {
-            $user = Cache::remember("tg_u_prof_{$chatId}", 30, function() use ($chatId) {
-                return \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                    ->orWhere('telegram_chat_id', (string)$chatId)
-                    ->first();
-            });
+            $user = self::resolveActiveUser((string)$chatId);
 
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
             $points = (int)($user->points ?? 0);
@@ -2357,7 +2412,7 @@ class TelegramService
 
         // Customer /repair or /repairs
         if (preg_match('/^\/(?:repair|repairs|services)(?:@\w+)?/i', $text)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
+            $user = self::resolveActiveUser((string)$chatId);
             $repairs = \App\Models\Repair::where(function ($q) use ($user) {
                 if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
                 if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
@@ -2637,9 +2692,16 @@ class TelegramService
 
         // A.1 Natural Khmer Order Inquiries ("order របស់ខ្ញុំ", "ឥវ៉ាន់ខ្ញុំដល់ណា", "តាមដាន order", "my orders")
         if (preg_match('/(order|orders|កញ្ចប់|ឥវ៉ាន់|ការកុម្ម៉ង់|កុម្ម៉ង់|បញ្ជាទិញ|ទំនិញខ្ញុំ|អីវ៉ាន់)/u', $textLower)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)->first();
-            $orders = \App\Models\Order::where(function ($q) use ($chatId, $user) {
-                $q->where('user_id', 'tg_' . $chatId);
+            $user = self::resolveActiveUser((string)$chatId);
+            $userIds = ['tg_' . $chatId];
+            if ($user) {
+                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+                if (!empty($user->id)) $userIds[] = (string)$user->id;
+            }
+            $userIds = array_unique(array_filter($userIds));
+
+            $orders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
+                $q->whereIn('user_id', $userIds);
                 if ($user && !empty($user->phone)) {
                     $q->orWhere('customer_phone', $user->phone);
                 }
@@ -2685,9 +2747,7 @@ class TelegramService
 
         // A.2 Inquiries about Money, Wallet Balance, Funds & Coins ("លុយខ្ញុំសល់ប៉ុន្មាន", "check balance", "ទឹកប្រាក់", "កាបូបលុយ", "wallet balance", "សមតុល្យ")
         if (preg_match('/(លុយ(?:ខ្ញុំ)?(?:សល់|មាន)?|ទឹកប្រាក់|កាបូប(?:លុយ)?|សមតុល្យ|wallet|balance|money|funds|cash\s*balance|check\s*balance|កាក់|សល់លុយ|កុងលុយ|ចំនួនទឹកប្រាក់|បញ្ចូលលុយ|topup)/u', $textLower)) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $chatId)
-                ->orWhere('telegram_chat_id', (string)$chatId)
-                ->first();
+            $user = self::resolveActiveUser((string)$chatId);
 
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
             $points = (int)($user->points ?? 0);
@@ -3494,8 +3554,10 @@ class TelegramService
         $webUrl = 'https://www.s-tech-store.tech';
         if ($chatId) {
             $sessToken = self::generateCustomerSessionToken((string)$chatId);
-            $appUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
-            $webUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
+            if (!empty($sessToken)) {
+                $appUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
+                $webUrl = "https://www.s-tech-store.tech/?tg_token={$sessToken}";
+            }
         }
 
         return [
@@ -3659,6 +3721,35 @@ class TelegramService
     }
 
     /**
+     * Resolve actively linked UserProfile for a Telegram chat/user ID.
+     * Prevents cross-account contamination and ignores disconnected accounts.
+     */
+    public static function resolveActiveUser(string $chatId): ?\App\Models\UserProfile
+    {
+        $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
+
+        // 1. If explicitly disconnected, do NOT resolve to an old account
+        if (\Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanId}") || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$chatId}")) {
+            return null;
+        }
+
+        // 2. Prioritize actively linked account with real data
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
+            ->orWhere('telegram_chat_id', (string)$chatId)
+            ->orderByDesc('updated_at')
+            ->first();
+
+        // 3. Fallback to tg_{id} account only if no account is linked to telegram_chat_id
+        if (!$user) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
+                ->orWhere('firebase_uid', 'tg_' . $chatId)
+                ->first();
+        }
+
+        return $user;
+    }
+
+    /**
      * Generate 1-Click login session token for customer companion bot
      */
     public static function generateCustomerSessionToken(string $chatId, ?string $name = null): string
@@ -3668,18 +3759,26 @@ class TelegramService
             $cleanId = $chatId;
         }
 
-        $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $cleanId]);
-        if (!empty($name) && (empty($user->display_name) || str_starts_with($user->display_name, 'Telegram User'))) {
-            $user->display_name = $name;
+        $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanId}") 
+            || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$chatId}");
+        if ($isDisconnected) {
+            return '';
         }
-        if (empty($user->email)) {
-            $user->email = "tg_{$cleanId}@s-tech-store.tech";
-        }
-        $user->is_active = true;
-        $user->status = 'active';
-        $user->save();
 
-        $token = 'tg_sess_' . \Illuminate\Support\Str::random(50);
+        $user = self::resolveActiveUser($cleanId);
+
+        if (!$user) {
+            $user = new \App\Models\UserProfile();
+            $user->firebase_uid = 'tg_' . $cleanId;
+            $user->telegram_chat_id = (string)$cleanId;
+            $user->display_name = $name ?: "Telegram Customer";
+            $user->email = "tg_{$cleanId}@s-tech-store.tech";
+            $user->is_active = true;
+            $user->status = 'active';
+            $user->save();
+        }
+
+        $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
         \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
 
         return $token;

@@ -621,11 +621,20 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         }
         $user->save();
 
-        // Clear cache mappings for this chat ID
+        // Clear cache mappings for this chat ID and mark disconnected for auto-logout in Mini App
         if (!empty($oldChatId)) {
+            $cleanOldChatId = preg_replace('/\D/', '', (string)$oldChatId) ?: $oldChatId;
+            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$cleanOldChatId}", true, 86400 * 30);
+            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$oldChatId}", true, 86400 * 30);
+            \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$oldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_link_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_link_{$oldChatId}");
             \Illuminate\Support\Facades\Cache::forget("customer_sess_{$oldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_orders_{$cleanOldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_orders_cnt_{$cleanOldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_txs_{$cleanOldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_repairs_{$cleanOldChatId}");
         }
         if (!empty($oldUid)) {
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$oldUid}");
@@ -741,40 +750,58 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         return response()->json(['success' => false, 'error' => 'Invalid telegram user data'], 400);
     }
 
-    $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
-    $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
-    $email = !empty($tgUser['username'])
-        ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
-        : ("tg_{$tgId}@s-tech-store.tech");
+    $cleanTgId = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
+    $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanTgId}")
+        || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$tgId}");
 
-    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
-        ->orWhere('firebase_uid', 'tg_' . $tgId)
-        ->first();
+    // Look for active user linked with this telegram_chat_id first
+    $user = null;
+    if (!$isDisconnected) {
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+            ->orWhere('telegram_chat_id', (string)$tgId)
+            ->orderByDesc('updated_at')
+            ->first();
 
-    if ($user && !($user->is_active ?? true)) {
+        // If no user has telegram_chat_id linked, check fallback only if not disconnected
+        if (!$user) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
+                ->orWhere('firebase_uid', 'tg_' . $tgId)
+                ->first();
+        }
+    }
+
+    // Auto-Logout if disconnected or not actively linked to a Telegram account
+    if ($isDisconnected || !$user || empty($user->telegram_chat_id)) {
+        return response()->json([
+            'success' => true,
+            'linked' => false,
+            'user' => null,
+            'message' => 'Telegram account is not connected or was disconnected. Auto-logout Mini App.',
+        ]);
+    }
+
+    if (!($user->is_active ?? true)) {
         return response()->json([
             'success' => false,
             'error' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin តាមរយៈ Telegram ឬទូរស័ព្ទដើម្បីបើកដំណើរការឡើងវិញ។'
         ], 403);
     }
 
-    if (!$user) {
-        $user = new \App\Models\UserProfile();
-        $user->firebase_uid = 'tg_' . $tgId;
-        $user->email = $email;
-        $user->is_active = true;
-        $user->status = 'active';
-    }
+    $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
+    $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
+    $email = !empty($tgUser['username'])
+        ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
+        : ("tg_{$cleanTgId}@s-tech-store.tech");
 
-    $user->telegram_chat_id = (string)$tgId;
+    $user->telegram_chat_id = (string)$cleanTgId;
     $user->display_name = $user->display_name ?: $fullName;
     if (empty($user->email)) $user->email = $email;
-    if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+    if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
     if (!empty($tgUser['photo_url'])) {
         $user->photo_url = $tgUser['photo_url'];
         $user->avatar_url = $tgUser['photo_url'];
     } else {
-        $realPhoto = \App\Services\TelegramService::getUserAvatarUrl($tgId);
+        $realPhoto = \App\Services\TelegramService::getUserAvatarUrl($cleanTgId);
         if ($realPhoto) {
             $user->photo_url = $realPhoto;
             $user->avatar_url = $realPhoto;
@@ -785,30 +812,33 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     } elseif ($request->filled('phone')) {
         $user->phone = trim($request->input('phone'));
     }
+    $user->save();
 
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
 
     // Send Welcome & Companion Hub activation once
-    if (!\Illuminate\Support\Facades\Cache::has("welcomed_tg_{$tgId}")) {
-        \Illuminate\Support\Facades\Cache::put("welcomed_tg_{$tgId}", true, 86400 * 30);
+    if (!\Illuminate\Support\Facades\Cache::has("welcomed_tg_{$cleanTgId}")) {
+        \Illuminate\Support\Facades\Cache::put("welcomed_tg_{$cleanTgId}", true, 86400 * 30);
         try {
-            \App\Services\TelegramService::sendCustomerDirectWelcomeHub($user, $tgId);
+            \App\Services\TelegramService::sendCustomerDirectWelcomeHub($user, $cleanTgId);
         } catch (\Throwable $t) {}
     }
 
     return response()->json([
         'success' => true,
+        'linked' => true,
         'token' => $token,
         'user' => [
             'id' => $user->id,
             'uid' => $user->firebase_uid,
+            'firebase_uid' => $user->firebase_uid,
             'name' => $user->display_name,
             'display_name' => $user->display_name,
             'email' => $user->email,
             'phone' => $user->phone,
             'telegram' => $user->telegram,
-            'telegram_id' => $tgId,
+            'telegram_id' => $cleanTgId,
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
             'provider' => 'telegram',
