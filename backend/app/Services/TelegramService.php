@@ -460,14 +460,13 @@ class TelegramService
             $fromUsername = $from['username'] ?? '';
 
             // Accurate Multi-Bot Token Routing:
-            // Check if callback query was clicked on a message sent by Main Bot or Auth Bot
-            $msgBotId = $callbackQuery['message']['from']['id'] ?? null;
-            if ($msgBotId == 8899300323 || $botParam === 'main') {
-                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-            } elseif ($msgBotId == 8689597792 || $botParam === 'auth' || $chatType === 'private') {
+            // Private customer chats always route strictly to Customer Bot (@S_TECH_ASSISTANTBOT)
+            if ($chatType === 'private' || $botParam === 'auth' || $msgBotId == 8689597792) {
                 $activeToken = self::getCustomerBotToken();
                 $activeBotUsername = self::getCustomerBotUsername();
+            } elseif ($msgBotId == 8899300323 || $botParam === 'main') {
+                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
             } else {
                 $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
                 $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
@@ -1370,13 +1369,14 @@ class TelegramService
 
         if (!$chatId) return;
 
-        // Multi-Bot Token routing based on bot parameter and chat context
-        if ($botParam === 'main') {
-            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-            $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-        } elseif ($botParam === 'auth' || $chatType === 'private') {
+        // Multi-Bot Token routing:
+        // Private customer chats or bot=auth always route strictly to Customer Bot (@S_TECH_ASSISTANTBOT)
+        if ($chatType === 'private' || $botParam === 'auth') {
             $activeToken = self::getCustomerBotToken();
             $activeBotUsername = self::getCustomerBotUsername();
+        } elseif ($botParam === 'main') {
+            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+            $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
         } else {
             $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
             $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
@@ -3376,7 +3376,17 @@ class TelegramService
     public static function getCustomerBotToken(): string
     {
         $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', ''));
-        if (empty($token) || str_contains($token, 'Placeholder')) {
+        $staffEnv = trim((string)env('TELEGRAM_BOT_TOKEN', ''));
+        $settingsToken = trim((string)(self::$cachedSettings['bot_token'] ?? ''));
+
+        // Strictly reject empty, placeholder, or staff bot tokens (e.g. 8899300323 or identical to staff bot)
+        if (
+            empty($token) ||
+            str_contains($token, 'Placeholder') ||
+            str_starts_with($token, '8899300323') ||
+            (!empty($staffEnv) && $token === $staffEnv) ||
+            (!empty($settingsToken) && $token === $settingsToken)
+        ) {
             return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
         }
         return $token;
@@ -3443,7 +3453,12 @@ class TelegramService
     public static function sendMessage($chatId, string $text, string $parseMode = 'HTML', ?int $threadId = null, ?string $token = null): array
     {
         $settings = self::getSettings();
-        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock send to {$chatId} (Thread: {$threadId}): {$text}");
@@ -3497,7 +3512,12 @@ class TelegramService
     public static function sendMessageWithKeyboard($chatId, string $text, array $replyMarkup, string $parseMode = 'HTML', ?int $threadId = null, ?string $token = null): array
     {
         $settings = self::getSettings();
-        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock send with keyboard to {$chatId}: {$text}");
@@ -4109,7 +4129,12 @@ class TelegramService
     public static function editMessageText($chatId, int $messageId, string $text, ?array $replyMarkup = null, string $parseMode = 'HTML', ?string $token = null): array
     {
         $settings = self::getSettings();
-        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
 
         if (!$token || str_contains($token, 'Placeholder')) {
             return ['ok' => true, 'mock' => true];
@@ -4145,8 +4170,7 @@ class TelegramService
             return;
         }
 
-        $settings = self::getSettings();
-        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        $token = $token ?: self::getCustomerBotToken();
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
@@ -4195,7 +4219,12 @@ class TelegramService
         }
 
         $settings = self::getSettings();
-        $token = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
