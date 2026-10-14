@@ -44,6 +44,12 @@ class MasterSystemController extends Controller
             'financial_freeze' => false,
             'coin_multiplier' => 1.0,
             'force_app_version' => '1.1.0',
+            'night_lock_enabled' => true,
+            'night_lock_forced' => false,
+            'night_lock_start' => '02:00',
+            'night_lock_end' => '06:00',
+            'night_lock_title' => 'សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)',
+            'night_lock_reason' => 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត (Automated Cyber Attacks & Vulnerability Probing)។',
             'last_cache_purge' => null,
             'last_backup_at' => null,
             'last_backup_file' => null,
@@ -81,6 +87,65 @@ class MasterSystemController extends Controller
     }
 
     /**
+     * Determine if Cybersecurity Night Lockdown is active
+     */
+    public static function isNightLockActive(?array $state = null): array
+    {
+        if ($state === null) {
+            $state = Cache::get('master_system_state');
+            if (empty($state) || !is_array($state)) {
+                $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+                $state = ($row && !empty($row->value)) 
+                    ? (is_string($row->value) ? json_decode($row->value, true) : (array)$row->value) 
+                    : [];
+            }
+        }
+
+        $cambodiaNow = \Carbon\Carbon::now('Asia/Phnom Penh');
+        $enabled = isset($state['night_lock_enabled']) ? (bool)$state['night_lock_enabled'] : true;
+        $forced = !empty($state['night_lock_forced']);
+        $startStr = !empty($state['night_lock_start']) ? $state['night_lock_start'] : '02:00';
+        $endStr = !empty($state['night_lock_end']) ? $state['night_lock_end'] : '06:00';
+
+        $startParts = explode(':', $startStr);
+        $endParts = explode(':', $endStr);
+
+        $startTime = $cambodiaNow->copy()->setTime((int)$startParts[0], (int)($startParts[1] ?? 0), 0);
+        $endTime = $cambodiaNow->copy()->setTime((int)$endParts[0], (int)($endParts[1] ?? 0), 0);
+
+        $isNightTime = false;
+        if ($startTime->lessThan($endTime)) {
+            $isNightTime = $cambodiaNow->between($startTime, $endTime);
+        } else {
+            // E.g. crosses midnight: 23:00 to 06:00
+            $isNightTime = ($cambodiaNow->greaterThanOrEqualTo($startTime) || $cambodiaNow->lessThan($endTime));
+        }
+
+        $active = ($enabled && $isNightTime) || $forced;
+
+        $reopenAt = null;
+        if ($active) {
+            $target = $cambodiaNow->copy()->setTime((int)$endParts[0], (int)($endParts[1] ?? 0), 0);
+            if ($cambodiaNow->greaterThanOrEqualTo($target)) {
+                $target->addDay();
+            }
+            $reopenAt = $target->toIso8601String();
+        }
+
+        return [
+            'active' => $active,
+            'enabled' => $enabled,
+            'forced' => $forced,
+            'start_time' => $startStr,
+            'end_time' => $endStr,
+            'reopen_at' => $reopenAt,
+            'title' => $state['night_lock_title'] ?? 'សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)',
+            'reason' => $state['night_lock_reason'] ?? 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត (Automated Cyber Attacks & Vulnerability Probing)។',
+            'cambodia_time' => $cambodiaNow->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
      * Public Store Status (For Customer Storefront & PWA Guard)
      */
     public function publicStatus(Request $request)
@@ -113,16 +178,21 @@ class MasterSystemController extends Controller
         }
 
         $maintenanceActive = !empty($state['maintenance_mode']);
+        $nightLock = self::isNightLockActive($state);
+        $nightLockActive = $nightLock['active'];
 
         $mode = 'online';
         if ($maintenanceActive) {
             $mode = 'maintenance';
         } elseif ($vacationActive) {
             $mode = 'vacation';
+        } elseif ($nightLockActive) {
+            $mode = 'night_lock';
         }
 
         return response()->json([
             'status' => $mode,
+            'night_lock' => $nightLock,
             'vacation' => [
                 'active' => $vacationActive,
                 'title' => $state['vacation_title'] ?? 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
@@ -527,6 +597,55 @@ class MasterSystemController extends Controller
             'success' => true,
             'coin_multiplier' => $multiplier,
             'message' => "បានកែប្រែអត្រាពិន្ទុ Coin Reward ទៅជា {$multiplier}x ជោគជ័យ!",
+        ]);
+    }
+
+    /**
+     * Toggle Cybersecurity Night Lock (02:00 AM - 06:00 AM)
+     */
+    public function toggleNightLock(Request $request)
+    {
+        $enabled = $request->has('enabled') ? (bool)$request->input('enabled') : null;
+        $forced = $request->has('forced') ? (bool)$request->input('forced') : null;
+        $startTime = $request->input('start_time');
+        $endTime = $request->input('end_time');
+        $title = $request->input('title');
+        $reason = $request->input('reason');
+
+        $updates = [];
+        if ($enabled !== null) $updates['night_lock_enabled'] = $enabled;
+        if ($forced !== null) $updates['night_lock_forced'] = $forced;
+        if ($startTime !== null && trim($startTime) !== '') $updates['night_lock_start'] = trim($startTime);
+        if ($endTime !== null && trim($endTime) !== '') $updates['night_lock_end'] = trim($endTime);
+        if ($title !== null && trim($title) !== '') $updates['night_lock_title'] = trim($title);
+        if ($reason !== null && trim($reason) !== '') $updates['night_lock_reason'] = trim($reason);
+
+        $updates['night_lock_updated_at'] = now()->toIso8601String();
+
+        $newState = $this->updateMasterState($updates);
+        $nightLockInfo = self::isNightLockActive($newState);
+
+        try {
+            $statusKh = $nightLockInfo['active']
+                ? "🌙 Cybersecurity Night Lock សកម្ម (ACTIVE) — ម៉ោង {$nightLockInfo['start_time']} ដល់ {$nightLockInfo['end_time']}"
+                : ($nightLockInfo['enabled'] 
+                    ? "🕒 Cybersecurity Night Lock រៀបចំរួចរាល់ (STANDBY: ដំណើរការស្វ័យប្រវត្តិនៅម៉ោង {$nightLockInfo['start_time']})" 
+                    : "⚪ Cybersecurity Night Lock ត្រូវបានបិទ (DISABLED)");
+
+            TelegramService::sendSecurityAlert([
+                'type' => $statusKh,
+                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'action' => 'Cybersecurity Night Lock Configured',
+                'details' => "ស្ថានភាព: " . ($nightLockInfo['active'] ? 'LOCKED' : 'STANDBY/OFF') . " | ម៉ោងកំណត់: {$nightLockInfo['start_time']} - {$nightLockInfo['end_time']} (Asia/Phnom Penh)",
+            ]);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'night_lock' => $nightLockInfo,
+            'message' => $nightLockInfo['active']
+                ? "បានបើកដំណើរការ Night Lock ជោគជ័យ! Storefront ត្រូវបានចាក់សោសុវត្ថិភាព។"
+                : "បានធ្វើបច្ចុប្បន្នភាពការកំណត់ Night Lock ជោគជ័យ!",
         ]);
     }
 

@@ -31,13 +31,15 @@ import {
   Ban,
   Unlock,
   Wrench,
-  Mail
+  Mail,
+  Moon
 } from "lucide-react";
 import EmailDispatcherConsoleModal from "@/components/admin/EmailDispatcherConsoleModal";
 import {
   getMasterSystemStatus,
   toggleMaintenanceMode,
   toggleVacationMode,
+  toggleNightLockMode,
   toggleStaffLockdown,
   purgeGlobalCaches,
   toggleFinancialFreeze,
@@ -414,8 +416,8 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
           )}
         </div>
 
-        {/* 3 Main Mode Selector Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* 4 Main Mode Selector Cards (Online, Vacation, Maintenance, Night Lock) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           
           {/* Option A: Normal Live 24/7 */}
           <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
@@ -662,6 +664,119 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 <><AlertOctagon size={13} /><span>បើក Maintenance Mode</span></>
               )}
             </button>
+          </div>
+
+          {/* Option D: Cybersecurity Night Lock (02:00 AM - 06:00 AM) */}
+          <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+            state.night_lock_forced
+              ? "bg-cyan-950/40 border-cyan-500/70 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/40"
+              : state.night_lock_enabled
+              ? "bg-indigo-950/20 border-cyan-500/30 hover:border-cyan-500/50"
+              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
+                  state.night_lock_forced 
+                    ? "bg-cyan-500/20 text-cyan-300" 
+                    : state.night_lock_enabled 
+                    ? "bg-indigo-500/20 text-cyan-400" 
+                    : "bg-white/10 text-gray-400"
+                }`}>
+                  <Moon size={18} />
+                </div>
+                {state.night_lock_forced ? (
+                  <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                    <span>FORCED LOCK</span>
+                  </span>
+                ) : state.night_lock_enabled ? (
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    <span>Auto 2AM-6AM Standby</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">Disabled</span>
+                )}
+              </div>
+
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                <Moon size={15} className="text-cyan-400" />
+                <span>សុវត្ថិភាពពេលរាត្រី (Night Lock)</span>
+              </h4>
+              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                បិទ Storefront & ចាក់សោ Checkout ស្វ័យប្រវត្តពីម៉ោង {state.night_lock_start || "02:00"} ដល់ {state.night_lock_end || "06:00"} AM ការពារ Hacker/Bot វាយប្រហារពេលយប់ & សន្សំ Free Tier!
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const newForced = !state.night_lock_forced;
+                  handleProtectedAction(
+                    "night_lock_force",
+                    "Force Cybersecurity Night Lockdown",
+                    async () => {
+                      const res = await toggleNightLockMode({ forced: newForced });
+                      showToast(res.message);
+                      await loadStatus();
+                    },
+                    true,
+                    newForced ? "ចាក់សោ Night Lock ភ្លាមៗ (Test Lockdown)" : "ដោះសោ Night Lock ភ្លាមៗ",
+                    newForced 
+                      ? "តើអ្នកចង់ចាក់សោ Storefront ចូលក្នុងរបៀប Night Lock ភ្លាមៗដើម្បីតេស្តមើល UI ឬការពារបន្ទាន់មែនទេ?" 
+                      : "តើអ្នកចង់ដោះសោ Night Lock ភ្លាមៗមែនទេ?",
+                    newForced ? "extreme" : "warning"
+                  );
+                }}
+                disabled={actionLoading === "night_lock_force"}
+                className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  !isSuperAdmin
+                    ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                    : state.night_lock_forced
+                    ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950/40"
+                    : "bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/30"
+                }`}
+              >
+                {!isSuperAdmin ? (
+                  <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
+                ) : state.night_lock_forced ? (
+                  <><Power size={13} /><span>ដោះសោ Force Lock</span></>
+                ) : (
+                  <><Moon size={13} /><span>សាកល្បងចាក់សោ (Force Lock)</span></>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const newEnabled = !(state.night_lock_enabled ?? true);
+                  handleProtectedAction(
+                    "night_lock_toggle_auto",
+                    "Toggle Auto Night Lock Schedule",
+                    async () => {
+                      const res = await toggleNightLockMode({ enabled: newEnabled });
+                      showToast(res.message);
+                      await loadStatus();
+                    },
+                    true,
+                    newEnabled ? "បើក Auto Night Lock (02:00 - 06:00)" : "បិទ Auto Night Lock",
+                    newEnabled
+                      ? "តើអ្នកចង់បើកកាលវិភាគ Night Lock ស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ជារៀងរាល់ថ្ងៃមែនទេ?"
+                      : "តើអ្នកចង់បិទកាលវិភាគ Night Lock ស្វ័យប្រវត្តិមែនទេ?",
+                    "warning"
+                  );
+                }}
+                disabled={actionLoading === "night_lock_toggle_auto"}
+                className="w-full py-1.5 px-3 rounded-xl font-medium text-[11px] text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <span>Auto Schedule (2AM - 6AM):</span>
+                <strong className={state.night_lock_enabled ?? true ? "text-cyan-400 font-bold" : "text-gray-500 font-bold"}>
+                  {state.night_lock_enabled ?? true ? "បើក (ON)" : "បិទ (OFF)"}
+                </strong>
+              </button>
+            </div>
           </div>
 
         </div>

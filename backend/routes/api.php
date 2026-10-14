@@ -1509,6 +1509,7 @@ Route::middleware(SuperAdminMiddleware::class)->group(function () {
     Route::post('/admin/master/force-client-update', [\App\Http\Controllers\MasterSystemController::class, 'forceClientUpdate']);
     Route::post('/admin/master/sos-broadcast', [\App\Http\Controllers\MasterSystemController::class, 'sosBroadcast']);
     Route::post('/admin/master/revoke-all-staff-sessions', [\App\Http\Controllers\MasterSystemController::class, 'revokeAllStaffSessions']);
+    Route::post('/admin/master/toggle-night-lock', [\App\Http\Controllers\MasterSystemController::class, 'toggleNightLock']);
     Route::post('/admin/master/coin-multiplier', [\App\Http\Controllers\MasterSystemController::class, 'updateCoinMultiplier']);
 });
 

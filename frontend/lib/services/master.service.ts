@@ -1,7 +1,7 @@
 import api from "@/lib/api";
 
 export interface MasterSystemState {
-  mode?: "online" | "vacation" | "maintenance";
+  mode?: "online" | "vacation" | "maintenance" | "night_lock";
   maintenance_mode: boolean;
   maintenance_title?: string;
   maintenance_reason?: string;
@@ -12,6 +12,13 @@ export interface MasterSystemState {
   vacation_end_time?: string | null;
   vacation_days?: number;
   vacation_started_at?: string | null;
+  night_lock_enabled?: boolean;
+  night_lock_forced?: boolean;
+  night_lock_start?: string;
+  night_lock_end?: string;
+  night_lock_title?: string;
+  night_lock_reason?: string;
+  night_lock_updated_at?: string;
   staff_lockdown: boolean;
   staff_lockdown_reason?: string;
   financial_freeze: boolean;
@@ -45,7 +52,18 @@ export interface MasterSystemStatusResponse {
 }
 
 export interface PublicStoreStatusResponse {
-  status: "online" | "vacation" | "maintenance";
+  status: "online" | "vacation" | "maintenance" | "night_lock";
+  night_lock?: {
+    active: boolean;
+    enabled: boolean;
+    forced: boolean;
+    title: string;
+    reason: string;
+    start_time: string;
+    end_time: string;
+    reopen_at: string | null;
+    cambodia_time?: string;
+  };
   vacation: {
     active: boolean;
     title: string;
@@ -126,6 +144,16 @@ export async function getPublicStoreStatus(forceRefresh = false): Promise<Public
 
   return {
     status: "online",
+    night_lock: {
+      active: false,
+      enabled: true,
+      forced: false,
+      title: "សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)",
+      reason: "ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM",
+      start_time: "02:00",
+      end_time: "06:00",
+      reopen_at: null,
+    },
     vacation: { active: false, title: "", reason: "", end_time: null, days: 3, started_at: null },
     maintenance: { active: false, title: "", reason: "", end_time: null },
     staff_lockdown: { active: false, reason: "" },
@@ -144,6 +172,22 @@ export function clearStoreStatusCache() {
       window.dispatchEvent(new CustomEvent("stech_store_status_changed"));
     } catch (e) {}
   }
+}
+
+/**
+ * Toggle Cybersecurity Night Lock (02:00 AM - 06:00 AM)
+ */
+export async function toggleNightLockMode(options: {
+  enabled?: boolean;
+  forced?: boolean;
+  start_time?: string;
+  end_time?: string;
+  title?: string;
+  reason?: string;
+}) {
+  const res = await api.post("/admin/master/toggle-night-lock", options);
+  clearStoreStatusCache();
+  return res.data;
 }
 
 /**

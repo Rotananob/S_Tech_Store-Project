@@ -95,6 +95,21 @@ class OrderController extends Controller
             'items.*.price' => 'nullable|numeric',
         ]);
 
+        // Security Guard: Check Cybersecurity Night Lockdown
+        $nightLock = \App\Http\Controllers\MasterSystemController::isNightLockActive();
+        if ($nightLock['active'] && !$request->header('X-Owner-Bypass')) {
+            $adminUser = $request->attributes->get('auth_user');
+            $isSuper = $adminUser && ($adminUser->role === 'super_admin' || $adminUser->email === 'nobrothana180703@gmail.com');
+            if (!$isSuper) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'NIGHT_LOCKDOWN_ACTIVE',
+                    'message' => 'ហាងកំពុងស្ថិតក្នុងរបៀបការពារសុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown: ' . $nightLock['start_time'] . ' - ' . $nightLock['end_time'] . ')។ ការបញ្ជាទិញនឹងបើកដំណើរការឡើងវិញនៅវេលាម៉ោង 06:00 AM ព្រឹកនេះ!',
+                    'reopen_at' => $nightLock['reopen_at'],
+                ], 423);
+            }
+        }
+
         try {
             DB::beginTransaction();
 
