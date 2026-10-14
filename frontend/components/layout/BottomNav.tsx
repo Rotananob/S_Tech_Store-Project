@@ -82,6 +82,44 @@ export default function BottomNav() {
     } catch (e) {}
   }, []);
 
+  // Listen for open_chat URL param, hash #chat, or event triggers (e.g. from Telegram alert)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleAutoOpenChat = () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasParam =
+          urlParams.get("open_chat") === "1" ||
+          urlParams.get("open_chat") === "true" ||
+          urlParams.get("chat") === "open" ||
+          urlParams.get("chat") === "1" ||
+          window.location.hash === "#chat";
+
+        const hasStored = sessionStorage.getItem("stech_auto_open_chat") === "1";
+
+        if (hasParam || hasStored) {
+          sessionStorage.removeItem("stech_auto_open_chat");
+          openChat();
+        }
+      } catch (e) {}
+    };
+
+    handleAutoOpenChat();
+    const t1 = setTimeout(handleAutoOpenChat, 300);
+    const t2 = setTimeout(handleAutoOpenChat, 1000);
+
+    window.addEventListener("stech_trigger_open_chat", handleAutoOpenChat);
+    window.addEventListener("hashchange", handleAutoOpenChat);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("stech_trigger_open_chat", handleAutoOpenChat);
+      window.removeEventListener("hashchange", handleAutoOpenChat);
+    };
+  }, [openChat]);
+
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
     if (path !== '/' && path !== '#chat' && pathname.startsWith(path)) return true;

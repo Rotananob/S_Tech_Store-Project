@@ -65,6 +65,18 @@ export default function TelegramAuthBridge() {
     // A. Check for 1-Click tg_token in URL (Top Authority from Bot Link)
     const urlParams = new URLSearchParams(window.location.search);
     const tgToken = urlParams.get("tg_token");
+    const isChatRequest = urlParams.get("open_chat") === "1" || 
+                          urlParams.get("open_chat") === "true" ||
+                          urlParams.get("chat") === "open" ||
+                          urlParams.get("chat") === "1" ||
+                          window.location.hash === "#chat";
+
+    if (isChatRequest) {
+      try {
+        sessionStorage.setItem("stech_auto_open_chat", "1");
+      } catch (e) {}
+      window.dispatchEvent(new CustomEvent("stech_trigger_open_chat"));
+    }
 
     const getResolvedTarget = () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -81,6 +93,10 @@ export default function TelegramAuthBridge() {
           if (res.data?.success && res.data?.user) {
             applyUserSession(res.data.user, res.data.token);
 
+            if (isChatRequest) {
+              window.dispatchEvent(new CustomEvent("stech_trigger_open_chat"));
+            }
+
             if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
               const target = getResolvedTarget();
               sessionStorage.removeItem("stech_auth_redirect");
@@ -89,6 +105,11 @@ export default function TelegramAuthBridge() {
               // Clean URL query params without reloading
               const cleanUrl = window.location.pathname;
               window.history.replaceState({}, document.title, cleanUrl);
+              if (isChatRequest) {
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent("stech_trigger_open_chat"));
+                }, 150);
+              }
             }
           }
         })

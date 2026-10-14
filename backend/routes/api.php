@@ -88,8 +88,15 @@ Route::post('/chat/admin-reply-alert', function (Request $request) {
         $user = \App\Models\UserProfile::where('firebase_uid', $chatId)
             ->orWhere('telegram_chat_id', $tgRaw)
             ->first();
+    } elseif (str_starts_with($chatId, 'user_')) {
+        $rawId = substr($chatId, 5);
+        $user = \App\Models\UserProfile::where('id', is_numeric($rawId) ? (int)$rawId : 0)
+            ->orWhere('firebase_uid', $chatId)
+            ->first();
     } elseif (!empty($chatId) && !str_starts_with($chatId, 'visitor_')) {
-        $user = \App\Models\UserProfile::where('firebase_uid', $chatId)->first();
+        $user = \App\Models\UserProfile::where('firebase_uid', $chatId)
+            ->orWhere('id', is_numeric($chatId) ? (int)$chatId : 0)
+            ->first();
     }
 
     // Fallback to phone / email
@@ -327,6 +334,9 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         $user->email = $email;
     }
     $user->telegram_chat_id = $tgId;
+    $cleanTg = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
+    \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanTg}");
+    \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$tgId}");
     if (empty($user->telegram)) {
         $user->telegram = $tgUsername ?: ("ID: {$tgId}");
     }
@@ -618,8 +628,20 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         $oldUid = $user->firebase_uid;
         if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
             $user->firebase_uid = 'stech_u_' . $user->id . '_' . \Illuminate\Support\Str::random(10);
+            $user->save();
+
+            // Migrate all related records so orders, wallet transactions, and history remain 100% intact!
+            if (!empty($oldUid) && $oldUid !== $user->firebase_uid) {
+                try {
+                    \App\Models\Order::where('user_id', $oldUid)->update(['user_id' => $user->firebase_uid]);
+                    \App\Models\WalletTransaction::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
+                    \App\Models\UserNotification::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
+                    \App\Models\Wishlist::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
+                } catch (\Throwable $t) {}
+            }
+        } else {
+            $user->save();
         }
-        $user->save();
 
         // Clear cache mappings for this chat ID and mark disconnected for auto-logout in Mini App
         if (!empty($oldChatId)) {

@@ -1054,19 +1054,19 @@ class TelegramService
                 } catch (\Throwable $e) {}
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+                $storeAppUrl = "https://www.s-tech-store.tech/?open_chat=1&tg_token={$sessionToken}";
 
                 $supportText = "💬 <b>ផ្នែកបម្រើអតិថិជន & ក្រុមការងារ Support</b>\n\n"
                     . "ជម្រាបសួរ <b>{$fromName}</b>! សំណើរបស់អ្នកត្រូវបានបញ្ជូនទៅកាន់ក្រុមការងារ On-Duty Support រួចរាល់ហើយ។\n\n"
                     . "👨‍💻 បុគ្គលិកជំនាញរបស់យើងនឹងឆ្លើយតប ឬទាក់ទងមកកាន់លោកអ្នកក្នុងពេលបន្តិចទៀតនេះ។\n\n"
                     . "📞 <b>Hotline ប្រញាប់:</b> <code>012 345 678</code> | <code>098 765 432</code>\n"
-                    . "🌐 <b>ឬជជែក Live Chat ផ្ទាល់លើគេហទំព័រ:</b> <a href=\"https://www.s-tech-store.tech\">https://www.s-tech-store.tech</a>";
+                    . "🌐 <b>ឬជជែក Live Chat ផ្ទាល់លើគេហទំព័រ:</b> <a href=\"{$storeAppUrl}\">បើក Live Chat ផ្ទាល់</a>";
 
                 $supportKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]]],
+                        [['text' => '💬 បើក Live Chat ជជែកផ្ទាល់', 'web_app' => ['url' => $storeAppUrl]]],
                         [
-                            ['text' => '🌐 ចូលគេហទំព័រហាង', 'url' => 'https://www.s-tech-store.tech'],
+                            ['text' => '🌐 បើកលើ Browser', 'url' => $storeAppUrl],
                             ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
                         ],
                     ],

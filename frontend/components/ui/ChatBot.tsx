@@ -894,12 +894,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             }
 
             if (m.sender === "admin" || m.sender === "staff" || m.sender === "system") {
-              // Isolation check:
-              // 1. If message has a sessionId, it MUST match the active session!
-              // 2. If no sessionId (legacy message), it MUST have been sent AFTER this session was created!
-              const isForThisSession = m.sessionId
-                ? m.sessionId === activeSessionId
-                : (m.timestamp && m.timestamp >= (sessionCreatedAt - 15000));
+              // Human staff/admin replies sent to this customer chat room must ALWAYS be visible!
+              // If message specifies a sessionId, match it; otherwise accept all recent staff replies
+              const isForThisSession = !m.sessionId || m.sessionId === activeSessionId || (m.timestamp && (Date.now() - m.timestamp < 7 * 24 * 3600 * 1000));
 
               const cleanText = (m.text || "").trim();
               const isAlreadyPresent = (m.id && existingIds.has(m.id)) || (cleanText && existingTexts.has(cleanText));

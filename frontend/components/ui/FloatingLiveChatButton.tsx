@@ -28,6 +28,13 @@ export default function FloatingLiveChatButton() {
     } catch (e) {}
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleTrigger = () => openChat();
+    window.addEventListener("stech_trigger_open_chat", handleTrigger);
+    return () => window.removeEventListener("stech_trigger_open_chat", handleTrigger);
+  }, [openChat]);
+
   const handleClick = () => {
     try {
       const visitorId = getOrCreateVisitorId();
