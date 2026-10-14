@@ -41,12 +41,13 @@ Artisan::command('telegram:radar-poll {pair_code} {--duration=90}', function ($p
             \App\Services\TelegramService::pollPendingUpdates(0);
         } catch (\Throwable $e) {}
 
-        // Check if now connected
+        // Check if THIS specific pair code has now been paired and connected
         $settings = \App\Services\TelegramService::getSettings();
-        if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+        $tokens = $settings['pending_tokens'] ?? [];
+        if (!isset($tokens[$pairCode]) && !empty($settings['connected']) && !empty($settings['chat_id'])) {
             // Guarantee topics are created and auto-healed in Telegram immediately
             \App\Services\TelegramService::setupTopics($settings['chat_id']);
-            $this->info("Group connected & topics auto-created in Telegram!");
+            $this->info("Group connected with pair code {$pairCode} & topics auto-created in Telegram!");
             return;
         }
 

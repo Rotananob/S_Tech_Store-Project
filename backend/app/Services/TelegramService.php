@@ -297,21 +297,6 @@ class TelegramService
             return true;
         }
 
-        // ── STRICT SECURITY & ANTI-INJECTION LOCK ────────────────────────────
-        // If already connected to an official team chat, strictly disallow overriding chat_id from unknown chats
-        if (!empty($settings['connected']) && !empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr) {
-            Log::warning("Telegram Bot injection/takeover attempt detected from chat {$chatIdStr} ('{$chatTitle}'). Denied.");
-            self::sendSecurityAlert([
-                'type' => 'Unauthorized Telegram Bot Pairing Attempt (Blocked)',
-                'ip' => request()->ip() ?? 'Telegram Network',
-                'device' => 'Telegram Bot API',
-                'user' => "Chat ID: {$chatIdStr} ({$chatTitle})",
-                'action' => 'Hijack Attempt Blocked',
-                'details' => "A non-whitelisted Telegram chat tried to connect or hijack the bot. Request was blocked.",
-            ]);
-            return false;
-        }
-
         // Strictly reject private chats from taking over the bot as team chat
         if ($chatType === 'private') {
             Log::info("Rejected pairing attempt from private chat {$chatIdStr}.");
@@ -319,9 +304,8 @@ class TelegramService
         }
 
         try {
-            // If already connected to this chat, do not spam greeting or recreate topics
+            // If already connected to this exact chat, ensure topics are created if missing
             if (!empty($settings['connected']) && (string)($settings['chat_id'] ?? '') === $chatIdStr) {
-                // Ensure topics exist if not yet created
                 $topics = $settings['topics'] ?? [];
                 if (empty($topics['orders']) || empty($topics['repairs']) || empty($topics['stock']) || empty($topics['chat'])) {
                     self::setupTopics($chatId);
@@ -329,6 +313,7 @@ class TelegramService
                 return true;
             }
 
+            // ── VERIFY PAIRING TOKEN FROM ADMIN PANEL ────────────────────────
             $tokens = $settings['pending_tokens'] ?? [];
             $matchedKey = null;
 
@@ -336,23 +321,55 @@ class TelegramService
                 $matchedKey = $pairCode;
             } else {
                 foreach (array_keys($tokens) as $t) {
-                    if (str_starts_with($pairCode, $t) || str_starts_with($t, $pairCode)) {
+                    if (strcasecmp($pairCode, $t) === 0 || str_starts_with($pairCode, $t) || str_starts_with($t, $pairCode)) {
                         $matchedKey = $t;
                         break;
                     }
                 }
             }
 
+            $isAuthorized = false;
             $connectedBy = 'Admin/Staff';
+
             if ($matchedKey) {
+                $isAuthorized = true;
                 $connectedBy = $tokens[$matchedKey]['user'] ?? 'Admin/Staff';
                 unset($tokens[$matchedKey]);
             } elseif ($pairCode === 'AUTO' && !empty($tokens)) {
+                $isAuthorized = true;
                 $latestToken = array_key_last($tokens);
                 $connectedBy = $tokens[$latestToken]['user'] ?? 'Admin/Staff';
                 unset($tokens[$latestToken]);
-            } elseif (!str_starts_with($pairCode, 'ST') && $pairCode !== 'AUTO') {
+            } elseif (str_starts_with($pairCode, 'ST') && !empty($tokens)) {
+                $isAuthorized = true;
+                $latestToken = array_key_last($tokens);
+                $connectedBy = $tokens[$latestToken]['user'] ?? 'Admin/Staff';
+                unset($tokens[$latestToken]);
+            }
+
+            // If not authorized by admin portal pairing token
+            if (!$isAuthorized) {
+                // If already connected to a chat, strictly block unauthorized override
+                if (!empty($settings['connected']) && !empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr) {
+                    Log::warning("Telegram Bot injection/takeover attempt detected from chat {$chatIdStr} ('{$chatTitle}'). Denied.");
+                    self::sendSecurityAlert([
+                        'type' => 'Unauthorized Telegram Bot Pairing Attempt (Blocked)',
+                        'ip' => request()->ip() ?? 'Telegram Network',
+                        'device' => 'Telegram Bot API',
+                        'user' => "Chat ID: {$chatIdStr} ({$chatTitle})",
+                        'action' => 'Hijack Attempt Blocked',
+                        'details' => "A non-whitelisted Telegram chat tried to connect or hijack the bot without a valid pairing code.",
+                    ]);
+                    return false;
+                }
                 return false;
+            }
+
+            // When switching to a genuinely new chat group, reset old topics to generate fresh ones
+            $isSwitchingChat = !empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr;
+            if ($isSwitchingChat) {
+                Log::info("[TelegramService] Switching bot group from {$settings['chat_id']} to new chat {$chatIdStr}");
+                $settings['topics'] = [];
             }
 
             $settings['connected'] = true;
@@ -362,10 +379,11 @@ class TelegramService
             $settings['connected_at'] = date('Y-m-d H:i:s');
             $settings['connected_by'] = $connectedBy;
             $settings['pending_tokens'] = $tokens;
+            $settings['topics_chat_id'] = $chatIdStr;
 
             self::saveSettings($settings);
 
-            // Send initial connection greeting ONCE
+            // Send initial connection greeting ONCE with 1-Tap Admin Mini App Button
             $welcomeText = "🎉 <b>S Tech Store Notification Bot បានភ្ជាប់ជោគជ័យ!</b>\n\n"
                 . "🏪 <b>ប្រព័ន្ធហាង:</b> S Tech Store Cambodia\n"
                 . "👥 <b>ឈ្មោះគ្រុប:</b> " . htmlspecialchars($settings['chat_title']) . "\n"
@@ -375,10 +393,19 @@ class TelegramService
                 . "• 🛒 <b>ការបញ្ជាទិញថ្មី (New Orders)</b>\n"
                 . "• 🔧 <b>សំណើជួសជុល (Repair Tickets)</b>\n"
                 . "• ⚠️ <b>ទំនិញជិតអស់ពីស្តុក (Low Stock Alerts)</b>\n"
-                . "• ⏰ <b>វេនការងារបុគ្គលិក (Staff Shift Updates)</b>\n\n"
-                . "<i>កំពុងពិនិត្យសិទ្ធិ និងរៀបចំបង្កើត Forum Topics ដោយស្វ័យប្រវត្តិ...</i>";
+                . "• 💬 <b>សេវាអតិថិជន & Live Chat</b>\n\n"
+                . "<i>⚡ កំពុងរៀបចំ Forum Topics និងផ្ទៀងផ្ទាត់សិទ្ធិដោយស្វ័យប្រវត្តិ...</i>";
 
-            self::sendMessage($chatId, $welcomeText);
+            $welcomeKb = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '📱 បើក Admin Dashboard (Mini App)', 'web_app' => ['url' => 'https://www.s-tech-store.tech/rok-mix-khernh']],
+                        ['text' => '🌐 ចូល Admin Website', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh']
+                    ]
+                ]
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $welcomeText, $welcomeKb);
 
             // Automatically setup Forum Topics in group
             self::setupTopics($chatId);
@@ -523,6 +550,9 @@ class TelegramService
 
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
+                if ($callbackId) {
+                    self::answerCallbackQuery($callbackId, "🔄 កំពុងពិនិត្យសិទ្ធិ និងបង្កើត Forum Topics...", $activeToken, false);
+                }
                 if ($chatType !== 'private') {
                     self::setupTopics($chatId);
                 }
@@ -3184,18 +3214,24 @@ class TelegramService
             self::saveSettings($settings);
 
             if ($needsAdmin) {
-                $adminNotice = "⚠️ <b>សូមផ្តល់សិទ្ធិជា Administrator ដល់ Bot:</b>\n\n"
-                    . "ដើម្បីឲ្យ Bot អាចបង្កើត <b>Forum Topics (ប្រធានបទដោយស្វ័យប្រវត្តិ)</b> ក្នុងគ្រុបនេះបាន សូមធ្វើតាមជំហានងាយៗដូចខាងក្រោម៖\n\n"
-                    . "1️⃣ ចូលទៅកាន់ <b>Group Settings ⚙️</b> ➡️ បើកមុខងារ <b>Topics</b>\n"
-                    . "2️⃣ ចូលទៅកាន់ <b>Administrators 🛡️</b> ➡️ Add <b>@{$botUsername}</b> ជា Admin\n"
-                    . "3️⃣ បើកសិទ្ធិ <b>Manage Topics</b> (ឬផ្តល់សិទ្ធិ Admin ពេញលេញ)\n"
-                    . "4️⃣ បន្ទាប់ពីបើកសិទ្ធិរួច សូមចុចប៊ូតុងខាងក្រោម ឬវាយបញ្ជា <code>/setup_topics</code> ម្តងទៀត!\n\n"
-                    . "<i>Bot នឹងបង្កើត Topic ដោយស្វ័យប្រវត្តិភ្លាមៗ!</i>";
+                $adminNotice = "⚠️ <b>សូមបើកដំណើរការ Forum Topics សម្រាប់គ្រុបនេះ:</b>\n\n"
+                    . "ដើម្បីឲ្យ Bot អាចរៀបចំ Topics ដោយស្វ័យប្រវត្តិកុំឲ្យសាររញ៉េរញ៉ៃ (បែងចែកការកុម្ម៉ង់ ឆាត និងស្តុកដាច់ដោយឡែកពីគ្នា) សូមធ្វើតាមជំហានងាយៗដូចខាងក្រោម៖\n\n"
+                    . "1️⃣ <b>បើកមុខងារ Topics:</b>\n"
+                    . "   👉 ចុចលើឈ្មោះគ្រុបខាងលើ ➡️ ចុចលើ <b>Edit (✏️)</b> ➡️ បើកមុខងារ <b>Topics</b> (Turn ON Topics)\n\n"
+                    . "2️⃣ <b>ផ្តល់សិទ្ធិ Admin ដល់ Bot:</b>\n"
+                    . "   👉 ចូលទៅកាន់ <b>Administrators (🛡️)</b> ➡️ ជ្រើសរើស <b>@{$botUsername}</b> ➡️ បើកសិទ្ធិ <b>Manage Topics</b> (ឬផ្តល់សិទ្ធិ Admin ពេញលេញ)\n\n"
+                    . "3️⃣ <b>ចុចប៊ូតុងខាងក្រោមដើម្បីបង្កើត Topics ភ្លាមៗ:</b>\n"
+                    . "   👉 ចុចប៊ូតុង <b>🔄 បង្កើត Topics ដោយស្វ័យប្រវត្តិ</b> ខាងក្រោម ឬវាយបញ្ជា <code>/setup_topics</code> ក្នុងគ្រុបនេះ!\n\n"
+                    . "<i>Bot នឹងបង្កើត Topic នីមួយៗជូនភ្លាមៗដោយស្វ័យប្រវត្តិ!</i>";
 
                 $keyboard = [
                     'inline_keyboard' => [
                         [
-                            ['text' => '🔄 ចុចដើម្បីបង្កើត Topics ម្តងទៀត (Retry Setup)', 'callback_data' => 'setup_topics']
+                            ['text' => '🔄 បង្កើត Topics ដោយស្វ័យប្រវត្តិ (Create Topics)', 'callback_data' => 'setup_topics']
+                        ],
+                        [
+                            ['text' => '📱 បើក Admin Dashboard (Mini App)', 'web_app' => ['url' => 'https://www.s-tech-store.tech/rok-mix-khernh']],
+                            ['text' => '🌐 ចូល Admin Website', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh']
                         ]
                     ]
                 ];
@@ -3210,19 +3246,28 @@ class TelegramService
                 ];
             }
 
-            // Only send congratulatory overview if we actually created new topics
+            // Send overview when topics are created or confirmed
             if ($newlyCreatedCount > 0) {
                 $topicsOverview = "🎉 <b>S Tech Store — Forum Topics ត្រូវបានបង្កើតជោគជ័យ!</b>\n\n"
                     . "🗂️ <b>រាល់ការជូនដំណឹងពីប្រព័ន្ធ នឹងត្រូវបានបែងចែកតាម Topic ស្វ័យប្រវត្ត៖</b>\n\n"
                     . "1️⃣ 🛒 <b>ការបញ្ជាទិញថ្មី</b> — ទទួលការជូនដំណឹងវិក្កយបត្រថ្មីភ្លាមៗ\n"
-                    . "2️⃣ 🌐 <b>អ្នកចូលទស្សនាវេបសាយ</b> — តាមដាន Traffic & Visitors Real-time\n"
-                    . "3️⃣ 👤 <b>អតិថិជនចុះឈ្មោះថ្មី</b> — ជូនដំណឹងរាល់ពេលមាន User Signup ថ្មី\n"
+                    . "2️⃣ 💬 <b>អតិថិជនកំពុងឆាត</b> — ទទួលសារពី Live Chat ផ្ទាល់\n"
+                    . "3️⃣ 💳 <b>ការទូទាត់ & ហិរញ្ញវត្ថុ</b> — តាមដានការបង់ប្រាក់ & Top-up\n"
                     . "4️⃣ 🛠️ <b>សេវាជួសជុល</b> — តាមដានស្ថានភាពជួសជុល & Ticket\n"
                     . "5️⃣ ⚠️ <b>ការជូនដំណឹងស្តុក</b> — ជូនដំណឹងពេលទំនិញជិតអស់ពីស្តុក\n"
-                    . "6️⃣ 💬 <b>សេវាអតិថិជន</b> — សម្រាប់សន្ទនា និងឆ្លើយតបអតិថិជន\n\n"
-                    . "✅ <i>ប្រព័ន្ធ Notification ដំណើរការពេញលេញ ២៤/៧!</i>";
+                    . "6️⃣ 🛡️ <b>Security & Errors</b> — តាមដានសុវត្ថិភាព & បញ្ហាប្រព័ន្ធ\n\n"
+                    . "✅ <i>ប្រព័ន្ធ Notification និង Admin Dashboard ដំណើរការពេញលេញ ២៤/៧!</i>";
 
-                self::sendMessage($chatId, $topicsOverview);
+                $overviewKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '📱 បើក Admin Dashboard (Mini App)', 'web_app' => ['url' => 'https://www.s-tech-store.tech/rok-mix-khernh']],
+                            ['text' => '🌐 ចូល Admin Website', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh']
+                        ]
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $topicsOverview, $overviewKb);
             }
 
             return [
@@ -4070,8 +4115,12 @@ class TelegramService
     public static function connectDirectChat($chatId, string $chatTitle = 'S Tech Store Group'): bool
     {
         $settings = self::getSettings();
+        $chatIdStr = (string)$chatId;
+        if (!empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr) {
+            $settings['topics'] = [];
+        }
         $settings['connected'] = true;
-        $settings['chat_id'] = (string)$chatId;
+        $settings['chat_id'] = $chatIdStr;
         if (!empty($chatTitle)) {
             $settings['chat_title'] = $chatTitle;
         }

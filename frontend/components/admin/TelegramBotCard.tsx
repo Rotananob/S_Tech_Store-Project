@@ -32,8 +32,8 @@ export default function TelegramBotCard() {
   const [justConnected, setJustConnected] = useState(false);
 
   // Manual Direct Connect State
-  const [manualChatId, setManualChatId] = useState("-1003967108799");
-  const [manualChatTitle, setManualChatTitle] = useState("all my cv");
+  const [manualChatId, setManualChatId] = useState("");
+  const [manualChatTitle, setManualChatTitle] = useState("");
   const [showManualConnect, setShowManualConnect] = useState(false);
   const [manualConnecting, setManualConnecting] = useState(false);
 
@@ -118,28 +118,34 @@ export default function TelegramBotCard() {
   // Master UX 1-Click Connect (Opens Telegram App directly with pre-selected Admin & Topics permissions)
   const handleOneClickConnect = async () => {
     setConnecting(true);
-    setWizardOpen(true);
-    setWizardStep(1);
     setJustConnected(false);
     try {
       const res = await generateTelegramLink();
       setPairData(res);
+      setWizardOpen(true);
+      setWizardStep(1);
       showToast("កំពុងបើកកម្មវិធី Telegram... សូមជ្រើសរើស Group របស់ហាង");
 
       // Auto-launch Telegram App directly via non-blocking link so this web tab remains alive and active
       const tgApp = res.tg_app_url || `tg://resolve?domain=${res.bot_username}&startgroup=${res.pair_code}&admin=manage_topics+change_info+post_messages+edit_messages+delete_messages+pin_messages+promote_members+invite_users`;
       const tgWeb = res.group_url;
 
-      try {
-        const link = document.createElement("a");
-        link.href = tgApp;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (e) {
-        window.open(tgWeb, "_blank");
+      // On mobile devices (iOS / Android), direct navigation bypasses browser popup blockers cleanly
+      const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = tgApp;
+      } else {
+        try {
+          const link = document.createElement("a");
+          link.href = tgApp;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } catch (e) {
+          window.open(tgWeb, "_blank");
+        }
       }
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || "បរាជ័យក្នុងការបង្កើត Link";
@@ -610,7 +616,7 @@ export default function TelegramBotCard() {
               {showManualConnect && (
                 <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-3">
                   <p className="text-xs text-gray-500 m-0">
-                    បញ្ចូល Chat ID របស់ Telegram Group ឬ Supergroup (ឧទាហរណ៍: <code>-1003967108799</code>) ដើម្បីភ្ជាប់ភ្លាមៗដោយមិនចាំបាច់រង់ចាំ Webhook ឬ Bot Token ថ្មី:
+                    បញ្ចូល Chat ID របស់ Telegram Group ឬ Supergroup (ឧទាហរណ៍: <code>-100xxxxxxxxxx</code>) ដើម្បីភ្ជាប់ភ្លាមៗដោយមិនចាំបាច់រង់ចាំ Webhook ឬ Bot Token ថ្មី:
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="sm:col-span-2">
@@ -619,7 +625,7 @@ export default function TelegramBotCard() {
                         type="text"
                         value={manualChatId}
                         onChange={(e) => setManualChatId(e.target.value)}
-                        placeholder="-1003967108799"
+                        placeholder="-100xxxxxxxxxx"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs sm:text-sm font-mono focus:border-[#0088cc] focus:ring-1 focus:ring-[#0088cc] outline-none"
                       />
                     </div>
@@ -629,7 +635,7 @@ export default function TelegramBotCard() {
                         type="text"
                         value={manualChatTitle}
                         onChange={(e) => setManualChatTitle(e.target.value)}
-                        placeholder="all my cv"
+                        placeholder="S Tech Store Team Group"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs sm:text-sm focus:border-[#0088cc] focus:ring-1 focus:ring-[#0088cc] outline-none"
                       />
                     </div>
