@@ -157,7 +157,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     };
 
     checkStoreStatus();
-    const interval = setInterval(checkStoreStatus, 15000);
+    const interval = setInterval(checkStoreStatus, 60000);
     return () => clearInterval(interval);
   }, [isLoginPage]);
 

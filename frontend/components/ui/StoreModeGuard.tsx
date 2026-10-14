@@ -70,11 +70,23 @@ export default function StoreModeGuard() {
     }
   }, []);
 
-  // Poll status periodically (every 15s) and on window focus
+  // Poll status periodically (every 60s) and on window focus (with 30s cooldown)
   useEffect(() => {
+    let lastChecked = Date.now();
     checkStatus();
-    const interval = setInterval(checkStatus, 15000);
-    const onFocus = () => checkStatus();
+
+    const interval = setInterval(() => {
+      lastChecked = Date.now();
+      checkStatus();
+    }, 60000);
+
+    const onFocus = () => {
+      // Cooldown: only re-fetch on window focus if last check was > 30s ago
+      if (Date.now() - lastChecked > 30000) {
+        lastChecked = Date.now();
+        checkStatus();
+      }
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(interval);

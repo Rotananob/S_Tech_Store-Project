@@ -8,7 +8,6 @@ import SplashScreen from "@/components/ui/SplashScreen";
 import { ThemeProvider } from "@/components/ui/ThemeProvider";
 import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 import CookieConsent from "@/components/ui/CookieConsent";
-import AppUpdatePrompt from "@/components/ui/AppUpdatePrompt";
 import TrafficTracker from "@/components/ui/TrafficTracker";
 import TelegramAuthBridge from "@/components/auth/TelegramAuthBridge";
 import WelcomeGiftModal from "@/components/promotions/WelcomeGiftModal";
@@ -235,7 +234,6 @@ export default async function RootLayout({
             <FloatingBackButton />
             <ScrollToTopButton />
             <CookieConsent />
-            <AppUpdatePrompt />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>

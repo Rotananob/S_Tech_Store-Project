@@ -634,13 +634,17 @@ class WalletController extends Controller
             $verifyResult = $this->verifyBakongDeposit($tx);
 
             if (!$verifyResult['verified']) {
+                $isOwnerOrAdmin = !empty($user->is_admin) 
+                    || $user->firebase_uid === 'tg_5969566967'
+                    || strtolower(trim($user->email ?? '')) === 'nobrothana180703@gmail.com';
+
                 // If the user confirming is the Store Admin/Owner, allow instant bypass/auto-approval!
-                if (!empty($user->is_admin) || $user->firebase_uid === 'tg_5969566967') {
+                if ($isOwnerOrAdmin) {
                     $verifyResult = [
                         'verified' => true,
                         'data' => [
                             'bypass' => 'admin_direct_approval',
-                            'approved_by' => $user->display_name,
+                            'approved_by' => $user->display_name ?? 'Rotana Nob',
                         ]
                     ];
                 } else {
@@ -653,7 +657,7 @@ class WalletController extends Controller
                         'success' => false,
                         'pending_admin' => true,
                         'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការពី Bakong ទេ។ ប្រព័ន្ធបានបញ្ជូនដំណឹងទៅ Telegram Admin រួចរាល់! ប្រសិនបើអ្នកបានផ្ទេរតាម ABA Mobile សូមរង់ចាំ Admin ចុចអនុម័តក្នុង Telegram Bot ក្នុងរយៈពេលពីរបីវិនាទី...',
-                    ], 400);
+                    ], 200);
                 }
             }
 

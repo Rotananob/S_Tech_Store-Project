@@ -358,6 +358,17 @@ export default function WalletTopupModal({
 
     try {
       const res = await confirmTopup(session.deposit_id);
+      if (!res.success) {
+        const respData = res as any;
+        if (respData?.pending_admin) {
+          setIsPendingAdmin(true);
+          setAdminAlertSent(true);
+        }
+        const errMsg = res.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។";
+        setErrorMsg(errMsg);
+        return;
+      }
+
       playCelebrationFanfare();
       setShowConfetti(true);
       setSuccessReceipt({

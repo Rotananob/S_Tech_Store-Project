@@ -47,13 +47,18 @@ export default function PWAUpdatePrompt() {
         });
       });
 
-      // 3. Periodic check every 2.5 minutes or when page refocuses
+      // 3. Periodic check every 5 minutes or when page refocuses (with 60s cooldown)
+      let lastChecked = Date.now();
       const interval = setInterval(() => {
+        lastChecked = Date.now();
         checkForUpdates(false);
-      }, 150000);
+      }, 300000);
 
       const onFocus = () => {
-        checkForUpdates(false);
+        if (Date.now() - lastChecked > 60000) {
+          lastChecked = Date.now();
+          checkForUpdates(false);
+        }
       };
       window.addEventListener("focus", onFocus);
 
