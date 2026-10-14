@@ -63,6 +63,16 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
   },
 
   checkForUpdates: async (manual = false) => {
+    // Throttle automatic checks to once every 6 hours (protects Cloud Free Tier!)
+    if (!manual && typeof window !== 'undefined') {
+      try {
+        const lastCheck = Number(localStorage.getItem('stech_last_version_check') || 0);
+        if (Date.now() - lastCheck < 6 * 60 * 60 * 1000) {
+          return { hasUpdate: false, message: 'Version is up to date (cached)' };
+        }
+      } catch (e) {}
+    }
+
     set({ isChecking: true });
 
     const installedVersion = typeof window !== 'undefined'
@@ -70,6 +80,12 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
       : OFFICIAL_APP_VERSION;
 
     try {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('stech_last_version_check', String(Date.now()));
+        } catch (e) {}
+      }
+
       let foundUpdate = false;
       let detectedInfo: VersionInfo | null = null;
       let workerInstance: ServiceWorker | null = null;
@@ -92,15 +108,13 @@ export const useUpdateStore = create<UpdateState>((set, get) => ({
 
       // 2. Query Live API /app-version (falls back to /version.json)
       try {
-        let res = await fetch(`/api/app-version?_t=${Date.now()}`, {
-          cache: "no-store",
-          headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+        let res = await fetch(`/api/app-version`, {
+          headers: { "Accept": "application/json" },
         });
 
         if (!res.ok) {
-          res = await fetch(`/version.json?_t=${Date.now()}`, {
-            cache: "no-store",
-            headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+          res = await fetch(`/version.json`, {
+            headers: { "Accept": "application/json" },
           });
         }
 

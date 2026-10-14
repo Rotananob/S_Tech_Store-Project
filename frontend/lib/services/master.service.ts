@@ -76,18 +76,53 @@ export async function getMasterSystemStatus(): Promise<MasterSystemStatusRespons
 }
 
 /**
- * Fetch public store status for customer storefront & PWA guard
+ * Fetch public store status for customer storefront & PWA guard (Smart Cached)
  */
-export async function getPublicStoreStatus(): Promise<PublicStoreStatusResponse> {
+let memoryStoreStatusCache: { data: PublicStoreStatusResponse; timestamp: number } | null = null;
+
+export async function getPublicStoreStatus(forceRefresh = false): Promise<PublicStoreStatusResponse> {
+  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL (saves 99.9% of cloud free tier requests)
+
+  // 1. Check in-memory fast cache
+  if (!forceRefresh && memoryStoreStatusCache && (Date.now() - memoryStoreStatusCache.timestamp < CACHE_TTL_MS)) {
+    return memoryStoreStatusCache.data;
+  }
+
+  // 2. Check sessionStorage
+  if (!forceRefresh && typeof window !== "undefined") {
+    try {
+      const raw = sessionStorage.getItem("stech_store_status_cache");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.timestamp && (Date.now() - parsed.timestamp < CACHE_TTL_MS)) {
+          memoryStoreStatusCache = parsed;
+          return parsed.data;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback to network request (clean without wasteful anti-cache param)
   try {
-    const res = await fetch(`/api/store-status?_t=${Date.now()}`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+    const res = await fetch(`/api/store-status`, {
+      headers: { "Accept": "application/json" },
     });
     if (res.ok) {
-      return await res.json();
+      const data = await res.json();
+      const cacheObj = { data, timestamp: Date.now() };
+      memoryStoreStatusCache = cacheObj;
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem("stech_store_status_cache", JSON.stringify(cacheObj));
+        } catch (e) {}
+      }
+      return data;
     }
   } catch (e) {}
+
+  if (memoryStoreStatusCache) {
+    return memoryStoreStatusCache.data;
+  }
 
   return {
     status: "online",
@@ -99,10 +134,24 @@ export async function getPublicStoreStatus(): Promise<PublicStoreStatusResponse>
 }
 
 /**
+ * Invalidate store status cache immediately and notify listeners
+ */
+export function clearStoreStatusCache() {
+  memoryStoreStatusCache = null;
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.removeItem("stech_store_status_cache");
+      window.dispatchEvent(new CustomEvent("stech_store_status_changed"));
+    } catch (e) {}
+  }
+}
+
+/**
  * Toggle Store Maintenance Mode
  */
 export async function toggleMaintenanceMode(enabled: boolean, reason?: string, title?: string, endTime?: string) {
   const res = await api.post("/admin/master/toggle-maintenance", { enabled, reason, title, end_time: endTime });
+  clearStoreStatusCache();
   return res.data;
 }
 
@@ -121,6 +170,7 @@ export async function toggleVacationMode(
     title: options?.title,
     reason: options?.reason,
   });
+  clearStoreStatusCache();
   return res.data;
 }
 
@@ -137,6 +187,7 @@ export async function toggleStaffLockdown(enabled: boolean, reason?: string) {
  */
 export async function purgeGlobalCaches() {
   const res = await api.post("/admin/master/purge-caches");
+  clearStoreStatusCache();
   return res.data;
 }
 

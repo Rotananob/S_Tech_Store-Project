@@ -1325,34 +1325,38 @@ Route::post('/user/wallet/topup/card', [\App\Http\Controllers\WalletController::
 Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins'])->middleware('throttle:10,1');
 Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet'])->middleware('throttle:15,1');
 
-// App Version & Real-Time Release Check
+// App Version & Real-Time Release Check (24-Hour Cache to Protect Cloud Free Tier)
 Route::get('/app-version', function () {
-    $dynamic = \Illuminate\Support\Facades\Cache::get('app_dynamic_version');
-    if ($dynamic && !empty($dynamic['version'])) {
-        return response()->json($dynamic);
-    }
+    $data = \Illuminate\Support\Facades\Cache::remember('app_version_data_v2', 86400, function () {
+        $dynamic = \Illuminate\Support\Facades\Cache::get('app_dynamic_version');
+        if ($dynamic && !empty($dynamic['version'])) {
+            return $dynamic;
+        }
 
-    $settings = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'app_version')->first();
-    $data = $settings && !empty($settings->value) ? (is_string($settings->value) ? json_decode($settings->value, true) : (array)$settings->value) : null;
-    if (!$data) {
-        $data = [
-            'version' => '1.1.0',
-            'build' => '20261013.02',
-            'release_name' => 'S Tech Store Official Release v1.1.0',
-            'release_date' => '2026-10-13',
-            'min_supported_version' => '1.0.0',
-            'changelog' => [
-                'Instant Telegram Webhook & 0ms Local-First Cache optimization',
-                'Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout',
-                'Real-Time Coin Reward & Auto-Popup for live product browsing',
-                '$5.00 USD Welcome Gift directly credited to S-Tech Wallet',
-                'Account Settings Real Gmail Sync & Order Notification Dispatch',
-                'Grand Master Command Console with Super-Admin Control & Security Vault'
-            ],
-            'force_update' => false,
-        ];
-    }
-    return response()->json($data);
+        $settings = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', 'app_version')->first();
+        $data = $settings && !empty($settings->value) ? (is_string($settings->value) ? json_decode($settings->value, true) : (array)$settings->value) : null;
+        if (!$data) {
+            $data = [
+                'version' => '1.1.0',
+                'build' => '20261013.02',
+                'release_name' => 'S Tech Store Official Release v1.1.0',
+                'release_date' => '2026-10-13',
+                'min_supported_version' => '1.0.0',
+                'changelog' => [
+                    'Instant Telegram Webhook & 0ms Local-First Cache optimization',
+                    'Universal NBC Bakong KHQR, ABA Deep-Link & Card Checkout',
+                    'Real-Time Coin Reward & Auto-Popup for live product browsing',
+                    '$5.00 USD Welcome Gift directly credited to S-Tech Wallet',
+                    'Account Settings Real Gmail Sync & Order Notification Dispatch',
+                    'Grand Master Command Console with Super-Admin Control & Security Vault'
+                ],
+                'force_update' => false,
+            ];
+        }
+        return $data;
+    });
+
+    return response()->json($data)->header('Cache-Control', 'public, max-age=3600, s-maxage=86400');
 });
 
 // Notifications

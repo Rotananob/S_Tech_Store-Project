@@ -47,15 +47,11 @@ export default function PWAUpdatePrompt() {
         });
       });
 
-      // 3. Periodic check every 5 minutes or when page refocuses (with 60s cooldown)
+      // 3. Service Worker background events handle updates natively.
+      // Re-query app-version only if the page has been active for > 6 hours (protects Cloud Free Tier!)
       let lastChecked = Date.now();
-      const interval = setInterval(() => {
-        lastChecked = Date.now();
-        checkForUpdates(false);
-      }, 300000);
-
       const onFocus = () => {
-        if (Date.now() - lastChecked > 60000) {
+        if (Date.now() - lastChecked > 6 * 60 * 60 * 1000) {
           lastChecked = Date.now();
           checkForUpdates(false);
         }
@@ -63,7 +59,6 @@ export default function PWAUpdatePrompt() {
       window.addEventListener("focus", onFocus);
 
       return () => {
-        clearInterval(interval);
         window.removeEventListener("focus", onFocus);
       };
     }

@@ -70,27 +70,27 @@ export default function StoreModeGuard() {
     }
   }, []);
 
-  // Poll status periodically (every 60s) and on window focus (with 30s cooldown)
+  // Smart Check on Mount & Window Focus (15-Minute Cooldown, zero wasteful loop polling)
   useEffect(() => {
     let lastChecked = Date.now();
     checkStatus();
 
-    const interval = setInterval(() => {
-      lastChecked = Date.now();
-      checkStatus();
-    }, 60000);
-
-    const onFocus = () => {
-      // Cooldown: only re-fetch on window focus if last check was > 30s ago
-      if (Date.now() - lastChecked > 30000) {
+    // Re-check only if tab was inactive for > 15 minutes (protects Cloud Free Tier!)
+    const onVisibilityOrFocus = () => {
+      if (Date.now() - lastChecked > 15 * 60 * 1000) {
         lastChecked = Date.now();
         checkStatus();
       }
     };
-    window.addEventListener("focus", onFocus);
+
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    window.addEventListener("stech_store_status_changed", () => checkStatus());
+
     return () => {
-      clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.removeEventListener("stech_store_status_changed", () => checkStatus());
     };
   }, [checkStatus]);
 

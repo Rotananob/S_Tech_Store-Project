@@ -85,10 +85,15 @@ class MasterSystemController extends Controller
      */
     public function publicStatus(Request $request)
     {
-        $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
-        $state = [];
-        if ($row && !empty($row->value)) {
-            $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+        $state = Cache::get('master_system_state');
+        if (empty($state) || !is_array($state)) {
+            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+            if ($row && !empty($row->value)) {
+                $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                Cache::put('master_system_state', $state, 86400 * 30);
+            } else {
+                $state = [];
+            }
         }
 
         $vacationActive = !empty($state['vacation_mode']);
@@ -137,7 +142,7 @@ class MasterSystemController extends Controller
                 'reason' => $state['staff_lockdown_reason'] ?? 'សកម្មភាពបុគ្គលិកត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ',
             ],
             'server_time' => now()->toIso8601String(),
-        ]);
+        ])->header('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
     }
 
     /**
