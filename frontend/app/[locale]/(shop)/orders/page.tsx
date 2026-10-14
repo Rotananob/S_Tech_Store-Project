@@ -6,7 +6,7 @@ import api from "@/lib/api";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { isUserAuthenticated, getEffectiveUser } from "@/lib/auth-user";
 import OrderReceiptModal, { ReceiptData } from "@/components/orders/OrderReceiptModal";
-import { Printer } from "lucide-react";
+import { Printer, Package, Loader2 } from "lucide-react";
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   pending: { bg: "#fef3c7", color: "#92400e", label: "Pending" },
@@ -55,8 +55,9 @@ export default function OrdersPage() {
   });
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [loadingDetailOrderId, setLoadingDetailOrderId] = useState<string | null>(null);
 
-  const handleViewReceipt = (order: Order) => {
+  const handleViewReceipt = (order: Order, immediate = false) => {
     const isCOD = (order.payment_method || "").toLowerCase() === "cod";
     const receipt: ReceiptData = {
       orderId: order.order_id,
@@ -78,8 +79,19 @@ export default function OrdersPage() {
       total: Number(order.total_amount),
       paidAt: fmtDate(order.created_at),
     };
-    setSelectedReceipt(receipt);
-    setShowReceiptModal(true);
+
+    if (immediate) {
+      setSelectedReceipt(receipt);
+      setShowReceiptModal(true);
+      return;
+    }
+
+    setLoadingDetailOrderId(order.order_id);
+    setTimeout(() => {
+      setSelectedReceipt(receipt);
+      setLoadingDetailOrderId(null);
+      setShowReceiptModal(true);
+    }, 450);
   };
 
   const hasActiveClientSession = (): boolean => {
@@ -191,6 +203,34 @@ export default function OrdersPage() {
         onClose={() => setShowReceiptModal(false)}
         receipt={selectedReceipt}
       />
+
+      {/* ── Order Detail Loading Popup Modal (បង្ហាញ Loading ពេលចុចមើល Detail) ── */}
+      {loadingDetailOrderId && (
+        <div className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#161b26] rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-white/10 text-center flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-rose-600 flex items-center justify-center text-white shadow-lg shadow-red-600/30">
+                <Package className="w-8 h-8 animate-bounce" />
+              </div>
+              <div className="absolute -inset-1.5 rounded-2xl border-2 border-red-500/40 border-t-red-600 animate-spin" />
+            </div>
+            <div>
+              <h4 className="text-base font-black text-gray-900 dark:text-white font-mono">
+                Order #{loadingDetailOrderId}
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                កំពុងទាញយកព័ត៌មានលម្អិត និងវិក្កយបត្រ...
+              </p>
+              <div className="flex items-center justify-center gap-1.5 mt-2.5">
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+                <span className="text-[11px] text-red-600 dark:text-red-400 font-bold uppercase tracking-wider">
+                  Loading Order Details...
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero */}
       <section
@@ -442,8 +482,17 @@ export default function OrdersPage() {
                         e.currentTarget.style.borderColor = "#e5e7eb";
                       }}
                     >
-                      <Printer size={13} />
-                      <span>View & Print Receipt (វិក្កយបត្រ)</span>
+                      {loadingDetailOrderId === order.order_id ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin text-red-600" />
+                          <span>កំពុងទាញយកព័ត៌មាន (Loading)...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Printer size={13} />
+                          <span>View & Print Receipt (វិក្កយបត្រ)</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

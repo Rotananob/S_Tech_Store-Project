@@ -5,7 +5,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Gift, Sparkles, X, Share2, Copy, Check, CheckCircle2, 
-  ExternalLink, ShoppingBag, ArrowRight, Lock, Award, Heart, ShieldCheck, Wallet 
+  ExternalLink, ShoppingBag, ArrowRight, Lock, Award, Heart, ShieldCheck, Wallet, LogIn 
 } from "lucide-react";
 import { getEffectiveUser } from "@/lib/auth-user";
 import api from "@/lib/api";
@@ -151,6 +151,7 @@ export default function WelcomeGiftModal() {
   // Action: Claim the $5 USD Welcome Gift directly into S-Tech Wallet
   const handleClaimGift = async () => {
     if (!currentUser) {
+      handleClose();
       router.push("/login?redirect=/?gift=welcome5");
       return;
     }
@@ -439,6 +440,23 @@ export default function WelcomeGiftModal() {
                     </div>
                   </div>
 
+                  {/* ── Guest Login Prompt Banner ── */}
+                  {!currentUser && (
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center justify-between gap-3">
+                      <span>💡 លោកអ្នកមិនទាន់បានចូលគណនីនៅឡើយទេ។ ចុចចូលគណនីដើម្បីទទួលយក $5.00 USD ចូល S-Tech Wallet របស់អ្នកផ្ទាល់!</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleClose();
+                          router.push("/login?redirect=/?gift=welcome5");
+                        }}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-600 hover:to-red-700 text-white rounded-xl text-xs font-black shrink-0 transition-all cursor-pointer shadow-xs"
+                      >
+                        ចូលគណនី
+                      </button>
+                    </div>
+                  )}
+
                   {/* ── Share to Unlock Section ── */}
                   <div className="space-y-3 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                     <div className="flex items-center justify-between">
@@ -513,7 +531,19 @@ export default function WelcomeGiftModal() {
 
                   {/* ── Main Claim Action Button ── */}
                   <div className="pt-1">
-                    {hasShared ? (
+                    {!currentUser ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleClose();
+                          router.push("/login?redirect=/?gift=welcome5");
+                        }}
+                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white font-black text-sm sm:text-base shadow-2xl shadow-red-600/40 transition-all flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.98] border border-amber-300 animate-pulse"
+                      >
+                        <LogIn size={20} />
+                        <span>ចូលគណនីដើម្បី Claim កាដូ $5.00 USD (Login to Claim)</span>
+                      </button>
+                    ) : hasShared ? (
                       <button
                         type="button"
                         onClick={handleClaimGift}

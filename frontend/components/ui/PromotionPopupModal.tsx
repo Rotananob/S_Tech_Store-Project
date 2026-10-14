@@ -22,13 +22,14 @@ type ActivePromotion = {
 // Grand Pchum Ben Festival Promotion (ពិធីបុណ្យភ្ជំបិណ្ឌ) 7-day default campaign
 const DEFAULT_PCHUM_BEN_PROMO: ActivePromotion = {
   id: "pchum-ben-2026",
-  name: "មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ",
-  code: "PCHUMBEN2026",
+  name: "មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ 30% OFF",
+  code: "PCHUM",
   type: "percentage",
   value: "30",
   description: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃពិសេសរហូតដល់ 30% លើ Laptops, Custom PC Builds, Gaming Gear និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ ធានា ៣ ទៅ ៦ ខែ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង!",
   image_url: "/images/pchum-ben-promo.jpg",
   target_url: "/category/all",
+  endDate: "2026-10-31T23:59:59",
 };
 
 // 22 Festive confetti particle presets for celebratory shower (🎉 ធ្លាក់តិចៗ)
@@ -65,21 +66,28 @@ export default function PromotionPopupModal() {
 
   const autoGlideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 7-day Countdown Timer
+  // Dynamic Real-data Countdown Timer (Ending October 31, 2026 at 23:59:59)
   const [timeLeft, setTimeLeft] = useState({
-    days: 7,
-    hours: 14,
-    minutes: 36,
-    seconds: 50,
+    days: 17,
+    hours: 15,
+    minutes: 0,
+    seconds: 0,
   });
 
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date().getTime();
-      const targetTime = new Date();
-      targetTime.setDate(targetTime.getDate() + 7);
+      let targetTime: number;
 
-      const diff = 7 * 24 * 60 * 60 * 1000 - ((now % (7 * 24 * 60 * 60 * 1000)));
+      const rawEnd = (promo as any)?.valid_until || promo?.endDate;
+      if (rawEnd) {
+        targetTime = new Date(rawEnd).getTime();
+      } else {
+        const d = new Date();
+        targetTime = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).getTime();
+      }
+
+      const diff = Math.max(0, targetTime - now);
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -91,7 +99,7 @@ export default function PromotionPopupModal() {
     calculateTimeLeft();
     const countdownInterval = setInterval(calculateTimeLeft, 1000);
     return () => clearInterval(countdownInterval);
-  }, []);
+  }, [promo]);
 
   useEffect(() => {
     let initialTimer: NodeJS.Timeout;

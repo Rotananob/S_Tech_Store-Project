@@ -137,6 +137,7 @@ export default function OrderManagementPage() {
 
   // Modals
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const [loadingViewOrderId, setLoadingViewOrderId] = useState<string | null>(null);
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [deleteOrderTarget, setDeleteOrderTarget] = useState<Order | null>(null);
   const [deletingOrder, setDeletingOrder] = useState(false);
@@ -204,6 +205,14 @@ export default function OrderManagementPage() {
     } else {
       showToast(res.message || "បរាជ័យក្នុងការប្តូរស្ថានភាព", "error");
     }
+  };
+
+  const handleOpenViewOrder = (order: Order) => {
+    setLoadingViewOrderId(order.order_id);
+    setTimeout(() => {
+      setViewOrder(order);
+      setLoadingViewOrderId(null);
+    }, 350);
   };
 
   const handleDeleteOrder = async () => {
@@ -480,6 +489,34 @@ export default function OrderManagementPage() {
         >
           {toast.type === "error" ? <AlertCircle size={18} /> : <CheckCircle2 size={18} />}
           <span>{toast.msg}</span>
+        </div>
+      )}
+
+      {/* ── Order Detail Loading Popup Modal (បង្ហាញ Loading ពេលចុចមើល Detail) ── */}
+      {loadingViewOrderId && (
+        <div className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-white/10 text-center flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-gray-950 via-gray-900 to-indigo-950 flex items-center justify-center text-rose-400 shadow-xl border border-white/10">
+                <PackageCheck className="w-8 h-8 animate-bounce text-rose-400" />
+              </div>
+              <div className="absolute -inset-1.5 rounded-2xl border-2 border-rose-500/40 border-t-rose-600 animate-spin" />
+            </div>
+            <div>
+              <h4 className="text-base font-black text-gray-900 dark:text-white font-mono">
+                Order #{loadingViewOrderId}
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                កំពុងទាញយកព័ត៌មានលម្អិត Order ពីប្រព័ន្ធ...
+              </p>
+              <div className="flex items-center justify-center gap-1.5 mt-2.5">
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-ping" />
+                <span className="text-[11px] text-rose-600 dark:text-rose-400 font-bold uppercase tracking-wider">
+                  Loading Order Details...
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1869,11 +1906,11 @@ export default function OrderManagementPage() {
                         {/* View Button */}
                         <button
                           type="button"
-                          onClick={() => setViewOrder(order)}
+                          onClick={() => handleOpenViewOrder(order)}
                           className="min-h-[44px] px-3 py-2.5 bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 transition-all cursor-pointer shadow-xs"
                         >
                           <Eye size={17} className="text-gray-700 shrink-0" />
-                          <span>មើល (View)</span>
+                          <span>{loadingViewOrderId === order.order_id ? "កំពុងទាញយក..." : "មើល (View)"}</span>
                         </button>
 
                         {/* Edit Button */}
@@ -2075,7 +2112,7 @@ export default function OrderManagementPage() {
                               {/* View Details */}
                               <button
                                 type="button"
-                                onClick={() => setViewOrder(order)}
+                                onClick={() => handleOpenViewOrder(order)}
                                 className="p-2 text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-xl transition-all cursor-pointer shadow-xs"
                                 title="View Details (មើលលម្អិត)"
                               >
