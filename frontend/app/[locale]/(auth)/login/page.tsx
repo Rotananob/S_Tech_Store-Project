@@ -560,8 +560,10 @@ export default function LoginPage() {
       const res = await api.post("/auth/telegram/handshake-init");
       if (res.data?.success && res.data?.handshake_token) {
         const token = res.data.handshake_token;
-        const deepLink = res.data.deep_link;
-        const appLink = res.data.app_link;
+        const rawDeepLink = res.data.deep_link || `https://t.me/S_TECH_ASSISTANTBOT?start=${token}`;
+        const rawAppLink = res.data.app_link || `tg://resolve?domain=S_TECH_ASSISTANTBOT&start=${token}`;
+        const deepLink = rawDeepLink.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
+        const appLink = rawAppLink.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
 
         // Lock & persist pending handshake session so refresh or backgrounding NEVER loses state
         const pendingSession = {

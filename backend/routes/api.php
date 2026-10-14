@@ -259,7 +259,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         'hash' => 'required|string',
     ]);
 
-    $botToken = env('TELEGRAM_AUTH_BOT_TOKEN') ?: env('TELEGRAM_BOT_TOKEN', '');
+    $botToken = \App\Services\TelegramService::getCustomerBotToken();
     if (empty($botToken)) {
         return response()->json([
             'success' => false,
@@ -378,7 +378,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
 // Telegram 1-Click App Handshake Login (Bypasses Bot Domain Invalid & Web Widget completely)
 Route::post('/auth/telegram/handshake-init', function (Request $request) {
     $token = 'tgauth_' . strtolower(\Illuminate\Support\Str::random(24));
-    $botUsername = env('TELEGRAM_AUTH_BOT_USERNAME', 'S_TECH_ASSISTANTBOT');
+    $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
 
     $initPayload = [
         'status' => 'pending',

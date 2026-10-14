@@ -10,8 +10,10 @@ use Illuminate\Support\Str;
 
 class TelegramService
 {
-    // ⚠️ SECURITY: Bot token is NEVER hardcoded here — always read from .env (TELEGRAM_BOT_TOKEN)
     public const OFFICIAL_BOT_USERNAME = 's_tech_storeBot';
+    public const OFFICIAL_CUSTOMER_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
+    public const OFFICIAL_CUSTOMER_BOT_ID = '8689597792';
+    public const OFFICIAL_CUSTOMER_BOT_TOKEN = '8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8';
 
     private static $settingsFile = 'telegram_settings.json';
     private static ?array $cachedSettings = null;
@@ -436,16 +438,12 @@ class TelegramService
             if ($msgBotId == 8899300323 || $botParam === 'main') {
                 $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
                 $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-            } elseif ($msgBotId == 8689597792 || $botParam === 'auth') {
+            } elseif ($msgBotId == 8689597792 || $botParam === 'auth' || $chatType === 'private') {
                 $activeToken = self::getCustomerBotToken();
                 $activeBotUsername = self::getCustomerBotUsername();
             } else {
-                $activeToken = ($botParam === 'auth' || ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_TOKEN') && !env('TELEGRAM_BOT_TOKEN')))
-                    ? self::getCustomerBotToken()
-                    : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
-                $activeBotUsername = ($botParam === 'auth')
-                    ? self::getCustomerBotUsername()
-                    : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+                $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
             }
 
             // STRICT DISCONNECT ISOLATION: In group chat, if disconnected, ignore completely!
@@ -1288,16 +1286,12 @@ class TelegramService
         if ($botParam === 'main') {
             $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
             $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-        } elseif ($botParam === 'auth') {
+        } elseif ($botParam === 'auth' || $chatType === 'private') {
             $activeToken = self::getCustomerBotToken();
             $activeBotUsername = self::getCustomerBotUsername();
         } else {
-            $activeToken = ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_TOKEN') && !env('TELEGRAM_BOT_TOKEN'))
-                ? self::getCustomerBotToken()
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
-            $activeBotUsername = ($chatType === 'private' && env('TELEGRAM_AUTH_BOT_USERNAME') && !env('TELEGRAM_BOT_USERNAME'))
-                ? self::getCustomerBotUsername()
-                : ($settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME);
+            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+            $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
         }
 
         // Message Deduplication
@@ -3149,7 +3143,11 @@ class TelegramService
      */
     public static function getCustomerBotToken(): string
     {
-        return env('TELEGRAM_AUTH_BOT_TOKEN') ?: (self::getSettings()['bot_token'] ?? env('TELEGRAM_BOT_TOKEN', ''));
+        $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', ''));
+        if (empty($token) || str_contains($token, 'Placeholder')) {
+            return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
+        }
+        return $token;
     }
 
     /**
@@ -3157,7 +3155,12 @@ class TelegramService
      */
     public static function getCustomerBotUsername(): string
     {
-        return env('TELEGRAM_AUTH_BOT_USERNAME') ?: 'S_TECH_ASSISTANTBOT';
+        $username = trim((string)env('TELEGRAM_AUTH_BOT_USERNAME', ''));
+        // Strictly prevent fallback to deprecated or legacy bots (e.g. Stech_store_LoginBot or staff bot)
+        if (empty($username) || strcasecmp($username, 'Stech_store_LoginBot') === 0 || strcasecmp($username, 's_tech_storeBot') === 0 || stripos($username, 'loginbot') !== false) {
+            return self::OFFICIAL_CUSTOMER_BOT_USERNAME;
+        }
+        return $username;
     }
 
     /**

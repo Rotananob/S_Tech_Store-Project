@@ -116,6 +116,23 @@ const TABS = [
   { key: "orders", label: "History & Activities", desc: "Orders, Viewed Items & Searches", icon: History },
 ];
 
+const sanitizeTgBot = (username?: string | null): string => {
+  if (!username || /stech_store_loginbot/i.test(username) || /s_tech_storebot/i.test(username)) {
+    return "S_TECH_ASSISTANTBOT";
+  }
+  return username;
+};
+
+const sanitizeTgDeepLink = (link?: string | null, token?: string | null): string => {
+  if (!link) return `https://t.me/S_TECH_ASSISTANTBOT${token ? `?start=${token}` : ""}`;
+  return link.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
+};
+
+const sanitizeTgAppLink = (link?: string | null, token?: string | null): string => {
+  if (!link) return `tg://resolve?domain=S_TECH_ASSISTANTBOT${token ? `&start=${token}` : ""}`;
+  return link.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
+};
+
 export default function UserProfilePage() {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -813,13 +830,13 @@ export default function UserProfilePage() {
       } else {
         setOtpError(res.data?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ");
         if (res.data?.error_type) setOtpErrorType(res.data.error_type);
-        if (res.data?.bot_username) setOtpBotUsername(res.data.bot_username);
+        if (res.data?.bot_username) setOtpBotUsername(sanitizeTgBot(res.data.bot_username));
       }
     } catch (err: any) {
       const errData = err.response?.data;
       setOtpError(errData?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ សូមព្យាយាមម្តងទៀត");
       if (errData?.error_type) setOtpErrorType(errData.error_type);
-      if (errData?.bot_username) setOtpBotUsername(errData.bot_username);
+      if (errData?.bot_username) setOtpBotUsername(sanitizeTgBot(errData.bot_username));
     } finally {
       setOtpLoading(false);
     }
@@ -935,22 +952,23 @@ export default function UserProfilePage() {
       setTelegramLinking(true);
       const res = await api.post("/user/telegram/link-init");
       if (res.data?.success && res.data?.deep_link) {
-        setTelegramDeepLink(res.data.deep_link);
+        const cleanBot = sanitizeTgBot(res.data.bot_username);
+        const cleanDeepLink = sanitizeTgDeepLink(res.data.deep_link, res.data.link_token);
+        const cleanAppLink = sanitizeTgAppLink(res.data.app_link, res.data.link_token);
+
+        setTelegramDeepLink(cleanDeepLink);
         setTelegramToken(res.data.link_token);
-        if (res.data.bot_username) {
-          setTelegramBotUsername(res.data.bot_username);
-        }
+        setTelegramBotUsername(cleanBot);
         setTelegramModalOpen(true);
         setTelegramSuccess(false);
 
         const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|Android/i.test(navigator.userAgent);
-        const appLink = res.data.app_link;
 
-        if (isMobile && appLink) {
+        if (isMobile && cleanAppLink) {
           // Open Telegram App directly without navigating browser tab away from S Tech Store
-          window.location.href = appLink;
+          window.location.href = cleanAppLink;
         } else {
-          window.open(res.data.deep_link, "_blank");
+          window.open(cleanDeepLink, "_blank");
         }
 
         startTelegramPolling(res.data.link_token);
@@ -3904,13 +3922,13 @@ export default function UserProfilePage() {
                   {telegramDeepLink && (
                     <div className="space-y-3 pt-2">
                       <a
-                        href={telegramDeepLink}
+                        href={sanitizeTgDeepLink(telegramDeepLink, telegramToken) || "https://t.me/S_TECH_ASSISTANTBOT"}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full py-3.5 px-4 rounded-2xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-extrabold transition-all no-underline flex items-center justify-center gap-2 shadow-lg shadow-sky-500/25 cursor-pointer"
                       >
                         <Send size={16} />
-                        <span>បើកកម្មវិធី Telegram (@{telegramBotUsername})</span>
+                        <span>បើកកម្មវិធី Telegram (@{sanitizeTgBot(telegramBotUsername)})</span>
                         <ExternalLink size={14} />
                       </a>
 
