@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny: Block all read/write unless explicitly authorized
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User profiles collection: Users can only read & write their OWN profile
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public products catalog (read-only for customers, write-only for admins)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // User-specific orders
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}

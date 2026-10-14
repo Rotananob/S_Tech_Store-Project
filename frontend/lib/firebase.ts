@@ -48,5 +48,27 @@ try {
   console.warn("RTDB initialization bypassed (safe fallback):", err);
 }
 
+// ─── Firebase App Check (Protects RTDB & Auth from third-party websites & bots) ───
+if (typeof window !== "undefined") {
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  if (recaptchaSiteKey) {
+    import("firebase/app-check")
+      .then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+        try {
+          if (process.env.NODE_ENV !== "production") {
+            (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+          }
+          initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+            isTokenAutoRefreshEnabled: true,
+          });
+        } catch (err) {
+          console.warn("Firebase App Check initialization notice:", err);
+        }
+      })
+      .catch(() => {});
+  }
+}
+
 export const rtdb = rtdbInstance;
 export default app;

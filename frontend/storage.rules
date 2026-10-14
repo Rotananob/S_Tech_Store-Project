@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default deny: Block all read/write
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // User avatar uploads:
+    // - Must be authenticated
+    // - File size must be under 5MB
+    // - Must be a valid image MIME type (image/png, image/jpeg, image/webp)
+    // - Users can only upload into their own folder: avatars/{userId}/{fileName}
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.size < 5 * 1024 * 1024
+                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
+    }
+
+    // Public product images (Read-only for public, Admin only for upload)
+    match /products/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}
