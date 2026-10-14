@@ -14,7 +14,7 @@ import {
 } from "@/lib/services/order.service";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, 
+  Lock, ShieldCheck, CheckCircle2, Loader2, QrCode, Download,
   ExternalLink, X, Smartphone, ArrowRight, CreditCard, 
   Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText,
   Truck, MapPin, User, Phone, ChevronRight, ArrowLeft, Shield, Award, HelpCircle,
@@ -244,6 +244,9 @@ export default function CheckoutPage() {
   const [timeLeft, setTimeLeft] = useState(900); // 15 mins
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [savingCheckoutQR, setSavingCheckoutQR] = useState(false);
+  const [savedCheckoutQR, setSavedCheckoutQR] = useState(false);
+  const [showCheckoutQRTip, setShowCheckoutQRTip] = useState(false);
 
   // S-Tech Real Wallet & Coins States (Instant 0ms hydration from cache)
   const [walletBalance, setWalletBalance] = useState<number>(() => {
@@ -879,6 +882,54 @@ export default function CheckoutPage() {
       await finishSuccessfulOrder(orderId, txn);
     } else {
       alert("បរាជ័យក្នុងការផ្ទៀងផ្ទាត់ សូមទាក់ទងមកកាន់ហាង");
+    }
+  };
+
+  // ─── Save Checkout QR Code Directly to Device (Zero Share Sheet) ───────────
+  const handleSaveCheckoutQR = async () => {
+    if (!khqrSession?.qr_image_url) return;
+    setSavingCheckoutQR(true);
+    setShowCheckoutQRTip(true);
+    try {
+      const fileName = `${payment === "aba" ? "ABA-PAY" : "KHQR"}-${orderId || "ORDER"}.png`;
+
+      // 1. Telegram Mini App native download
+      try {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && typeof tg.downloadFile === "function") {
+          tg.downloadFile({ url: khqrSession.qr_image_url, file_name: fileName });
+        }
+      } catch (_) {}
+
+      // 2. Direct browser download via Blob
+      const resp = await fetch(khqrSession.qr_image_url);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        } catch (_) {}
+      }, 1500);
+
+      setSavedCheckoutQR(true);
+      setTimeout(() => setSavedCheckoutQR(false), 4000);
+    } catch (e) {
+      const link = document.createElement("a");
+      link.href = khqrSession.qr_image_url;
+      link.download = `${payment === "aba" ? "ABA-PAY" : "KHQR"}-${orderId || "ORDER"}.png`;
+      link.target = "_blank";
+      link.click();
+      setSavedCheckoutQR(true);
+      setTimeout(() => setSavedCheckoutQR(false), 4000);
+    } finally {
+      setSavingCheckoutQR(false);
     }
   };
 
@@ -1906,26 +1957,22 @@ export default function CheckoutPage() {
                 </h3>
               </div>
 
-              {/* QR Code Container with ABA/Bakong Emblem */}
+              {/* QR Code Container (100% Clean & Unobstructed for All Banks) */}
               <div className={`p-3 bg-white rounded-2xl border-2 ${
                 payment === "aba" ? "border-[#003B6D]" : "border-red-500"
-              } inline-block shadow-lg mb-3 relative`}>
+              } inline-block shadow-lg mb-2 relative`}>
                 <img
                   src={khqrSession.qr_image_url}
                   alt={payment === "aba" ? "ABA PAY QR" : "KHQR Payment"}
-                  className="w-48 h-48 object-contain mx-auto rounded-lg"
+                  style={{ WebkitTouchCallout: "default" }}
+                  className="w-48 h-48 object-contain mx-auto rounded-lg select-auto cursor-pointer"
+                  title="ចុចសង្កត់ (Touch & Hold) ដើម្បី Save to Photos"
                 />
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className={`w-10 h-10 rounded-full bg-white p-1 shadow-lg flex items-center justify-center border-2 ${
-                    payment === "aba" ? "border-[#003B6D]" : "border-red-600"
-                  }`}>
-                    <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[9px] font-black ${
-                      payment === "aba" ? "bg-[#003B6D]" : "bg-[#E1251B]"
-                    }`}>
-                      {payment === "aba" ? "ABA" : "KHQR"}
-                    </div>
-                  </div>
-                </div>
+              </div>
+
+              {/* Touch & Hold photo tip for iOS / mobile */}
+              <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-3 font-medium">
+                💡 ចុចសង្កត់លើរូប QR (Touch & Hold) រួចរើស <strong>"Save to Photos"</strong>
               </div>
 
               {/* Authentic Bank Account Details from Flyer */}
@@ -2025,6 +2072,29 @@ export default function CheckoutPage() {
                         <span>Bakong App</span>
                       </a>
                     </div>
+
+                    {/* Save QR Image Button */}
+                    <button
+                      type="button"
+                      onClick={handleSaveCheckoutQR}
+                      disabled={savingCheckoutQR}
+                      className="w-full py-2 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-800 dark:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      {savingCheckoutQR ? (
+                        <Loader2 size={13} className="animate-spin text-amber-500" />
+                      ) : savedCheckoutQR ? (
+                        <Check size={13} className="text-emerald-500" />
+                      ) : (
+                        <Download size={13} />
+                      )}
+                      <span>{savedCheckoutQR ? "បានទាញយកកូដ QR!" : "Save Image QR (ទាញយករូបភាព)"}</span>
+                    </button>
+
+                    {showCheckoutQRTip && (
+                      <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] text-left leading-relaxed">
+                        📸 បានទាញយករូប QR! (💡 លើ iPhone: លោកអ្នកក៏អាចចុចសង្កត់លើរូប QR Code ខាងលើ រួចរើសយក &ldquo;Save to Photos&rdquo; បានភ្លាមៗ)
+                      </div>
+                    )}
                   </div>
                 );
               })()}

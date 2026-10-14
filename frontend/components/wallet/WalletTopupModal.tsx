@@ -111,6 +111,8 @@ export default function WalletTopupModal({
   const [timeLeft, setTimeLeft] = useState<number>(30 * 60);
   const [savingImage, setSavingImage] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showPhotoTip, setShowPhotoTip] = useState(false);
+  const [showEnlargedQR, setShowEnlargedQR] = useState(false);
   const [successReceipt, setSuccessReceipt] = useState<SuccessReceipt | null>(null);
   const [qrImageLoaded, setQrImageLoaded] = useState(false);
 
@@ -343,47 +345,50 @@ export default function WalletTopupModal({
     }
   };
 
-  // Save QR Code Image directly to device
+  // Save QR Code Image directly to device (Zero share sheets, direct download to phone photos/downloads)
   const handleSaveQRImage = async () => {
     if (!session?.qr_image_url) return;
     setSavingImage(true);
+    setShowPhotoTip(true);
     try {
-      const resp = await fetch(session.qr_image_url);
-      const blob = await resp.blob();
       const fileName = `${selectedChannel === "aba" ? "ABA-PAY" : "KHQR"}-${session.deposit_id}.png`;
 
-      // If Mobile Web Share API with files is supported (e.g. iOS Safari / Android Chrome)
-      if (navigator.canShare && typeof File !== "undefined") {
-        const file = new File([blob], fileName, { type: "image/png" });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `S-Tech ${selectedChannel === "aba" ? "ABA PAY" : "KHQR"} $${session.amount.toFixed(2)}`,
-            text: `ស្កេនទូទាត់ ${selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR"} $${session.amount.toFixed(2)} USD`,
-          });
-          setSaveSuccess(true);
-          setTimeout(() => setSaveSuccess(false), 3000);
-          return;
+      // 1. Native Telegram Mini App download integration
+      try {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg && typeof tg.downloadFile === "function") {
+          tg.downloadFile({ url: session.qr_image_url, file_name: fileName });
         }
-      }
+      } catch (_) {}
 
-      // Standard browser download
+      // 2. Direct browser download via Blob (Bypasses iOS/Android system share sheet completely)
+      const resp = await fetch(session.qr_image_url);
+      const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = fileName;
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      setTimeout(() => {
+        try {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        } catch (_) {}
+      }, 1500);
 
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => setSaveSuccess(false), 4000);
     } catch (e) {
-      // Fallback: Open in new tab
-      window.open(session.qr_image_url, "_blank");
+      // Direct anchor download fallback
+      const link = document.createElement("a");
+      link.href = session.qr_image_url;
+      link.download = `${selectedChannel === "aba" ? "ABA-PAY" : "KHQR"}-${session.deposit_id}.png`;
+      link.target = "_blank";
+      link.click();
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
+      setTimeout(() => setSaveSuccess(false), 4000);
     } finally {
       setSavingImage(false);
     }
@@ -400,6 +405,8 @@ export default function WalletTopupModal({
     setStep("select");
     setSession(null);
     setQrImageLoaded(false);
+    setShowPhotoTip(false);
+    setShowEnlargedQR(false);
     setErrorMsg(null);
     setCheckAttempts(0);
     setTimeLeft(30 * 60);
@@ -411,6 +418,8 @@ export default function WalletTopupModal({
 
   const handleClose = () => {
     // Preserve pending session in localStorage so returning within 30 mins restores it
+    setShowPhotoTip(false);
+    setShowEnlargedQR(false);
     setErrorMsg(null);
     setShowConfetti(false);
     onClose();
@@ -706,9 +715,13 @@ export default function WalletTopupModal({
                     </div>
                   </div>
 
-                  {/* QR Image with synchronized reveal & centered emblem */}
-                  <div className="p-3 bg-white flex items-center justify-center relative">
-                    <div className="p-2 bg-white rounded-2xl border border-gray-200 shadow-inner flex items-center justify-center relative w-56 h-56">
+                  {/* QR Image with synchronized reveal & 100% clean scannability across ALL banks */}
+                  <div className="p-3 bg-white flex flex-col items-center justify-center relative">
+                    <div
+                      onClick={() => setShowEnlargedQR(true)}
+                      className="p-2 bg-white rounded-2xl border border-gray-200 shadow-inner flex items-center justify-center relative w-56 h-56 cursor-pointer hover:border-gray-400 transition-all group"
+                      title="ចុចដើម្បីមើលរូបធំ ឬចុចសង្កត់ (Touch & Hold) ដើម្បី Save to Photos"
+                    >
                       {!qrImageLoaded && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 rounded-2xl animate-pulse">
                           <Loader2 size={24} className={`animate-spin mb-2 ${isAbaChannel ? "text-[#003B6D]" : "text-[#E1232E]"}`} />
@@ -716,29 +729,21 @@ export default function WalletTopupModal({
                         </div>
                       )}
 
+                      {/* 100% Clean QR code without any center emblem obstruction for instant scanning in ACLEDA, ABA, Wing & all 36+ banks */}
                       <img
                         src={session.qr_image_url}
                         alt="Deposit QR Code"
                         onLoad={() => setQrImageLoaded(true)}
-                        className={`w-48 h-48 object-contain rounded-lg transition-opacity duration-300 ${
+                        style={{ WebkitTouchCallout: "default" }}
+                        className={`w-48 h-48 object-contain rounded-lg transition-opacity duration-300 select-auto ${
                           qrImageLoaded ? "opacity-100" : "opacity-0"
                         }`}
                       />
+                    </div>
 
-                      {/* Centered Emblem Logo - Reveal synchronously with QR code */}
-                      {qrImageLoaded && (
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
-                          <div className={`w-10 h-10 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 ${
-                            isAbaChannel ? "border-[#003B6D]" : "border-[#E1232E]"
-                          }`}>
-                            <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[9px] font-black tracking-tight ${
-                              isAbaChannel ? "bg-[#003B6D]" : "bg-[#E1232E]"
-                            }`}>
-                              {isAbaChannel ? "ABA" : "KHQR"}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                    {/* Touch & Hold photo tip for iOS / mobile */}
+                    <div className="text-[10px] text-gray-500 mt-2 font-medium flex items-center justify-center gap-1">
+                      <span>💡 <strong>គន្លឹះ៖</strong> ចុចសង្កត់លើរូប QR (Touch & Hold) រួចរើស <strong>"Save to Photos"</strong></span>
                     </div>
                   </div>
 
@@ -859,7 +864,7 @@ export default function WalletTopupModal({
                       ) : (
                         <Download size={13} />
                       )}
-                      <span>{saveSuccess ? "បានរក្សាទុក QR!" : "Save Image QR"}</span>
+                      <span>{saveSuccess ? "បានទាញយកកូដ QR!" : "Save Image QR"}</span>
                     </button>
 
                     <button
@@ -871,6 +876,19 @@ export default function WalletTopupModal({
                       <span>{copied ? "បានចម្លង!" : "Copy KHQR"}</span>
                     </button>
                   </div>
+
+                  {/* Friendly Photo Saving Tip Banner */}
+                  {showPhotoTip && (
+                    <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] text-left leading-relaxed">
+                      <div className="font-bold flex items-center gap-1 text-emerald-200 mb-0.5">
+                        <CheckCircle2 size={13} className="text-emerald-400" />
+                        <span>បានទាញយករូបភាព QR Code ចូលក្នុងទូរស័ព្ទ!</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-200/90">
+                        💡 <strong>លើ iPhone/iOS:</strong> ប្រសិនបើចង់ទុកក្នុង Photos Album ផ្ទាល់ លោកអ្នកគ្រាន់តែ <strong>ចុចសង្កត់លើរូប QR Code (Touch & Hold)</strong> ខាងលើ រួចរើសយក <strong>&ldquo;Save to Photos&rdquo;</strong> នោះរួចរាល់ភ្លាមៗ!
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Verification Quota & Action Controls */}
@@ -1166,6 +1184,74 @@ export default function WalletTopupModal({
           </div>
         </motion.div>
       </div>
+
+      {/* ── Enlarged QR Code Modal for Touch & Hold Save to Photos ── */}
+      <AnimatePresence>
+        {showEnlargedQR && session?.qr_image_url && (
+          <div
+            onClick={() => setShowEnlargedQR(false)}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 cursor-pointer"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`bg-white rounded-3xl p-5 max-w-sm w-full text-center shadow-2xl relative border-4 ${
+                isAbaChannel ? "border-[#003B6D]" : "border-[#E1232E]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setShowEnlargedQR(false)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 p-1.5 rounded-full hover:bg-gray-100 cursor-pointer"
+                aria-label="Close Preview"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="text-sm font-black text-gray-800 mb-0.5">
+                {isAbaChannel ? "ABA PAY QR Code" : "Bakong National KHQR"}
+              </div>
+              <div className="text-xs font-bold text-gray-500 mb-3">
+                ${session.amount.toFixed(2)} USD • {session.merchant?.name || "ROTANA NOB"}
+              </div>
+
+              <div className="p-3 bg-white rounded-2xl border border-gray-200 inline-block shadow-inner mb-3">
+                <img
+                  src={session.qr_image_url}
+                  alt="Enlarged QR Code"
+                  style={{ WebkitTouchCallout: "default" }}
+                  className="w-64 h-64 object-contain select-auto cursor-pointer"
+                  title="ចុចសង្កត់លើរូប QR (Touch & Hold) ដើម្បី Save to Photos"
+                />
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-amber-900 text-[11px] mb-3 text-left leading-relaxed">
+                📱 <strong>របៀប Save លើ iPhone/iOS:</strong> ចុចសង្កត់លើរូប QR នេះ (Touch & Hold) ២ វិនាទី រួចចុចយក <strong>&ldquo;Save to Photos&rdquo;</strong> ដើម្បីស្កេនពី Album ក្នុងកម្មវិធីធនាគារ។
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveQRImage}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-gray-800 cursor-pointer"
+                >
+                  <Download size={13} />
+                  <span>ទាញយករូប (Download)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEnlargedQR(false)}
+                  className="py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold cursor-pointer"
+                >
+                  បិទ
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

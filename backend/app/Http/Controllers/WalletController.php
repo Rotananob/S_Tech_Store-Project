@@ -318,7 +318,7 @@ class WalletController extends Controller
         $md5Usd = md5($khqrUsd);
         $md5Khr = md5($khqrKhr);
 
-        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&format=png&data=' . urlencode($activeKhqr);
+        $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=15&ecc=H&format=png&data=' . urlencode($activeKhqr);
 
         // Universal Deeplink from Bakong Open API
         $bakongToken = config('payment.bakong.api_token');
