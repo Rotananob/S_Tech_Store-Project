@@ -207,7 +207,8 @@ class PaymentService
             'deeplinks' => [
                 'universal' => $universalDeeplink,
                 'bakong' => $universalDeeplink,
-                'aba' => "aba://pay?qr=" . rawurlencode($activeKhqr),
+                'aba' => "abamobilebank://ababank.com?type=payway&qrcode=" . rawurlencode($activeKhqr),
+                'aba_app' => "abamobilebank://",
                 'wing' => "wing://pay?qr=" . rawurlencode($activeKhqr),
                 'acleda' => "acledamobile://pay?qr=" . rawurlencode($activeKhqr),
             ],

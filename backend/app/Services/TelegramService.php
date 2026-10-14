@@ -491,6 +491,36 @@ class TelegramService
                 }
             }
 
+            // Admin 1-Click Approve Order Payment
+            if (str_starts_with($callbackData, 'admin_approve_order:') || str_starts_with($callbackData, 'approve_order:')) {
+                $orderId = trim(explode(':', $callbackData)[1] ?? '');
+                if ($orderId) {
+                    $result = self::handleAdminApproveOrder($orderId, $fromName, (string)($from['id'] ?? $chatId));
+                    if ($callbackId) {
+                        self::answerCallbackQuery($callbackId, $result['toast'] ?? 'ការទូទាត់ត្រូវបានអនុម័ត!', $activeToken, true);
+                    }
+                    if ($messageId && !empty($result['new_text'])) {
+                        self::editMessageText($chatId, $messageId, $result['new_text'], null, 'HTML', $activeToken);
+                    }
+                    return;
+                }
+            }
+
+            // Admin 1-Click Reject Order Payment
+            if (str_starts_with($callbackData, 'admin_reject_order:') || str_starts_with($callbackData, 'reject_order:')) {
+                $orderId = trim(explode(':', $callbackData)[1] ?? '');
+                if ($orderId) {
+                    $result = self::handleAdminRejectOrder($orderId, $fromName, (string)($from['id'] ?? $chatId));
+                    if ($callbackId) {
+                        self::answerCallbackQuery($callbackId, $result['toast'] ?? 'បានបដិសេធ', $activeToken, true);
+                    }
+                    if ($messageId && !empty($result['new_text'])) {
+                        self::editMessageText($chatId, $messageId, $result['new_text'], null, 'HTML', $activeToken);
+                    }
+                    return;
+                }
+            }
+
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
                 if ($chatType !== 'private') {
@@ -4893,6 +4923,129 @@ class TelegramService
 
         return [
             'toast' => '❌ បានបដិសេធប្រតិបត្តិការនេះ!',
+            'new_text' => $newText,
+        ];
+    }
+
+    /**
+     * Send instant order payment verification alert with 1-click Approve button to Admin Telegram
+     */
+    public static function sendOrderPaymentVerificationAlert(\App\Models\Order $order, string $tranId = '', string $method = 'khqr'): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $cacheKey = "tg_order_verify_alert_{$order->id}";
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return true;
+        }
+        \Illuminate\Support\Facades\Cache::put($cacheKey, true, 120);
+
+        $amount = number_format((float)$order->total_amount, 2);
+        $orderId = htmlspecialchars($order->order_id ?: ('#' . $order->id));
+        $customerName = htmlspecialchars($order->customer_name ?: 'Customer');
+        $phone = htmlspecialchars($order->customer_phone ?: 'N/A');
+        $methodName = strtoupper($method ?: 'KHQR');
+
+        $ordersTopicId = $settings['topics']['orders'] ?? $settings['topics']['finance'] ?? null;
+
+        $msg = "⚡ <b>[ORDER PAYMENT VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការទូទាត់ទំនិញ!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "អតិថិជនបានចុចបញ្ជាក់ការផ្ទេរប្រាក់ <b>{$methodName}</b> (ABA / Bakong) សម្រាប់ការបញ្ជាទិញ៖\n\n"
+            . "🧾 <b>Order ID:</b> <b>#{$orderId}</b>\n"
+            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
+            . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
+            . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "🔖 <b>Ref Tran ID:</b> <code>{$tranId}</code>\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "✅ អនុម័តទូទាត់ \${$amount} USD", 'callback_data' => "admin_approve_order:{$order->id}"],
+                    ['text' => "❌ បដិសេធ", 'callback_data' => "admin_reject_order:{$order->id}"],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $replyMarkup, 'HTML', $ordersTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Handle Admin 1-Click approval of order payment from Telegram Bot
+     */
+    public static function handleAdminApproveOrder(string $orderIdInput, string $adminName, string $adminTgId): array
+    {
+        $orderQuery = \App\Models\Order::where('id', is_numeric($orderIdInput) ? (int)$orderIdInput : 0)
+            ->orWhere('order_id', $orderIdInput);
+        $order = $orderQuery->first();
+
+        if (!$order) {
+            return ['toast' => '❌ រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
+        }
+
+        if ($order->payment_status === 'paid') {
+            return ['toast' => '⚠️ Order នេះត្រូវបានទូទាត់រួចរាល់ហើយ!', 'new_text' => null];
+        }
+
+        $tranId = 'ADMIN_APPV_' . strtoupper(uniqid());
+        \App\Services\PaymentService::markOrderAsPaid($order, $tranId, $order->payment_method ?: 'khqr', [
+            'verified_by' => 'telegram_admin_1click',
+            'admin_name' => $adminName,
+            'admin_tg_id' => $adminTgId,
+            'verified_at' => now()->toIso8601String(),
+        ]);
+
+        $amount = number_format((float)$order->total_amount, 2);
+        $cleanOrderId = htmlspecialchars($order->order_id ?: ('#' . $order->id));
+
+        $newText = "✅ <b>[APPROVED] បានអនុម័តការទូទាត់ Order ជោគជ័យ!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🧾 <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
+            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
+            . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . " (" . htmlspecialchars($order->customer_phone) . ")\n"
+            . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($order->payment_method ?: 'KHQR') . "\n"
+            . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "🚀 <i>ស្ថានភាព Order ត្រូវបានផ្លាស់ប្តូរទៅ Processing រួចរាល់!</i>";
+
+        return [
+            'toast' => "✅ បានអនុម័ត Order #{$cleanOrderId} ជោគជ័យ!",
+            'new_text' => $newText,
+        ];
+    }
+
+    /**
+     * Handle Admin 1-Click rejection of order payment from Telegram Bot
+     */
+    public static function handleAdminRejectOrder(string $orderIdInput, string $adminName, string $adminTgId): array
+    {
+        $orderQuery = \App\Models\Order::where('id', is_numeric($orderIdInput) ? (int)$orderIdInput : 0)
+            ->orWhere('order_id', $orderIdInput);
+        $order = $orderQuery->first();
+
+        if (!$order) {
+            return ['toast' => '❌ រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
+        }
+
+        $order->payment_status = 'failed';
+        $order->save();
+
+        $cleanOrderId = htmlspecialchars($order->order_id ?: ('#' . $order->id));
+        $newText = "❌ <b>[REJECTED] បានបដិសេធការទូទាត់ Order!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🧾 <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
+            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$order->total_amount, 2) . " USD</b>\n"
+            . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⚠️ <i>ការទូទាត់ត្រូវបានច្រានចោល។</i>";
+
+        return [
+            'toast' => "❌ បានបដិសេធការទូទាត់ Order #{$cleanOrderId}!",
             'new_text' => $newText,
         ];
     }

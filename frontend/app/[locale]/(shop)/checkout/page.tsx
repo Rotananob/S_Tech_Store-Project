@@ -45,25 +45,13 @@ const DELIVERY_NOTE_SUGGESTIONS = [
   { id: "exact_cash", label: "💵 មានត្រៀមលុយរាយស្រាប់", text: "មានត្រៀមលុយរាយគ្រប់ចំនួនស្រាប់" },
 ];
 
-// ─── Payment Methods ────────────────────────────────────────────────────────────
+// ─── Payment Methods (Aligned with Top-Up: Bakong KHQR, ABA PAY, Credit/Debit Card, COD) ──
 const PAYMENT_METHODS = [
   {
-    id: "wallet",
-    label: "S-Tech Real Wallet • កាបូបលុយ S-Tech",
-    sub: "Pay instantly from your S-Tech Cash Wallet with 1-click",
-    badge: "Instant 1-Click Pay",
-    theme: "border-[#8B1A1A] bg-red-50/50 dark:bg-red-950/20",
-    icon: (
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-sm shrink-0">
-        <Wallet size={18} />
-      </div>
-    ),
-  },
-  {
     id: "bakong",
-    label: "Bakong KHQR • All Banks",
-    sub: "Scan with ABA, Wing, ACLEDA, or any 36+ Cambodian banks",
-    badge: "NBC Universal",
+    label: "Bakong KHQR • គ្រប់ធនាគារ (All Banks)",
+    sub: "ស្កេនបានជាមួយ 36+ ធនាគារក្នុងស្រុក (ABA, ACLEDA, Wing, Canadia...)",
+    badge: "NBC KHQR Universal",
     theme: "border-red-500 bg-red-50/40 dark:bg-red-950/20",
     icon: (
       <div className="w-9 h-9 rounded-xl bg-[#E1251B] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter shrink-0">
@@ -73,9 +61,9 @@ const PAYMENT_METHODS = [
   },
   {
     id: "aba",
-    label: "ABA PAY • Direct Deeplink",
-    sub: "Scan QR or launch ABA Mobile directly on your phone",
-    badge: "1-Tap Mobile Pay",
+    label: "ABA PAY • 1-Tap Mobile Deeplink",
+    sub: "បើកកម្មវិធី ABA Mobile ផ្ទាល់ ឬស្កេន QR ជាមួយ ABA Mobile App",
+    badge: "1-Tap ABA Mobile",
     theme: "border-[#004B87] bg-blue-50/40 dark:bg-blue-950/20",
     icon: (
       <div className="w-9 h-9 rounded-xl bg-[#004B87] flex items-center justify-center text-white font-black text-[11px] shadow-sm tracking-tighter shrink-0">
@@ -85,9 +73,9 @@ const PAYMENT_METHODS = [
   },
   {
     id: "visa",
-    label: "Visa & Mastercard • Credit/Debit",
-    sub: "Pay securely with international or local bank card",
-    badge: "3D Secure",
+    label: "Credit / Debit Card • Visa & Mastercard",
+    sub: "ទូទាត់តាមកាតធនាគារអន្តរជាតិ និងក្នុងស្រុក (3D Secure)",
+    badge: "3D Secure 2.0",
     theme: "border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20",
     icon: (
       <div className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-700 via-indigo-800 to-indigo-950 flex items-center justify-center text-white shadow-sm shrink-0">
@@ -98,7 +86,7 @@ const PAYMENT_METHODS = [
   {
     id: "cod",
     label: "Cash on Delivery • ទូទាត់ពេលទំនិញដល់",
-    sub: "Pay in cash upon doorstep delivery by courier",
+    sub: "ទូទាត់សាច់ប្រាក់សុទ្ធពេលអ្នកដឹកជញ្ជូនប្រគល់ទំនិញដល់ដៃ",
     badge: "Doorstep Cash",
     theme: "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20",
     icon: (
@@ -187,14 +175,14 @@ export default function CheckoutPage() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [profileAutoFilled, setProfileAutoFilled] = useState(false);
 
-  // GPS & Live Location states
+  // GPS & Live Location states (1-Click Supreme Location)
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsError, setGpsError] = useState("");
   const [locationSuccessMsg, setLocationSuccessMsg] = useState("");
-  const [showTelegramPinModal, setShowTelegramPinModal] = useState(false);
-  const [telegramPinInput, setTelegramPinInput] = useState("");
-  const [pinParsingLoading, setPinParsingLoading] = useState(false);
+  const [showManualPasteInput, setShowManualPasteInput] = useState(false);
+  const [manualLinkInput, setManualLinkInput] = useState("");
+  const [manualPasteLoading, setManualPasteLoading] = useState(false);
 
   // Card payment form state
   const [cardNumber, setCardNumber] = useState("");
@@ -526,55 +514,84 @@ export default function CheckoutPage() {
     return full;
   };
 
-  // ─── Live GPS Auto-Locate Handler ─────────────────────────────────────────────
-  const handleGetLiveGPS = () => {
+  // ─── Extract Coordinates from Link or Text ────────────────────────────────────
+  const extractCoordinatesFromText = (raw: string): { lat: number; lng: number } | null => {
+    if (!raw) return null;
+    const queryMatch = raw.match(/[?&](?:q|ll)=([+-]?\d+\.\d+),([+-]?\d+\.\d+)/);
+    const atMatch = raw.match(/@([+-]?\d+\.\d+),([+-]?\d+\.\d+)/);
+    const plainMatch = raw.match(/([+-]?\d{1,2}\.\d+)\s*,\s*([+-]?\d{1,3}\.\d+)/);
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+    if (queryMatch) {
+      lat = parseFloat(queryMatch[1]);
+      lng = parseFloat(queryMatch[2]);
+    } else if (atMatch) {
+      lat = parseFloat(atMatch[1]);
+      lng = parseFloat(atMatch[2]);
+    } else if (plainMatch) {
+      lat = parseFloat(plainMatch[1]);
+      lng = parseFloat(plainMatch[2]);
+    }
+
+    if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+      return { lat, lng };
+    }
+    return null;
+  };
+
+  // ─── Central Reverse Geocoding & Address Population ───────────────────────────
+  const applyCoordinatesAndReverseGeocode = async (
+    lat: number,
+    lng: number,
+    sourceLabel: string = "Auto-Location"
+  ) => {
+    setGpsCoords({ lat, lng });
+    const isPhnomPenh = lat >= 11.40 && lat <= 11.75 && lng >= 104.75 && lng <= 105.10;
+    setDelivery(isPhnomPenh ? "pnompenh" : "province");
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        { headers: { "Accept-Language": "km,en" } }
+      );
+      const data = await res.json();
+      if (data && data.display_name) {
+        const addrObj = data.address || {};
+        const road = addrObj.road || addrObj.pedestrian || addrObj.suburb || "";
+        const neighbourhood = addrObj.neighbourhood || addrObj.village || addrObj.quarter || "";
+        const district = addrObj.city_district || addrObj.county || addrObj.district || "";
+        const city = addrObj.city || addrObj.state || (isPhnomPenh ? "រាជធានីភ្នំពេញ" : "");
+
+        const parts = [road, neighbourhood, district, city].filter(Boolean);
+        const humanAddr = parts.length > 0 ? parts.join(", ") : data.display_name;
+
+        setAddress(humanAddr);
+        setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងស្វ័យប្រវត្តជោគជ័យ (${sourceLabel}): ${isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : (city || "បណ្តាខេត្ត") + " ($3.00)"}`);
+      } else {
+        setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ GPS (${lat.toFixed(4)}, ${lng.toFixed(4)}) ជោគជ័យ`);
+      }
+    } catch {
+      setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      setLocationSuccessMsg(`📍 បានកំណត់កូអរដោនេ GPS ជោគជ័យ`);
+    } finally {
+      setGpsLoading(false);
+      setManualPasteLoading(false);
+    }
+  };
+
+  // ─── Browser Native GPS Geolocation ───────────────────────────────────────────
+  const triggerBrowserGPS = () => {
     if (typeof window === "undefined" || !navigator.geolocation) {
-      setGpsError("កម្មវិធីរុករក (Browser) មិនគាំទ្រប្រព័ន្ធ GPS ទេ");
+      setGpsLoading(false);
+      setGpsError("កម្មវិធីរុករក (Browser) មិនគាំទ្រប្រព័ន្ធ GPS ឡើយ");
       return;
     }
 
-    setGpsLoading(true);
-    setGpsError("");
-    setLocationSuccessMsg("");
-
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setGpsCoords({ lat, lng });
-
-        // Auto-detect Phnom Penh vs Province
-        const isPhnomPenh = lat >= 11.40 && lat <= 11.75 && lng >= 104.75 && lng <= 105.10;
-        setDelivery(isPhnomPenh ? "pnompenh" : "province");
-
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-            { headers: { "Accept-Language": "km,en" } }
-          );
-          const data = await res.json();
-          if (data && data.display_name) {
-            const addrObj = data.address || {};
-            const road = addrObj.road || addrObj.pedestrian || addrObj.suburb || "";
-            const neighbourhood = addrObj.neighbourhood || addrObj.village || addrObj.quarter || "";
-            const district = addrObj.city_district || addrObj.county || addrObj.district || "";
-            const city = addrObj.city || addrObj.state || (isPhnomPenh ? "រាជធានីភ្នំពេញ" : "");
-
-            const parts = [road, neighbourhood, district, city].filter(Boolean);
-            const humanAddr = parts.length > 0 ? parts.join(", ") : data.display_name;
-
-            setAddress(humanAddr);
-            setLocationSuccessMsg(`📍 បានចាប់យកទីតាំងផ្ទាល់ជោគជ័យ: ${isPhnomPenh ? "រាជធានីភ្នំពេញ" : city || "បណ្តាខេត្ត"}`);
-          } else {
-            setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-            setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ GPS (${lat.toFixed(4)}, ${lng.toFixed(4)}) ជោគជ័យ`);
-          }
-        } catch {
-          setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-          setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ GPS ជោគជ័យ`);
-        } finally {
-          setGpsLoading(false);
-        }
+        await applyCoordinatesAndReverseGeocode(pos.coords.latitude, pos.coords.longitude, "Browser GPS");
       },
       (err) => {
         setGpsLoading(false);
@@ -588,78 +605,83 @@ export default function CheckoutPage() {
     );
   };
 
-  // ─── Parse Telegram Pin / Shared Location Link ────────────────────────────────
-  const handleParseTelegramOrMapLink = async (inputStr: string) => {
-    const raw = inputStr.trim();
-    if (!raw) return;
-
-    setPinParsingLoading(true);
+  // ─── 1-Click Supreme Auto-Locate (Telegram Mini App 8.0 -> Clipboard -> GPS) ──
+  const handle1ClickAutoLocate = async () => {
+    setGpsLoading(true);
     setGpsError("");
+    setLocationSuccessMsg("");
 
-    let lat: number | null = null;
-    let lng: number | null = null;
+    // 1. Check Telegram Mini App LocationManager (Bot API 8.0+)
+    const tg = typeof window !== "undefined" ? (window as any).Telegram?.WebApp : null;
+    const lm = tg?.LocationManager;
 
-    // Check for @lat,lng or q=lat,lng or ll=lat,lng
-    const queryMatch = raw.match(/[?&](?:q|ll)=([+-]?\d+\.\d+),([+-]?\d+\.\d+)/);
-    const atMatch = raw.match(/@([+-]?\d+\.\d+),([+-]?\d+\.\d+)/);
-    const plainMatch = raw.match(/([+-]?\d{1,2}\.\d+)\s*,\s*([+-]?\d{1,3}\.\d+)/);
-
-    if (queryMatch) {
-      lat = parseFloat(queryMatch[1]);
-      lng = parseFloat(queryMatch[2]);
-    } else if (atMatch) {
-      lat = parseFloat(atMatch[1]);
-      lng = parseFloat(atMatch[2]);
-    } else if (plainMatch) {
-      lat = parseFloat(plainMatch[1]);
-      lng = parseFloat(plainMatch[2]);
+    if (lm && typeof lm.init === "function") {
+      try {
+        lm.init(() => {
+          if (lm.isInited && lm.isLocationAvailable) {
+            lm.getLocation(async (loc: any) => {
+              if (loc && loc.latitude && loc.longitude) {
+                await applyCoordinatesAndReverseGeocode(loc.latitude, loc.longitude, "Telegram Location");
+                return;
+              }
+              proceedWithClipboardOrBrowser();
+            });
+            return;
+          }
+          proceedWithClipboardOrBrowser();
+        });
+        return;
+      } catch (_) {
+        proceedWithClipboardOrBrowser();
+        return;
+      }
     }
 
-    if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-      setGpsCoords({ lat, lng });
-      const isPhnomPenh = lat >= 11.40 && lat <= 11.75 && lng >= 104.75 && lng <= 105.10;
-      setDelivery(isPhnomPenh ? "pnompenh" : "province");
+    proceedWithClipboardOrBrowser();
+  };
 
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-          { headers: { "Accept-Language": "km,en" } }
-        );
-        const data = await res.json();
-        if (data && data.display_name) {
-          const addrObj = data.address || {};
-          const road = addrObj.road || addrObj.pedestrian || addrObj.suburb || "";
-          const neighbourhood = addrObj.neighbourhood || addrObj.village || addrObj.quarter || "";
-          const district = addrObj.city_district || addrObj.county || addrObj.district || "";
-          const city = addrObj.city || addrObj.state || (isPhnomPenh ? "រាជធានីភ្នំពេញ" : "");
-
-          const parts = [road, neighbourhood, district, city].filter(Boolean);
-          const humanAddr = parts.length > 0 ? parts.join(", ") : data.display_name;
-
-          setAddress(humanAddr);
-          setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងពី Telegram Pin / Maps ជោគជ័យ`);
-        } else {
-          setAddress(`ទីតាំង Pin: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-          setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងពី Telegram Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+  const proceedWithClipboardOrBrowser = async () => {
+    // 2. Check Clipboard for copied Google Maps or Telegram pin link
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.readText === "function") {
+        const clipText = await navigator.clipboard.readText();
+        const coords = extractCoordinatesFromText(clipText);
+        if (coords) {
+          await applyCoordinatesAndReverseGeocode(coords.lat, coords.lng, "Copied Maps Link");
+          return;
         }
-      } catch {
-        setAddress(`ទីតាំង Pin: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងពី Telegram Pin ជោគជ័យ`);
       }
-      setShowTelegramPinModal(false);
-      setTelegramPinInput("");
+    } catch (_) {}
+
+    // 3. Fallback to Browser GPS
+    triggerBrowserGPS();
+  };
+
+  // ─── Inline Manual Paste Pin Handler (Optional Non-Intrusive Fallback) ────────
+  const handleManualPasteSubmit = async () => {
+    const raw = manualLinkInput.trim();
+    if (!raw) return;
+
+    setManualPasteLoading(true);
+    setGpsError("");
+
+    const coords = extractCoordinatesFromText(raw);
+    if (coords) {
+      await applyCoordinatesAndReverseGeocode(coords.lat, coords.lng, "Manual Pin Link");
+      setShowManualPasteInput(false);
+      setManualLinkInput("");
     } else {
       if (raw.startsWith("http://") || raw.startsWith("https://")) {
         setAddress((prev) => (prev ? `${prev} (Pin: ${raw})` : `ទីតាំង Pin: ${raw}`));
-        setLocationSuccessMsg(`🔗 បានភ្ជាប់តំណភ្ជាប់ទីតាំង (Location Pin Link)`);
+        setLocationSuccessMsg(`🔗 បានភ្ជាប់តំណភ្ជាប់ទីតាំង (Location Link)`);
       } else {
         setAddress(raw);
         setLocationSuccessMsg(`📝 បានបំពេញអាសយដ្ឋានជោគជ័យ`);
       }
-      setShowTelegramPinModal(false);
-      setTelegramPinInput("");
+      setManualPasteLoading(false);
+      setShowManualPasteInput(false);
+      setManualLinkInput("");
     }
-    setPinParsingLoading(false);
   };
 
   // ─── Toggle Delivery Note Suggestions ─────────────────────────────────────────
@@ -697,6 +719,18 @@ export default function CheckoutPage() {
       return;
     }
 
+    // ── Handle S-Tech Real Wallet Flow ──
+    if (payment === "wallet") {
+      if (walletBalance < Number(total)) {
+        const shortage = (Number(total) - walletBalance).toFixed(2);
+        alert(`សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $${shortage} USD)! សូមចុច "បញ្ចូលលុយ (Top Up)" មុនពេលបន្តទូទាត់។`);
+        setShowWalletTopupModal(true);
+        return;
+      }
+      await executeWalletOrder();
+      return;
+    }
+
     // ── Handle Visa/Mastercard Flow ──
     if (payment === "visa") {
       const cleanNum = cardNumber.replace(/\s/g, "");
@@ -720,18 +754,6 @@ export default function CheckoutPage() {
     // ── Handle KHQR / ABA Flow ──
     if (payment === "aba" || payment === "bakong") {
       await executeKHQROrder();
-      return;
-    }
-
-    // ── Handle S-Tech Real Wallet Flow ──
-    if (payment === "wallet") {
-      if (walletBalance < Number(total)) {
-        const shortage = (Number(total) - walletBalance).toFixed(2);
-        alert(`សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $${shortage} USD)! សូមចុច "បញ្ចូលលុយ (Top Up)" មុនពេលបន្តទូទាត់។`);
-        setShowWalletTopupModal(true);
-        return;
-      }
-      await executeWalletOrder();
       return;
     }
 
@@ -1410,33 +1432,57 @@ export default function CheckoutPage() {
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
                       អាសយដ្ឋានដឹកជញ្ជូនលម្អិត (Delivery Address) *
                     </label>
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Supreme 1-Click Auto Locate Button */}
                       <button
                         type="button"
-                        onClick={handleGetLiveGPS}
+                        onClick={handle1ClickAutoLocate}
                         disabled={gpsLoading}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-xs font-bold border border-emerald-300/80 dark:border-emerald-800/50 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs disabled:opacity-60"
-                        title="ចាប់យកទីតាំងផ្ទាល់ (Live GPS)"
+                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black border-none transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm shadow-emerald-600/30 disabled:opacity-60"
+                        title="ចាប់យកទីតាំងស្វ័យប្រវត្តក្នុង ១ ចុច (Telegram Mini App / Browser GPS)"
                       >
                         {gpsLoading ? (
-                          <Loader2 size={12} className="animate-spin text-emerald-600 dark:text-emerald-400" />
+                          <Loader2 size={13} className="animate-spin text-white" />
                         ) : (
-                          <LocateFixed size={12} className="text-emerald-600 dark:text-emerald-400" />
+                          <LocateFixed size={13} className="text-white animate-pulse" />
                         )}
-                        <span>{gpsLoading ? "កំពុងចាប់..." : "📍 ចាប់យកទីតាំង GPS"}</span>
+                        <span>{gpsLoading ? "កំពុងចាប់ទីតាំង..." : "📍 ចាប់យកទីតាំងស្វ័យប្រវត្ត (1-Click)"}</span>
                       </button>
 
+                      {/* Subtle Manual Paste Toggle */}
                       <button
                         type="button"
-                        onClick={() => setShowTelegramPinModal(true)}
-                        className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 text-sky-800 dark:text-sky-300 text-xs font-bold border border-sky-300/80 dark:border-sky-800/50 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
-                        title="យកពី Telegram Pin / Google Maps"
+                        onClick={() => setShowManualPasteInput((prev) => !prev)}
+                        className="text-[11px] font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline cursor-pointer px-1 py-0.5"
                       >
-                        <Send size={11} className="text-sky-600 dark:text-sky-400 rotate-[-20deg]" />
-                        <span>✈️ Telegram Pin</span>
+                        {showManualPasteInput ? "បិទ" : "បិទភ្ជាប់ Link ទីតាំង"}
                       </button>
                     </div>
                   </div>
+
+                  {/* Optional Inline Paste Input (Zero Intrusive Popup) */}
+                  {showManualPasteInput && (
+                    <div className="mb-2.5 p-3 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 animate-fadeIn">
+                      <div className="relative flex-1">
+                        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-500" />
+                        <input
+                          type="text"
+                          value={manualLinkInput}
+                          onChange={(e) => setManualLinkInput(e.target.value)}
+                          placeholder="បិទភ្ជាប់ Link Google Maps ឬ Telegram Pin ឬ Coordinates..."
+                          className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-white dark:bg-[#12151e] border border-sky-200 dark:border-sky-800 text-xs outline-none text-gray-900 dark:text-white font-mono placeholder:text-gray-400"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleManualPasteSubmit}
+                        disabled={manualPasteLoading || !manualLinkInput.trim()}
+                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs cursor-pointer disabled:opacity-50 shrink-0"
+                      >
+                        {manualPasteLoading ? "កំពុងទាញ..." : "បំពេញ"}
+                      </button>
+                    </div>
+                  )}
 
                   <div className="relative">
                     <div className="absolute top-3.5 left-3.5 pointer-events-none text-gray-400 dark:text-gray-500">
@@ -1561,6 +1607,85 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {/* ── 1. S-Tech Real Wallet Highlight / 1-Click Pay Option ── */}
+              <div className={`p-4 sm:p-5 rounded-2xl mb-5 transition-all border ${
+                payment === "wallet"
+                  ? "bg-gradient-to-br from-red-950/40 via-[#11131a] to-[#151922] border-[#8B1A1A] ring-2 ring-red-500/30 shadow-md"
+                  : "bg-gray-50/70 dark:bg-white/[0.03] border-gray-200/90 dark:border-white/10 hover:border-gray-300"
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md shadow-red-950/50 shrink-0">
+                      <Wallet size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-gray-900 dark:text-white">
+                          កាបូបលុយ S-Tech Real Wallet
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                          1-Click Instant Pay
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        សមតុល្យបច្ចុប្បន្ន: <strong className="text-gray-900 dark:text-white font-mono">${walletBalance.toFixed(2)} USD</strong> (~ {Math.round(walletBalance * USD_TO_KHR).toLocaleString()} KHR)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end sm:self-auto">
+                    {walletBalance >= Number(total) ? (
+                      <button
+                        type="button"
+                        onClick={() => setPayment(payment === "wallet" ? "bakong" : "wallet")}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                          payment === "wallet"
+                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
+                            : "bg-gray-200 dark:bg-white/10 hover:bg-emerald-600 hover:text-white text-gray-800 dark:text-gray-200"
+                        }`}
+                      >
+                        {payment === "wallet" ? <Check size={14} strokeWidth={3} /> : <Zap size={14} />}
+                        <span>{payment === "wallet" ? "✓ កំពុងជ្រើសរើស Wallet" : "ប្រើប្រាស់ Wallet"}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowWalletTopupModal(true)}
+                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-md shadow-red-950/40 active:scale-95 transition-all"
+                      >
+                        <Plus size={13} strokeWidth={3} />
+                        <span>បញ្ចូលលុយ (Top Up)</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {payment === "wallet" && (
+                  <div className="mt-3 pt-3 border-t border-red-500/20 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle2 size={15} />
+                      <span>សមតុល្យគ្រប់គ្រាន់ — ចុច &ldquo;ទូទាត់ជាមួយ S-Tech Wallet&rdquo; ខាងក្រោមដើម្បីកាត់ប្រាក់ភ្លាមៗ</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPayment("bakong")}
+                      className="text-[11px] text-gray-400 hover:text-gray-300 underline cursor-pointer"
+                    >
+                      ប្តូរទៅធនាគារវិញ (Switch to Bank)
+                    </button>
+                  </div>
+                )}
+                {payment !== "wallet" && walletBalance < Number(total) && (
+                  <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                    ⚠️ សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD — សូមជ្រើសរើសវិធីសាស្ត្រធនាគារខាងក្រោម ឬចុចបញ្ចូលលុយ
+                  </div>
+                )}
+              </div>
+
+              <div className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                <span>វិធីសាស្ត្រទូទាត់តាមធនាគារ & កាត (Bank & Card Methods):</span>
+              </div>
+
               {/* Payment Method Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 {PAYMENT_METHODS.map((pm) => {
@@ -1603,63 +1728,6 @@ export default function CheckoutPage() {
                 })}
               </div>
 
-              {/* ── S-Tech Real Wallet Information & Balance Card (when Wallet selected) ── */}
-              {payment === "wallet" && (
-                <div className="mt-5 p-5 rounded-2xl bg-gradient-to-br from-red-950/20 via-[#11131a] to-[#151922] border border-red-900/40 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md shadow-red-950/50">
-                        <Wallet size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-white flex items-center gap-2">
-                          <span>កាបូបលុយ S-Tech Real Wallet</span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                            Direct Balance Pay
-                          </span>
-                        </h4>
-                        <p className="text-[11px] text-gray-400">ទូទាត់ភ្លាមៗដោយគ្មានការរង់ចាំ 100% ស្វ័យប្រវត្តិ</p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowWalletTopupModal(true)}
-                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black border-none cursor-pointer flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50"
-                    >
-                      <Plus size={13} strokeWidth={3} />
-                      <span>បញ្ចូលលុយ (Top Up from Bank)</span>
-                    </button>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] text-gray-400">សមតុល្យកាបូបបច្ចុប្បន្ន:</span>
-                      <div className="text-2xl font-black text-white">
-                        ${walletBalance.toFixed(2)} USD
-                      </div>
-                      <div className="text-[11px] text-gray-400">
-                        ~ {Math.round(walletBalance * USD_TO_KHR).toLocaleString()} KHR
-                      </div>
-                    </div>
-
-                    <div className="text-left sm:text-right">
-                      {walletBalance >= Number(total) ? (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30">
-                          <CheckCircle2 size={15} />
-                          <span>សមតុល្យគ្រប់គ្រាន់ — អាចចុចបញ្ជាក់ទូទាត់បាន</span>
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/30">
-                          <AlertCircle size={15} />
-                          <span>សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD • សូមចុចបញ្ចូលលុយ</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* ── Interactive Credit/Debit Card Form (when VISA selected) ── */}
               {payment === "visa" && (
                 <div className="mt-5 p-5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
@@ -1670,6 +1738,14 @@ export default function CheckoutPage() {
                     <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
                       <Lock size={12} className="text-emerald-500" />
                       <span>256-bit SSL Protected</span>
+                    </div>
+                  </div>
+
+                  {/* Khmer Customer Recommendation Note */}
+                  <div className="mb-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs leading-relaxed flex items-start gap-2.5">
+                    <Sparkles size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="font-bold">💡 ការណែនាំសម្រាប់ជនជាតិខ្មែរ (Recommended):</strong> ប្រសិនបើលោកអ្នកមានគណនីធនាគារក្នុងស្រុក យើងខ្ញុំសូមណែនាំឱ្យជ្រើសរើសទូទាត់តាម <strong>Bakong KHQR</strong> ឬ <strong>ABA PAY</strong> វិញ — ឥតគិតថ្លៃសេវាបន្ថែម (0% Gateway Fee), មិនបារម្ភរឿងថ្លៃប្តូរប្រាក់អន្តរជាតិ និងមិនទាមទារ OTP ស្មុគស្មាញ!
                     </div>
                   </div>
 
@@ -1982,11 +2058,15 @@ export default function CheckoutPage() {
                   <ShieldCheck size={18} className="text-white" />
                 </div>
                 <span className="tracking-wide">
-                  {payment === "cod" 
-                    ? "បញ្ជាក់ការបញ្ជាទិញ • Place Order COD" 
-                    : payment === "visa" 
-                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Card` 
-                    : `ទូទាត់ ${fmtUSD(total)} ជាមួយ KHQR`}
+                  {payment === "wallet"
+                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ S-Tech Wallet (កាត់លុយភ្លាមៗ)`
+                    : payment === "aba"
+                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ ABA PAY`
+                    : payment === "bakong"
+                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Bakong KHQR`
+                    : payment === "visa"
+                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Card`
+                    : "បញ្ជាក់ការបញ្ជាទិញ • Place Order COD"}
                 </span>
                 <ArrowRight size={18} className="shrink-0 group-hover:translate-x-1 transition-transform opacity-90" />
               </button>
@@ -2128,7 +2208,7 @@ export default function CheckoutPage() {
               {/* 1-Click Mobile Banking Deeplinks */}
               {(() => {
                 const isAbaOrder = payment === "aba";
-                const abaDeeplink = khqrSession.deeplinks?.aba || (khqrSession.khqr_string ? `aba://pay?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "#");
+                const abaDeeplink = khqrSession.deeplinks?.aba || (khqrSession.khqr_string ? `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(khqrSession.khqr_string)}` : "abamobilebank://");
                 const bakongDeeplink = khqrSession.deeplinks?.bakong || khqrSession.deeplinks?.universal || (khqrSession.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "#");
                 const primaryDeeplink = isAbaOrder ? abaDeeplink : bakongDeeplink;
 
@@ -2244,85 +2324,6 @@ export default function CheckoutPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Telegram Pin / Maps Link Input Modal ── */}
-      <AnimatePresence>
-        {showTelegramPinModal && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.92, opacity: 0 }}
-              className="bg-white dark:bg-[#151922] w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl relative border border-gray-100 dark:border-white/10"
-            >
-              <button
-                onClick={() => setShowTelegramPinModal(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
-              >
-                <X size={19} />
-              </button>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-11 h-11 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 flex items-center justify-center shadow-xs">
-                  <Send size={20} className="rotate-[-20deg]" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-gray-900 dark:text-white">
-                    យកទីតាំងពី Telegram Pin / Maps
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Paste Shared Pin Link ឬ Coordinates
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-sky-50/60 dark:bg-sky-950/30 rounded-2xl p-3.5 mb-4 border border-sky-100 dark:border-sky-900/40 text-xs text-sky-950 dark:text-sky-200 leading-relaxed">
-                💡 <strong>របៀបប្រើ:</strong> នៅក្នុង Telegram ចុច Share Location &gt; Copy Link ឬ Copy Google Maps Link រួចបិទភ្ជាប់ (Paste) ក្នុងប្រអប់ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធទាញយកអាសយដ្ឋានដោយស្វ័យប្រវត្តិ។
-              </div>
-
-              <div className="space-y-3 mb-5">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-                    Link ទីតាំង ឬ កូអរដោនេ (Coordinates)
-                  </label>
-                  <div className="relative">
-                    <MapPin size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      value={telegramPinInput}
-                      onChange={(e) => setTelegramPinInput(e.target.value)}
-                      placeholder="ឧ. https://maps.app.goo.gl/... ឬ 11.5564, 104.9282"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono focus:border-red-500 focus:bg-white outline-none text-gray-900 dark:text-white transition-all shadow-2xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowTelegramPinModal(false)}
-                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 font-bold text-xs transition-colors cursor-pointer"
-                >
-                  បោះបង់ (Cancel)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleParseTelegramOrMapLink(telegramPinInput)}
-                  disabled={pinParsingLoading || !telegramPinInput.trim()}
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-black text-xs shadow-md shadow-sky-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-[0.98]"
-                >
-                  {pinParsingLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Navigation size={14} />
-                  )}
-                  <span>{pinParsingLoading ? "កំពុងទាញយក..." : "ផ្ទៀងផ្ទាត់ & បំពេញ"}</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* ── Telegram Phone Number Sync Modal (For Website Users) ── */}
       <AnimatePresence>
@@ -2438,11 +2439,15 @@ export default function CheckoutPage() {
             className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] via-red-700 to-red-600 hover:brightness-110 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
           >
             <span>
-              {payment === "cod" 
-                ? "បញ្ជាក់ការកុម្ម៉ង់ (COD)" 
-                : payment === "visa" 
-                ? "ទូទាត់ជាមួយ Card" 
-                : "ទូទាត់ជាមួយ KHQR"}
+              {payment === "wallet"
+                ? `ទូទាត់ ${fmtUSD(total)} (Wallet)`
+                : payment === "aba"
+                ? `ទូទាត់ ${fmtUSD(total)} (ABA PAY)`
+                : payment === "bakong"
+                ? `ទូទាត់ ${fmtUSD(total)} (Bakong KHQR)`
+                : payment === "visa"
+                ? `ទូទាត់ ${fmtUSD(total)} (Card)`
+                : "បញ្ជាក់ការកុម្ម៉ង់ (COD)"}
             </span>
             <ArrowRight size={15} />
           </button>

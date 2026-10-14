@@ -131,6 +131,13 @@ class PaymentController extends Controller
         ]);
         $order->save();
 
+        // Dispatch instant Telegram alert with 1-click Approve button to Admin
+        try {
+            \App\Services\TelegramService::sendOrderPaymentVerificationAlert($order, $tranId, $method);
+        } catch (\Throwable $t) {
+            Log::warning("Order payment verification alert failed: " . $t->getMessage());
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'បានទទួលការបញ្ជាក់ការបង់ប្រាក់! ក្រុមការងារនឹងផ្ទៀងផ្ទាត់ជាមួយធនាគាររួចរៀបចំទំនិញជូនលោកអ្នក (Awaiting Bank Verification)',
