@@ -465,14 +465,14 @@ class TelegramService
             $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $fromUsername = $from['username'] ?? '';
 
-            // Accurate Multi-Bot Token Routing:
+            // Accurate Multi-Bot Token Routing: All private chats strictly route to Customer Bot (@S_TECH_ASSISTANTBOT)
             $msgBotId = (string)($callbackQuery['message']['from']['id'] ?? '');
-            if ($botParam === 'main' || $msgBotId === '8899300323') {
-                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-            } elseif ($botParam === 'auth' || $msgBotId === '8689597792' || $chatType === 'private') {
+            if ($chatType === 'private') {
                 $activeToken = self::getCustomerBotToken();
                 $activeBotUsername = self::getCustomerBotUsername();
+            } elseif ($botParam === 'main' || $msgBotId === '8899300323') {
+                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
             } else {
                 $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
                 $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
@@ -1364,21 +1364,59 @@ class TelegramService
 
         if (!$chatId) return;
 
-        // Multi-Bot Token routing:
-        if ($botParam === 'main') {
-            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-            $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
-        } elseif ($botParam === 'auth' || $chatType === 'private') {
+        // Multi-Bot Token routing: All private chats strictly route to Customer Bot (@S_TECH_ASSISTANTBOT)
+        $staffBotToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        $staffBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+
+        if ($chatType === 'private') {
             $activeToken = self::getCustomerBotToken();
             $activeBotUsername = self::getCustomerBotUsername();
+        } elseif ($botParam === 'main') {
+            $activeToken = $staffBotToken;
+            $activeBotUsername = $staffBotUsername;
         } else {
-            $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-            $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
+            $activeToken = $staffBotToken;
+            $activeBotUsername = $staffBotUsername ?: self::OFFICIAL_BOT_USERNAME;
         }
 
         // Message Deduplication
         if ($messageId && !Cache::add("tg_done_msg_{$chatId}_{$messageId}", time(), 86400)) {
             return;
+        }
+
+        // ── STRICT ISOLATION: BOT 1 (@s_tech_storeBot) STRICTLY GUARDS ADMIN/STAFF GROUP ONLY ──
+        // If ANY private message or handshake arrives at Bot 1, strictly redirect them to Customer Bot (@S_TECH_ASSISTANTBOT)
+        if ($chatType === 'private' && $botParam === 'main') {
+            $customerBotUser = self::getCustomerBotUsername();
+            
+            $extractedCode = '';
+            if (preg_match('/^\/start(?:@\w+)?\s*(.*)$/i', $text, $matches)) {
+                $extractedCode = trim($matches[1] ?? '');
+            }
+
+            $redirectUrl = !empty($extractedCode)
+                ? "https://t.me/{$customerBotUser}?start={$extractedCode}"
+                : "https://t.me/{$customerBotUser}";
+
+            $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
+                . "គណនី Bot នេះ (@{$staffBotUsername}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាងជូនក្រុមការងារ (Admin & Staff Notifications) ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
+                . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ភ្ជាប់ Profile, បញ្ជាទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោមដើម្បីទៅកាន់ Customer Assistant Bot ផ្លូវការរបស់យើងខ្ញុំ៖</b>";
+
+            $redirectKb = [
+                'inline_keyboard' => [
+                    [['text' => '🚀 បើកផ្ទៀងផ្ទាត់ជាមួយ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                    [['text' => '🛍️ ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                ]
+            ];
+
+            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, $staffBotToken);
+            return;
+        }
+
+        // ── FOR ALL PRIVATE CHATS: STRICTLY ENFORCE CUSTOMER BOT TOKEN & USERNAME ──
+        if ($chatType === 'private') {
+            $activeToken = self::getCustomerBotToken();
+            $activeBotUsername = self::getCustomerBotUsername();
         }
 
         // 3.1 Handle Contact Sharing (Direct Customer Phone Number capture)
@@ -1744,7 +1782,7 @@ class TelegramService
                 return;
             }
 
-            // ── STRICT 1-TO-1 ACCOUNT CHECK: CHECK IF THIS TELEGRAM ID IS ALREADY LINKED TO ANOTHER ACCOUNT ──
+            // ── STRICT 1-TO-1 ACCOUNT CHECK & SEAMLESS ORPHAN AUTO-MERGE ──
             $alreadyLinked = \App\Models\UserProfile::where(function($q) use ($tgId) {
                     $q->where('telegram_chat_id', (string)$tgId)
                       ->orWhere('firebase_uid', 'tg_' . $tgId);
@@ -1753,48 +1791,71 @@ class TelegramService
                 ->first();
 
             if ($alreadyLinked) {
-                $maskedEmail = !empty($alreadyLinked->email)
-                    ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
-                    : 'អ៊ីមែលសម្ងាត់';
+                $isOrphanOrSibling = str_starts_with($alreadyLinked->firebase_uid, 'tg_')
+                    || empty($alreadyLinked->email)
+                    || $alreadyLinked->email === $user->email
+                    || (str_contains($alreadyLinked->email, '@telegram.s-tech-store.tech') || str_contains($alreadyLinked->email, '@s-tech-store.tech'))
+                    || $alreadyLinked->display_name === $user->display_name;
 
-                $conflictPayload = [
-                    'status' => 'conflict',
-                    'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}' ({$maskedEmail})! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។",
-                    'already_linked_name' => $alreadyLinked->display_name,
-                    'already_linked_email' => $maskedEmail,
-                ];
+                if ($isOrphanOrSibling) {
+                    // Seamless auto-merge: transfer orders & points to active profile
+                    try {
+                        \App\Models\Order::where('user_id', (string)$alreadyLinked->id)
+                            ->orWhere('user_id', $alreadyLinked->firebase_uid)
+                            ->update(['user_id' => $user->firebase_uid ?: (string)$user->id]);
+                    } catch (\Throwable $t) {}
 
-                Cache::put($linkKey, $conflictPayload, 600);
-                try {
-                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
-                        ['key' => $linkKey],
-                        ['value' => json_encode($conflictPayload), 'updated_at' => now()]
-                    );
-                } catch (\Throwable $t) {}
-
-                $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1-to-1 Account Rule៖</b>\n"
-                    . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
-                    . "• 👤 <b>ឈ្មោះគណនីចាស់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n"
-                    . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($maskedEmail) . "</code>\n\n"
-                    . "💡 <b>ដំណោះស្រាយ៖</b>\n"
-                    . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី Website ១ ប៉ុណ្ណោះ (1 Telegram = 1 Account)។\n"
-                    . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនីថ្មី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើ Website រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
-                    . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីថ្មីនេះបាន។</i>";
-
-                $conflictKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                    ]
-                ];
-                if ($msgId) {
-                    self::editMessageText($chatId, $msgId, $conflictMsg, $conflictKb, 'HTML', $activeToken);
+                    $user->points = ($user->points ?? 0) + ($alreadyLinked->points ?? 0);
+                    $alreadyLinked->update([
+                        'telegram_chat_id' => null,
+                        'telegram' => null,
+                        'notif_telegram' => false,
+                        'is_active' => false,
+                    ]);
                 } else {
-                    self::sendMessageWithKeyboard($chatId, $conflictMsg, $conflictKb, 'HTML', null, $activeToken);
+                    $maskedEmail = !empty($alreadyLinked->email)
+                        ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
+                        : 'អ៊ីមែលសម្ងាត់';
+
+                    $conflictPayload = [
+                        'status' => 'conflict',
+                        'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}' ({$maskedEmail})! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។",
+                        'already_linked_name' => $alreadyLinked->display_name,
+                        'already_linked_email' => $maskedEmail,
+                    ];
+
+                    Cache::put($linkKey, $conflictPayload, 600);
+                    try {
+                        \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                            ['key' => $linkKey],
+                            ['value' => json_encode($conflictPayload), 'updated_at' => now()]
+                        );
+                    } catch (\Throwable $t) {}
+
+                    $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                        . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1-to-1 Account Rule៖</b>\n"
+                        . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
+                        . "• 👤 <b>ឈ្មោះគណនីចាស់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n"
+                        . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($maskedEmail) . "</code>\n\n"
+                        . "💡 <b>ដំណោះស្រាយ៖</b>\n"
+                        . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី Website ១ ប៉ុណ្ណោះ (1 Telegram = 1 Account)។\n"
+                        . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនីថ្មី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើ Website រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
+                        . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីថ្មីនេះបាន។</i>";
+
+                    $conflictKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ]
+                    ];
+                    if ($msgId) {
+                        self::editMessageText($chatId, $msgId, $conflictMsg, $conflictKb, 'HTML', $activeToken);
+                    } else {
+                        self::sendMessageWithKeyboard($chatId, $conflictMsg, $conflictKb, 'HTML', null, $activeToken);
+                    }
+                    return;
                 }
-                return;
             }
 
             // 1. CLEAR DISCONNECTED FLAG & ENSURE CLEAN 1-TO-1 MAPPING
@@ -3366,20 +3427,12 @@ class TelegramService
     public static function getCustomerBotToken(): string
     {
         $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', ''));
-        $staffEnv = trim((string)env('TELEGRAM_BOT_TOKEN', ''));
-        $settingsToken = trim((string)(self::$cachedSettings['bot_token'] ?? ''));
-
-        // Strictly reject empty, placeholder, or staff bot tokens (e.g. 8899300323 or identical to staff bot)
-        if (
-            empty($token) ||
-            str_contains($token, 'Placeholder') ||
-            str_starts_with($token, '8899300323') ||
-            (!empty($staffEnv) && $token === $staffEnv) ||
-            (!empty($settingsToken) && $token === $settingsToken)
-        ) {
-            return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
+        // Strictly require that the token belongs to the official Customer Assistant Bot (starts with 8689597792)
+        // If valid, use it; otherwise, always enforce self::OFFICIAL_CUSTOMER_BOT_TOKEN
+        if (!empty($token) && str_starts_with($token, self::OFFICIAL_CUSTOMER_BOT_ID)) {
+            return $token;
         }
-        return $token;
+        return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
     }
 
     /**
@@ -3388,11 +3441,10 @@ class TelegramService
     public static function getCustomerBotUsername(): string
     {
         $username = trim((string)env('TELEGRAM_AUTH_BOT_USERNAME', ''));
-        // Strictly prevent fallback to deprecated or legacy bots (e.g. Stech_store_LoginBot or staff bot)
-        if (empty($username) || strcasecmp($username, 'Stech_store_LoginBot') === 0 || strcasecmp($username, 's_tech_storeBot') === 0 || stripos($username, 'loginbot') !== false) {
-            return self::OFFICIAL_CUSTOMER_BOT_USERNAME;
+        if (!empty($username) && stripos($username, 'assistant') !== false) {
+            return ltrim($username, '@');
         }
-        return $username;
+        return self::OFFICIAL_CUSTOMER_BOT_USERNAME;
     }
 
     /**
@@ -4865,19 +4917,25 @@ class TelegramService
         // Clean method title if it contains technical keywords
         $displayMethod = str_replace(['Verified', 'VERIFIED'], ['ជោគជ័យ', 'ជោគជ័យ'], $method);
 
-        // Route to users topic (👤 អតិថិជនចុះឈ្មោះថ្មី / ចូលគណនី)
+        // Route strictly to users topic (👤 អតិថិជនចុះឈ្មោះថ្មី / ចូលគណនី)
+        // If no dedicated users topic exists, do NOT broadcast to General chat to avoid confusing admins with verification notifications from @s_tech_storeBot
         $userTopicId = $settings['topics']['users'] ?? null;
+        if (empty($userTopicId)) {
+            Log::info("[Telegram] Suppressed customer login notification because 'users' topic is not configured in staff group.");
+            return true;
+        }
 
-        $msg = "🎉 <b>[CUSTOMER LOGIN] ការចូលប្រើប្រាស់គណនីជោគជ័យ!</b>\n"
+        $msg = "📋 <b>[ADMIN AUDIT LOG] កំណត់ត្រាអតិថិជន Login / Link Profile</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
             . "✨ <b>វិធីសាស្ត្រចូល:</b> <b>{$displayMethod}</b>\n"
             . "👤 <b>អតិថិជន:</b> <b>{$user}</b>\n"
+            . "🤖 <b>ប្រព័ន្ធផ្ទៀងផ្ទាត់:</b> <code>Customer Assistant Bot (@" . self::OFFICIAL_CUSTOMER_BOT_USERNAME . ")</code>\n"
             . "🌐 <b>IP Address:</b> <code>{$ip}</code>\n"
             . "📱 <b>ឧបករណ៍ / Device:</b> {$device}\n"
-            . "✅ <b>ស្ថានភាព:</b> <code>ចូលជោគជ័យ (Verified & Active)</code>\n"
+            . "✅ <b>ស្ថានភាព:</b> <code>បានផ្ទៀងផ្ទាត់ (Verified & Active)</code>\n"
             . "📝 <b>ព័ត៌មានលម្អិត:</b> <i>{$details}</i>\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
-            . "🛍️ <i>ស្វាគមន៍អតិថិជនមកកាន់គេហទំព័រ S Tech Store!</i>";
+            . "🔒 <i>កំណត់ត្រាសុវត្ថិភាពសម្រាប់ Admin ពិនិត្យមើលសកម្មភាពគណនី</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $userTopicId);
         return ($res['ok'] ?? false) === true;

@@ -1326,7 +1326,7 @@ class UserController extends Controller
             $validated['display_name'] = $validated['username'];
         }
 
-        // 1-to-1 Telegram uniqueness guard: prevent assigning a Telegram ID that is already bound to another account
+        // 1-to-1 Telegram uniqueness guard & seamless orphan auto-merge
         if (!empty($validated['telegram_chat_id'])) {
             $conflict = UserProfile::where(function($q) use ($validated) {
                     $q->where('telegram_chat_id', (string)$validated['telegram_chat_id'])
@@ -1335,8 +1335,18 @@ class UserController extends Controller
                 ->where('firebase_uid', '!=', $uid)
                 ->first();
             if ($conflict) {
-                unset($validated['telegram_chat_id']);
-                unset($validated['telegram']);
+                if (str_starts_with($conflict->firebase_uid, 'tg_') || empty($conflict->email) || (isset($validated['email']) && $conflict->email === $validated['email'])) {
+                    // Safe auto-merge: clear orphan's telegram_chat_id and migrate orders
+                    $conflict->update(['telegram_chat_id' => null, 'telegram' => null, 'notif_telegram' => false, 'is_active' => false]);
+                    try {
+                        \App\Models\Order::where('user_id', (string)$conflict->id)
+                            ->orWhere('user_id', $conflict->firebase_uid)
+                            ->update(['user_id' => $uid]);
+                    } catch (\Throwable $t) {}
+                } else {
+                    unset($validated['telegram_chat_id']);
+                    unset($validated['telegram']);
+                }
             }
         }
         if (!empty($validated['email'])) {

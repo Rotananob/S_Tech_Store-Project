@@ -669,6 +669,7 @@ Route::post('/user/telegram/unlink', function (Request $request) {
                 $custName = htmlspecialchars($user->display_name ?: 'អតិថិជន');
                 $alertText = "ℹ️ <b>[S TECH STORE] គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ជោគជ័យ!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "🤖 <b>ផ្ញើចេញពី:</b> Customer Assistant Bot (@" . \App\Services\TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME . ")\n"
                     . "ជម្រាបសួរ <b>{$custName}</b>!\n\n"
                     . "គណនី Telegram នេះត្រូវបានផ្តាច់ចេញពីគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
                     . "🔒 <b>ព័ត៌មានសុវត្ថិភាព៖</b>\n"
