@@ -5,6 +5,8 @@ import {
   getPublicStoreStatus, 
   PublicStoreStatusResponse 
 } from "@/lib/services/master.service";
+import { rtdb } from "@/lib/firebase";
+import { ref, onValue } from "firebase/database";
 import { 
   Calendar, 
   Clock, 
@@ -43,7 +45,7 @@ export default function StoreModeGuard() {
   const [unlockSecret, setUnlockSecret] = useState("");
   const [unlockError, setUnlockError] = useState("");
 
-  // Check if current device is logged in as System Owner
+  // Check if current device is logged in as System Owner or Store Admin
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -52,6 +54,7 @@ export default function StoreModeGuard() {
           const parsed = JSON.parse(adminUser);
           if (
             parsed?.role === "super_admin" || 
+            parsed?.role === "admin" ||
             (parsed?.email || "").toLowerCase().trim() === "nobrothana180703@gmail.com"
           ) {
             setIsSuperAdminUser(true);
@@ -66,9 +69,9 @@ export default function StoreModeGuard() {
     }
   }, []);
 
-  const checkStatus = useCallback(async () => {
+  const checkStatus = useCallback(async (force = false) => {
     try {
-      const data = await getPublicStoreStatus();
+      const data = await getPublicStoreStatus(force);
       setStoreStatus(data);
     } catch (e) {
       console.warn("Could not check store status:", e);
@@ -77,27 +80,113 @@ export default function StoreModeGuard() {
     }
   }, []);
 
-  // Smart Check on Mount & Window Focus (15-Minute Cooldown, zero wasteful loop polling)
+  // ─── Real-Time WebSocket Push (Firebase RTDB) — Zero HTTP Polling ───
   useEffect(() => {
-    let lastChecked = Date.now();
-    checkStatus();
-
-    // Re-check only if tab was inactive for > 15 minutes (protects Cloud Free Tier!)
-    const onVisibilityOrFocus = () => {
-      if (Date.now() - lastChecked > 15 * 60 * 1000) {
-        lastChecked = Date.now();
-        checkStatus();
+    let unsubscribe: (() => void) | null = null;
+    try {
+      if (rtdb) {
+        const statusRef = ref(rtdb, "system/store_status");
+        unsubscribe = onValue(
+          statusRef,
+          (snapshot) => {
+            if (snapshot.exists()) {
+              const data = snapshot.val();
+              if (data && data.status) {
+                setStoreStatus(data);
+                setLoading(false);
+                // When an admin locks the storefront, automatically clear any stale bypass
+                if (data.status !== "online") {
+                  sessionStorage.removeItem("stech_owner_store_bypass");
+                  setIsOwnerBypassed(false);
+                }
+              }
+            }
+          },
+          (err) => {
+            console.warn("RTDB store status listener bypassed:", err);
+          }
+        );
       }
-    };
-
-    window.addEventListener("focus", onVisibilityOrFocus);
-    document.addEventListener("visibilitychange", onVisibilityOrFocus);
-    window.addEventListener("stech_store_status_changed", () => checkStatus());
+    } catch (e) {}
 
     return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // ─── Instant Multi-Tab Sync & Event Listener (Zero HTTP Loop Polling) ───
+  useEffect(() => {
+    // 1. Initial on-demand check on mount
+    checkStatus(true);
+
+    // 2. Multi-tab instant sync (< 1ms across tabs on this browser)
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_store_mode_sync");
+        channel.onmessage = (event) => {
+          if (event.data?.data) {
+            setStoreStatus(event.data.data);
+            setLoading(false);
+            if (event.data.data.status !== "online") {
+              sessionStorage.removeItem("stech_owner_store_bypass");
+              setIsOwnerBypassed(false);
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    // 3. Storage event listener (across different windows/tabs)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "stech_store_mode_sync" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed?.data) {
+            setStoreStatus(parsed.data);
+            setLoading(false);
+            if (parsed.data.status !== "online") {
+              sessionStorage.removeItem("stech_owner_store_bypass");
+              setIsOwnerBypassed(false);
+            }
+          }
+        } catch (err) {}
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // 4. Custom in-tab event listener
+    const onCustomStatusChange = (e: any) => {
+      if (e.detail) {
+        setStoreStatus(e.detail);
+        setLoading(false);
+        if (e.detail.status !== "online") {
+          sessionStorage.removeItem("stech_owner_store_bypass");
+          setIsOwnerBypassed(false);
+        }
+      } else {
+        checkStatus(true);
+      }
+    };
+    window.addEventListener("stech_store_status_changed", onCustomStatusChange);
+
+    // 5. Smart re-check on tab focus / visibility (ONLY if tab was away for > 60s, NO continuous polling)
+    let lastChecked = Date.now();
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastChecked > 60 * 1000) {
+        lastChecked = Date.now();
+        checkStatus(false);
+      }
+    };
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("stech_store_status_changed", onCustomStatusChange);
       window.removeEventListener("focus", onVisibilityOrFocus);
       document.removeEventListener("visibilitychange", onVisibilityOrFocus);
-      window.removeEventListener("stech_store_status_changed", () => checkStatus());
     };
   }, [checkStatus]);
 

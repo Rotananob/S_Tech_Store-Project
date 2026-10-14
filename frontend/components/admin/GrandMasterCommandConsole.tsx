@@ -153,7 +153,11 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
       if (userStr) {
         try {
           const parsed = JSON.parse(userStr);
-          if (parsed.role === "super_admin" || parsed.email === "nobrothana180703@gmail.com") {
+          if (
+            parsed.role === "super_admin" || 
+            parsed.role === "admin" || 
+            parsed.email === "nobrothana180703@gmail.com"
+          ) {
             setIsSuperAdmin(true);
           }
         } catch (e) {}
@@ -161,7 +165,12 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
       const res = await getMasterSystemStatus();
       if (res.success) {
-        setIsSuperAdmin(res.is_super_admin);
+        const hasMasterPrivilege = (
+          res.is_super_admin || 
+          res.current_role === "super_admin" || 
+          res.current_role === "admin"
+        );
+        setIsSuperAdmin(hasMasterPrivilege);
         setCurrentRole(res.current_role);
         setState(res.state);
         setMetrics(res.metrics);
@@ -421,18 +430,18 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
           
           {/* Option A: Normal Live 24/7 */}
           <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-            !state.vacation_mode && !state.maintenance_mode
+            !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
               ? "bg-emerald-950/30 border-emerald-500/60 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30"
               : "bg-white/[0.03] border-white/10 hover:border-white/20"
           }`}>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                  !state.vacation_mode && !state.maintenance_mode ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-gray-400"
+                  !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-gray-400"
                 }`}>
                   <Activity size={18} />
                 </div>
-                {!state.vacation_mode && !state.maintenance_mode ? (
+                {!state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
                   <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                     <span>កំពុងដំណើរការ (Active)</span>
@@ -457,26 +466,28 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                   async () => {
                     if (state.vacation_mode) await toggleVacationMode(false);
                     if (state.maintenance_mode) await toggleMaintenanceMode(false);
+                    if (state.night_lock_forced) await toggleNightLockMode({ forced: false });
                     showToast("បានបើកដំណើរការហាងជាធម្មតាវិញជោគជ័យ!");
+                    await loadStatus(true);
                   },
                   true,
                   "បើកដំណើរការហាងជាធម្មតាឡើងវិញ",
-                  "តើអ្នកចង់បិទមុខងារសម្រាក/Maintenance និងបើកឲ្យអតិថិជនទិញទំនិញធម្មតាឡើងវិញមែនទេ?",
+                  "តើអ្នកចង់បិទមុខងារសម្រាក/Maintenance/Night Lock និងបើកឲ្យអតិថិជនទិញទំនិញធម្មតាឡើងវិញមែនទេ?",
                   "warning"
                 );
               }}
-              disabled={actionLoading === "switch_normal" || (!state.vacation_mode && !state.maintenance_mode)}
+              disabled={actionLoading === "switch_normal" || (!state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced)}
               className={`mt-4 w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 !isSuperAdmin
                   ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
-                  : !state.vacation_mode && !state.maintenance_mode
+                  : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
                   ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 cursor-default"
                   : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
               }`}
             >
               {!isSuperAdmin ? (
                 <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
-              ) : !state.vacation_mode && !state.maintenance_mode ? (
+              ) : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
                 <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
               ) : (
                 <><Power size={13} /><span>ប្តូរមក Normal Live វិញ</span></>

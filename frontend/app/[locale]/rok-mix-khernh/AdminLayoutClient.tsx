@@ -139,7 +139,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     };
   }, []);
 
-  // Poll store status for Staff Lockdown & Vacation mode
+  // Event-driven store status sync for Staff Lockdown & Vacation mode (Zero polling interval)
   useEffect(() => {
     if (isLoginPage) return;
 
@@ -157,8 +157,39 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     };
 
     checkStoreStatus();
-    const interval = setInterval(checkStoreStatus, 60000);
-    return () => clearInterval(interval);
+
+    const handleSync = (e: any) => {
+      if (e.detail) {
+        const res = e.detail;
+        setStoreStatus({
+          status: res.status,
+          vacationActive: !!res.vacation?.active,
+          staffLockdownActive: !!res.staff_lockdown?.active,
+          staffLockdownReason: res.staff_lockdown?.reason || "",
+          vacationEndTime: res.vacation?.end_time || null,
+        });
+      } else {
+        checkStoreStatus();
+      }
+    };
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_store_mode_sync");
+        channel.onmessage = (event) => {
+          if (event.data?.data) {
+            handleSync({ detail: event.data.data });
+          }
+        };
+      }
+    } catch (e) {}
+
+    window.addEventListener("stech_store_status_changed", handleSync);
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener("stech_store_status_changed", handleSync);
+    };
   }, [isLoginPage]);
 
   const handleLogout = () => {

@@ -30,7 +30,7 @@ class SuperAdminMiddleware
                 ->first();
 
             if ($user) {
-                $isSuperAdmin = ($user->role === 'super_admin') || ($user->email === 'nobrothana180703@gmail.com');
+                $isSuperAdmin = in_array($user->role, ['super_admin', 'admin']) || ($user->email === 'nobrothana180703@gmail.com');
 
                 if ($isSuperAdmin) {
                     $request->attributes->set('auth_user', $user);

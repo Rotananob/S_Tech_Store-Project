@@ -20,13 +20,16 @@ class MasterSystemController extends Controller
     public function status(Request $request)
     {
         $adminUser = $request->attributes->get('auth_user');
-        $isSuperAdmin = $adminUser && ($adminUser->role === 'super_admin' || $adminUser->email === 'nobrothana180703@gmail.com');
+        $isSuperAdmin = $adminUser && (in_array($adminUser->role, ['super_admin', 'admin']) || $adminUser->email === 'nobrothana180703@gmail.com');
 
         $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
         $state = [];
         if ($row && !empty($row->value)) {
             $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
         }
+
+        $resolved = self::resolveSystemState($state);
+        $state = $resolved['state'];
 
         $defaults = [
             'mode' => 'online',
@@ -146,34 +149,28 @@ class MasterSystemController extends Controller
     }
 
     /**
-     * Public Store Status (For Customer Storefront & PWA Guard)
+     * Unified resolver for active store mode and expiration handling
      */
-    public function publicStatus(Request $request)
+    public static function resolveSystemState(?array $state = null): array
     {
-        $state = Cache::get('master_system_state');
-        if (empty($state) || !is_array($state)) {
-            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
-            if ($row && !empty($row->value)) {
-                $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
-                Cache::put('master_system_state', $state, 86400 * 30);
-            } else {
-                $state = [];
+        if ($state === null) {
+            $state = Cache::get('master_system_state');
+            if (empty($state) || !is_array($state)) {
+                $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+                $state = ($row && !empty($row->value)) 
+                    ? (is_string($row->value) ? json_decode($row->value, true) : (array)$row->value) 
+                    : [];
             }
         }
 
         $vacationActive = !empty($state['vacation_mode']);
         $vacationEndTime = $state['vacation_end_time'] ?? null;
-
-        // Auto-Expiration: If vacation end time has arrived, automatically resume online!
         if ($vacationActive && !empty($vacationEndTime)) {
             $now = now();
             $end = \Carbon\Carbon::parse($vacationEndTime);
             if ($now->greaterThanOrEqualTo($end)) {
                 $vacationActive = false;
-                $this->updateMasterState([
-                    'vacation_mode' => false,
-                    'mode' => !empty($state['maintenance_mode']) ? 'maintenance' : 'online',
-                ]);
+                $state['vacation_mode'] = false;
             }
         }
 
@@ -190,19 +187,48 @@ class MasterSystemController extends Controller
             $mode = 'night_lock';
         }
 
+        $state['mode'] = $mode;
+        return [
+            'state' => $state,
+            'mode' => $mode,
+            'vacationActive' => $vacationActive,
+            'vacationEndTime' => $vacationEndTime,
+            'maintenanceActive' => $maintenanceActive,
+            'nightLock' => $nightLock,
+        ];
+    }
+
+    /**
+     * Public Store Status (For Customer Storefront & PWA Guard - Zero HTTP Caching)
+     */
+    public function publicStatus(Request $request)
+    {
+        $state = Cache::get('master_system_state');
+        if (empty($state) || !is_array($state)) {
+            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+            if ($row && !empty($row->value)) {
+                $state = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                Cache::put('master_system_state', $state, 86400 * 30);
+            } else {
+                $state = [];
+            }
+        }
+
+        $resolved = self::resolveSystemState($state);
+
         return response()->json([
-            'status' => $mode,
-            'night_lock' => $nightLock,
+            'status' => $resolved['mode'],
+            'night_lock' => $resolved['nightLock'],
             'vacation' => [
-                'active' => $vacationActive,
+                'active' => $resolved['vacationActive'],
                 'title' => $state['vacation_title'] ?? 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
                 'reason' => $state['vacation_reason'] ?? 'ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!',
-                'end_time' => $vacationEndTime,
+                'end_time' => $resolved['vacationEndTime'],
                 'days' => (int)($state['vacation_days'] ?? 3),
                 'started_at' => $state['vacation_started_at'] ?? null,
             ],
             'maintenance' => [
-                'active' => $maintenanceActive,
+                'active' => $resolved['maintenanceActive'],
                 'title' => $state['maintenance_title'] ?? 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)',
                 'reason' => $state['maintenance_reason'] ?? 'កំពុង Upgrade Server និងប្រព័ន្ធទូទាត់ប្រាក់ជូនលោកអ្នក។',
                 'end_time' => $state['maintenance_end_time'] ?? null,
@@ -212,7 +238,10 @@ class MasterSystemController extends Controller
                 'reason' => $state['staff_lockdown_reason'] ?? 'សកម្មភាពបុគ្គលិកត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ',
             ],
             'server_time' => now()->toIso8601String(),
-        ])->header('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=600');
+        ])
+        ->header('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**
@@ -233,13 +262,16 @@ class MasterSystemController extends Controller
             }
         }
 
+        $currentMaster['maintenance_mode'] = $enabled;
+        $resolved = self::resolveSystemState($currentMaster);
+
         $this->updateMasterState([
             'maintenance_mode' => $enabled,
             'maintenance_title' => $title,
             'maintenance_reason' => $reason,
             'maintenance_end_time' => $endTime ? \Carbon\Carbon::parse($endTime)->toIso8601String() : null,
             'maintenance_updated_at' => now()->toIso8601String(),
-            'mode' => $enabled ? 'maintenance' : (!empty($currentMaster['vacation_mode']) ? 'vacation' : 'online'),
+            'mode' => $resolved['mode'],
         ]);
 
         // Push Alert to Telegram Sentinel
@@ -256,6 +288,7 @@ class MasterSystemController extends Controller
         return response()->json([
             'success' => true,
             'maintenance_mode' => $enabled,
+            'mode' => $resolved['mode'],
             'message' => $enabled 
                 ? 'បានបើក Maintenance Mode ជោគជ័យ! អតិថិជននឹងឃើញផ្ទាំងថែទាំប្រព័ន្ធ។' 
                 : 'បានបិទ Maintenance Mode ជោគជ័យ! ហាងបានបើកដំណើរការជាសាធារណៈវិញហើយ។',
@@ -285,6 +318,18 @@ class MasterSystemController extends Controller
             }
         }
 
+        $currentMaster = Cache::get('master_system_state') ?? [];
+        if (empty($currentMaster)) {
+            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+            if ($row && !empty($row->value)) {
+                $currentMaster = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        }
+
+        $currentMaster['vacation_mode'] = $enabled;
+        $currentMaster['vacation_end_time'] = $endTime;
+        $resolved = self::resolveSystemState($currentMaster);
+
         $newState = [
             'vacation_mode' => $enabled,
             'vacation_title' => $title,
@@ -292,7 +337,7 @@ class MasterSystemController extends Controller
             'vacation_end_time' => $endTime,
             'vacation_days' => $days,
             'vacation_started_at' => $enabled ? now()->toIso8601String() : null,
-            'mode' => $enabled ? 'vacation' : 'online',
+            'mode' => $resolved['mode'],
         ];
 
         $this->updateMasterState($newState);
@@ -313,6 +358,7 @@ class MasterSystemController extends Controller
             'success' => true,
             'vacation_mode' => $enabled,
             'vacation_end_time' => $endTime,
+            'mode' => $resolved['mode'],
             'message' => $enabled
                 ? "បានបើកមុខងារបិទសម្រាក {$days} ថ្ងៃ ជោគជ័យ! អតិថិជននឹងឃើញផ្ទាំងរាប់ថយក្រោយ Countdown។"
                 : "បានបិទមុខងារសម្រាក និងបើកហាងដំណើរការឡើងវិញជាធម្មតាជោគជ័យ!",
@@ -622,8 +668,19 @@ class MasterSystemController extends Controller
 
         $updates['night_lock_updated_at'] = now()->toIso8601String();
 
+        $currentMaster = Cache::get('master_system_state') ?? [];
+        if (empty($currentMaster)) {
+            $row = DB::table('system_settings')->where('key', 'master_system_state')->first();
+            if ($row && !empty($row->value)) {
+                $currentMaster = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            }
+        }
+        $mergedForCheck = array_merge($currentMaster, $updates);
+        $resolved = self::resolveSystemState($mergedForCheck);
+        $updates['mode'] = $resolved['mode'];
+
         $newState = $this->updateMasterState($updates);
-        $nightLockInfo = self::isNightLockActive($newState);
+        $nightLockInfo = $resolved['nightLock'];
 
         try {
             $statusKh = $nightLockInfo['active']
@@ -643,6 +700,7 @@ class MasterSystemController extends Controller
         return response()->json([
             'success' => true,
             'night_lock' => $nightLockInfo,
+            'mode' => $resolved['mode'],
             'message' => $nightLockInfo['active']
                 ? "បានបើកដំណើរការ Night Lock ជោគជ័យ! Storefront ត្រូវបានចាក់សោសុវត្ថិភាព។"
                 : "បានធ្វើបច្ចុប្បន្នភាពការកំណត់ Night Lock ជោគជ័យ!",

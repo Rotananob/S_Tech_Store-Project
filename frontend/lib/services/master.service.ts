@@ -1,4 +1,6 @@
 import api from "@/lib/api";
+import { rtdb } from "@/lib/firebase";
+import { ref, set } from "firebase/database";
 
 export interface MasterSystemState {
   mode?: "online" | "vacation" | "maintenance" | "night_lock";
@@ -99,41 +101,21 @@ export async function getMasterSystemStatus(): Promise<MasterSystemStatusRespons
 let memoryStoreStatusCache: { data: PublicStoreStatusResponse; timestamp: number } | null = null;
 
 export async function getPublicStoreStatus(forceRefresh = false): Promise<PublicStoreStatusResponse> {
-  const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes TTL (saves 99.9% of cloud free tier requests)
+  const CACHE_TTL_MS = 20 * 1000; // 20-second fast cache to avoid repeated bursts
 
-  // 1. Check in-memory fast cache
   if (!forceRefresh && memoryStoreStatusCache && (Date.now() - memoryStoreStatusCache.timestamp < CACHE_TTL_MS)) {
     return memoryStoreStatusCache.data;
   }
 
-  // 2. Check sessionStorage
-  if (!forceRefresh && typeof window !== "undefined") {
-    try {
-      const raw = sessionStorage.getItem("stech_store_status_cache");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.timestamp && (Date.now() - parsed.timestamp < CACHE_TTL_MS)) {
-          memoryStoreStatusCache = parsed;
-          return parsed.data;
-        }
-      }
-    } catch (e) {}
-  }
-
-  // 3. Fallback to network request (clean without wasteful anti-cache param)
+  // Network fetch with cache-busting to bypass any browser or CDN proxies
   try {
-    const res = await fetch(`/api/store-status`, {
-      headers: { "Accept": "application/json" },
+    const res = await fetch(`/api/store-status?t=${Date.now()}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
     });
     if (res.ok) {
       const data = await res.json();
-      const cacheObj = { data, timestamp: Date.now() };
-      memoryStoreStatusCache = cacheObj;
-      if (typeof window !== "undefined") {
-        try {
-          sessionStorage.setItem("stech_store_status_cache", JSON.stringify(cacheObj));
-        } catch (e) {}
-      }
+      memoryStoreStatusCache = { data, timestamp: Date.now() };
       return data;
     }
   } catch (e) {}
@@ -162,6 +144,39 @@ export async function getPublicStoreStatus(forceRefresh = false): Promise<Public
 }
 
 /**
+ * Broadcast store status to all open tabs and real-time listeners with ZERO network polling
+ */
+export function broadcastStoreStatusSync(data: PublicStoreStatusResponse) {
+  memoryStoreStatusCache = { data, timestamp: Date.now() };
+
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.setItem("stech_store_status_cache", JSON.stringify({ data, timestamp: Date.now() }));
+      localStorage.setItem("stech_store_mode_sync", JSON.stringify({ data, timestamp: Date.now() }));
+      
+      // Multi-tab instant sync (< 1ms)
+      if (typeof BroadcastChannel !== "undefined") {
+        const channel = new BroadcastChannel("stech_store_mode_sync");
+        channel.postMessage({ data, timestamp: Date.now() });
+        channel.close();
+      }
+
+      window.dispatchEvent(new CustomEvent("stech_store_status_changed", { detail: data }));
+    } catch (e) {}
+
+    // Global push to all connected storefront visitors worldwide via Firebase Realtime Database
+    try {
+      if (rtdb) {
+        set(ref(rtdb, "system/store_status"), {
+          ...data,
+          broadcast_timestamp: Date.now(),
+        }).catch(() => {});
+      }
+    } catch (e) {}
+  }
+}
+
+/**
  * Invalidate store status cache immediately and notify listeners
  */
 export function clearStoreStatusCache() {
@@ -187,6 +202,10 @@ export async function toggleNightLockMode(options: {
 }) {
   const res = await api.post("/admin/master/toggle-night-lock", options);
   clearStoreStatusCache();
+  try {
+    const newStatus = await getPublicStoreStatus(true);
+    broadcastStoreStatusSync(newStatus);
+  } catch (e) {}
   return res.data;
 }
 
@@ -196,6 +215,10 @@ export async function toggleNightLockMode(options: {
 export async function toggleMaintenanceMode(enabled: boolean, reason?: string, title?: string, endTime?: string) {
   const res = await api.post("/admin/master/toggle-maintenance", { enabled, reason, title, end_time: endTime });
   clearStoreStatusCache();
+  try {
+    const newStatus = await getPublicStoreStatus(true);
+    broadcastStoreStatusSync(newStatus);
+  } catch (e) {}
   return res.data;
 }
 
@@ -215,6 +238,10 @@ export async function toggleVacationMode(
     reason: options?.reason,
   });
   clearStoreStatusCache();
+  try {
+    const newStatus = await getPublicStoreStatus(true);
+    broadcastStoreStatusSync(newStatus);
+  } catch (e) {}
   return res.data;
 }
 
