@@ -466,13 +466,13 @@ class TelegramService
             $fromUsername = $from['username'] ?? '';
 
             // Accurate Multi-Bot Token Routing:
-            // Private customer chats always route strictly to Customer Bot (@S_TECH_ASSISTANTBOT)
-            if ($chatType === 'private' || $botParam === 'auth' || $msgBotId == 8689597792) {
-                $activeToken = self::getCustomerBotToken();
-                $activeBotUsername = self::getCustomerBotUsername();
-            } elseif ($msgBotId == 8899300323 || $botParam === 'main') {
+            $msgBotId = (string)($callbackQuery['message']['from']['id'] ?? '');
+            if ($botParam === 'main' || $msgBotId === '8899300323') {
                 $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
                 $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+            } elseif ($botParam === 'auth' || $msgBotId === '8689597792' || $chatType === 'private') {
+                $activeToken = self::getCustomerBotToken();
+                $activeBotUsername = self::getCustomerBotUsername();
             } else {
                 $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
                 $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
@@ -650,24 +650,18 @@ class TelegramService
                 // Local-First Cached Profile & Orders (< 1ms on repeat clicks)
                 $user = self::resolveActiveUser((string)$chatId);
 
-                $orders = Cache::remember("tg_orders_{$chatId}", 15, function() use ($chatId, $user) {
-                    return \App\Models\Order::where(function ($q) use ($chatId, $user) {
-                        $q->where('user_id', 'tg_' . $chatId);
-                        if ($user) {
-                            $q->orWhere('user_id', $user->firebase_uid)
-                              ->orWhere('user_id', (string)$user->id);
-                            if (!empty($user->phone)) {
-                                $q->orWhere('customer_phone', $user->phone);
-                            }
-                        }
-                    })
-                    ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
-                    ->with(['items' => function ($q) {
-                        $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
-                    }])
-                    ->latest()
-                    ->take(3)
-                    ->get();
+                // Clear cache on explicit button click so customer always sees fresh orders
+                Cache::forget("tg_orders_{$chatId}");
+
+                $orders = Cache::remember("tg_orders_{$chatId}", 5, function() use ($chatId, $user) {
+                    return self::getCustomerOrdersBuilder($chatId, $user)
+                        ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
+                        ->with(['items' => function ($q) {
+                            $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
+                        }])
+                        ->latest()
+                        ->take(5)
+                        ->get();
                 });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
@@ -850,15 +844,10 @@ class TelegramService
                 }
                 $userIds = array_unique(array_filter($userIds));
 
-                $completedOrders = Cache::remember("tg_orders_cnt_{$chatId}", 60, function() use ($userIds, $user) {
-                    return \App\Models\Order::where(function ($q) use ($userIds, $user) {
-                        $q->whereIn('user_id', $userIds);
-                        if ($user && !empty($user->phone)) {
-                            $q->orWhere('customer_phone', $user->phone);
-                        }
-                    })
-                    ->whereIn('status', ['completed', 'delivered'])
-                    ->count();
+                $completedOrders = Cache::remember("tg_orders_cnt_{$chatId}", 30, function() use ($chatId, $user) {
+                    return self::getCustomerOrdersBuilder($chatId, $user)
+                        ->whereIn('status', ['completed', 'delivered'])
+                        ->count();
                 });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
@@ -1376,13 +1365,12 @@ class TelegramService
         if (!$chatId) return;
 
         // Multi-Bot Token routing:
-        // Private customer chats or bot=auth always route strictly to Customer Bot (@S_TECH_ASSISTANTBOT)
-        if ($chatType === 'private' || $botParam === 'auth') {
-            $activeToken = self::getCustomerBotToken();
-            $activeBotUsername = self::getCustomerBotUsername();
-        } elseif ($botParam === 'main') {
+        if ($botParam === 'main') {
             $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
             $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+        } elseif ($botParam === 'auth' || $chatType === 'private') {
+            $activeToken = self::getCustomerBotToken();
+            $activeBotUsername = self::getCustomerBotUsername();
         } else {
             $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
             $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
@@ -2035,6 +2023,21 @@ class TelegramService
 
         // 6. PRIVATE CHAT COMMANDS (Customers & Normal Users — STRICTLY NO ADMIN FEATURES)
 
+        // If a customer messages Bot 1 (Staff & Store Notification Bot) privately, politely guide them to Customer Bot (@S_TECH_ASSISTANTBOT)
+        if ($botParam === 'main') {
+            $customerBotUser = self::getCustomerBotUsername();
+            $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
+                . "គណនី Bot នេះ (@{$activeBotUsername}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff Notifications) ប៉ុណ្ណោះ។\n\n"
+                . "សម្រាប់ការបញ្ជាទិញទំនិញ, ពិនិត្យកាបូបលុយ, មើលពិន្ទុ, និងតាមដាន Orders សូមចុចទៅកាន់ <b>Customer Assistant Bot</b> ផ្លូវការរបស់យើងខ្ញុំ៖";
+            $redirectKb = [
+                'inline_keyboard' => [
+                    [['text' => '🛍️ ចូលទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => 'https://t.me/' . $customerBotUser]],
+                ]
+            ];
+            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, $activeToken);
+            return;
+        }
+
         // Protect Admin commands in private chat
         if (preg_match('/^\/(?:setup_topics|topics|status)(?:@\w+)?/i', $text)) {
             $adminNotice = "ℹ️ <b>សេចក្តីជូនដំណឹង:</b> ពាក្យបញ្ជានេះត្រូវបានកំណត់សម្រាប់តែក្រុមការងារ Admin ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
@@ -2200,19 +2203,11 @@ class TelegramService
             }
 
             $user = self::resolveActiveUser((string)$chatId);
-            $userIds = ['tg_' . $chatId];
-            if ($user) {
-                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
-                if (!empty($user->id)) $userIds[] = (string)$user->id;
-            }
-            $userIds = array_unique(array_filter($userIds));
-
-            $orders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
-                $q->whereIn('user_id', $userIds);
-                if ($user && !empty($user->phone)) {
-                    $q->orWhere('customer_phone', $user->phone);
-                }
-            })->with('items.product')->latest()->take(5)->get();
+            $orders = self::getCustomerOrdersBuilder((string)$chatId, $user)
+                ->with('items.product')
+                ->latest()
+                ->take(5)
+                ->get();
 
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
             $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
@@ -2297,19 +2292,9 @@ class TelegramService
                 default => '🥈 Silver Member',
             };
 
-            $userIds = ['tg_' . $chatId];
-            if ($user) {
-                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
-                if (!empty($user->id)) $userIds[] = (string)$user->id;
-            }
-            $userIds = array_unique(array_filter($userIds));
-
-            $completedOrders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
-                $q->whereIn('user_id', $userIds);
-                if ($user && !empty($user->phone)) {
-                    $q->orWhere('customer_phone', $user->phone);
-                }
-            })->whereIn('status', ['completed', 'delivered'])->count();
+            $completedOrders = self::getCustomerOrdersBuilder((string)$chatId, $user)
+                ->whereIn('status', ['completed', 'delivered'])
+                ->count();
 
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
             $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
@@ -2699,19 +2684,7 @@ class TelegramService
         // A.1 Natural Khmer Order Inquiries ("order របស់ខ្ញុំ", "ឥវ៉ាន់ខ្ញុំដល់ណា", "តាមដាន order", "my orders")
         if (preg_match('/(order|orders|កញ្ចប់|ឥវ៉ាន់|ការកុម្ម៉ង់|កុម្ម៉ង់|បញ្ជាទិញ|ទំនិញខ្ញុំ|អីវ៉ាន់)/u', $textLower)) {
             $user = self::resolveActiveUser((string)$chatId);
-            $userIds = ['tg_' . $chatId];
-            if ($user) {
-                if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
-                if (!empty($user->id)) $userIds[] = (string)$user->id;
-            }
-            $userIds = array_unique(array_filter($userIds));
-
-            $orders = \App\Models\Order::where(function ($q) use ($userIds, $user) {
-                $q->whereIn('user_id', $userIds);
-                if ($user && !empty($user->phone)) {
-                    $q->orWhere('customer_phone', $user->phone);
-                }
-            })->with('items.product')->latest()->take(3)->get();
+            $orders = self::getCustomerOrdersBuilder((string)$chatId, $user)->with('items.product')->latest()->take(3)->get();
 
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
             $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
@@ -2743,6 +2716,17 @@ class TelegramService
                 $ordersKb = [
                     'inline_keyboard' => [
                         [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ],
+                ];
+                self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+                return;
+            } else {
+                $ordersText = "📦 <b>អ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅឡើយទេ!</b>\n\n"
+                    . "សូមចូលទៅកាន់ <b>S Tech Store Mini App</b> ដើម្បីជ្រើសរើសទំនិញ Laptop, Gaming PC, ឬ Accessories ដែលពេញនិយមបំផុត៖";
+                $ordersKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => "https://www.s-tech-store.tech?tg_token={$sessionToken}"]]],
                         [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ],
                 ];
@@ -3856,6 +3840,41 @@ class TelegramService
         }
 
         return $user;
+    }
+
+    /**
+     * Build unified Eloquent query for Customer Orders across Telegram, Google UID, Email & Phone
+     */
+    public static function getCustomerOrdersBuilder(string $chatId, ?\App\Models\UserProfile $user = null): \Illuminate\Database\Eloquent\Builder
+    {
+        $cleanChatId = preg_replace('/\D/', '', $chatId) ?: $chatId;
+        $user = $user ?: self::resolveActiveUser((string)$cleanChatId);
+
+        $userIds = ['tg_' . $cleanChatId, 'tg_' . $chatId];
+        if ($user) {
+            if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+            if (!empty($user->id)) $userIds[] = (string)$user->id;
+            if (!empty($user->email)) {
+                $siblingUids = \App\Models\UserProfile::where('email', $user->email)
+                    ->pluck('firebase_uid')
+                    ->filter()
+                    ->toArray();
+                $userIds = array_merge($userIds, $siblingUids);
+            }
+        }
+        $userIds = array_unique(array_filter($userIds));
+
+        return \App\Models\Order::where(function ($q) use ($userIds, $user) {
+            $q->whereIn('user_id', $userIds);
+            if ($user) {
+                if (!empty($user->phone)) {
+                    $q->orWhere('customer_phone', $user->phone);
+                }
+                if (!empty($user->email) && !str_ends_with($user->email, '@telegram.s-tech-store.tech') && !str_ends_with($user->email, '@s-tech-store.tech')) {
+                    $q->orWhere('customer_email', $user->email);
+                }
+            }
+        });
     }
 
     /**

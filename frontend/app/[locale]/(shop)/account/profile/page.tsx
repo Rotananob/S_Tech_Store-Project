@@ -1708,15 +1708,16 @@ export default function UserProfilePage() {
             <div className="shrink-0 w-full sm:w-auto">
               {isTelegramConnected ? (
                 <div className="grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:gap-2.5 w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
-                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/25 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border-none"
-                    title="បើក Chat ជាមួយ Telegram Bot ផ្លូវការ"
+                  <a
+                    href="https://t.me/S_TECH_ASSISTANTBOT"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-[#0088cc]/25 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer border-none no-underline"
+                    title="បើក Chat ជាមួយ Telegram Bot ផ្លូវការ (@S_TECH_ASSISTANTBOT)"
                   >
                     <Send size={14} className="shrink-0" />
                     <span>បើក Bot</span>
-                  </button>
+                  </a>
                   <button
                     type="button"
                     onClick={handleUnlinkTelegram}
@@ -4551,15 +4552,16 @@ export default function UserProfilePage() {
               </div>
 
               {resetSuccessModal.channel === "telegram" && (
-                <button
-                  type="button"
-                  onClick={() => window.open(`https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "S_TECH_ASSISTANTBOT"}`, "_blank")}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs font-bold transition-all shadow-md shadow-[#0088cc]/25 cursor-pointer border-none flex items-center justify-center gap-2 active:scale-98"
+                <a
+                  href="https://t.me/S_TECH_ASSISTANTBOT"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs font-bold transition-all shadow-md shadow-[#0088cc]/25 cursor-pointer border-none flex items-center justify-center gap-2 active:scale-98 no-underline"
                 >
                   <Send size={14} />
                   <span>បើកឆាត Telegram Bot (@S_TECH_ASSISTANTBOT)</span>
                   <ExternalLink size={13} />
-                </button>
+                </a>
               )}
 
               {resetSuccessModal.resetLink && (
