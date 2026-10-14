@@ -1,13 +1,14 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Sun, Moon, Monitor, ChevronDown, Check } from "lucide-react";
+import { Sun, Moon, Monitor, ChevronDown, Check, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function ThemeDropdown() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -55,8 +56,14 @@ export function ThemeDropdown() {
         title="Theme Mode / ប្ដូរពន្លឺ"
         aria-label="Toggle theme"
       >
-        {currentIcon()}
-        <span className="hidden sm:inline font-semibold">{currentLabel()}</span>
+        {isSwitching ? (
+          <Loader2 size={16} className="animate-spin text-amber-500" />
+        ) : (
+          currentIcon()
+        )}
+        <span className="hidden sm:inline font-semibold">
+          {isSwitching ? "កំពុងប្តូរ..." : currentLabel()}
+        </span>
         <ChevronDown size={13} className={`text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
 
@@ -69,8 +76,9 @@ export function ThemeDropdown() {
             transition={{ duration: 0.15 }}
             className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-[#151922] text-gray-900 dark:text-white rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 p-1.5 space-y-1"
           >
-            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              Theme Mode
+            <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Theme Mode</span>
+              {isSwitching && <Loader2 size={11} className="animate-spin text-amber-500" />}
             </div>
             {options.map((opt) => {
               const Icon = opt.icon;
@@ -79,11 +87,20 @@ export function ThemeDropdown() {
                 <button
                   key={opt.id}
                   type="button"
+                  disabled={isSwitching}
                   onClick={() => {
+                    if (opt.id === theme) {
+                      setIsOpen(false);
+                      return;
+                    }
+                    setIsSwitching(true);
                     setTheme(opt.id);
-                    setIsOpen(false);
+                    setTimeout(() => {
+                      setIsSwitching(false);
+                      setIsOpen(false);
+                    }, 350);
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-none text-left ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer border-none text-left disabled:opacity-60 ${
                     active
                       ? "bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 font-bold"
                       : "hover:bg-gray-100 dark:hover:bg-white/5 text-gray-700 dark:text-gray-300"

@@ -795,6 +795,12 @@ export default function SystemSettingsPage() {
             </div>
           </div>
         </div>
+      {/* ── Active Admin Saving Loading HUD ───────────────────── */}
+      {isSaving && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-3 px-5 py-3 rounded-2xl bg-gray-900/95 text-white shadow-2xl backdrop-blur-md border border-white/10 animate-in fade-in slide-in-from-top-4 duration-200">
+          <Loader2 size={18} className="animate-spin text-red-500" />
+          <span className="text-xs sm:text-sm font-bold">កំពុងរក្សាទុកការកំណត់ប្រព័ន្ធ... (Saving Settings...)</span>
+        </div>
       )}
     </div>
   );

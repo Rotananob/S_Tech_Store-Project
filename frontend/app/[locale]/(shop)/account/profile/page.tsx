@@ -11,7 +11,7 @@ import {
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
   Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike,
-  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2, Unlink
+  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2, Unlink, Loader2
 } from "lucide-react";
 import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
@@ -343,6 +343,21 @@ export default function UserProfilePage() {
   const [mounted, setMounted] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSwitchingTheme, setIsSwitchingTheme] = useState(false);
+  const [themeNotice, setThemeNotice] = useState<string | null>(null);
+
+  const handleSwitchTheme = (newTheme: "light" | "dark" | "system") => {
+    if (newTheme === theme) return;
+    setIsSwitchingTheme(true);
+    const label = newTheme === "dark" ? "Dark Mode (ងងឹត)" : newTheme === "light" ? "Light Mode (ពន្លឺ)" : "System Mode (ស្វ័យប្រវត្តិ)";
+    setThemeNotice(`កំពុងប្តូរទៅកាន់ ${label}...`);
+    setTheme(newTheme);
+    setTimeout(() => {
+      setIsSwitchingTheme(false);
+      setTimeout(() => setThemeNotice(null), 1200);
+    }, 380);
+  };
+
   const [saveModal, setSaveModal] = useState<{ show: boolean; success: boolean; title: string; message: string } | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
@@ -716,11 +731,20 @@ export default function UserProfilePage() {
   }, []);
 
   const handleSelectFont = (fontId: string) => {
+    if (fontId === selectedFont) return;
+    setIsSwitchingTheme(true);
+    const fontObj = FONT_SYSTEMS.find((f) => f.id === fontId);
+    const fontName = fontObj?.name || fontId;
+    setThemeNotice(`កំពុងប្តូរពុម្ពអក្សរទៅកាន់ ${fontName}...`);
     setSelectedFont(fontId);
     try {
       localStorage.setItem("stech_font_system", fontId);
       document.documentElement.setAttribute("data-font", fontId);
     } catch (e) {}
+    setTimeout(() => {
+      setIsSwitchingTheme(false);
+      setTimeout(() => setThemeNotice(null), 1200);
+    }, 380);
   };
 
   const handlePinCurrentLocation = () => {
@@ -1480,39 +1504,42 @@ export default function UserProfilePage() {
             <div className="flex items-center bg-white/10 dark:bg-black/40 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xs">
               <button
                 type="button"
-                onClick={() => setTheme("light")}
-                title="Light Mode"
-                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                onClick={() => handleSwitchTheme("light")}
+                disabled={isSwitchingTheme}
+                title="Light Mode (ពន្លឺ)"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none flex items-center justify-center ${
                   theme === "light"
                     ? "bg-amber-500 text-white shadow-xs"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                <Sun size={13} />
+                <Sun size={13} className={isSwitchingTheme && theme === "light" ? "animate-spin" : ""} />
               </button>
               <button
                 type="button"
-                onClick={() => setTheme("dark")}
-                title="Dark Mode"
-                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                onClick={() => handleSwitchTheme("dark")}
+                disabled={isSwitchingTheme}
+                title="Dark Mode (ងងឹត)"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none flex items-center justify-center ${
                   theme === "dark"
                     ? "bg-[#8B1A1A] text-white shadow-xs"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                <Moon size={13} />
+                <Moon size={13} className={isSwitchingTheme && theme === "dark" ? "animate-spin" : ""} />
               </button>
               <button
                 type="button"
-                onClick={() => setTheme("system")}
-                title="System Mode"
-                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none ${
+                onClick={() => handleSwitchTheme("system")}
+                disabled={isSwitchingTheme}
+                title="System Mode (ស្វ័យប្រវត្តិ)"
+                className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer border-none flex items-center justify-center ${
                   theme === "system"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                <Monitor size={13} />
+                <Monitor size={13} className={isSwitchingTheme && theme === "system" ? "animate-spin" : ""} />
               </button>
             </div>
           </div>
@@ -2360,10 +2387,20 @@ export default function UserProfilePage() {
               <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
-                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white text-sm font-bold shadow-lg hover:shadow-red-900/30 transition-all flex items-center gap-2 cursor-pointer border-none"
+                  disabled={isSaving}
+                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white text-sm font-bold shadow-lg hover:shadow-red-900/30 transition-all flex items-center gap-2 cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Save size={16} />
-                  <span>Save Profile Changes (រក្សាទុក)</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>កំពុងរក្សាទុក... (Saving Changes)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Save Profile Changes (រក្សាទុក)</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -2515,10 +2552,20 @@ export default function UserProfilePage() {
               <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
-                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-sm font-bold shadow-lg hover:shadow-red-900/30 transition-all flex items-center gap-2 cursor-pointer border-none"
+                  disabled={isSaving}
+                  className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] hover:from-[#a62222] hover:to-[#d64537] text-white text-sm font-bold shadow-lg hover:shadow-red-900/30 transition-all flex items-center gap-2 cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Save size={16} />
-                  <span>Save Shipping Address & GPS Pin</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>កំពុងរក្សាទុក... (Saving Address & Pin)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} />
+                      <span>Save Shipping Address & GPS Pin</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -4056,6 +4103,40 @@ export default function UserProfilePage() {
             </div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* ── Active Profile Saving Loading HUD ───────────────────── */}
+      <AnimatePresence>
+        {isSaving && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[140] flex items-center gap-3 px-5 py-3 rounded-2xl bg-gray-900/95 dark:bg-black/95 text-white shadow-2xl backdrop-blur-md border border-white/10"
+          >
+            <Loader2 size={18} className="animate-spin text-[#c0392b]" />
+            <span className="text-xs sm:text-sm font-bold">កំពុងរក្សាទុកទិន្នន័យ Profile ទៅកាន់ Database... (Saving...)</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Active Theme / UI Mode Switch Loading HUD ───────────────────── */}
+      <AnimatePresence>
+        {(isSwitchingTheme || themeNotice) && (
+          <motion.div
+            initial={{ opacity: 0, y: -15, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.95 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[140] flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-black/90 dark:bg-white/10 text-white backdrop-blur-xl border border-white/20 shadow-2xl"
+          >
+            {isSwitchingTheme ? (
+              <Loader2 size={15} className="animate-spin text-amber-400" />
+            ) : (
+              <CheckCircle2 size={15} className="text-emerald-400" />
+            )}
+            <span className="text-xs font-bold tracking-wide">{themeNotice}</span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* ── Language Change Confirmation Modal ───────────────────── */}
