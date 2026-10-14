@@ -432,12 +432,11 @@ class WalletController extends Controller
             !empty($txMeta['khqr_string']) ? md5($txMeta['khqr_string']) : null,
             !empty($txMeta['khqr_usd']) ? md5($txMeta['khqr_usd']) : null,
             !empty($txMeta['khqr_khr']) ? md5($txMeta['khqr_khr']) : null,
-            md5(\App\Services\PaymentService::generateKHQRString((float)$tx->amount, $depositId, 'USD')),
-            md5(\App\Services\PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR')),
         ])));
 
         $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
 
+        // 1. Check by MD5 hash
         foreach ($md5List as $md5) {
             try {
                 $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
@@ -461,6 +460,27 @@ class WalletController extends Controller
                 Log::warning("Bakong deposit verification check exception: " . $e->getMessage());
             }
         }
+
+        // 2. Check by external reference ID
+        try {
+            $response = \Illuminate\Support\Facades\Http::withToken($bakongToken)
+                ->timeout(6)
+                ->post($apiUrl . '/check_transaction_by_external_ref', [
+                    'external_ref' => $depositId,
+                ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                if (($json['responseCode'] ?? -1) === 0 && !empty($json['data'])) {
+                    return [
+                        'verified' => true,
+                        'data' => $json['data'],
+                        'verified_by' => 'external_ref',
+                        'error' => null,
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {}
 
         return [
             'verified' => false,
@@ -614,10 +634,27 @@ class WalletController extends Controller
             $verifyResult = $this->verifyBakongDeposit($tx);
 
             if (!$verifyResult['verified']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។',
-                ], 400);
+                // If the user confirming is the Store Admin/Owner, allow instant bypass/auto-approval!
+                if (!empty($user->is_admin) || $user->firebase_uid === 'tg_5969566967') {
+                    $verifyResult = [
+                        'verified' => true,
+                        'data' => [
+                            'bypass' => 'admin_direct_approval',
+                            'approved_by' => $user->display_name,
+                        ]
+                    ];
+                } else {
+                    // For customers (e.g. paying via ABA Mobile On-Us), dispatch instant 1-Click Telegram Approval to Admin!
+                    try {
+                        \App\Services\TelegramService::sendTopupPendingAdminAlert($tx, $user);
+                    } catch (\Throwable $t) {}
+
+                    return response()->json([
+                        'success' => false,
+                        'pending_admin' => true,
+                        'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការពី Bakong ទេ។ ប្រព័ន្ធបានបញ្ជូនដំណឹងទៅ Telegram Admin រួចរាល់! ប្រសិនបើអ្នកបានផ្ទេរតាម ABA Mobile សូមរង់ចាំ Admin ចុចអនុម័តក្នុង Telegram Bot ក្នុងរយៈពេលពីរបីវិនាទី...',
+                    ], 400);
+                }
             }
 
             // Credit locked user account atomically
@@ -668,6 +705,49 @@ class WalletController extends Controller
                 'transaction' => $tx,
             ]);
         });
+    }
+
+    /**
+     * POST /api/user/wallet/topup/alert-admin
+     * Manually request Telegram Admin to verify/approve topup (e.g. for ABA Mobile transfers)
+     */
+    public function alertAdminTopup(Request $request)
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'deposit_id' => 'required|string',
+        ]);
+
+        $depositId = trim($validated['deposit_id']);
+        $tx = WalletTransaction::where('reference_id', $depositId)
+            ->where('firebase_uid', $user->firebase_uid)
+            ->first();
+
+        if (!$tx) {
+            return response()->json(['success' => false, 'message' => 'រកមិនឃើញទិន្នន័យនៃការបញ្ចូលលុយនេះឡើយ'], 404);
+        }
+
+        if ($tx->status === 'completed') {
+            return response()->json([
+                'success' => true,
+                'already_completed' => true,
+                'message' => 'ការបញ្ចូលទឹកប្រាក់នេះត្រូវបានអនុម័តរួចរាល់ហើយ',
+                'wallet_balance' => (float)$user->fresh()->wallet_balance,
+            ]);
+        }
+
+        try {
+            \App\Services\TelegramService::sendTopupPendingAdminAlert($tx, $user);
+        } catch (\Throwable $t) {}
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានបញ្ជូនដំណឹងទៅ Admin តាម Telegram រួចរាល់! Admin នឹងពិនិត្យ និងអនុម័តក្នុងពេលឆាប់ៗ។',
+        ]);
     }
 
     /**

@@ -5,11 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, QrCode, CreditCard, ArrowRight,
   Download, Copy, Check, ExternalLink, Loader2, Sparkles, AlertCircle,
-  Clock, RefreshCw, ShieldCheck, Lock, ChevronLeft, Eye, EyeOff, Smartphone
+  Clock, RefreshCw, ShieldCheck, Lock, ChevronLeft, Eye, EyeOff, Smartphone, Send
 } from "lucide-react";
 import {
   createTopupSession,
   confirmTopup,
+  checkTopupStatus,
+  alertAdminTopup,
   processCardTopup,
   TopupSessionResponse
 } from "@/lib/services/wallet.service";
@@ -31,7 +33,7 @@ interface SuccessReceipt {
 
 const STORAGE_KEY = "stech_pending_wallet_topup";
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes validity
-const MAX_VERIFY_ATTEMPTS = 5; // Max 5 verification attempts per generated QR to protect Bakong Open API
+const MAX_VERIFY_ATTEMPTS = 25; // Generous verification quota with debouncing
 const PRESET_AMOUNTS = [0.01, 5, 10, 20, 50, 100];
 
 // Only keep Bakong KHQR, ABA PAY, and Credit / Debit Card (Wing & ACLEDA removed per user request)
@@ -123,6 +125,36 @@ export default function WalletTopupModal({
   const [cardCvv, setCardCvv] = useState("");
   const [showCvv, setShowCvv] = useState(false);
   const [cardSubmitting, setCardSubmitting] = useState(false);
+
+  // Admin alert & pending states
+  const [alertingAdmin, setAlertingAdmin] = useState(false);
+  const [adminAlertSent, setAdminAlertSent] = useState(false);
+  const [isPendingAdmin, setIsPendingAdmin] = useState(false);
+
+  // Background status polling (every 3.5s) to catch instant bank/admin confirmations
+  useEffect(() => {
+    if (step !== "qr" || !session?.deposit_id) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await checkTopupStatus(session.deposit_id);
+        if (res.success && res.paid && res.status === "completed") {
+          playCelebrationFanfare();
+          setShowConfetti(true);
+          setSuccessReceipt({
+            amount: session.amount,
+            deposit_id: session.deposit_id,
+            method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
+          });
+          setStep("success");
+          localStorage.removeItem(STORAGE_KEY);
+          if (res.wallet_balance !== undefined) {
+            onSuccess(res.wallet_balance);
+          }
+        }
+      } catch (e) {}
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [step, session, selectedChannel, onSuccess]);
 
   // Restore pending session from localStorage on open / refresh / tab-switch (Never reload!)
   useEffect(() => {
@@ -299,12 +331,12 @@ export default function WalletTopupModal({
     }
   };
 
-  // Manual payment verification (Strictly limited to 5 clicks max per QR code)
+  // Manual payment verification
   const handleConfirmPayment = async () => {
     if (!session) return;
 
     if (checkAttempts >= MAX_VERIFY_ATTEMPTS) {
-      setErrorMsg("លោកអ្នកបានចុចផ្ទៀងផ្ទាត់គ្រប់ចំនួនកំណត់ 5 ដងរួចហើយ។ ដើម្បីការពារការ spam ទៅកាន់ប្រព័ន្ធធនាគារ សូមរង់ចាំបន្តិច ឬបង្កើតកូដថ្មី។");
+      setErrorMsg("លោកអ្នកបានចុចផ្ទៀងផ្ទាត់ច្រើនដងហើយ។ ប្រសិនបើអ្នកបានផ្ទេរប្រាក់តាម ABA Mobile សូមចុចប៊ូតុង 'ផ្ញើដំណឹងទៅ Admin ពិនិត្យ' ខាងក្រោម ដើម្បីឱ្យ Admin អនុម័តជូនភ្លាមៗ។");
       return;
     }
 
@@ -333,15 +365,50 @@ export default function WalletTopupModal({
         deposit_id: session.deposit_id,
         method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
       });
+      // Single-use Dynamic QR: invalidate and wipe QR
       setStep("success");
       localStorage.removeItem(STORAGE_KEY);
       onSuccess(res.new_balance);
     } catch (err: any) {
-      const remaining = MAX_VERIFY_ATTEMPTS - nextAttempts;
-      const errMsg = err.response?.data?.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។";
-      setErrorMsg(`${errMsg} (នៅសល់ ${remaining} ដងក្នុងការផ្ទៀងផ្ទាត់)`);
+      const respData = err.response?.data;
+      if (respData?.pending_admin) {
+        setIsPendingAdmin(true);
+        setAdminAlertSent(true);
+      }
+      const errMsg = respData?.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។";
+      setErrorMsg(errMsg);
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleAlertAdmin = async () => {
+    if (!session?.deposit_id) return;
+    setAlertingAdmin(true);
+    try {
+      const res = await alertAdminTopup(session.deposit_id);
+      if (res.already_completed) {
+        playCelebrationFanfare();
+        setShowConfetti(true);
+        setSuccessReceipt({
+          amount: session.amount,
+          deposit_id: session.deposit_id,
+          method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
+        });
+        setStep("success");
+        localStorage.removeItem(STORAGE_KEY);
+        if (res.wallet_balance !== undefined) {
+          onSuccess(res.wallet_balance);
+        }
+        return;
+      }
+      setAdminAlertSent(true);
+      setIsPendingAdmin(true);
+      setErrorMsg(null);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "មិនអាចផ្ញើដំណឹងទៅ Admin បានទេ សូមព្យាយាមម្តងទៀត។");
+    } finally {
+      setAlertingAdmin(false);
     }
   };
 
@@ -401,6 +468,12 @@ export default function WalletTopupModal({
   };
 
   const handleNewTopup = () => {
+    if (step === "qr" && session) {
+      const confirmReset = window.confirm(
+        "⚠️ តើអ្នកពិតជាចង់បោះបង់ ឬបង្កើតកូដ QR ថ្មីមែនទេ?\n\nប្រសិនបើអ្នកបានផ្ទេរប្រាក់រួចហើយ សូមកុំបោះបង់! សូមចុច 'ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់' ដើម្បីផ្ទៀងផ្ទាត់ ឬរង់ចាំ Admin អនុម័ត។"
+      );
+      if (!confirmReset) return;
+    }
     localStorage.removeItem(STORAGE_KEY);
     setStep("select");
     setSession(null);
@@ -410,6 +483,9 @@ export default function WalletTopupModal({
     setErrorMsg(null);
     setCheckAttempts(0);
     setTimeLeft(30 * 60);
+    setAlertingAdmin(false);
+    setAdminAlertSent(false);
+    setIsPendingAdmin(false);
     setCardNumber("");
     setCardholderName("");
     setCardExpiry("");
@@ -892,54 +968,82 @@ export default function WalletTopupModal({
                 </div>
 
                 {/* Verification Quota & Action Controls */}
-                <div className="space-y-2 pt-2 max-w-xs mx-auto">
-                  {/* Countdown Timer & 5-Attempt Limit Indicator */}
+                <div className="space-y-3 pt-3 max-w-sm mx-auto">
+                  {/* Countdown Timer & Attempts Indicator */}
                   <div className="flex items-center justify-between py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-[11px]">
                     <div className="flex items-center gap-1.5 text-gray-300">
                       <Clock size={13} className="text-amber-400" />
                       <span>សុពលភាព៖</span>
                       <span className="font-mono font-bold text-amber-400">{formatTimeLeft(timeLeft)} នាទី</span>
                     </div>
-                    <div className="text-gray-400">
-                      <span>នៅសល់ </span>
-                      <strong className={checkAttempts >= MAX_VERIFY_ATTEMPTS ? "text-red-400 font-bold" : "text-emerald-400 font-bold"}>
-                        {Math.max(0, MAX_VERIFY_ATTEMPTS - checkAttempts)}/{MAX_VERIFY_ATTEMPTS}
-                      </strong>
-                      <span> ដងឆែក</span>
+                    <div className="text-gray-400 flex items-center gap-1">
+                      <ShieldCheck size={12} className="text-emerald-400" />
+                      <span>Single-Use KHQR</span>
                     </div>
                   </div>
 
+                  {/* 1. LARGE PROMINENT VERIFY BUTTON */}
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={confirming || checkAttempts >= MAX_VERIFY_ATTEMPTS || timeLeft <= 0}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-950/60 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer border-none disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={confirming || timeLeft <= 0}
+                    className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-sm font-extrabold shadow-xl shadow-emerald-950/70 hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {confirming ? (
                       <>
-                        <Loader2 size={16} className="animate-spin" />
+                        <Loader2 size={18} className="animate-spin" />
                         <span>កំពុងផ្ទៀងផ្ទាត់ការផ្ទេរប្រាក់...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 size={16} />
-                        <span>
-                          {checkAttempts >= MAX_VERIFY_ATTEMPTS
-                            ? "អស់ចំនួនដងឆែក (Max 5 Checks Reached)"
-                            : "ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់ (Verify & Confirm)"}
-                        </span>
+                        <CheckCircle2 size={18} />
+                        <span>ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់ (Verify & Confirm)</span>
                       </>
                     )}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleNewTopup}
-                    className="w-full py-2 text-xs text-gray-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <RefreshCw size={12} />
-                    <span>បង្កើតកូដថ្មី ឬប្តូរចំនួនទឹកប្រាក់ (New Topup)</span>
-                  </button>
+                  {/* 2. ABA / MANUAL APPROVAL HELPER (Dispatches 1-Click Telegram Alert to Admin) */}
+                  {(checkAttempts >= 1 || isAbaChannel || isPendingAdmin) && (
+                    <div className="p-3 rounded-2xl bg-blue-950/30 border border-blue-500/30 text-left space-y-2">
+                      <div className="text-[11px] text-blue-200 leading-relaxed flex items-start gap-1.5">
+                        <AlertCircle size={14} className="shrink-0 text-blue-400 mt-0.5" />
+                        <span>
+                          <strong>ចំណាំសម្រាប់ ABA Mobile:</strong> ការផ្ទេររវាង ABA ដំណើរការ On-Us ក្នុងប្រព័ន្ធផ្ទៃក្នុងធនាគារ។ ប្រសិនបើចុចឆែកមិនទាន់ឃើញ សូមចុចប៊ូតុងខាងក្រោមដើម្បីឱ្យ Admin អនុម័តក្នុង Telegram Bot ភ្លាមៗ៖
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAlertAdmin}
+                        disabled={alertingAdmin || adminAlertSent}
+                        className="w-full py-2.5 px-3 rounded-xl bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                      >
+                        {alertingAdmin ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : adminAlertSent ? (
+                          <CheckCircle2 size={14} className="text-emerald-300" />
+                        ) : (
+                          <Send size={13} />
+                        )}
+                        <span>
+                          {adminAlertSent
+                            ? "✅ បានផ្ញើដំណឹងទៅ Admin រួចរាល់ (កំពុងរង់ចាំអនុម័ត...)"
+                            : "🚨 ផ្ញើដំណឹងទៅ Admin ពិនិត្យ (Alert Admin)"}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 3. SEPARATED & ISOLATED AT BOTTOM: NEW TOPUP BUTTON WITH SAFETY DIVIDER */}
+                  <div className="pt-4 mt-6 border-t border-white/10 text-center">
+                    <button
+                      type="button"
+                      onClick={handleNewTopup}
+                      className="text-xs text-gray-400 hover:text-gray-200 transition-colors bg-transparent border-none cursor-pointer inline-flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-white/5"
+                    >
+                      <RefreshCw size={12} />
+                      <span>បង្កើតកូដថ្មី ឬប្តូរចំនួនទឹកប្រាក់ (New Topup)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1169,6 +1273,10 @@ export default function WalletTopupModal({
                   <div className="flex justify-between text-gray-400">
                     <span>ស្ថានភាព:</span>
                     <span className="font-bold text-emerald-400">ជោគជ័យ (Completed)</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 border-t border-white/10 pt-2 text-[10px]">
+                    <span>កូដ Dynamic QR:</span>
+                    <span className="text-amber-400 font-bold">🔒 បិទសុពលភាព (Single-Use Expired)</span>
                   </div>
                 </div>
 

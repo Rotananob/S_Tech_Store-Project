@@ -248,6 +248,14 @@ export default function CheckoutPage() {
   const [savedCheckoutQR, setSavedCheckoutQR] = useState(false);
   const [showCheckoutQRTip, setShowCheckoutQRTip] = useState(false);
 
+  // Telegram Real-time Phone Sync States (Mini App & Web)
+  const [phoneSyncLoading, setPhoneSyncLoading] = useState(false);
+  const [showPhoneSyncModal, setShowPhoneSyncModal] = useState(false);
+  const [phoneSyncCode, setPhoneSyncCode] = useState("");
+  const [phoneSyncBotUrl, setPhoneSyncBotUrl] = useState("");
+  const [phoneSyncSuccessMsg, setPhoneSyncSuccessMsg] = useState("");
+  const phoneSyncPollRef = useRef<NodeJS.Timeout | null>(null);
+
   // S-Tech Real Wallet & Coins States (Instant 0ms hydration from cache)
   const [walletBalance, setWalletBalance] = useState<number>(() => {
     if (typeof window !== "undefined") {
@@ -342,8 +350,111 @@ export default function CheckoutPage() {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
+      if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
     };
   }, []);
+
+  // 1-Click Real-time Phone Auto-Fill from Telegram (Mini App & Website)
+  const handleGetTelegramPhone = async () => {
+    const tg = typeof window !== "undefined" ? (window as any).Telegram?.WebApp : null;
+    const tgUser = tg?.initDataUnsafe?.user;
+    const effective = getEffectiveUser();
+    const tgId = tgUser?.id || (effective as any)?.telegram_id || (effective as any)?.telegram_chat_id;
+
+    // 1. IN TELEGRAM MINI APP:
+    if (tg?.requestContact) {
+      setPhoneSyncLoading(true);
+      tg.requestContact((ok: boolean, res: any) => {
+        if (!ok) {
+          setPhoneSyncLoading(false);
+          return;
+        }
+
+        // Check if phone was directly returned in callback (some desktop/web Telegram clients)
+        const directNum = res?.contact?.phone_number || res?.phone_number;
+        if (directNum) {
+          const clean = directNum.startsWith("+") ? directNum : `+${directNum}`;
+          setPhone(clean);
+          setPhoneSyncLoading(false);
+          setPhoneSyncSuccessMsg("✅ ទទួលបានលេខទូរស័ព្ទជោគជ័យ!");
+          setTimeout(() => setPhoneSyncSuccessMsg(""), 4000);
+          api.post("/auth/telegram/sync-phone", { phone: clean, telegram_id: tgId }).catch(() => {});
+          return;
+        }
+
+        // Mobile clients dispatch contact to bot webhook!
+        // Start high-speed local polling to /auth/telegram/latest-phone (every 250ms for 3.5s)
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          try {
+            const resp = await api.get(`/auth/telegram/latest-phone?telegram_id=${tgId || ""}`);
+            if (resp.data?.success && resp.data?.phone) {
+              clearInterval(pollInterval);
+              setPhone(resp.data.phone);
+              setPhoneSyncLoading(false);
+              setPhoneSyncSuccessMsg("✅ ទទួលបានលេខទូរស័ព្ទពី Telegram ជោគជ័យ!");
+              setTimeout(() => setPhoneSyncSuccessMsg(""), 4000);
+              return;
+            }
+          } catch (e) {}
+
+          if (attempts >= 14) { // 3.5s timeout
+            clearInterval(pollInterval);
+            setPhoneSyncLoading(false);
+          }
+        }, 250);
+      });
+      return;
+    }
+
+    // 2. ON WEBSITE (Outside Telegram Mini App):
+    setPhoneSyncLoading(true);
+
+    // First: Check if user already has a phone saved in profile or cache
+    try {
+      const resp = await api.get(`/auth/telegram/latest-phone?telegram_id=${tgId || ""}`);
+      if (resp.data?.success && resp.data?.phone) {
+        setPhone(resp.data.phone);
+        setPhoneSyncLoading(false);
+        setPhoneSyncSuccessMsg("✅ ទទួលបានលេខទូរស័ព្ទពីគណនី Telegram របស់អ្នក!");
+        setTimeout(() => setPhoneSyncSuccessMsg(""), 4000);
+        return;
+      }
+    } catch (e) {}
+
+    // Otherwise, generate 1-click sync link to open the Bot
+    try {
+      const genRes = await api.post("/auth/telegram/generate-phone-sync");
+      if (genRes.data?.success && genRes.data?.sync_code) {
+        const syncCode = genRes.data.sync_code;
+        const botUrl = genRes.data.bot_url;
+        setPhoneSyncCode(syncCode);
+        setPhoneSyncBotUrl(botUrl);
+        setShowPhoneSyncModal(true);
+        setPhoneSyncLoading(false);
+
+        // Start polling /auth/telegram/poll-phone-sync every 1s
+        if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
+        phoneSyncPollRef.current = setInterval(async () => {
+          try {
+            const pollRes = await api.get(`/auth/telegram/poll-phone-sync?code=${syncCode}`);
+            if (pollRes.data?.success && pollRes.data?.phone) {
+              if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
+              setPhone(pollRes.data.phone);
+              setShowPhoneSyncModal(false);
+              setPhoneSyncSuccessMsg("✅ បានភ្ជាប់ និងបំពេញលេខទូរស័ព្ទពី Telegram ជោគជ័យ!");
+              setTimeout(() => setPhoneSyncSuccessMsg(""), 4000);
+            }
+          } catch (e) {}
+        }, 1000);
+      } else {
+        setPhoneSyncLoading(false);
+      }
+    } catch (err) {
+      setPhoneSyncLoading(false);
+    }
+  };
 
   const deliveryFee = delivery === "pnompenh" ? 2 : 3;
   const subtotal = items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 1), 0);
@@ -1256,28 +1367,28 @@ export default function CheckoutPage() {
                       <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
                         លេខទូរស័ព្ទ (Phone Number) *
                       </label>
-                      {typeof window !== "undefined" && (window as any).Telegram?.WebApp?.requestContact && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const tg = (window as any).Telegram?.WebApp;
-                            if (tg?.requestContact) {
-                              tg.requestContact((ok: boolean, res: any) => {
-                                if (ok && (res?.contact?.phone_number || res?.phone_number)) {
-                                  const num = res?.contact?.phone_number || res?.phone_number;
-                                  setPhone(num);
-                                  api.post("/auth/telegram/sync-phone", { phone: num }).catch(() => {});
-                                }
-                              });
-                            }
-                          }}
-                          className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md"
-                        >
+                      <button
+                        type="button"
+                        onClick={handleGetTelegramPhone}
+                        disabled={phoneSyncLoading}
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md transition-all active:scale-95 disabled:opacity-60"
+                        title="យកលេខទូរស័ព្ទពី Telegram ដោយស្វ័យប្រវត្តិ"
+                      >
+                        {phoneSyncLoading ? (
+                          <Loader2 size={11} className="animate-spin text-blue-600 dark:text-blue-400" />
+                        ) : (
                           <Smartphone size={11} />
-                          <span>យកពី Telegram</span>
-                        </button>
-                      )}
+                        )}
+                        <span>{phoneSyncLoading ? "កំពុងចាប់..." : "យកពី Telegram"}</span>
+                      </button>
                     </div>
+
+                    {phoneSyncSuccessMsg && (
+                      <div className="mb-2 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                        <span>{phoneSyncSuccessMsg}</span>
+                      </div>
+                    )}
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
                         <Phone size={16} />
@@ -2207,6 +2318,76 @@ export default function CheckoutPage() {
                   )}
                   <span>{pinParsingLoading ? "កំពុងទាញយក..." : "ផ្ទៀងផ្ទាត់ & បំពេញ"}</span>
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Telegram Phone Number Sync Modal (For Website Users) ── */}
+      <AnimatePresence>
+        {showPhoneSyncModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white dark:bg-[#151922] w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-gray-100 dark:border-white/10 text-center"
+            >
+              <button
+                onClick={() => {
+                  setShowPhoneSyncModal(false);
+                  if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <Smartphone size={24} />
+              </div>
+
+              <h3 className="text-base font-black text-gray-900 dark:text-white mb-1">
+                ភ្ជាប់លេខទូរស័ព្ទពី Telegram
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើក Telegram Bot រួចចុច &ldquo;Share Phone&rdquo; នោះប្រព័ន្ធនឹងបំពេញលេខចូល Checkout នេះភ្លាមៗ!
+              </p>
+
+              {/* 1-Tap Deep Link Button */}
+              {phoneSyncBotUrl && (
+                <div className="space-y-3">
+                  <a
+                    href={phoneSyncBotUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-sky-600 to-blue-600 hover:from-blue-700 hover:to-sky-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 no-underline active:scale-95"
+                  >
+                    <Send size={14} className="rotate-[-20deg]" />
+                    <span>បើក Telegram Bot ឥឡូវនេះ (1-Tap Open)</span>
+                  </a>
+
+                  {/* QR Code preview for desktop scanning */}
+                  <div className="p-3 bg-white dark:bg-black/30 rounded-2xl border border-gray-200 dark:border-white/10 inline-block shadow-inner">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(phoneSyncBotUrl)}`}
+                      alt="Telegram Bot QR"
+                      className="w-36 h-36 mx-auto object-contain"
+                    />
+                    <div className="text-[10px] text-gray-400 mt-1 font-mono">
+                      ស្កេនពីទូរស័ព្ទ (Scan to Share)
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Radar Polling Status Indicator */}
+              <div className="mt-4 py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                  កំពុងរង់ចាំការចែករំលែកលេខទូរស័ព្ទ...
+                </span>
               </div>
             </motion.div>
           </div>

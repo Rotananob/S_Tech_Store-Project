@@ -164,6 +164,19 @@ export const confirmTopup = async (depositId: string): Promise<{
   return res.data;
 };
 
+export const alertAdminTopup = async (depositId: string): Promise<{
+  success: boolean;
+  message: string;
+  already_completed?: boolean;
+  wallet_balance?: number;
+}> => {
+  const res = await api.post("/user/wallet/topup/alert-admin", { deposit_id: depositId });
+  if (res.data?.already_completed && res.data?.wallet_balance !== undefined) {
+    updateCachedWallet({ balance: Number(res.data.wallet_balance) });
+  }
+  return res.data;
+};
+
 export interface CardTopupPayload {
   amount: number;
   card_number: string;

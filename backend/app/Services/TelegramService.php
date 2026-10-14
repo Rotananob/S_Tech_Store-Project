@@ -461,6 +461,36 @@ class TelegramService
             }
 
 
+            // Admin 1-Click Approve Top-up Deposit
+            if (str_starts_with($callbackData, 'admin_approve_topup:') || str_starts_with($callbackData, 'approve_topup:')) {
+                $depositId = trim(explode(':', $callbackData)[1] ?? '');
+                if ($depositId) {
+                    $result = self::handleAdminApproveTopup($depositId, $fromName, (string)($from['id'] ?? $chatId));
+                    if ($callbackId) {
+                        self::answerCallbackQuery($callbackId, $result['toast'] ?? 'ដំណើរការរួចរាល់', $activeToken, true);
+                    }
+                    if ($messageId && !empty($result['new_text'])) {
+                        self::editMessageText($chatId, $messageId, $result['new_text'], $result['new_kb'] ?? null, 'HTML', $activeToken);
+                    }
+                    return;
+                }
+            }
+
+            // Admin 1-Click Reject Top-up Deposit
+            if (str_starts_with($callbackData, 'admin_reject_topup:') || str_starts_with($callbackData, 'reject_topup:')) {
+                $depositId = trim(explode(':', $callbackData)[1] ?? '');
+                if ($depositId) {
+                    $result = self::handleAdminRejectTopup($depositId, $fromName, (string)($from['id'] ?? $chatId));
+                    if ($callbackId) {
+                        self::answerCallbackQuery($callbackId, $result['toast'] ?? 'បានបដិសេធ', $activeToken, true);
+                    }
+                    if ($messageId && !empty($result['new_text'])) {
+                        self::editMessageText($chatId, $messageId, $result['new_text'], null, 'HTML', $activeToken);
+                    }
+                    return;
+                }
+            }
+
             // Admin only topic setup (group chat)
             if ($callbackData === 'setup_topics' && $chatId) {
                 if ($chatType !== 'private') {
@@ -1316,6 +1346,15 @@ class TelegramService
                     $user->save();
                 }
 
+                // Cache phone for instant 0ms real-time client retrieval (both Mini App and Web)
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$contactUserId}", $phoneNumber, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $phoneNumber, 600);
+                $webSyncCode = \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_{$contactUserId}") 
+                    ?: \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_{$chatId}");
+                if ($webSyncCode) {
+                    \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$webSyncCode}", $phoneNumber, 600);
+                }
+
                 $respMsg = "📱 <b>ទទួលបានលេខទូរស័ព្ទជោគជ័យ!</b>\n\n"
                     . "• 👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
                     . "• 📞 <b>លេខទូរស័ព្ទ:</b> <code>" . htmlspecialchars($phoneNumber) . "</code>\n\n"
@@ -1793,6 +1832,64 @@ class TelegramService
                 'action' => 'TELEGRAM_PROFILE_LINK_SUCCESS',
                 'details' => "អតិថិជនបានភ្ជាប់គណនី Telegram ផ្ទាល់ខ្លួនជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId} ជាមួយ User: {$user->display_name}។",
             ]);
+            return;
+        }
+
+        // 4.2.1 Handle Website 1-Click Phone Number Sync (syncphone_...)
+        if ($extractedCode && (str_starts_with($extractedCode, 'syncphone_') || str_starts_with($extractedCode, 'SYNCPHONE_'))) {
+            $syncCode = trim(substr($extractedCode, 10)); // e.g. PS_ABC12345
+            $tgId = (string)($from['id'] ?? $chatId);
+            $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
+
+            // Associate this user and chat with the sync code
+            \Illuminate\Support\Facades\Cache::put("tg_phone_sync_user_{$tgId}", $syncCode, 600);
+            \Illuminate\Support\Facades\Cache::put("tg_phone_sync_user_{$chatId}", $syncCode, 600);
+
+            // Check if we already have this user's phone in cache or DB
+            $existingPhone = \Illuminate\Support\Facades\Cache::get("tg_latest_phone_{$tgId}");
+            if (!$existingPhone) {
+                $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
+                    ->orWhere('firebase_uid', 'tg_' . $tgId)
+                    ->first();
+                if ($user && !empty($user->phone)) {
+                    $existingPhone = $user->phone;
+                }
+            }
+
+            if ($existingPhone) {
+                // Instantly fulfill the sync!
+                \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$syncCode}", $existingPhone, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$tgId}", $existingPhone, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $existingPhone, 600);
+
+                $msg = "⚡ <b>ភ្ជាប់លេខទូរស័ព្ទជោគជ័យ ១០០%!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! លេខទូរស័ព្ទរបស់អ្នក <code>" . htmlspecialchars($existingPhone) . "</code> ត្រូវបានបំពេញចូលផ្ទាំង Checkout លើគេហទំព័រដោយស្វ័យប្រវត្តិតែម្ដង។\n\n"
+                    . "👉 លោកអ្នកអាចត្រឡប់ទៅកាន់ផ្ទាំងគេហទំព័រវិញ ដើម្បីបន្តការកម្ម៉ង់ទិញបានភ្លាមៗ!";
+
+                $webUrl = "https://www.s-tech-store.tech/checkout";
+                $kb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ', 'url' => $webUrl]]
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $msg, $kb, 'HTML', null, $activeToken);
+                return;
+            }
+
+            // Prompt user with native Telegram contact button
+            $msg = "📱 <b>សូមចែករំលែកលេខទូរស័ព្ទសម្រាប់ Checkout</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! សូមចុចប៊ូតុង <b>'📲 ចែករំលែកលេខទូរស័ព្ទ (Share Phone)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញលេខទូរស័ព្ទចូលផ្ទាំង Checkout លើគេហទំព័ររបស់អ្នកដោយស្វ័យប្រវត្តិ។";
+
+            $replyMarkup = [
+                'keyboard' => [
+                    [['text' => '📲 ចែករំលែកលេខទូរស័ព្ទ (Share Phone)', 'request_contact' => true]],
+                ],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true,
+            ];
+            self::sendMessageWithKeyboard($chatId, $msg, $replyMarkup, 'HTML', null, $activeToken);
             return;
         }
 
@@ -4614,6 +4711,190 @@ class TelegramService
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $errTopicId);
         return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send urgent notification to Admin Telegram Bot for pending wallet top-up
+     * (especially for ABA On-Us transfers that bypass Bakong interbank clearing).
+     */
+    public static function sendTopupPendingAdminAlert(\App\Models\WalletTransaction $tx, \App\Models\UserProfile $user): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        // Avoid alert spam: check cache flag for this depositId (2 min debounce)
+        $cacheKey = "tg_topup_alert_sent_{$tx->reference_id}";
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return true;
+        }
+        \Illuminate\Support\Facades\Cache::put($cacheKey, true, 120);
+
+        $amount = number_format((float)$tx->amount, 2);
+        $depositId = htmlspecialchars($tx->reference_id);
+        $customerName = htmlspecialchars($user->display_name ?: 'Customer');
+        $phone = htmlspecialchars($user->phone ?: 'N/A');
+        $method = strtoupper($tx->payment_method ?: 'ABA / Bakong');
+
+        $financeTopicId = $settings['topics']['finance'] ?? $settings['topics']['orders'] ?? null;
+
+        $msg = "⚡ <b>[TOP-UP VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការបញ្ចូលលុយ Wallet!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "អតិថិជនបានផ្ទេរប្រាក់តាម <b>{$method}</b> (ABA On-Us / Bakong) ហើយកំពុងរង់ចាំការផ្ទៀងផ្ទាត់សមតុល្យ៖\n\n"
+            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>+\${$amount} USD</b>\n"
+            . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
+            . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "🔖 <b>Ref Deposit ID:</b> <code>{$depositId}</code>\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
+
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    ['text' => "✅ អនុម័ត +\${$amount} USD ភ្លាមៗ", 'callback_data' => "admin_approve_topup:{$tx->reference_id}"],
+                    ['text' => "❌ បដិសេធ", 'callback_data' => "admin_reject_topup:{$tx->reference_id}"],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $replyMarkup, 'HTML', $financeTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Handle Admin 1-Click approval of top-up deposit from Telegram Bot
+     */
+    public static function handleAdminApproveTopup(string $depositId, string $adminName, string $adminTgId): array
+    {
+        return \Illuminate\Support\Facades\DB::transaction(function() use ($depositId, $adminName, $adminTgId) {
+            $tx = \App\Models\WalletTransaction::where('reference_id', $depositId)->lockForUpdate()->first();
+            if (!$tx) {
+                return [
+                    'toast' => '❌ រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
+                    'new_text' => null,
+                ];
+            }
+
+            if ($tx->status === 'completed') {
+                return [
+                    'toast' => '⚠️ ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ!',
+                    'new_text' => null,
+                ];
+            }
+
+            $user = \App\Models\UserProfile::where('firebase_uid', $tx->firebase_uid)->lockForUpdate()->first();
+            if (!$user) {
+                return [
+                    'toast' => '❌ រកមិនឃើញគណនីអតិថិជនឡើយ!',
+                    'new_text' => null,
+                ];
+            }
+
+            $amount = (float)$tx->amount;
+            $user->wallet_balance = ((float)($user->wallet_balance ?? 0.00)) + $amount;
+            $user->save();
+
+            $tx->status = 'completed';
+            $meta = $tx->metadata ?: [];
+            $meta['verified_by'] = 'telegram_admin_1click';
+            $meta['admin_name'] = $adminName;
+            $meta['admin_tg_id'] = $adminTgId;
+            $meta['verified_at'] = now()->toIso8601String();
+            $tx->metadata = $meta;
+            $tx->save();
+
+            \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
+            \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
+
+            // Notify user in system
+            try {
+                \App\Models\UserNotification::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'title' => '💳 បញ្ចូលទឹកប្រាក់ជោគជ័យ! (Wallet Funded)',
+                    'message' => "ទឹកប្រាក់ $" . number_format($amount, 2) . " ត្រូវបានអនុម័ត និងបញ្ចូលទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($user->wallet_balance, 2),
+                    'type' => 'system',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $t) {}
+
+            // Send notification to customer's personal Telegram if linked
+            if (!empty($user->telegram_chat_id)) {
+                $custMsg = "🎉 <b>ការបញ្ចូលទឹកប្រាក់ត្រូវបានអនុម័ត! (Approved)</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "សួស្តី <b>" . htmlspecialchars($user->display_name) . "</b>! ការបញ្ចូលទឹកប្រាក់ចំនួន <b>\$" . number_format($amount, 2) . " USD</b> តាមរយៈ ABA / Bakong (Ref: <code>{$depositId}</code>) ត្រូវបាន Admin អនុម័ត និងបញ្ចូលទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។\n\n"
+                    . "💵 <b>សមតុល្យបច្ចុប្បន្ន:</b> <b>\$" . number_format($user->wallet_balance, 2) . " USD</b>\n\n"
+                    . "👉 លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញទំនិញក្នុង Mini App បានភ្លាមៗ!";
+                $custKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]]
+                    ]
+                ];
+                try {
+                    self::sendMessageWithKeyboard($user->telegram_chat_id, $custMsg, $custKb, 'HTML');
+                } catch (\Throwable $t) {}
+            }
+
+            $newText = "✅ <b>[APPROVED] បានអនុម័តការបញ្ចូលទឹកប្រាក់ជោគជ័យ!</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n"
+                . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>+\$" . number_format($amount, 2) . " USD</b>\n"
+                . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($user->display_name) . " (" . htmlspecialchars($user->phone ?: $user->email) . ")\n"
+                . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
+                . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($tx->payment_method ?: 'ABA/KHQR') . "\n"
+                . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+                . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+                . "💰 <b>សមតុល្យថ្មីរបស់អតិថិជន:</b> \$" . number_format($user->wallet_balance, 2) . " USD";
+
+            return [
+                'toast' => "✅ បានអនុម័ត +$" . number_format($amount, 2) . " ចូល Wallet ជោគជ័យ!",
+                'new_text' => $newText,
+                'new_kb' => ['inline_keyboard' => []],
+            ];
+        });
+    }
+
+    /**
+     * Handle Admin rejection of top-up deposit from Telegram Bot
+     */
+    public static function handleAdminRejectTopup(string $depositId, string $adminName, string $adminTgId): array
+    {
+        $tx = \App\Models\WalletTransaction::where('reference_id', $depositId)->first();
+        if (!$tx) {
+            return [
+                'toast' => '❌ រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
+                'new_text' => null,
+            ];
+        }
+
+        if ($tx->status === 'completed') {
+            return [
+                'toast' => '⚠️ ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ មិនអាចបដិសេធបានទេ!',
+                'new_text' => null,
+            ];
+        }
+
+        $tx->status = 'failed';
+        $meta = $tx->metadata ?: [];
+        $meta['rejected_by'] = 'telegram_admin';
+        $meta['rejected_by_admin'] = $adminName;
+        $meta['rejected_at'] = now()->toIso8601String();
+        $tx->metadata = $meta;
+        $tx->save();
+
+        \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
+
+        $newText = "❌ <b>[REJECTED] បានបដិសេធការបញ្ចូលទឹកប្រាក់!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$tx->amount, 2) . " USD</b>\n"
+            . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
+            . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⚠️ <i>ប្រតិបត្តិការនេះត្រូវបានច្រានចោល មិនមានការបញ្ចូលទឹកប្រាក់ឡើយ។</i>";
+
+        return [
+            'toast' => '❌ បានបដិសេធប្រតិបត្តិការនេះ!',
+            'new_text' => $newText,
+        ];
     }
 }
 

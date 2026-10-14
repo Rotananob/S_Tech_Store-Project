@@ -846,10 +846,73 @@ Route::post('/auth/telegram/sync-phone', function (Request $request) {
     if ($user) {
         $user->phone = $phone;
         $user->save();
+        if ($tgId) {
+            \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$tgId}", $phone, 600);
+        }
         return response()->json(['success' => true, 'phone' => $phone]);
     }
 
     return response()->json(['success' => false, 'error' => 'User not found'], 404);
+});
+
+// Real-time Telegram Phone Fetcher (0ms instant retrieval for Mini App & Web)
+Route::get('/auth/telegram/latest-phone', function (Request $request) {
+    $tgId = $request->query('telegram_id') ?: $request->query('tg_id');
+    $uid = $request->header('X-Firebase-UID') ?: $request->query('uid');
+    $token = $request->header('X-Customer-Token');
+
+    // 1. Instant Cache Lookup (under 1ms)
+    if ($tgId) {
+        $cachedPhone = \Illuminate\Support\Facades\Cache::get("tg_latest_phone_{$tgId}");
+        if ($cachedPhone) {
+            return response()->json(['success' => true, 'phone' => $cachedPhone, 'source' => 'cache']);
+        }
+    }
+
+    // 2. UserProfile Database Lookup
+    $user = null;
+    if ($tgId) {
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+            ->orWhere('firebase_uid', 'tg_' . $tgId)
+            ->first();
+    }
+    if (!$user && $uid) {
+        $user = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+    }
+    if (!$user && $token) {
+        $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+        if ($userId) $user = \App\Models\UserProfile::find($userId);
+    }
+
+    if ($user && !empty($user->phone)) {
+        return response()->json(['success' => true, 'phone' => $user->phone, 'source' => 'db']);
+    }
+
+    return response()->json(['success' => false, 'message' => 'No phone found yet'], 404);
+});
+
+// Generate Phone Sync Code for Website Users
+Route::post('/auth/telegram/generate-phone-sync', function (Request $request) {
+    $code = 'PS_' . strtoupper(\Illuminate\Support\Str::random(8));
+    \Illuminate\Support\Facades\Cache::put("tg_phone_sync_active_{$code}", true, 600);
+    $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
+    return response()->json([
+        'success' => true,
+        'sync_code' => $code,
+        'bot_url' => "https://t.me/{$botUsername}?start=syncphone_{$code}",
+    ]);
+});
+
+// Poll Phone Sync result for Website Users
+Route::get('/auth/telegram/poll-phone-sync', function (Request $request) {
+    $code = trim((string)$request->query('code'));
+    if (!$code) return response()->json(['success' => false], 400);
+
+    $phone = \Illuminate\Support\Facades\Cache::get("tg_phone_sync_result_{$code}");
+    if ($phone) {
+        return response()->json(['success' => true, 'phone' => $phone]);
+    }
+    return response()->json(['success' => false, 'status' => 'pending']);
 });
 
 // Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)
@@ -1205,6 +1268,7 @@ Route::post('/user/wallet/activity-reward', [\App\Http\Controllers\WalletControl
 Route::post('/user/wallet/topup/session', [\App\Http\Controllers\WalletController::class, 'createTopupSession'])->middleware('throttle:10,1');
 Route::get('/user/wallet/topup/status/{depositId}', [\App\Http\Controllers\WalletController::class, 'checkTopupStatus'])->middleware('throttle:60,1');
 Route::post('/user/wallet/topup/confirm', [\App\Http\Controllers\WalletController::class, 'confirmTopup'])->middleware('throttle:10,1');
+Route::post('/user/wallet/topup/alert-admin', [\App\Http\Controllers\WalletController::class, 'alertAdminTopup'])->middleware('throttle:10,1');
 Route::post('/user/wallet/topup/card', [\App\Http\Controllers\WalletController::class, 'processCardTopup'])->middleware('throttle:10,1');
 Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins'])->middleware('throttle:10,1');
 Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet'])->middleware('throttle:15,1');
