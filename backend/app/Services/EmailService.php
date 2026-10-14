@@ -7,6 +7,8 @@ use App\Models\UserNotification;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class EmailService
@@ -432,21 +434,317 @@ HTML;
     }
 
     /**
-     * Helper to safely dispatch mail without crashing if SMTP is unconfigured in development
+     * Retrieve global email settings from database (system_settings) with .env fallbacks
+     */
+    public static function getSettings(): array
+    {
+        $dbRow = null;
+        try {
+            $dbRow = DB::table('system_settings')->where('key', 'email_settings')->first();
+        } catch (\Throwable $e) {
+            Log::warning("Could not query system_settings for email: " . $e->getMessage());
+        }
+
+        $saved = [];
+        if ($dbRow && !empty($dbRow->value)) {
+            $saved = is_string($dbRow->value) ? json_decode($dbRow->value, true) : (array)$dbRow->value;
+        }
+
+        $resendApiKey = $saved['resend_api_key'] ?? env('RESEND_API_KEY');
+        $brevoApiKey = $saved['brevo_api_key'] ?? env('BREVO_API_KEY');
+        $smtpHost = $saved['smtp_host'] ?? env('MAIL_HOST');
+        $smtpPort = (int)($saved['smtp_port'] ?? env('MAIL_PORT', 587));
+        $smtpUsername = $saved['smtp_username'] ?? env('MAIL_USERNAME');
+        $smtpPassword = $saved['smtp_password'] ?? env('MAIL_PASSWORD');
+        $smtpEncryption = $saved['smtp_encryption'] ?? env('MAIL_ENCRYPTION', 'tls');
+        $fromEmail = $saved['from_email'] ?? env('MAIL_FROM_ADDRESS', 'orders@s-tech-store.tech');
+        $fromName = $saved['from_name'] ?? env('MAIL_FROM_NAME', self::STORE_NAME);
+
+        // Check if SMTP credentials are real or placeholder
+        $isDummySmtp = empty($smtpHost) || 
+                       $smtpHost === '127.0.0.1' || 
+                       str_contains($smtpHost, 'mailtrap.io') || 
+                       $smtpUsername === 'your_mail_username' || 
+                       empty($smtpUsername) || 
+                       empty($smtpPassword);
+
+        $hasResend = !empty($resendApiKey) && str_starts_with(trim($resendApiKey), 're_');
+        $hasBrevo = !empty($brevoApiKey) && strlen(trim($brevoApiKey)) > 10;
+        $hasSmtp = !$isDummySmtp;
+
+        $activeEngine = 'none';
+        if ($hasResend) {
+            $activeEngine = 'resend';
+        } elseif ($hasBrevo) {
+            $activeEngine = 'brevo';
+        } elseif ($hasSmtp) {
+            $activeEngine = 'smtp';
+        }
+
+        return [
+            'provider' => $saved['provider'] ?? ($activeEngine !== 'none' ? $activeEngine : 'auto'),
+            'resend_api_key' => $resendApiKey ? substr($resendApiKey, 0, 7) . '••••••••' : null,
+            'has_resend_key' => $hasResend,
+            'brevo_api_key' => $brevoApiKey ? substr($brevoApiKey, 0, 6) . '••••••••' : null,
+            'has_brevo_key' => $hasBrevo,
+            'smtp_host' => $smtpHost,
+            'smtp_port' => $smtpPort,
+            'smtp_username' => $smtpUsername ? (str_contains($smtpUsername, '@') ? $smtpUsername : 'configured') : null,
+            'smtp_encryption' => $smtpEncryption,
+            'has_smtp' => $hasSmtp,
+            'from_email' => $fromEmail,
+            'from_name' => $fromName,
+            'active_engine' => $activeEngine,
+            'is_ready' => $activeEngine !== 'none',
+            'render_port_blocked' => true,
+            // Raw internal values
+            '_raw_resend_key' => $resendApiKey,
+            '_raw_brevo_key' => $brevoApiKey,
+            '_raw_smtp_password' => $smtpPassword,
+            '_raw_smtp_username' => $smtpUsername,
+            '_raw_smtp_host' => $smtpHost,
+            '_raw_smtp_port' => $smtpPort,
+            '_raw_smtp_encryption' => $smtpEncryption,
+        ];
+    }
+
+    /**
+     * Save email configuration into database
+     */
+    public static function saveSettings(array $data): array
+    {
+        $current = self::getSettings();
+        
+        $toSave = [
+            'provider' => $data['provider'] ?? $current['provider'] ?? 'auto',
+            'from_email' => !empty($data['from_email']) ? trim($data['from_email']) : ($current['from_email'] ?? 'orders@s-tech-store.tech'),
+            'from_name' => !empty($data['from_name']) ? trim($data['from_name']) : ($current['from_name'] ?? self::STORE_NAME),
+        ];
+
+        if (!empty($data['resend_api_key']) && !str_contains($data['resend_api_key'], '••••')) {
+            $toSave['resend_api_key'] = trim($data['resend_api_key']);
+        } elseif (!empty($current['_raw_resend_key'])) {
+            $toSave['resend_api_key'] = $current['_raw_resend_key'];
+        }
+
+        if (!empty($data['brevo_api_key']) && !str_contains($data['brevo_api_key'], '••••')) {
+            $toSave['brevo_api_key'] = trim($data['brevo_api_key']);
+        } elseif (!empty($current['_raw_brevo_key'])) {
+            $toSave['brevo_api_key'] = $current['_raw_brevo_key'];
+        }
+
+        if (isset($data['smtp_host'])) {
+            $toSave['smtp_host'] = trim($data['smtp_host']);
+            $toSave['smtp_port'] = (int)($data['smtp_port'] ?? 587);
+            $toSave['smtp_username'] = trim($data['smtp_username'] ?? '');
+            $toSave['smtp_encryption'] = trim($data['smtp_encryption'] ?? 'tls');
+            if (!empty($data['smtp_password']) && !str_contains($data['smtp_password'], '••••')) {
+                $toSave['smtp_password'] = trim($data['smtp_password']);
+            } elseif (!empty($current['_raw_smtp_password'])) {
+                $toSave['smtp_password'] = $current['_raw_smtp_password'];
+            }
+        }
+
+        DB::table('system_settings')->updateOrInsert(
+            ['key' => 'email_settings'],
+            [
+                'value' => json_encode($toSave),
+                'updated_at' => now(),
+            ]
+        );
+
+        return self::getSettings();
+    }
+
+    /**
+     * Universal Dispatcher: Sends HTML email with auto-failover
+     * 1. Resend HTTPS API (Port 443 - 100% compatible with Render Free Tier)
+     * 2. Brevo HTTPS API (Port 443)
+     * 3. Native SMTP (Gmail / Custom SMTP)
+     */
+    public static function dispatchHtmlEmail(string $to, string $subject, string $html, array $options = []): array
+    {
+        $cleanTo = trim($to);
+        if (empty($cleanTo) || !filter_var($cleanTo, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'success' => false,
+                'provider' => 'none',
+                'error' => "អាសយដ្ឋាន Email '{$cleanTo}' មិនត្រឹមត្រូវតាមទម្រង់ផ្លូវការ",
+            ];
+        }
+
+        if (str_ends_with($cleanTo, '@s-tech-store.tech') || 
+            str_ends_with($cleanTo, '@telegram.s-tech-store.tech') ||
+            str_ends_with($cleanTo, '@tiktok.s-tech-store.tech')) {
+            return [
+                'success' => false,
+                'provider' => 'none',
+                'error' => "មិនអាចផ្ញើទៅកាន់ Synthetic Email Placeholder បានទេ",
+            ];
+        }
+
+        $settings = self::getSettings();
+        $fromName = $options['from_name'] ?? $settings['from_name'] ?? self::STORE_NAME;
+        $fromEmail = $options['from_email'] ?? $settings['from_email'] ?? 'orders@s-tech-store.tech';
+
+        $errors = [];
+
+        // ─── 1. Channel A: Resend HTTPS API (Port 443) ───────────────────────────
+        $resendKey = $settings['_raw_resend_key'] ?? null;
+        if (!empty($resendKey)) {
+            try {
+                $sender = $fromEmail;
+                if (!str_contains($sender, '@') || str_ends_with($sender, '@s-tech-store.tech')) {
+                    $sender = 'onboarding@resend.dev';
+                }
+
+                $payload = [
+                    'from' => "{$fromName} <{$sender}>",
+                    'to' => [$cleanTo],
+                    'subject' => $subject,
+                    'html' => $html,
+                ];
+
+                if (!empty($options['reply_to'])) {
+                    $payload['reply_to'] = $options['reply_to'];
+                }
+
+                $res = Http::timeout(12)
+                    ->withToken(trim($resendKey))
+                    ->post('https://api.resend.com/emails', $payload);
+
+                if ($res->successful()) {
+                    $data = $res->json();
+                    Log::info("Resend HTTPS API dispatched email successfully to {$cleanTo}. ID: " . ($data['id'] ?? 'N/A'));
+                    return [
+                        'success' => true,
+                        'provider' => 'resend',
+                        'message_id' => $data['id'] ?? null,
+                        'recipient' => $cleanTo,
+                        'message' => 'បានបញ្ជូន Email ជោគជ័យតាមរយៈ Resend HTTPS (Port 443)',
+                    ];
+                } else {
+                    $errText = $res->body();
+                    $errors['resend'] = "Resend API Error ({$res->status()}): {$errText}";
+                    Log::warning("Resend dispatch failed to {$cleanTo}: {$errText}");
+                }
+            } catch (\Throwable $t) {
+                $errors['resend'] = "Resend Exception: " . $t->getMessage();
+                Log::warning("Resend exception: " . $t->getMessage());
+            }
+        }
+
+        // ─── 2. Channel B: Brevo HTTPS API (Port 443) ────────────────────────────
+        $brevoKey = $settings['_raw_brevo_key'] ?? null;
+        if (!empty($brevoKey)) {
+            try {
+                $payload = [
+                    'sender' => ['name' => $fromName, 'email' => $fromEmail],
+                    'to' => [['email' => $cleanTo]],
+                    'subject' => $subject,
+                    'htmlContent' => $html,
+                ];
+
+                $res = Http::timeout(12)
+                    ->withHeaders([
+                        'api-key' => trim($brevoKey),
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post('https://api.brevo.com/v3/smtp/email', $payload);
+
+                if ($res->successful()) {
+                    $data = $res->json();
+                    Log::info("Brevo HTTPS API dispatched email to {$cleanTo}. MessageId: " . ($data['messageId'] ?? 'N/A'));
+                    return [
+                        'success' => true,
+                        'provider' => 'brevo',
+                        'message_id' => $data['messageId'] ?? null,
+                        'recipient' => $cleanTo,
+                        'message' => 'បានបញ្ជូន Email ជោគជ័យតាមរយៈ Brevo HTTPS (Port 443)',
+                    ];
+                } else {
+                    $errText = $res->body();
+                    $errors['brevo'] = "Brevo API Error ({$res->status()}): {$errText}";
+                    Log::warning("Brevo dispatch failed: {$errText}");
+                }
+            } catch (\Throwable $t) {
+                $errors['brevo'] = "Brevo Exception: " . $t->getMessage();
+                Log::warning("Brevo exception: " . $t->getMessage());
+            }
+        }
+
+        // ─── 3. Channel C: Standard SMTP (Gmail App Password / Custom SMTP) ──────
+        $smtpHost = $settings['_raw_smtp_host'] ?? null;
+        $smtpUsername = $settings['_raw_smtp_username'] ?? null;
+        $smtpPassword = $settings['_raw_smtp_password'] ?? null;
+        $smtpPort = $settings['_raw_smtp_port'] ?? 587;
+        $smtpEncryption = $settings['_raw_smtp_encryption'] ?? 'tls';
+
+        $isDummySmtp = empty($smtpHost) || 
+                       $smtpHost === '127.0.0.1' || 
+                       str_contains($smtpHost, 'mailtrap.io') || 
+                       $smtpUsername === 'your_mail_username' || 
+                       empty($smtpUsername) || 
+                       empty($smtpPassword);
+
+        if (!$isDummySmtp) {
+            try {
+                config([
+                    'mail.default' => 'smtp',
+                    'mail.mailers.smtp.transport' => 'smtp',
+                    'mail.mailers.smtp.host' => $smtpHost,
+                    'mail.mailers.smtp.port' => (int)$smtpPort,
+                    'mail.mailers.smtp.username' => $smtpUsername,
+                    'mail.mailers.smtp.password' => $smtpPassword,
+                    'mail.mailers.smtp.encryption' => $smtpEncryption,
+                    'mail.mailers.smtp.timeout' => 8,
+                    'mail.from.address' => $fromEmail ?: $smtpUsername,
+                    'mail.from.name' => $fromName,
+                ]);
+
+                Mail::html($html, function ($msg) use ($cleanTo, $subject, $fromEmail, $fromName) {
+                    $msg->to($cleanTo)->subject($subject);
+                    if (!empty($fromEmail)) {
+                        $msg->from($fromEmail, $fromName);
+                    }
+                });
+
+                Log::info("SMTP dispatched email successfully to {$cleanTo}");
+                return [
+                    'success' => true,
+                    'provider' => 'smtp',
+                    'recipient' => $cleanTo,
+                    'message' => 'បានបញ្ជូន Email ជោគជ័យតាមរយៈ SMTP (' . $smtpHost . ')',
+                ];
+            } catch (\Throwable $t) {
+                $errors['smtp'] = "SMTP Error: " . $t->getMessage();
+                Log::warning("SMTP dispatch failed: " . $t->getMessage());
+            }
+        }
+
+        // ─── If all failed or unconfigured ──────────────────────────────────────
+        $hasAnyKey = !empty($resendKey) || !empty($brevoKey) || !$isDummySmtp;
+        $errMsg = "";
+        if (!$hasAnyKey) {
+            $errMsg = "Server មិនទាន់មានសេវា EMAIL SERVICE (Resend API Key ឬ SMTP) នៅឡើយទេ! ដោយសារ Server Render Free Tier បានទប់ស្កាត់ Port SMTP (25, 465, 587) ដូច្នេះសូមបញ្ចូល Resend API Key (Port 443) ក្នុង Admin Email Settings ដើម្បីផ្ញើ Email ដេីរ ១០០%។";
+        } else {
+            $errMsg = "ការផ្ញើ Email មិនបានសម្រេច៖ " . implode(" | ", $errors);
+        }
+
+        return [
+            'success' => false,
+            'provider' => 'none',
+            'error' => $errMsg,
+            'diagnostic_errors' => $errors,
+        ];
+    }
+
+    /**
+     * Helper to safely dispatch mail without crashing
      */
     private static function tryDispatchMail(string $to, string $subject, string $html): bool
     {
-        try {
-            Mail::html($html, function ($message) use ($to, $subject) {
-                $message->to($to)
-                        ->subject($subject)
-                        ->from(config('mail.from.address', 'no-reply@s-tech-store.tech'), self::STORE_NAME);
-            });
-            Log::info("Email dispatched successfully to {$to} with subject: '{$subject}'");
-            return true;
-        } catch (\Exception $e) {
-            Log::info("Mail transport notice (saved to logs & in-app alerts): " . $e->getMessage());
-            return false;
-        }
+        $res = self::dispatchHtmlEmail($to, $subject, $html);
+        return ($res['success'] ?? false) === true;
     }
 }

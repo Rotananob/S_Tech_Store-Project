@@ -437,9 +437,11 @@ class OrderController extends Controller
             if ($wantEmail && !empty($customerEmail)) {
                 try {
                     $order->loadMissing('items.product');
-                    $sentToEmail = self::sendOrderEmail($order, $customerEmail, $title, $message);
+                    $emailRes = self::sendOrderEmail($order, $customerEmail, $title, $message);
+                    $sentToEmail = ($emailRes['success'] ?? false) === true;
                 } catch (\Throwable $t) {
                     \Illuminate\Support\Facades\Log::warning("Real email order update notification failed: " . $t->getMessage());
+                    $sentToEmail = false;
                 }
             }
         }
@@ -566,12 +568,21 @@ class OrderController extends Controller
                             str_ends_with($customerEmail, '@telegram.s-tech-store.tech') ||
                             str_ends_with($customerEmail, '@tiktok.s-tech-store.tech');
 
+        $emailError = null;
         if ($wantEmail && !empty($customerEmail) && !$isSyntheticEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
             try {
-                $sentToEmail = self::sendOrderEmail($order, $customerEmail, $notificationTitle, $validated['message']);
+                $emailRes = self::sendOrderEmail($order, $customerEmail, $notificationTitle, $validated['message']);
+                $sentToEmail = ($emailRes['success'] ?? false) === true;
+                if (!$sentToEmail) {
+                    $emailError = $emailRes['error'] ?? 'បរាជ័យក្នុងការបញ្ជូន Email';
+                }
             } catch (\Throwable $t) {
                 \Illuminate\Support\Facades\Log::warning("Real email order notification failed: " . $t->getMessage());
+                $sentToEmail = false;
+                $emailError = $t->getMessage();
             }
+        } elseif ($wantEmail && ($isSyntheticEmail || empty($customerEmail))) {
+            $emailError = "អ៊ីមែលអតិថិជនជា Synthetic Placeholder (មិនមែន Real Gmail)";
         }
 
         // Build friendly Khmer message
@@ -582,14 +593,22 @@ class OrderController extends Controller
 
         if (!empty($channels)) {
             $msg = "ការជូនដំណឹងត្រូវបានបញ្ជូនជោគជ័យទៅកាន់: " . implode(" + ", $channels);
+            if ($wantEmail && !$sentToEmail) {
+                $msg .= " ⚠️ (Email មិនបានផ្ញើ: {$emailError})";
+            }
         } else {
-            $msg = "បានកត់ត្រាការជូនដំណឹង (គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង)";
+            if ($wantEmail && !$sentToEmail) {
+                $msg = "មិនអាចបញ្ជូន Email បានទេ: {$emailError}";
+            } else {
+                $msg = "បានកត់ត្រាការជូនដំណឹង (គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង)";
+            }
         }
 
         return response()->json([
             'success' => true,
             'message' => $msg,
             'sent_to_email' => $sentToEmail,
+            'email_error' => $emailError,
             'sent_to_telegram' => $sentToTelegram,
             'sent_to_web' => $sentToWeb,
             'has_telegram' => $hasTelegram,
@@ -625,7 +644,7 @@ class OrderController extends Controller
     /**
      * Send luxury HTML order notification email to customer
      */
-    public static function sendOrderEmail(Order $order, string $toEmail, string $title, string $message): bool
+    public static function sendOrderEmail(Order $order, string $toEmail, string $title, string $message): array
     {
         try {
             $subject = "📦 [S Tech Store] {$title} — Order #{$order->order_id}";
@@ -798,14 +817,15 @@ class OrderController extends Controller
             </body>
             </html>";
 
-            Mail::html($htmlContent, function ($msg) use ($toEmail, $subject) {
-                $msg->to($toEmail)->subject($subject);
-            });
-
-            return true;
+            return \App\Services\EmailService::dispatchHtmlEmail($toEmail, $subject, $htmlContent, [
+                'order_id' => $order->order_id,
+            ]);
         } catch (\Throwable $t) {
-            Log::info("Order email sending log (handled safely): " . $t->getMessage());
-            return true; // Marked true to indicate email payload was generated
+            Log::error("Order email preparation error: " . $t->getMessage());
+            return [
+                'success' => false,
+                'error' => $t->getMessage(),
+            ];
         }
     }
 }

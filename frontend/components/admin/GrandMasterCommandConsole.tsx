@@ -30,8 +30,10 @@ import {
   Power,
   Ban,
   Unlock,
-  Wrench
+  Wrench,
+  Mail
 } from "lucide-react";
+import EmailDispatcherConsoleModal from "@/components/admin/EmailDispatcherConsoleModal";
 import {
   getMasterSystemStatus,
   toggleMaintenanceMode,
@@ -96,6 +98,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
   // Action Loading states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
   // Access Denied Modal state for Regular Admins
   const [deniedModal, setDeniedModal] = useState<{
@@ -1205,7 +1208,43 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
           </div>
         </div>
 
+        {/* CARD 9: Email Delivery & Gmail Probe */}
+        <div className="relative rounded-2xl p-4 bg-gradient-to-b from-[#181a24] to-[#12131a] border border-rose-900/40 hover:border-rose-500/60 transition-all flex flex-col justify-between group shadow-lg">
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20 group-hover:scale-105 transition-transform">
+                <Mail size={18} />
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">
+                Port 443 Ready
+              </span>
+            </div>
+            <h4 className="text-sm font-bold text-white m-0">Email Delivery & Gmail Probe</h4>
+            <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+              ប្រព័ន្ធបញ្ជូនសារ Email ផ្លូវការ (Order Receipts, 2FA Alerts) ទៅកាន់ Real Gmail តាម Resend HTTPS API ឬ SMTP។
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowEmailModal(true)}
+            className="mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600/80 to-red-600/80 hover:from-rose-600 hover:to-red-600 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-md transition-all border border-rose-500/30"
+          >
+            <Mail size={13} />
+            <span>គ្រប់គ្រង &amp; តេស្ត Gmail (Configure &amp; Test)</span>
+          </button>
+        </div>
+
       </div>
+
+      {/* ── Email Delivery & Verification Modal ── */}
+      {showEmailModal && (
+        <EmailDispatcherConsoleModal
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+          defaultRecipient="rothvloger@gmail.com"
+        />
+      )}
 
       {/* ── MODAL 1: VIEW-ONLY / ACCESS DENIED MODAL FOR REGULAR ADMINS ── */}
       {deniedModal?.show && (

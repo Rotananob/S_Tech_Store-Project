@@ -153,6 +153,7 @@ export const pushOrderNotification = async (
   has_telegram?: boolean;
   has_email?: boolean;
   customer_email?: string;
+  email_error?: string;
   customer?: any;
 }> => {
   try {
@@ -167,6 +168,7 @@ export const pushOrderNotification = async (
       has_telegram: res.data?.has_telegram,
       has_email: res.data?.has_email,
       customer_email: res.data?.customer_email,
+      email_error: res.data?.email_error,
       customer: res.data?.customer,
     };
   } catch (error: any) {
@@ -324,6 +326,52 @@ export const updateTelegramSettings = async (settings: Partial<TelegramStatus> &
 
 export const broadcastTelegramMessage = async (message: string, topic: string = "chat", sender?: string): Promise<{ success: boolean; message: string; error?: string }> => {
   const res = await api.post("/admin/telegram/broadcast", { message, topic, sender });
+  return res.data;
+};
+
+// ─── Email Engine & Dispatcher Services ──────────────────────────────────────
+export interface EmailSettings {
+  provider: "auto" | "resend" | "brevo" | "smtp";
+  resend_api_key?: string | null;
+  has_resend_key: boolean;
+  brevo_api_key?: string | null;
+  has_brevo_key: boolean;
+  smtp_host?: string | null;
+  smtp_port?: number;
+  smtp_username?: string | null;
+  smtp_encryption?: "tls" | "ssl";
+  has_smtp: boolean;
+  from_email?: string;
+  from_name?: string;
+  active_engine: "resend" | "brevo" | "smtp" | "none";
+  is_ready: boolean;
+  render_port_blocked: boolean;
+}
+
+export const getEmailSettings = async (): Promise<{
+  success: boolean;
+  settings: EmailSettings;
+  recommendation?: { title: string; description: string; resend_url: string };
+}> => {
+  const res = await api.get("/admin/email/settings");
+  return res.data;
+};
+
+export const updateEmailSettings = async (data: Partial<EmailSettings> & {
+  smtp_password?: string;
+}): Promise<{ success: boolean; message: string; settings: EmailSettings }> => {
+  const res = await api.post("/admin/email/settings", data);
+  return res.data;
+};
+
+export const testSendEmail = async (recipient: string): Promise<{
+  success: boolean;
+  message: string;
+  provider?: string;
+  latency_ms?: number;
+  recipient?: string;
+}> => {
+  const res = await api.post("/admin/email/test", { recipient });
   return res.data;
 };
 

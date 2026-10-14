@@ -1433,6 +1433,11 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/settings/send-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'send2FACode']);
     Route::post('/admin/settings/verify-2fa-code', [\App\Http\Controllers\AdminSettingsController::class, 'verify2FACode']);
 
+    // Email Delivery Engine (Resend HTTPS Port 443 & SMTP)
+    Route::get('/admin/email/settings', [\App\Http\Controllers\EmailAdminController::class, 'getSettings']);
+    Route::post('/admin/email/settings', [\App\Http\Controllers\EmailAdminController::class, 'updateSettings']);
+    Route::post('/admin/email/test', [\App\Http\Controllers\EmailAdminController::class, 'testSend']);
+
     // Master System Status (Viewable by Admin & Super Admin)
     Route::get('/admin/master/status', [\App\Http\Controllers\MasterSystemController::class, 'status']);
 });

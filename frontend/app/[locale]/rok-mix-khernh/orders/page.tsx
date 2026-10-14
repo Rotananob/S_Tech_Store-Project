@@ -37,7 +37,9 @@ import {
   Printer,
   Clock,
   PackageCheck,
+  Settings,
 } from "lucide-react";
+import EmailDispatcherConsoleModal from "@/components/admin/EmailDispatcherConsoleModal";
 
 const STATUSES = ["All Statuses", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
 const ITEMS_PER_PAGE = 8;
@@ -171,6 +173,7 @@ export default function OrderManagementPage() {
   const [notifyWeb, setNotifyWeb] = useState(true);
   const [notifyCustomEmail, setNotifyCustomEmail] = useState("");
   const [sendingNotify, setSendingNotify] = useState(false);
+  const [showEmailConfigModal, setShowEmailConfigModal] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -402,7 +405,14 @@ export default function OrderManagementPage() {
     setSendingNotify(false);
 
     if (res.success) {
-      showToast(res.message || "បានផ្ញើការជូនដំណឹងជោគជ័យ!");
+      if (notifyEmail && res.sent_to_email === false) {
+        showToast(
+          res.message || "Telegram & Web បានបញ្ជូនជោគជ័យ ប៉ុន្តែ Email មិនអាចផ្ញើបានទេ (សូមពិនិត្យ Email Settings)!",
+          "error"
+        );
+      } else {
+        showToast(res.message || "បានផ្ញើការជូនដំណឹងជោគជ័យ!");
+      }
       if (targetStatus && targetStatus !== notifyOrder.status.toLowerCase()) {
         setOrders((prev) =>
           prev.map((o) => (o.id === notifyOrder.id ? { ...o, status: targetStatus } : o))
@@ -1284,6 +1294,17 @@ export default function OrderManagementPage() {
                           <Mail size={13} />
                         </div>
                         <span>1. Real Gmail</span>
+                        <span
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowEmailConfigModal(true);
+                          }}
+                          title="កំណត់ & តេស្តសេវា Email (Port 443 Resend / SMTP)"
+                          className="p-1 rounded-md text-gray-400 hover:text-rose-600 hover:bg-rose-100 transition-colors ml-0.5 cursor-pointer"
+                        >
+                          <Settings size={12} />
+                        </span>
                       </div>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
@@ -1511,6 +1532,15 @@ export default function OrderManagementPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── Email Engine & Verification Modal ─── */}
+      {showEmailConfigModal && (
+        <EmailDispatcherConsoleModal
+          isOpen={showEmailConfigModal}
+          onClose={() => setShowEmailConfigModal(false)}
+          defaultRecipient={notifyCustomEmail || "rothvloger@gmail.com"}
+        />
       )}
 
       {/* ─── Delete Order Confirmation Modal ─── */}

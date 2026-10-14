@@ -390,16 +390,15 @@ class RepairController extends Controller
                 } catch (\Throwable $e) {}
             }
 
-            // Attempt sending email via Mail facade
+            // Attempt sending email via unified EmailService (HTTPS & SMTP)
             try {
-                Mail::html($htmlContent, function ($msg) use ($toEmail, $subject) {
-                    $msg->to($toEmail)
-                        ->subject($subject);
-                });
-                return true;
+                $res = \App\Services\EmailService::dispatchHtmlEmail($toEmail, $subject, $htmlContent, [
+                    'ticket_code' => $repair->ticket_code,
+                ]);
+                return ($res['success'] ?? false) === true;
             } catch (\Throwable $mailErr) {
-                Log::info("Mail sending note (logged safely): " . $mailErr->getMessage());
-                return true; // Marked true as email payload is generated and in-app notice was pushed
+                Log::warning("Repair ticket email failed: " . $mailErr->getMessage());
+                return false;
             }
 
         } catch (\Throwable $t) {
