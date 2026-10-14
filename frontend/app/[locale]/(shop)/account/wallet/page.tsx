@@ -597,12 +597,19 @@ export default function WalletAndCoinsPage() {
                   const isReward = tx.type === "coin_reward";
                   const isRedeem = tx.type === "coin_redeem";
                   const isPurchase = tx.type === "purchase";
+                  const statusLower = (tx.status || "").toLowerCase();
+                  const isPending = statusLower === "pending" || statusLower === "processing";
+                  const isFailed = ["failed", "cancelled", "rejected", "declined", "error"].includes(statusLower);
 
                   return (
                     <div key={tx.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isDeposit
+                          isPending
+                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                            : isFailed
+                            ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                            : isDeposit
                             ? "bg-emerald-500/15 text-emerald-400"
                             : isReward
                             ? "bg-amber-500/15 text-amber-400"
@@ -633,7 +640,7 @@ export default function WalletAndCoinsPage() {
                       </div>
 
                       {/* Amount / Coins change */}
-                      <div className="text-right shrink-0">
+                      <div className="text-right shrink-0 space-y-0.5">
                         {isReward && (
                           <div className="text-xs font-bold text-amber-400">
                             +{tx.coins} Coins
@@ -648,7 +655,9 @@ export default function WalletAndCoinsPage() {
                           </div>
                         )}
                         {isDeposit && (
-                          <div className="text-xs font-bold text-emerald-400">
+                          <div className={`text-xs font-bold ${
+                            isPending ? "text-amber-400" : isFailed ? "text-red-400/80 line-through" : "text-emerald-400"
+                          }`}>
                             +${Number(tx.amount).toFixed(2)} USD
                           </div>
                         )}
@@ -657,9 +666,25 @@ export default function WalletAndCoinsPage() {
                             -${Math.abs(Number(tx.amount)).toFixed(2)} USD
                           </div>
                         )}
-                        <span className="text-[9px] text-emerald-400/80 font-semibold uppercase">
-                          {tx.status}
-                        </span>
+
+                        <div>
+                          {isPending ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                              <span>PENDING</span>
+                            </span>
+                          ) : isFailed ? (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                              <span>FAILED</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>COMPLETED</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

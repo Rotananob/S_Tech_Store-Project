@@ -344,13 +344,13 @@ class WalletController extends Controller
             $universalDeeplink = "https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=" . rawurlencode($activeKhqr);
         }
 
-        // Prepare banking app deeplinks — All mapped to universal HTTPS link to prevent invalid address errors
+        // Prepare banking app deeplinks — Direct app schemes for ABA and Bakong
         $deeplinks = [
             'universal' => $universalDeeplink,
             'bakong' => $universalDeeplink,
-            'aba' => $universalDeeplink,
-            'wing' => $universalDeeplink,
-            'acleda' => $universalDeeplink,
+            'aba' => "aba://pay?qr=" . rawurlencode($activeKhqr),
+            'wing' => "wing://pay?qr=" . rawurlencode($activeKhqr),
+            'acleda' => "acledamobile://pay?qr=" . rawurlencode($activeKhqr),
         ];
 
         // Store pending deposit transaction in ledger with complete cryptographic hash fingerprint

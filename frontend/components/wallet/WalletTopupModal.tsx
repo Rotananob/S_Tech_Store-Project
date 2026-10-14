@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, QrCode, CreditCard, ArrowRight,
   Download, Copy, Check, ExternalLink, Loader2, Sparkles, AlertCircle,
-  Clock, RefreshCw, ShieldCheck, Lock, ChevronLeft, Eye, EyeOff
+  Clock, RefreshCw, ShieldCheck, Lock, ChevronLeft, Eye, EyeOff, Smartphone
 } from "lucide-react";
 import {
   createTopupSession,
@@ -112,6 +112,7 @@ export default function WalletTopupModal({
   const [savingImage, setSavingImage] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [successReceipt, setSuccessReceipt] = useState<SuccessReceipt | null>(null);
+  const [qrImageLoaded, setQrImageLoaded] = useState(false);
 
   // Card form states
   const [cardNumber, setCardNumber] = useState("");
@@ -132,6 +133,13 @@ export default function WalletTopupModal({
           if (parsed?.expiresAt && parsed.expiresAt > now && parsed.session) {
             setSession(parsed.session);
             setSelectedChannel(parsed.channel || "bakong");
+            if (parsed.session.qr_image_url) {
+              const img = new Image();
+              img.onload = () => setQrImageLoaded(true);
+              img.src = parsed.session.qr_image_url;
+            } else {
+              setQrImageLoaded(true);
+            }
             setStep("qr");
             setCheckAttempts(parsed.checkAttempts || 0);
             setTimeLeft(Math.max(0, Math.floor((parsed.expiresAt - now) / 1000)));
@@ -188,9 +196,23 @@ export default function WalletTopupModal({
 
     // Otherwise generate Bank KHQR / ABA session
     setLoading(true);
+    setQrImageLoaded(false);
     try {
       const res = await createTopupSession(amt, selectedChannel);
+
+      // Preload image in memory so the container and QR code reveal synchronously together!
+      if (res?.qr_image_url) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = res.qr_image_url;
+          setTimeout(resolve, 2000); // 2s safety timeout
+        });
+      }
+
       setSession(res);
+      setQrImageLoaded(true);
       setStep("qr");
       setCheckAttempts(0);
       const now = Date.now();
@@ -377,6 +399,7 @@ export default function WalletTopupModal({
     localStorage.removeItem(STORAGE_KEY);
     setStep("select");
     setSession(null);
+    setQrImageLoaded(false);
     setErrorMsg(null);
     setCheckAttempts(0);
     setTimeLeft(30 * 60);
@@ -421,8 +444,10 @@ export default function WalletTopupModal({
   if (!isOpen) return null;
 
   const currentBrand = detectCardBrand(cardNumber);
-  const universalDeeplink = session?.deeplinks?.universal || (session?.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(session.khqr_string)}` : "#");
   const isAbaChannel = selectedChannel === "aba";
+  const abaDeeplink = session?.deeplinks?.aba || (session?.khqr_string ? `aba://pay?qr=${encodeURIComponent(session.khqr_string)}` : "#");
+  const bakongDeeplink = session?.deeplinks?.bakong || session?.deeplinks?.universal || (session?.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(session.khqr_string)}` : "#");
+  const primaryDeeplink = isAbaChannel ? abaDeeplink : bakongDeeplink;
 
   return (
     <>
@@ -623,86 +648,138 @@ export default function WalletTopupModal({
                 </div>
 
                 {/* STANDARDIZED NATIONAL KHQR / ABA STAND-STYLE CARD */}
-                <div className={`max-w-xs mx-auto rounded-3xl bg-white text-gray-900 shadow-2xl overflow-hidden border-4 ${
-                  isAbaChannel ? "border-[#004B87]" : "border-[#E1232E]"
+                <div className={`max-w-xs mx-auto rounded-3xl bg-white text-gray-900 shadow-2xl overflow-hidden border-4 transition-all ${
+                  isAbaChannel ? "border-[#003B6D] shadow-blue-950/20" : "border-[#E1232E] shadow-red-950/20"
                 }`}>
                   {/* National Standard Header */}
                   <div className={`px-4 py-3 flex items-center justify-between text-white ${
                     isAbaChannel
-                      ? "bg-gradient-to-r from-[#004B87] via-[#003B6D] to-[#002D5A]"
+                      ? "bg-[#003B6D]"
                       : "bg-gradient-to-r from-[#E1232E] to-[#B01720]"
                   }`}>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded font-black text-xs tracking-tight ${
-                        isAbaChannel ? "bg-white text-[#004B87]" : "bg-white text-[#E1232E]"
-                      }`}>
-                        {isAbaChannel ? "ABA PAY" : "KHQR"}
-                      </span>
+                      {isAbaChannel ? (
+                        <div className="flex items-center shadow-xs">
+                          <span className="bg-white text-[#003B6D] px-2 py-0.5 rounded-l font-black text-xs tracking-tight">
+                            ABA
+                          </span>
+                          <span className="bg-[#00A4E4] text-white px-2 py-0.5 rounded-r font-black text-xs tracking-tight">
+                            PAY
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="bg-white text-[#E1232E] px-2 py-0.5 rounded font-black text-xs tracking-tight shadow-xs">
+                          KHQR
+                        </span>
+                      )}
                       <span className="text-[11px] font-bold tracking-wide uppercase opacity-95">
                         {isAbaChannel ? "ABA Bank" : "Bakong National QR"}
                       </span>
                     </div>
 
-                    <span className="text-[10px] font-bold bg-white/20 px-2 py-0.5 rounded-full border border-white/30">
-                      {isAbaChannel ? "Instant ABA P2P" : "All 36+ Banks"}
-                    </span>
+                    <div className="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full border border-white/30 text-[10px] font-bold">
+                      {isAbaChannel ? (
+                        <>
+                          <CheckCircle2 size={11} className="text-[#00A4E4]" />
+                          <span>Verified ABA Merchant</span>
+                        </>
+                      ) : (
+                        <span>All 36+ Banks</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Merchant Details Bar */}
-                  <div className="px-4 py-2 bg-gray-50 border-b flex items-center justify-between text-left">
+                  <div className="px-4 py-2 bg-slate-50 border-b border-gray-100 flex items-center justify-between text-left">
                     <div>
-                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Merchant</div>
-                      <div className="text-xs font-black text-gray-800">
-                        {session.merchant?.name || "ROTANA NOB"}
+                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Merchant Name</div>
+                      <div className="text-xs font-black text-gray-800 flex items-center gap-1">
+                        <span>{session.merchant?.name || "ROTANA NOB"}</span>
+                        <CheckCircle2 size={11} className="text-[#00A4E4] inline shrink-0" />
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Currency</div>
-                      <div className="text-xs font-bold text-gray-800">USD & KHR</div>
+                      <div className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Accepted Via</div>
+                      <div className={`text-xs font-black ${isAbaChannel ? "text-[#003B6D]" : "text-gray-800"}`}>
+                        {isAbaChannel ? "ABA Mobile" : "USD & KHR"}
+                      </div>
                     </div>
                   </div>
 
-                  {/* QR Image with centered emblem */}
+                  {/* QR Image with synchronized reveal & centered emblem */}
                   <div className="p-3 bg-white flex items-center justify-center relative">
-                    <div className="p-2 bg-gray-50 rounded-2xl border shadow-inner flex items-center justify-center relative">
+                    <div className="p-2 bg-white rounded-2xl border border-gray-200 shadow-inner flex items-center justify-center relative w-56 h-56">
+                      {!qrImageLoaded && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 rounded-2xl animate-pulse">
+                          <Loader2 size={24} className={`animate-spin mb-2 ${isAbaChannel ? "text-[#003B6D]" : "text-[#E1232E]"}`} />
+                          <span className="text-[11px] font-bold text-gray-500">កំពុងរៀបចំ QR Code...</span>
+                        </div>
+                      )}
+
                       <img
                         src={session.qr_image_url}
                         alt="Deposit QR Code"
-                        className="w-48 h-48 object-contain rounded-lg"
+                        onLoad={() => setQrImageLoaded(true)}
+                        className={`w-48 h-48 object-contain rounded-lg transition-opacity duration-300 ${
+                          qrImageLoaded ? "opacity-100" : "opacity-0"
+                        }`}
                       />
-                      {/* Centered Emblem Logo */}
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className={`w-9 h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 ${
-                          isAbaChannel ? "border-[#004B87]" : "border-[#E1232E]"
-                        }`}>
-                          <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[8px] font-black tracking-tighter ${
-                            isAbaChannel ? "bg-[#004B87]" : "bg-[#E1232E]"
+
+                      {/* Centered Emblem Logo - Reveal synchronously with QR code */}
+                      {qrImageLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
+                          <div className={`w-10 h-10 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center border-2 ${
+                            isAbaChannel ? "border-[#003B6D]" : "border-[#E1232E]"
                           }`}>
-                            {isAbaChannel ? "ABA" : "KHQR"}
+                            <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[9px] font-black tracking-tight ${
+                              isAbaChannel ? "bg-[#003B6D]" : "bg-[#E1232E]"
+                            }`}>
+                              {isAbaChannel ? "ABA" : "KHQR"}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Dual Bank Accounts Info */}
+                  {/* Dual Bank Accounts Info with Copy */}
                   <div className="px-3 pb-2">
-                    <div className="grid grid-cols-2 gap-1.5 text-left bg-gray-50 p-2 rounded-xl text-[10px] border">
-                      <div>
-                        <span className="text-gray-400">៛ KHR acc:</span>
-                        <div className="font-mono font-bold text-gray-800">{session.merchant?.khr_account || "006 822 995"}</div>
+                    <div className="grid grid-cols-2 gap-1.5 text-left bg-slate-50 p-2 rounded-xl text-[10px] border border-gray-200">
+                      <div className="flex items-center justify-between pr-1">
+                        <div>
+                          <span className="text-gray-400 font-medium">៛ KHR acc:</span>
+                          <div className="font-mono font-bold text-gray-800">{session.merchant?.khr_account || "006 822 995"}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(session.merchant?.khr_account || "006822995")}
+                          className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
+                          title="Copy KHR Account"
+                        >
+                          <Copy size={11} />
+                        </button>
                       </div>
-                      <div>
-                        <span className="text-gray-400">$ USD acc:</span>
-                        <div className="font-mono font-bold text-gray-800">{session.merchant?.usd_account || "014 579 634"}</div>
+                      <div className="flex items-center justify-between pr-1 border-l border-gray-200 pl-2">
+                        <div>
+                          <span className="text-gray-400 font-medium">$ USD acc:</span>
+                          <div className="font-mono font-bold text-gray-800">{session.merchant?.usd_account || "014 579 634"}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(session.merchant?.usd_account || "014579634")}
+                          className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
+                          title="Copy USD Account"
+                        >
+                          <Copy size={11} />
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Amount display (Locked Amount) */}
-                  <div className="px-4 py-2.5 bg-gray-50 border-t text-center">
-                    <div className={`text-xl font-black font-mono ${
-                      isAbaChannel ? "text-[#004B87]" : "text-red-700"
+                  <div className="px-4 py-2.5 bg-slate-50 border-t border-gray-200 text-center">
+                    <div className={`text-2xl font-black font-mono ${
+                      isAbaChannel ? "text-[#003B6D]" : "text-[#E1232E]"
                     }`}>
                       ${session.amount.toFixed(2)} USD
                     </div>
@@ -717,24 +794,55 @@ export default function WalletTopupModal({
 
                 {/* Quick Action & Deeplink Buttons */}
                 <div className="space-y-2 pt-1 max-w-xs mx-auto">
-                  {/* Direct Mobile Deeplink: Never reloads the page on return! */}
+                  {/* Primary 1-Tap Pay for Selected Channel */}
                   <a
-                    href={universalDeeplink}
+                    href={primaryDeeplink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`w-full py-2.5 px-3 rounded-xl hover:brightness-110 text-white text-xs font-black flex items-center justify-center gap-2 no-underline transition-all shadow-md ${
+                    className={`w-full py-3 px-3 rounded-xl hover:brightness-110 text-white text-xs font-black flex items-center justify-center gap-2 no-underline transition-all shadow-md cursor-pointer ${
                       isAbaChannel
-                        ? "bg-gradient-to-r from-[#004B87] to-blue-700 shadow-blue-950/50"
-                        : "bg-gradient-to-r from-red-600 to-rose-600 shadow-red-950/50"
+                        ? "bg-gradient-to-r from-[#003B6D] via-[#004B87] to-[#00A4E4] shadow-blue-950/50"
+                        : "bg-gradient-to-r from-[#E1232E] to-rose-600 shadow-red-950/50"
                     }`}
                   >
                     <ExternalLink size={14} />
                     <span>
                       {isAbaChannel
-                        ? "បើក ABA Mobile (1-Tap Pay)"
-                        : "បើកកម្មវិធីធនាគារ (Open Banking App • 1-Tap Pay)"}
+                        ? "បើក ABA Mobile ផ្ទាល់ (1-Tap Pay via ABA App)"
+                        : "បើក Bakong App ផ្ទាល់ (1-Tap Pay via Bakong)"}
                     </span>
                   </a>
+
+                  {/* Secondary Bank Deeplinks (Direct routing to ABA or Bakong) */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <a
+                      href={abaDeeplink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`py-2 px-2.5 rounded-xl text-white text-[11px] font-bold flex items-center justify-center gap-1.5 no-underline transition-all shadow-xs ${
+                        isAbaChannel
+                          ? "bg-[#003B6D] hover:bg-[#004B87] ring-1 ring-white/20"
+                          : "bg-white/10 hover:bg-white/15 border border-white/10 text-gray-200"
+                      }`}
+                    >
+                      <Smartphone size={13} />
+                      <span>ABA Mobile</span>
+                    </a>
+
+                    <a
+                      href={bakongDeeplink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`py-2 px-2.5 rounded-xl text-white text-[11px] font-bold flex items-center justify-center gap-1.5 no-underline transition-all shadow-xs ${
+                        !isAbaChannel
+                          ? "bg-[#E1232E] hover:bg-[#c91d27] ring-1 ring-white/20"
+                          : "bg-white/10 hover:bg-white/15 border border-white/10 text-gray-200"
+                      }`}
+                    >
+                      <Smartphone size={13} />
+                      <span>Bakong App</span>
+                    </a>
+                  </div>
 
                   {/* Save QR Image & Copy KHQR Code */}
                   <div className="flex items-center justify-center gap-2">

@@ -208,9 +208,9 @@ class PaymentService
             'deeplinks' => [
                 'universal' => $universalDeeplink,
                 'bakong' => $universalDeeplink,
-                'aba' => $universalDeeplink,
-                'wing' => $universalDeeplink,
-                'acleda' => $universalDeeplink,
+                'aba' => "aba://pay?qr=" . rawurlencode($activeKhqr),
+                'wing' => "wing://pay?qr=" . rawurlencode($activeKhqr),
+                'acleda' => "acledamobile://pay?qr=" . rawurlencode($activeKhqr),
             ],
             'merchant' => [
                 'name' => config('payment.bakong.account_name', 'ROTANA NOB'),

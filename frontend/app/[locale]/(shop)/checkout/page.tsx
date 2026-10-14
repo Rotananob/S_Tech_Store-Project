@@ -801,14 +801,24 @@ export default function CheckoutPage() {
 
     // Call payment session API to generate dynamic EMVCo KHQR & Deeplinks
     const sessionRes = await createPaymentSession(newOrderId, payment, "USD");
-    setLoading(false);
 
     if (sessionRes.success && sessionRes.data) {
+      if (sessionRes.data.qr_image_url) {
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = sessionRes.data.qr_image_url;
+          setTimeout(resolve, 2000);
+        });
+      }
+      setLoading(false);
       setKhqrSession(sessionRes.data);
       setShowKHQRModal(true);
       setTimeLeft(900); // 15 mins
       startPaymentPolling(newOrderId);
     } else {
+      setLoading(false);
       alert(sessionRes.error || "បរាជ័យក្នុងការបង្កើត KHQR Code");
     }
   };
@@ -1860,38 +1870,59 @@ export default function CheckoutPage() {
                 <X size={20} />
               </button>
 
-              {/* Authentic ABA KHQR Card Header */}
-              <div className="bg-[#E1251B] text-white py-2 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-between mb-3 shadow-md">
-                <div className="flex items-center gap-1.5">
-                  <QrCode size={16} />
-                  <span>KHQR • NBC BAKONG</span>
+              {/* Authentic Header (ABA PAY or NBC Bakong) */}
+              {payment === "aba" ? (
+                <div className="bg-[#003B6D] text-white py-2.5 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-between mb-3 shadow-md">
+                  <div className="flex items-center gap-1.5 shadow-xs">
+                    <span className="bg-white text-[#003B6D] px-2 py-0.5 rounded-l font-black text-xs tracking-tight">ABA</span>
+                    <span className="bg-[#00A4E4] text-white px-2 py-0.5 rounded-r font-black text-xs tracking-tight">PAY</span>
+                    <span className="text-[11px] font-bold text-cyan-200 ml-1">ABA Bank</span>
+                  </div>
+                  <span className="text-[10px] bg-white/20 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 border border-white/20">
+                    <CheckCircle2 size={10} className="text-[#00A4E4]" />
+                    <span>Verified ABA Merchant</span>
+                  </span>
                 </div>
-                <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                  UNIVERSAL
-                </span>
-              </div>
+              ) : (
+                <div className="bg-[#E1251B] text-white py-2 px-4 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-between mb-3 shadow-md">
+                  <div className="flex items-center gap-1.5">
+                    <QrCode size={16} />
+                    <span>KHQR • NBC BAKONG</span>
+                  </div>
+                  <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full font-bold">
+                    UNIVERSAL
+                  </span>
+                </div>
+              )}
 
               {/* Account Holder Name */}
               <div className="text-center mb-2">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                  {khqrSession.merchant?.bank || "ABA Bank"}
+                  {payment === "aba" ? "ABA Mobile Banking" : (khqrSession.merchant?.bank || "NBC Bakong")}
                 </div>
-                <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-wide">
-                  {khqrSession.merchant?.name || "ROTANA NOB"}
+                <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-wide flex items-center justify-center gap-1">
+                  <span>{khqrSession.merchant?.name || "ROTANA NOB"}</span>
+                  <CheckCircle2 size={13} className="text-[#00A4E4] inline shrink-0" />
                 </h3>
               </div>
 
               {/* QR Code Container with ABA/Bakong Emblem */}
-              <div className="p-3 bg-white rounded-2xl border-2 border-red-500 inline-block shadow-lg mb-3 relative">
+              <div className={`p-3 bg-white rounded-2xl border-2 ${
+                payment === "aba" ? "border-[#003B6D]" : "border-red-500"
+              } inline-block shadow-lg mb-3 relative`}>
                 <img
                   src={khqrSession.qr_image_url}
-                  alt="ABA KHQR Payment"
+                  alt={payment === "aba" ? "ABA PAY QR" : "KHQR Payment"}
                   className="w-48 h-48 object-contain mx-auto rounded-lg"
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-10 h-10 rounded-full bg-white p-1 shadow-lg flex items-center justify-center border-2 border-red-600">
-                    <div className="w-full h-full rounded-full bg-[#E1251B] flex items-center justify-center text-white text-[9px] font-black">
-                      ABA
+                  <div className={`w-10 h-10 rounded-full bg-white p-1 shadow-lg flex items-center justify-center border-2 ${
+                    payment === "aba" ? "border-[#003B6D]" : "border-red-600"
+                  }`}>
+                    <div className={`w-full h-full rounded-full flex items-center justify-center text-white text-[9px] font-black ${
+                      payment === "aba" ? "bg-[#003B6D]" : "bg-[#E1251B]"
+                    }`}>
+                      {payment === "aba" ? "ABA" : "KHQR"}
                     </div>
                   </div>
                 </div>
@@ -1916,9 +1947,15 @@ export default function CheckoutPage() {
               </div>
 
               {/* Amount Display */}
-              <div className="bg-red-50/60 dark:bg-red-950/20 rounded-2xl p-3 mb-3 border border-red-200/60 dark:border-red-900/30">
+              <div className={`rounded-2xl p-3 mb-3 border ${
+                payment === "aba"
+                  ? "bg-blue-50/60 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/30"
+                  : "bg-red-50/60 dark:bg-red-950/20 border-red-200/60 dark:border-red-900/30"
+              }`}>
                 <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">Total Payable Amount ទឹកប្រាក់ត្រូវបង់</div>
-                <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                <div className={`text-2xl font-black font-mono ${
+                  payment === "aba" ? "text-[#003B6D] dark:text-cyan-400" : "text-[#8B1A1A] dark:text-red-400"
+                }`}>
                   {fmtUSD(khqrSession.amount_usd)}
                 </div>
                 <div className="text-xs font-bold text-gray-500 font-mono">
@@ -1931,41 +1968,66 @@ export default function CheckoutPage() {
               </div>
 
               {/* 1-Click Mobile Banking Deeplinks */}
-              <div className="space-y-2 mb-3">
-                {khqrSession.deeplinks?.universal && (
-                  <a
-                    href={khqrSession.deeplinks.universal}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-[#E1251B] to-rose-600 hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all text-center no-underline shadow-md"
-                  >
-                    <Smartphone size={14} />
-                    <span>Open Bank App ស្កេនស្វ័យប្រវត្ត (1-Tap Pay)</span>
-                  </a>
-                )}
+              {(() => {
+                const isAbaOrder = payment === "aba";
+                const abaDeeplink = khqrSession.deeplinks?.aba || (khqrSession.khqr_string ? `aba://pay?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "#");
+                const bakongDeeplink = khqrSession.deeplinks?.bakong || khqrSession.deeplinks?.universal || (khqrSession.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "#");
+                const primaryDeeplink = isAbaOrder ? abaDeeplink : bakongDeeplink;
 
-                <div className="grid grid-cols-2 gap-2">
-                  <a
-                    href={khqrSession.deeplinks?.universal || `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-2 px-3 rounded-xl bg-[#004B87] hover:bg-[#003866] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
-                  >
-                    <Smartphone size={13} />
-                    <span>ABA Mobile</span>
-                  </a>
+                return (
+                  <div className="space-y-2 mb-3">
+                    {/* Primary Channel Deeplink */}
+                    <a
+                      href={primaryDeeplink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`w-full py-2.5 px-3 rounded-xl hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-all text-center no-underline shadow-md ${
+                        isAbaOrder
+                          ? "bg-gradient-to-r from-[#003B6D] via-[#004B87] to-[#00A4E4] shadow-blue-950/40"
+                          : "bg-gradient-to-r from-red-600 via-[#E1251B] to-rose-600 shadow-red-950/40"
+                      }`}
+                    >
+                      <Smartphone size={14} />
+                      <span>
+                        {isAbaOrder
+                          ? "បើក ABA Mobile ផ្ទាល់ (1-Tap Pay via ABA App)"
+                          : "បើក Bakong App ផ្ទាល់ (1-Tap Pay via Bakong)"}
+                      </span>
+                    </a>
 
-                  <a
-                    href={khqrSession.deeplinks?.universal || `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="py-2 px-3 rounded-xl bg-[#E1251B] hover:bg-[#b81d15] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs"
-                  >
-                    <Smartphone size={13} />
-                    <span>Bakong App</span>
-                  </a>
-                </div>
-              </div>
+                    {/* Secondary Direct Switch Row */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={abaDeeplink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs ${
+                          isAbaOrder
+                            ? "bg-[#003B6D] text-white hover:bg-[#004B87] ring-1 ring-white/20"
+                            : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200"
+                        }`}
+                      >
+                        <Smartphone size={13} />
+                        <span>ABA Mobile</span>
+                      </a>
+
+                      <a
+                        href={bakongDeeplink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all text-center no-underline shadow-xs ${
+                          !isAbaOrder
+                            ? "bg-[#E1251B] text-white hover:bg-[#b81d15] ring-1 ring-white/20"
+                            : "bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200"
+                        }`}
+                      >
+                        <Smartphone size={13} />
+                        <span>Bakong App</span>
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Polling Radar Indicator */}
               <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-3">
