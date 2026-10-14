@@ -7,17 +7,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // All public indexable shop routes
   const staticRoutes = [
     { path: '', priority: 1.0, changeFrequency: 'daily' as const },
-    { path: '/products', priority: 0.9, changeFrequency: 'daily' as const },
-    { path: '/categories', priority: 0.8, changeFrequency: 'weekly' as const },
-    { path: '/pc-builder', priority: 0.8, changeFrequency: 'weekly' as const },
-    { path: '/about', priority: 0.7, changeFrequency: 'monthly' as const },
-    { path: '/contact', priority: 0.7, changeFrequency: 'monthly' as const },
-    { path: '/services', priority: 0.7, changeFrequency: 'monthly' as const },
-    { path: '/privacy', priority: 0.5, changeFrequency: 'yearly' as const },
-    { path: '/terms', priority: 0.5, changeFrequency: 'yearly' as const },
+    { path: '/products', priority: 0.95, changeFrequency: 'daily' as const },
+    { path: '/build-pc', priority: 0.9, changeFrequency: 'weekly' as const },
+    { path: '/promotions', priority: 0.9, changeFrequency: 'daily' as const },
+    { path: '/services', priority: 0.85, changeFrequency: 'weekly' as const },
+    { path: '/about', priority: 0.8, changeFrequency: 'monthly' as const },
+    { path: '/contact', priority: 0.8, changeFrequency: 'monthly' as const },
+    { path: '/warranty', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/returns', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/faqs', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/privacy', priority: 0.7, changeFrequency: 'monthly' as const },
+    { path: '/terms', priority: 0.7, changeFrequency: 'monthly' as const },
   ];
   
-  const sitemapEntries: MetadataRoute.Sitemap = [];
+  const sitemapEntries: MetadataRoute.Sitemap = [
+    // Root canonical URL
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 1.0,
+    },
+  ];
 
   // 1. Add static multilingual routes
   staticRoutes.forEach(({ path, priority, changeFrequency }) => {

@@ -23,14 +23,27 @@ const khmerFont = Battambang({
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.s-tech-store.tech'),
   title: {
-    default: "S Tech Store — ហាងលក់ និងជួសជុលកុំព្យូទ័រ ស្មាតហ្វូន គ្រឿងបន្លាស់គុណភាពខ្ពស់នៅកម្ពុជា",
+    default: "S Tech | S Tech Store — ហាងលក់ និងជួសជុលកុំព្យូទ័រ Laptops & Gaming PC នៅកម្ពុជា",
     template: "%s | S Tech Store Cambodia",
   },
   description:
-    "S Tech Store ហាងបច្ចេកវិទ្យាផ្លូវការនៅកម្ពុជា ផ្គត់ផ្គង់ Laptops, Gaming PC, Computer Parts, Smart devices និងសេវាជួសជុលរហ័សទាន់ចិត្ត ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង។",
+    "S Tech (S Tech Store) ហាងបច្ចេកវិទ្យាផ្លូវការនៅកម្ពុជា ផ្គត់ផ្គង់ Laptops, Gaming PC, Computer Parts, Smart devices និងសេវាជួសជុលរហ័សទាន់ចិត្ត ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង។",
   keywords: [
+    "S Tech",
+    "s tech",
+    "STech",
+    "S-Tech",
+    "stech",
     "S Tech Store",
-    "S Tech Store Cambodia",
+    "s tech store",
+    "S Tech Cambodia",
+    "s tech cambodia",
+    "s tech computer",
+    "s tech laptop",
+    "s tech gaming pc",
+    "s tech phnom penh",
+    "ហាង S Tech",
+    "កុំព្យូទ័រ S Tech",
     "ហាងកុំព្យូទ័រ",
     "ទិញកុំព្យូទ័រ",
     "កុំព្យូទ័រយួរដៃ",
@@ -113,10 +126,20 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@graph": [
     {
-      "@type": "Organization",
+      "@type": ["Organization", "OnlineStore", "ComputerStore"],
       "@id": "https://www.s-tech-store.tech/#organization",
-      "name": "S Tech Store",
-      "alternateName": ["S Tech Store Cambodia", "ហាង S Tech Store", "S-Tech"],
+      "name": "S Tech",
+      "alternateName": [
+        "S Tech Store",
+        "s tech",
+        "STech",
+        "S-Tech",
+        "S Tech Store Cambodia",
+        "ហាង S Tech Store",
+        "ហាងកុំព្យូទ័រ S Tech",
+        "S Tech Cambodia",
+        "stech"
+      ],
       "url": "https://www.s-tech-store.tech",
       "logo": "https://www.s-tech-store.tech/logo.jpg",
       "image": "https://www.s-tech-store.tech/og-image.png",
@@ -124,6 +147,7 @@ const organizationSchema = {
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "Phnom Penh",
+        "addressRegion": "Phnom Penh",
         "addressCountry": "KH"
       },
       "contactPoint": {
@@ -131,17 +155,29 @@ const organizationSchema = {
         "telephone": "+855-12-345-678",
         "contactType": "customer service",
         "availableLanguage": ["Khmer", "English"]
+      },
+      "brand": {
+        "@type": "Brand",
+        "name": "S Tech",
+        "alternateName": ["STech", "S-Tech", "S Tech Store"]
       }
     },
     {
       "@type": "WebSite",
       "@id": "https://www.s-tech-store.tech/#website",
       "url": "https://www.s-tech-store.tech",
-      "name": "S Tech Store",
+      "name": "S Tech",
+      "alternateName": [
+        "S Tech Store",
+        "s tech",
+        "STech",
+        "S-Tech",
+        "S Tech Cambodia"
+      ],
       "publisher": { "@id": "https://www.s-tech-store.tech/#organization" },
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://www.s-tech-store.tech/km/products?search={search_term_string}",
+        "target": "https://www.s-tech-store.tech/products?search={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }

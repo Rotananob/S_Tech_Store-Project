@@ -1130,6 +1130,17 @@ export default function RegisterPage() {
             Sign in
           </Link>
         </p>
+
+        <p style={{ textAlign: "center", fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "16px", lineHeight: "1.6" }}>
+          By creating an account, you agree to S Tech Store's{" "}
+          <Link href="/terms" style={{ color: "rgba(255,255,255,0.75)", textDecoration: "underline" }}>
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" style={{ color: "rgba(255,255,255,0.75)", textDecoration: "underline" }}>
+            Privacy Policy
+          </Link>.
+        </p>
       </div>
 
 

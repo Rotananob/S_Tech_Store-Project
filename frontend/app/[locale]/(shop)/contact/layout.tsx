@@ -1,11 +1,16 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact Us & Tech Support | S Tech Store",
-  description: "Get in touch with S Tech Store for order support, technical issues, or general inquiries. We are here to help!",
+  title: "Contact S Tech | S Tech Store Customer Support",
+  description: "Get in touch with S Tech (S Tech Store Cambodia) for order assistance, gaming PC consulting, or laptop repair support. We are here to help!",
+  keywords: ["Contact S Tech", "S Tech Store Cambodia", "S Tech customer service", "S Tech Telegram support"],
+  alternates: {
+    canonical: "https://www.s-tech-store.tech/contact",
+  },
   openGraph: {
-    title: "Contact Us & Tech Support | S Tech Store",
-    description: "Get in touch with S Tech Store for order support, technical issues, or general inquiries. We are here to help!",
+    title: "Contact S Tech | S Tech Store Customer Support",
+    description: "Get in touch with S Tech for order assistance, gaming PC consulting, or laptop repair support.",
+    url: "https://www.s-tech-store.tech/contact",
   }
 };
 
