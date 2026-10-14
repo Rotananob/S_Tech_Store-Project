@@ -10,7 +10,6 @@ import {
 import {
   createTopupSession,
   confirmTopup,
-  checkTopupStatus,
   alertAdminTopup,
   processCardTopup,
   TopupSessionResponse
@@ -131,30 +130,8 @@ export default function WalletTopupModal({
   const [adminAlertSent, setAdminAlertSent] = useState(false);
   const [isPendingAdmin, setIsPendingAdmin] = useState(false);
 
-  // Background status polling (every 3.5s) to catch instant bank/admin confirmations
-  useEffect(() => {
-    if (step !== "qr" || !session?.deposit_id) return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await checkTopupStatus(session.deposit_id);
-        if (res.success && res.paid && res.status === "completed") {
-          playCelebrationFanfare();
-          setShowConfetti(true);
-          setSuccessReceipt({
-            amount: session.amount,
-            deposit_id: session.deposit_id,
-            method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
-          });
-          setStep("success");
-          localStorage.removeItem(STORAGE_KEY);
-          if (res.wallet_balance !== undefined) {
-            onSuccess(res.wallet_balance);
-          }
-        }
-      } catch (e) {}
-    }, 3500);
-    return () => clearInterval(interval);
-  }, [step, session, selectedChannel, onSuccess]);
+  // 1-Click Manual Verification Only: Auto-polling interval is strictly disabled to prevent network spam
+  // Status check only executes when the customer clicks "ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់ (Verify & Confirm)"
 
   // Restore pending session from localStorage on open / refresh / tab-switch (Never reload!)
   useEffect(() => {
