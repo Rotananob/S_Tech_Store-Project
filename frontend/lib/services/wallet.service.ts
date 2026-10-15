@@ -88,8 +88,8 @@ export const updateCachedWallet = (partial: Partial<WalletData>) => {
   } catch (e) {}
 };
 
-export const getWalletData = async (): Promise<{ wallet: WalletData; transactions: WalletTransaction[] }> => {
-  const res = await api.get("/user/wallet");
+export const getWalletData = async (params?: { date?: string; type?: string; limit?: number }): Promise<{ wallet: WalletData; transactions: WalletTransaction[] }> => {
+  const res = await api.get("/user/wallet", { params });
   if (res.data?.wallet) {
     if (typeof window !== "undefined") {
       try {
@@ -238,5 +238,15 @@ export const payOrderWithWallet = async (orderId: string): Promise<{
   if (res.data?.success && res.data?.remaining_balance !== undefined) {
     updateCachedWallet({ balance: Number(res.data.remaining_balance) });
   }
+  return res.data;
+};
+
+export const deleteWalletTransaction = async (id: number): Promise<{ success: boolean; message: string; deleted_id?: number }> => {
+  const res = await api.delete(`/user/wallet/transactions/${id}`);
+  return res.data;
+};
+
+export const clearWalletTransactions = async (params?: { date?: string; type?: string }): Promise<{ success: boolean; message: string; deleted_count?: number }> => {
+  const res = await api.post("/user/wallet/transactions/clear", {}, { params });
   return res.data;
 };

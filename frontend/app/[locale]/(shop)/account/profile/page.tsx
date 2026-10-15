@@ -11,7 +11,8 @@ import {
   Settings, Globe, Moon, Sun, Monitor, Camera, BadgeCheck,
   Check, RefreshCw, Send, AlertTriangle, Cpu, Laptop, ExternalLink,
   Copy, Zap, Download, Lock, Navigation, Compass, Crosshair, Type, Truck, Bike,
-  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2, Unlink, Loader2
+  CreditCard, Users, MessageSquare, Wallet, Ticket, Headphones, ShieldCheck, ShoppingCart, Star, Search, Trash2, Unlink, Loader2,
+  Calendar, ChevronDown, ChevronUp, ArrowUpRight, ArrowDownLeft
 } from "lucide-react";
 import LanguageConfirmModal from "@/components/ui/LanguageConfirmModal";
 import { useLangStore } from "@/store/langStore";
@@ -35,6 +36,12 @@ import {
   ViewedProduct,
   SearchHistoryItem
 } from "@/lib/services/history.service";
+import {
+  getWalletData,
+  deleteWalletTransaction,
+  clearWalletTransactions,
+  WalletTransaction
+} from "@/lib/services/wallet.service";
 
 interface ProfileData {
   firebase_uid?: string;
@@ -394,10 +401,19 @@ export default function UserProfilePage() {
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const openedTgTabRef = useRef<Window | null>(null);
 
-  // History Sub-Tabs & Activity Tracking (Orders, Viewed Products, Searches)
-  const [historySubTab, setHistorySubTab] = useState<"orders" | "viewed" | "searches">("orders");
+  // History Sub-Tabs & Activity Tracking (Orders, Viewed Products, Searches, Ledger)
+  const [historySubTab, setHistorySubTab] = useState<"orders" | "viewed" | "searches" | "ledger">("orders");
   const [viewedProducts, setViewedProducts] = useState<ViewedProduct[]>([]);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [profileWalletTx, setProfileWalletTx] = useState<WalletTransaction[]>([]);
+  const [profileWalletTxLoading, setProfileWalletTxLoading] = useState(false);
+  const [profileWalletTxVisibleCount, setProfileWalletTxVisibleCount] = useState(10);
+  const [profileWalletTxSearchDate, setProfileWalletTxSearchDate] = useState("");
+  const [profileWalletTxSearchKeyword, setProfileWalletTxSearchKeyword] = useState("");
+  const [profileWalletTxDatePreset, setProfileWalletTxDatePreset] = useState<"all" | "today" | "7days" | "30days">("all");
+  const [profileWalletTxFilter, setProfileWalletTxFilter] = useState<"all" | "deposit" | "reward" | "purchase">("all");
+  const [profileWalletTxDeletingId, setProfileWalletTxDeletingId] = useState<number | null>(null);
+  const [profileWalletTxClearing, setProfileWalletTxClearing] = useState(false);
 
   // 2FA OTP Security Verification State
   const [show2faModal, setShow2faModal] = useState(false);
@@ -570,6 +586,85 @@ export default function UserProfilePage() {
   const tNav = translations[lang].nav;
   const wishlistCount = useWishlistStore((s) => s.getTotalItems());
 
+  const loadProfileWalletTx = async () => {
+    setProfileWalletTxLoading(true);
+    try {
+      const data = await getWalletData();
+      setProfileWalletTx(data.transactions || []);
+    } catch (_) {}
+    finally {
+      setProfileWalletTxLoading(false);
+    }
+  };
+
+  const handleDeleteProfileWalletTx = async (id: number) => {
+    if (!window.confirm("តើអ្នកពិតជាចង់លុបប្រវត្តិប្រតិបត្តិការនេះចេញពី Ledger មែនទេ? (Delete this transaction record?)")) {
+      return;
+    }
+    setProfileWalletTxDeletingId(id);
+    try {
+      await deleteWalletTransaction(id);
+      setProfileWalletTx((prev) => prev.filter((t) => t.id !== id));
+    } catch (err: any) {
+      alert(err.response?.data?.message || "មិនអាចលុបប្រតិបត្តិការបានទេ");
+    } finally {
+      setProfileWalletTxDeletingId(null);
+    }
+  };
+
+  const handleClearAllProfileWalletTx = async () => {
+    if (!window.confirm("តើអ្នកពិតជាចង់សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់មែនទេ? (Clear all transaction history?)")) {
+      return;
+    }
+    setProfileWalletTxClearing(true);
+    try {
+      await clearWalletTransactions();
+      setProfileWalletTx([]);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "មិនអាចសម្អាតបានទេ");
+    } finally {
+      setProfileWalletTxClearing(false);
+    }
+  };
+
+  const filteredProfileWalletTx = profileWalletTx.filter((tx) => {
+    if (profileWalletTxFilter === "deposit" && tx.type !== "deposit") return false;
+    if (profileWalletTxFilter === "reward" && tx.type !== "coin_reward" && tx.type !== "coin_redeem") return false;
+    if (profileWalletTxFilter === "purchase" && tx.type !== "purchase") return false;
+
+    if (profileWalletTxSearchDate) {
+      const txDate = new Date(tx.created_at).toISOString().slice(0, 10);
+      if (txDate !== profileWalletTxSearchDate) return false;
+    } else if (profileWalletTxDatePreset !== "all") {
+      const txTime = new Date(tx.created_at).getTime();
+      const now = Date.now();
+      if (profileWalletTxDatePreset === "today") {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const txDate = new Date(tx.created_at).toISOString().slice(0, 10);
+        if (txDate !== todayStr) return false;
+      } else if (profileWalletTxDatePreset === "7days") {
+        if (now - txTime > 7 * 24 * 3600 * 1000) return false;
+      } else if (profileWalletTxDatePreset === "30days") {
+        if (now - txTime > 30 * 24 * 3600 * 1000) return false;
+      }
+    }
+
+    if (profileWalletTxSearchKeyword.trim()) {
+      const kw = profileWalletTxSearchKeyword.toLowerCase();
+      const desc = (tx.description || "").toLowerCase();
+      const ref = (tx.reference_id || "").toLowerCase();
+      const amount = String(tx.amount || "");
+      if (!desc.includes(kw) && !ref.includes(kw) && !amount.includes(kw)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const displayedProfileWalletTx = filteredProfileWalletTx.slice(0, profileWalletTxVisibleCount);
+  const hasMoreProfileWalletTx = filteredProfileWalletTx.length > profileWalletTxVisibleCount;
+
   useEffect(() => {
     setMounted(true);
 
@@ -605,6 +700,7 @@ export default function UserProfilePage() {
             }));
             loadProfile(pseudoUser);
             loadOrders();
+            loadProfileWalletTx();
             return true;
           }
         } catch (e) {}
@@ -623,6 +719,7 @@ export default function UserProfilePage() {
         }));
         loadProfile(u);
         loadOrders();
+        loadProfileWalletTx();
       } else {
         const found = syncProfileSession();
         if (!found) {
@@ -639,6 +736,7 @@ export default function UserProfilePage() {
           wallet_balance: e.detail.balance !== undefined ? Number(e.detail.balance) : prev.wallet_balance,
           points: e.detail.coins !== undefined ? Number(e.detail.coins) : prev.points,
         }));
+        loadProfileWalletTx();
       }
     };
     window.addEventListener("stech_wallet_updated", handleWalletUpdated);
@@ -3429,6 +3527,22 @@ export default function UserProfilePage() {
                     <Search size={14} />
                     <span>ប្រវត្តិស្វែងរក ({searchHistory.length})</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistorySubTab("ledger");
+                      loadProfileWalletTx();
+                    }}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                      historySubTab === "ledger"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-red-900/30"
+                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-transparent"
+                    }`}
+                  >
+                    <Wallet size={14} />
+                    <span>ប្រវត្តិប្រតិបត្តិការ Ledger ({profileWalletTx.length})</span>
+                  </button>
                 </div>
               </div>
 
@@ -3728,6 +3842,367 @@ export default function UserProfilePage() {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-Tab 4: Wallet Transactions Ledger */}
+              {historySubTab === "ledger" && (
+                <div className="space-y-4">
+                  {/* Top Header & Clear All */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>ប្រវត្តិប្រតិបត្តិការកាបូបលុយ (Transaction Ledger)</span>
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 text-[10px] font-mono font-bold">
+                          {filteredProfileWalletTx.length}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        បង្ហាញត្រឹមតែ ១០ ប្រតិបត្តិការចុងក្រោយ (អាចស្វែងរកតាមកាលបរិច្ឆេទ ឬចុចមើលបន្ថែម)
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href="/account/wallet"
+                        className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all no-underline flex items-center gap-1.5"
+                      >
+                        <Wallet size={13} className="text-[#8B1A1A] dark:text-red-400" />
+                        <span>បើកកាបូបលុយ (Open Wallet)</span>
+                      </Link>
+
+                      {profileWalletTx.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllProfileWalletTx}
+                          disabled={profileWalletTxClearing}
+                          className="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          title="សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់"
+                        >
+                          {profileWalletTxClearing ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          <span>សម្អាតទាំងអស់ (Clear All)</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar */}
+                  <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                      {/* Date Picker Input */}
+                      <div className="relative flex-1">
+                        <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="date"
+                          value={profileWalletTxSearchDate}
+                          onChange={(e) => {
+                            setProfileWalletTxSearchDate(e.target.value);
+                            setProfileWalletTxDatePreset("all");
+                            setProfileWalletTxVisibleCount(10);
+                          }}
+                          className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-[#141720] border border-gray-200 dark:border-white/10 text-xs text-gray-900 dark:text-white placeholder-gray-500 focus:border-[#8B1A1A] focus:outline-none font-mono"
+                          title="ជ្រើសរើសថ្ងៃជាក់លាក់ (Search by exact date)"
+                        />
+                        {profileWalletTxSearchDate && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileWalletTxSearchDate("");
+                              setProfileWalletTxVisibleCount(10);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                            title="សម្អាតថ្ងៃ (Clear date)"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Keyword search input */}
+                      <div className="relative flex-1">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          value={profileWalletTxSearchKeyword}
+                          onChange={(e) => {
+                            setProfileWalletTxSearchKeyword(e.target.value);
+                            setProfileWalletTxVisibleCount(10);
+                          }}
+                          placeholder="ស្វែងរកតាមឈ្មោះ, Ref, ចំនួនទឹកប្រាក់..."
+                          className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-[#141720] border border-gray-200 dark:border-white/10 text-xs text-gray-900 dark:text-white placeholder-gray-400 focus:border-[#8B1A1A] focus:outline-none"
+                        />
+                        {profileWalletTxSearchKeyword && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileWalletTxSearchKeyword("");
+                              setProfileWalletTxVisibleCount(10);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                            title="សម្អាតពាក្យស្វែងរក"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Presets and Filters */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-200/50 dark:border-white/5">
+                      {/* Date Presets */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+                        <span className="text-gray-500 dark:text-gray-400 mr-1 hidden sm:inline text-[11px] font-bold">
+                          កាលបរិច្ឆេទ:
+                        </span>
+                        {(
+                          [
+                            { id: "all", label: "ទាំងអស់ (All)" },
+                            { id: "today", label: "ថ្ងៃនេះ (Today)" },
+                            { id: "7days", label: "៧ ថ្ងៃ (7 Days)" },
+                            { id: "30days", label: "ខែនេះ (30 Days)" },
+                          ] as const
+                        ).map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setProfileWalletTxDatePreset(p.id);
+                              setProfileWalletTxSearchDate("");
+                              setProfileWalletTxVisibleCount(10);
+                            }}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap border ${
+                              profileWalletTxDatePreset === p.id && !profileWalletTxSearchDate
+                                ? "bg-[#8B1A1A] text-white border-[#8B1A1A] shadow-xs"
+                                : "bg-white dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 border-gray-200 dark:border-white/10"
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Type Filter Buttons */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar text-xs">
+                        {(["all", "deposit", "reward", "purchase"] as const).map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => {
+                              setProfileWalletTxFilter(f);
+                              setProfileWalletTxVisibleCount(10);
+                            }}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all border cursor-pointer whitespace-nowrap ${
+                              profileWalletTxFilter === f
+                                ? "bg-black dark:bg-white text-white dark:text-black border-transparent shadow-xs"
+                                : "bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10"
+                            }`}
+                          >
+                            {f === "all" ? "គ្រប់ប្រភេទ" : f === "deposit" ? "បញ្ចូលលុយ" : f === "reward" ? "កាក់" : "ការទិញ"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Loading Spinner */}
+                  {profileWalletTxLoading ? (
+                    <div className="py-12 flex justify-center">
+                      <div className="w-8 h-8 border-4 border-[#8B1A1A] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : filteredProfileWalletTx.length === 0 ? (
+                    <div className="py-12 text-center text-gray-400 text-sm flex flex-col items-center justify-center gap-2 bg-gray-50/50 dark:bg-white/5 rounded-3xl border border-gray-100 dark:border-white/10 p-6">
+                      <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/10 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                        <Wallet size={24} />
+                      </div>
+                      <h4 className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                        {profileWalletTxSearchDate || profileWalletTxSearchKeyword || profileWalletTxDatePreset !== "all" || profileWalletTxFilter !== "all"
+                          ? "មិនមានប្រតិបត្តិការត្រូវនឹងលក្ខខណ្ឌស្វែងរកនេះទេ"
+                          : "មិនទាន់មានប្រវត្តិប្រតិបត្តិការនៅឡើយទេ"}
+                      </h4>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-sm">
+                        រាល់ការបញ្ចូលលុយ ការបញ្ជាទិញដោយកាបូប និងកាក់រង្វាន់នឹងបង្ហាញនៅទីនេះ។
+                      </p>
+                      {(profileWalletTxSearchDate || profileWalletTxSearchKeyword || profileWalletTxDatePreset !== "all" || profileWalletTxFilter !== "all") && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileWalletTxSearchDate("");
+                            setProfileWalletTxSearchKeyword("");
+                            setProfileWalletTxDatePreset("all");
+                            setProfileWalletTxFilter("all");
+                            setProfileWalletTxVisibleCount(10);
+                          }}
+                          className="mt-2 text-xs text-[#8B1A1A] dark:text-red-400 font-bold hover:underline cursor-pointer bg-transparent border-none"
+                        >
+                          សម្អាតការស្វែងរកទាំងអស់ (Reset Filters)
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="divide-y divide-gray-100 dark:divide-white/5 bg-white dark:bg-[#141720] rounded-2xl border border-gray-200 dark:border-white/10 overflow-hidden shadow-xs">
+                        {displayedProfileWalletTx.map((tx) => {
+                          const isDeposit = tx.type === "deposit";
+                          const isReward = tx.type === "coin_reward";
+                          const isRedeem = tx.type === "coin_redeem";
+                          const isPurchase = tx.type === "purchase";
+                          const statusLower = (tx.status || "").toLowerCase();
+                          const isPending = statusLower === "pending" || statusLower === "processing";
+                          const isFailed = ["failed", "cancelled", "rejected", "declined", "error"].includes(statusLower);
+
+                          return (
+                            <div
+                              key={tx.id}
+                              className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                    isPending
+                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                                      : isFailed
+                                      ? "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400"
+                                      : isDeposit
+                                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                                      : isReward
+                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400"
+                                      : isRedeem
+                                      ? "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400"
+                                      : "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400"
+                                  }`}
+                                >
+                                  {isDeposit ? (
+                                    <ArrowDownLeft size={18} />
+                                  ) : isReward ? (
+                                    <Sparkles size={18} />
+                                  ) : isRedeem ? (
+                                    <RefreshCw size={16} />
+                                  ) : (
+                                    <ArrowUpRight size={18} />
+                                  )}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <h5 className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                    {tx.description}
+                                  </h5>
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                    <span>
+                                      {new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                    {tx.reference_id && (
+                                      <span className="truncate">• Ref: {tx.reference_id}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                <div className="text-right space-y-0.5">
+                                  {isReward && (
+                                    <div className="text-xs sm:text-sm font-black text-amber-600 dark:text-amber-400">
+                                      +{tx.coins} Coins
+                                    </div>
+                                  )}
+                                  {isRedeem && (
+                                    <div>
+                                      <div className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400">
+                                        +${Number(tx.amount).toFixed(2)} USD
+                                      </div>
+                                      <div className="text-[10px] text-gray-400">-{tx.coins} Coins</div>
+                                    </div>
+                                  )}
+                                  {isDeposit && (
+                                    <div
+                                      className={`text-xs sm:text-sm font-black ${
+                                        isPending
+                                          ? "text-amber-600 dark:text-amber-400"
+                                          : isFailed
+                                          ? "text-red-500 line-through"
+                                          : "text-emerald-600 dark:text-emerald-400"
+                                      }`}
+                                    >
+                                      +${Number(tx.amount).toFixed(2)} USD
+                                    </div>
+                                  )}
+                                  {isPurchase && (
+                                    <div className="text-xs sm:text-sm font-black text-red-600 dark:text-red-400">
+                                      -${Math.abs(Number(tx.amount)).toFixed(2)} USD
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    {isPending ? (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                        <span>PENDING</span>
+                                      </span>
+                                    ) : isFailed ? (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                        <span>FAILED</span>
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                        <span>COMPLETED</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Delete single transaction record button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteProfileWalletTx(tx.id)}
+                                  disabled={profileWalletTxDeletingId === tx.id}
+                                  className="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors border-none cursor-pointer shrink-0 disabled:opacity-40"
+                                  title="លុបកំណត់ត្រានេះ (Delete record)"
+                                >
+                                  {profileWalletTxDeletingId === tx.id ? (
+                                    <Loader2 size={15} className="animate-spin text-red-600" />
+                                  ) : (
+                                    <Trash2 size={15} />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Pagination: Show 10 by default & See More */}
+                      <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/10 flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                          កំពុងបង្ហាញ {displayedProfileWalletTx.length} នៃ {filteredProfileWalletTx.length} ប្រតិបត្តិការ
+                        </span>
+
+                        <div className="flex items-center gap-2">
+                          {hasMoreProfileWalletTx && (
+                            <button
+                              type="button"
+                              onClick={() => setProfileWalletTxVisibleCount((prev) => prev + 10)}
+                              className="px-4 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#721515] text-white text-xs font-bold transition-all border-none cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+                            >
+                              <span>មើលបន្ថែម (+10 ទៀត) • See More</span>
+                              <ChevronDown size={14} />
+                            </button>
+                          )}
+
+                          {profileWalletTxVisibleCount > 10 && (
+                            <button
+                              type="button"
+                              onClick={() => setProfileWalletTxVisibleCount(10)}
+                              className="px-3.5 py-2 rounded-xl bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 text-xs font-semibold transition-all border-none cursor-pointer flex items-center gap-1"
+                            >
+                              <span>បង្ហាញតែ ១០ វិញ (Show 10 Only)</span>
+                              <ChevronUp size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

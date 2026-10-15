@@ -1393,6 +1393,8 @@ Route::post('/user/wallet/topup/alert-admin', [\App\Http\Controllers\WalletContr
 Route::post('/user/wallet/topup/card', [\App\Http\Controllers\WalletController::class, 'processCardTopup'])->middleware('throttle:10,1');
 Route::post('/user/wallet/redeem-coins', [\App\Http\Controllers\WalletController::class, 'convertCoins'])->middleware('throttle:10,1');
 Route::post('/user/wallet/pay-order', [\App\Http\Controllers\WalletController::class, 'payWithWallet'])->middleware('throttle:15,1');
+Route::delete('/user/wallet/transactions/{id}', [\App\Http\Controllers\WalletController::class, 'deleteTransaction'])->middleware('throttle:30,1');
+Route::post('/user/wallet/transactions/clear', [\App\Http\Controllers\WalletController::class, 'clearTransactions'])->middleware('throttle:10,1');
 
 // App Version & Real-Time Release Check (24-Hour Cache to Protect Cloud Free Tier)
 Route::get('/app-version', function () {

@@ -7,13 +7,16 @@ import {
   Wallet, Sparkles, Plus, RefreshCw, Flame, CheckCircle2,
   Calendar, Award, ArrowUpRight, ArrowDownLeft, ShieldCheck,
   ChevronRight, ChevronLeft, ExternalLink, Share2, Eye, MessageSquare, ShoppingCart,
-  CreditCard, ArrowRight, Clock, Check, AlertCircle, History
+  CreditCard, ArrowRight, Clock, Check, AlertCircle, History,
+  Trash2, Search, X, ChevronDown, ChevronUp, Filter, Loader2
 } from "lucide-react";
 import {
   getWalletData,
   getCachedWalletData,
   claimDailyCheckin,
   claimActivityReward,
+  deleteWalletTransaction,
+  clearWalletTransactions,
   WalletData,
   WalletTransaction,
 } from "@/lib/services/wallet.service";
@@ -37,6 +40,12 @@ export default function WalletAndCoinsPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ title: string; desc: string } | null>(null);
   const [txFilter, setTxFilter] = useState<"all" | "deposit" | "reward" | "purchase">("all");
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+  const [searchDate, setSearchDate] = useState<string>("");
+  const [searchKeyword, setSearchKeyword] = useState<string>("");
+  const [datePreset, setDatePreset] = useState<"all" | "today" | "7days" | "30days">("all");
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [clearing, setClearing] = useState<boolean>(false);
 
   const loadData = async (isSilent = false) => {
     if (!isSilent && !wallet) setLoading(true);
@@ -117,13 +126,78 @@ export default function WalletAndCoinsPage() {
     }
   };
 
+  const handleDeleteTransaction = async (id: number) => {
+    if (!window.confirm("តើអ្នកពិតជាចង់លុបប្រវត្តិប្រតិបត្តិការនេះចេញពី Ledger មែនទេ? (Delete this transaction record?)")) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      await deleteWalletTransaction(id);
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      triggerToast("🗑️ បានលុបជោគជ័យ", "បានលុបកំណត់ត្រាប្រតិបត្តិការចេញពីប្រវត្តិរបស់អ្នក។");
+    } catch (err: any) {
+      triggerToast("⚠️ បរាជ័យ", err.response?.data?.message || "មិនអាចលុបប្រតិបត្តិការបានទេ");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleClearAllTransactions = async () => {
+    if (!window.confirm("តើអ្នកពិតជាចង់សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់មែនទេ? (Clear all transaction history?)")) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await clearWalletTransactions();
+      setTransactions([]);
+      triggerToast("🧹 បានសម្អាតជោគជ័យ", "ប្រវត្តិប្រតិបត្តិការត្រូវបានសម្អាតទាំងអស់។");
+    } catch (err: any) {
+      triggerToast("⚠️ បរាជ័យ", err.response?.data?.message || "មិនអាចសម្អាតបានទេ");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const filteredTransactions = transactions.filter((tx) => {
-    if (txFilter === "all") return true;
-    if (txFilter === "deposit") return tx.type === "deposit";
-    if (txFilter === "reward") return tx.type === "coin_reward" || tx.type === "coin_redeem";
-    if (txFilter === "purchase") return tx.type === "purchase";
+    // 1. Type filter
+    if (txFilter === "deposit" && tx.type !== "deposit") return false;
+    if (txFilter === "reward" && tx.type !== "coin_reward" && tx.type !== "coin_redeem") return false;
+    if (txFilter === "purchase" && tx.type !== "purchase") return false;
+
+    // 2. Date filter (exact or preset)
+    if (searchDate) {
+      const txDate = new Date(tx.created_at).toISOString().slice(0, 10);
+      if (txDate !== searchDate) return false;
+    } else if (datePreset !== "all") {
+      const txTime = new Date(tx.created_at).getTime();
+      const now = Date.now();
+      if (datePreset === "today") {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const txDate = new Date(tx.created_at).toISOString().slice(0, 10);
+        if (txDate !== todayStr) return false;
+      } else if (datePreset === "7days") {
+        if (now - txTime > 7 * 24 * 3600 * 1000) return false;
+      } else if (datePreset === "30days") {
+        if (now - txTime > 30 * 24 * 3600 * 1000) return false;
+      }
+    }
+
+    // 3. Keyword filter
+    if (searchKeyword.trim()) {
+      const kw = searchKeyword.toLowerCase();
+      const desc = (tx.description || "").toLowerCase();
+      const ref = (tx.reference_id || "").toLowerCase();
+      const amount = String(tx.amount || "");
+      if (!desc.includes(kw) && !ref.includes(kw) && !amount.includes(kw)) {
+        return false;
+      }
+    }
+
     return true;
   });
+
+  const displayedTransactions = filteredTransactions.slice(0, visibleCount);
+  const hasMore = filteredTransactions.length > visibleCount;
 
   const streak = wallet?.daily_checkin?.streak || 0;
   const canClaimDaily = wallet?.daily_checkin?.can_claim ?? true;
@@ -551,144 +625,328 @@ export default function WalletAndCoinsPage() {
             </div>
           </div>
 
-          {/* ── Section 4: Transactions History ── */}
-          <div id="transaction-history" className="rounded-2xl sm:rounded-3xl bg-[#0d1017] p-4 sm:p-5.5 border border-white/[0.08] shadow-xl space-y-3.5">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
+          {/* ── Section 4: Transactions History (Ledger with Search, Delete & See More) ── */}
+          <div id="transaction-history" className="rounded-2xl sm:rounded-3xl bg-[#0d1017] p-4 sm:p-5.5 border border-white/[0.08] shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <span>ប្រវត្តិប្រតិបត្តិការ (Transaction Ledger)</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-white/[0.08] text-gray-300 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-gray-300 text-[10px] font-mono font-bold">
                     {filteredTransactions.length}
                   </span>
                 </h3>
-                <p className="text-[10px] text-gray-400">
-                  រាល់ការបញ្ចូលលុយ ការទិញទំនិញ និងការទទួលបានកាក់
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  បង្ហាញត្រឹមតែ ១០ ប្រតិបត្តិការចុងក្រោយ (អាចស្វែងរកតាមកាលបរិច្ឆេទ ឬចុចមើលបន្ថែម)
                 </p>
               </div>
 
-              {/* Filters */}
-              <div className="flex gap-1 overflow-x-auto pb-0.5 max-w-full">
-                {(["all", "deposit", "reward", "purchase"] as const).map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setTxFilter(f)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border cursor-pointer whitespace-nowrap ${
-                      txFilter === f
-                        ? "bg-red-600 text-white border-red-500 shadow-sm"
-                        : "bg-white/[0.04] hover:bg-white/[0.08] text-gray-400 border-white/[0.06]"
-                    }`}
-                  >
-                    {f === "all" ? "ទាំងអស់" : f === "deposit" ? "បញ្ចូលលុយ" : f === "reward" ? "កាក់" : "ការទិញ"}
-                  </button>
-                ))}
+              {/* Action: Clear All if transactions exist */}
+              {transactions.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllTransactions}
+                  disabled={clearing}
+                  className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់"
+                >
+                  {clearing ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                  <span>សម្អាតប្រវត្តិ (Clear All)</span>
+                </button>
+              )}
+            </div>
+
+            {/* Date Search & Preset Chips Bar */}
+            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                {/* Date Picker Input */}
+                <div className="relative flex-1">
+                  <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={searchDate}
+                    onChange={(e) => {
+                      setSearchDate(e.target.value);
+                      setDatePreset("all");
+                      setVisibleCount(10);
+                    }}
+                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none font-mono"
+                    title="ជ្រើសរើសថ្ងៃជាក់លាក់ (Search by exact date)"
+                  />
+                  {searchDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchDate("");
+                        setVisibleCount(10);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                      title="សម្អាតថ្ងៃ (Clear date)"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Keyword search input */}
+                <div className="relative flex-1">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchKeyword}
+                    onChange={(e) => {
+                      setSearchKeyword(e.target.value);
+                      setVisibleCount(10);
+                    }}
+                    placeholder="ស្វែងរកតាមឈ្មោះ, Ref, ចំនួនទឹកប្រាក់..."
+                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
+                  />
+                  {searchKeyword && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchKeyword("");
+                        setVisibleCount(10);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                      title="សម្អាតពាក្យស្វែងរក"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Presets & Category Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.04]">
+                {/* Date Presets */}
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px]">
+                  <span className="text-gray-500 mr-1 hidden sm:inline">កាលបរិច្ឆេទ:</span>
+                  {(
+                    [
+                      { id: "all", label: "ទាំងអស់ (All)" },
+                      { id: "today", label: "ថ្ងៃនេះ (Today)" },
+                      { id: "7days", label: "៧ ថ្ងៃ (7 Days)" },
+                      { id: "30days", label: "ខែនេះ (30 Days)" },
+                    ] as const
+                  ).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setDatePreset(p.id);
+                        setSearchDate("");
+                        setVisibleCount(10);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer whitespace-nowrap border ${
+                        datePreset === p.id && !searchDate
+                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                          : "bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] border-white/[0.04]"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Type Filter Buttons */}
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px]">
+                  {(["all", "deposit", "reward", "purchase"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => {
+                        setTxFilter(f);
+                        setVisibleCount(10);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all border cursor-pointer whitespace-nowrap ${
+                        txFilter === f
+                          ? "bg-red-600 text-white border-red-500 shadow-xs"
+                          : "bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 border-white/[0.04]"
+                      }`}
+                    >
+                      {f === "all" ? "គ្រប់ប្រភេទ" : f === "deposit" ? "បញ្ចូលលុយ" : f === "reward" ? "កាក់" : "ការទិញ"}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* List */}
             {filteredTransactions.length === 0 ? (
-              <div className="py-8 text-center text-gray-500 text-xs">
-                មិនទាន់មានប្រវត្តិប្រតិបត្តិការនៅឡើយទេ។
+              <div className="py-10 text-center space-y-2">
+                <div className="w-10 h-10 rounded-2xl bg-white/[0.04] text-gray-500 flex items-center justify-center mx-auto">
+                  <History size={18} />
+                </div>
+                <div className="text-gray-400 text-xs font-medium">
+                  {searchDate || searchKeyword || datePreset !== "all" || txFilter !== "all"
+                    ? "មិនមានប្រតិបត្តិការត្រូវនឹងលក្ខខណ្ឌស្វែងរកនេះទេ"
+                    : "មិនទាន់មានប្រវត្តិប្រតិបត្តិការនៅឡើយទេ"}
+                </div>
+                {(searchDate || searchKeyword || datePreset !== "all" || txFilter !== "all") && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchDate("");
+                      setSearchKeyword("");
+                      setDatePreset("all");
+                      setTxFilter("all");
+                      setVisibleCount(10);
+                    }}
+                    className="text-[11px] text-amber-400 hover:underline cursor-pointer bg-transparent border-none font-bold"
+                  >
+                    សម្អាតការស្វែងរកទាំងអស់ (Reset Filters)
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.04]">
-                {filteredTransactions.map((tx) => {
-                  const isDeposit = tx.type === "deposit";
-                  const isReward = tx.type === "coin_reward";
-                  const isRedeem = tx.type === "coin_redeem";
-                  const isPurchase = tx.type === "purchase";
-                  const statusLower = (tx.status || "").toLowerCase();
-                  const isPending = statusLower === "pending" || statusLower === "processing";
-                  const isFailed = ["failed", "cancelled", "rejected", "declined", "error"].includes(statusLower);
+              <div className="space-y-3">
+                <div className="divide-y divide-white/[0.04]">
+                  {displayedTransactions.map((tx) => {
+                    const isDeposit = tx.type === "deposit";
+                    const isReward = tx.type === "coin_reward";
+                    const isRedeem = tx.type === "coin_redeem";
+                    const isPurchase = tx.type === "purchase";
+                    const statusLower = (tx.status || "").toLowerCase();
+                    const isPending = statusLower === "pending" || statusLower === "processing";
+                    const isFailed = ["failed", "cancelled", "rejected", "declined", "error"].includes(statusLower);
 
-                  return (
-                    <div key={tx.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2.5">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isPending
-                            ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
-                            : isFailed
-                            ? "bg-red-500/15 text-red-400 border border-red-500/20"
-                            : isDeposit
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : isReward
-                            ? "bg-amber-500/15 text-amber-400"
-                            : isRedeem
-                            ? "bg-blue-500/15 text-blue-400"
-                            : "bg-red-500/15 text-red-400"
-                        }`}>
-                          {isDeposit ? (
-                            <ArrowDownLeft size={16} />
-                          ) : isReward ? (
-                            <Sparkles size={16} />
-                          ) : isRedeem ? (
-                            <RefreshCw size={14} />
-                          ) : (
-                            <ArrowUpRight size={16} />
-                          )}
-                        </div>
-
-                        <div className="min-w-0">
-                          <h5 className="text-xs font-semibold text-white truncate">{tx.description}</h5>
-                          <div className="flex items-center gap-1.5 text-[9px] text-gray-400 mt-0.5">
-                            <span>{new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                            {tx.reference_id && (
-                              <span className="truncate">• Ref: {tx.reference_id}</span>
+                    return (
+                      <div key={tx.id} className="py-2.5 sm:py-3 flex items-center justify-between gap-2.5 group">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            isPending
+                              ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                              : isFailed
+                              ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                              : isDeposit
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : isReward
+                              ? "bg-amber-500/15 text-amber-400"
+                              : isRedeem
+                              ? "bg-blue-500/15 text-blue-400"
+                              : "bg-red-500/15 text-red-400"
+                          }`}>
+                            {isDeposit ? (
+                              <ArrowDownLeft size={16} />
+                            ) : isReward ? (
+                              <Sparkles size={16} />
+                            ) : isRedeem ? (
+                              <RefreshCw size={14} />
+                            ) : (
+                              <ArrowUpRight size={16} />
                             )}
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Amount / Coins change */}
-                      <div className="text-right shrink-0 space-y-0.5">
-                        {isReward && (
-                          <div className="text-xs font-bold text-amber-400">
-                            +{tx.coins} Coins
-                          </div>
-                        )}
-                        {isRedeem && (
-                          <div>
-                            <div className="text-xs font-bold text-emerald-400">
-                              +${Number(tx.amount).toFixed(2)} USD
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-semibold text-white truncate">{tx.description}</h5>
+                            <div className="flex items-center gap-1.5 text-[9px] text-gray-400 mt-0.5">
+                              <span>{new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                              {tx.reference_id && (
+                                <span className="truncate">• Ref: {tx.reference_id}</span>
+                              )}
                             </div>
-                            <div className="text-[9px] text-gray-400">-{tx.coins} Coins</div>
                           </div>
-                        )}
-                        {isDeposit && (
-                          <div className={`text-xs font-bold ${
-                            isPending ? "text-amber-400" : isFailed ? "text-red-400/80 line-through" : "text-emerald-400"
-                          }`}>
-                            +${Number(tx.amount).toFixed(2)} USD
-                          </div>
-                        )}
-                        {isPurchase && (
-                          <div className="text-xs font-bold text-red-400">
-                            -${Math.abs(Number(tx.amount)).toFixed(2)} USD
-                          </div>
-                        )}
+                        </div>
 
-                        <div>
-                          {isPending ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                              <span>PENDING</span>
-                            </span>
-                          ) : isFailed ? (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                              <span>FAILED</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              <span>COMPLETED</span>
-                            </span>
-                          )}
+                        {/* Amount / Coins change + Delete Button */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="text-right space-y-0.5">
+                            {isReward && (
+                              <div className="text-xs font-bold text-amber-400">
+                                +{tx.coins} Coins
+                              </div>
+                            )}
+                            {isRedeem && (
+                              <div>
+                                <div className="text-xs font-bold text-emerald-400">
+                                  +${Number(tx.amount).toFixed(2)} USD
+                                </div>
+                                <div className="text-[9px] text-gray-400">-{tx.coins} Coins</div>
+                              </div>
+                            )}
+                            {isDeposit && (
+                              <div className={`text-xs font-bold ${
+                                isPending ? "text-amber-400" : isFailed ? "text-red-400/80 line-through" : "text-emerald-400"
+                              }`}>
+                                +${Number(tx.amount).toFixed(2)} USD
+                              </div>
+                            )}
+                            {isPurchase && (
+                              <div className="text-xs font-bold text-red-400">
+                                -${Math.abs(Number(tx.amount)).toFixed(2)} USD
+                              </div>
+                            )}
+
+                            <div>
+                              {isPending ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                  <span>PENDING</span>
+                                </span>
+                              ) : isFailed ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                  <span>FAILED</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  <span>COMPLETED</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Delete single transaction record */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            disabled={deletingId === tx.id}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors border-none cursor-pointer shrink-0 disabled:opacity-40"
+                            title="លុបកំណត់ត្រានេះ (Delete record)"
+                          >
+                            {deletingId === tx.id ? (
+                              <Loader2 size={13} className="animate-spin text-red-400" />
+                            ) : (
+                              <Trash2 size={13} />
+                            )}
+                          </button>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* See More / Show Less Controls (Shows 10 by default) */}
+                <div className="pt-3 border-t border-white/[0.04] flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[10px] text-gray-400 font-mono">
+                    កំពុងបង្ហាញ {displayedTransactions.length} នៃ {filteredTransactions.length} ប្រតិបត្តិការ
+                  </span>
+
+                  <div className="flex items-center gap-2">
+                    {hasMore && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleCount((prev) => prev + 10)}
+                        className="px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-bold transition-all border border-white/[0.08] cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+                      >
+                        <span>មើលបន្ថែម (+10 ទៀត) • See More</span>
+                        <ChevronDown size={14} />
+                      </button>
+                    )}
+
+                    {visibleCount > 10 && (
+                      <button
+                        type="button"
+                        onClick={() => setVisibleCount(10)}
+                        className="px-3 py-1.5 rounded-xl bg-transparent hover:bg-white/[0.04] text-gray-400 hover:text-white text-xs font-medium transition-all border border-white/[0.04] cursor-pointer flex items-center gap-1"
+                      >
+                        <span>បង្ហាញតែ ១០ វិញ (Show 10 Only)</span>
+                        <ChevronUp size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

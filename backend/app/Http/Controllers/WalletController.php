@@ -136,12 +136,27 @@ class WalletController extends Controller
             $streak = 0;
         }
 
-        // Fetch recent 30 transactions (lightweight column selection)
-        $transactions = WalletTransaction::where('firebase_uid', $user->firebase_uid)
-            ->select(['id', 'firebase_uid', 'type', 'amount', 'coins', 'description', 'payment_method', 'status', 'created_at'])
-            ->orderBy('created_at', 'desc')
-            ->limit(30)
-            ->get();
+        // Fetch transactions with optional date and type filtering
+        $txQuery = WalletTransaction::where('firebase_uid', $user->firebase_uid)
+            ->select(['id', 'firebase_uid', 'type', 'amount', 'coins', 'description', 'payment_method', 'status', 'created_at']);
+
+        if ($request->filled('date')) {
+            $txQuery->whereDate('created_at', $request->query('date'));
+        } elseif ($request->filled('start_date') && $request->filled('end_date')) {
+            $txQuery->whereBetween('created_at', [$request->query('start_date') . ' 00:00:00', $request->query('end_date') . ' 23:59:59']);
+        }
+
+        if ($request->filled('type') && $request->query('type') !== 'all') {
+            $type = $request->query('type');
+            if ($type === 'reward') {
+                $txQuery->whereIn('type', ['coin_reward', 'coin_redeem']);
+            } else {
+                $txQuery->where('type', $type);
+            }
+        }
+
+        $limit = min((int)($request->query('limit', 100)), 500);
+        $transactions = $txQuery->orderBy('created_at', 'desc')->limit($limit)->get();
 
         $stats = \Illuminate\Support\Facades\Cache::remember("wallet_stats_{$user->firebase_uid}", 60, function () use ($user) {
             return [
@@ -1153,5 +1168,72 @@ class WalletController extends Controller
                 'message' => "ការកាត់ប្រាក់តាមកាត {$brand} ចំនួន $" . number_format($amount, 2) . " ទទួលបានជោគជ័យ 100%! 🎉",
             ]);
         });
+    }
+
+    /**
+     * DELETE /api/user/wallet/transactions/{id}
+     * Allows user to delete a single transaction from their ledger.
+     */
+    public function deleteTransaction(Request $request, $id)
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $tx = WalletTransaction::where('id', $id)
+            ->where('firebase_uid', $user->firebase_uid)
+            ->first();
+
+        if (!$tx) {
+            return response()->json([
+                'success' => false,
+                'message' => 'រកមិនឃើញប្រតិបត្តិការនេះឡើយ (Transaction not found)',
+            ], 404);
+        }
+
+        $tx->delete();
+        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានលុបប្រវត្តិប្រតិបត្តិការជោគជ័យ (Transaction deleted successfully)',
+            'deleted_id' => (int)$id,
+        ]);
+    }
+
+    /**
+     * POST /api/user/wallet/transactions/clear
+     * Clears all transactions or transactions for a specific date / type for the user.
+     */
+    public function clearTransactions(Request $request)
+    {
+        $user = $this->resolveUser($request);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $query = WalletTransaction::where('firebase_uid', $user->firebase_uid);
+
+        if ($request->filled('date')) {
+            $query->whereDate('created_at', $request->query('date'));
+        }
+        if ($request->filled('type') && $request->query('type') !== 'all') {
+            $type = $request->query('type');
+            if ($type === 'reward') {
+                $query->whereIn('type', ['coin_reward', 'coin_redeem']);
+            } else {
+                $query->where('type', $type);
+            }
+        }
+
+        $deletedCount = $query->delete();
+        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'បានសម្អាតប្រវត្តិប្រតិបត្តិការជោគជ័យ (Transactions cleared successfully)',
+            'deleted_count' => $deletedCount,
+        ]);
     }
 }
