@@ -15,10 +15,53 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
+        $isAdmin = $request->header('X-Admin-Token') || $request->header('Authorization') || $request->has('fresh') || $request->has('_t');
+
+        if ($isAdmin) {
+            $query = Product::with('category');
+
+            if ($request->filled('category_id')) {
+                $query->where('category_id', $request->category_id);
+            }
+
+            if ($request->filled('category')) {
+                $slug = $request->category;
+                $query->whereHas('category', function ($q) use ($slug) {
+                    $q->where('slug', $slug);
+                });
+            }
+
+            if ($request->filled('search')) {
+                $s = $request->search;
+                $isPg = config('database.default') === 'pgsql';
+                $likeOp = $isPg ? 'ilike' : 'like';
+                $query->where(function ($q) use ($s, $likeOp) {
+                    $q->where('name', $likeOp, "%{$s}%")
+                      ->orWhere('description', $likeOp, "%{$s}%")
+                      ->orWhere('brand', $likeOp, "%{$s}%");
+                });
+            }
+
+            if ($request->has('featured')) {
+                $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
+            }
+
+            $products = $query
+                ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
+                ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            return response()->json($products)
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
+        }
+
         $version = Cache::get('products_cache_version', 1);
         $cacheKey = "products_list_v{$version}_" . md5(json_encode($request->all()));
 
-        $products = Cache::remember($cacheKey, 3600, function () use ($request) {
+        $products = Cache::remember($cacheKey, 30, function () use ($request) {
             $query = Product::with('category');
 
             if ($request->filled('category_id')) {
@@ -54,7 +97,10 @@ class ProductController extends Controller
                 ->get();
         });
 
-        return response()->json($products);
+        return response()->json($products)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
@@ -163,12 +209,32 @@ class ProductController extends Controller
     /**
      * Display the specified product.
      */
-    public function show($identifier)
+    public function show(Request $request, $identifier)
     {
+        $isAdmin = $request->header('X-Admin-Token') || $request->header('Authorization') || $request->has('fresh') || $request->has('_t');
+
+        if ($isAdmin) {
+            $query = Product::with('category');
+            if (is_numeric($identifier)) {
+                $query->where('id', $identifier);
+            } else {
+                $query->where('slug', $identifier);
+            }
+            $product = $query->first();
+
+            if (!$product) {
+                return response()->json(['message' => 'Product not found'], 404);
+            }
+
+            return response()->json($product)
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache');
+        }
+
         $version = Cache::get('products_cache_version', 1);
         $cacheKey = "product_single_{$identifier}_v{$version}";
 
-        $product = Cache::remember($cacheKey, 3600, function () use ($identifier) {
+        $product = Cache::remember($cacheKey, 30, function () use ($identifier) {
             $query = Product::with('category');
             
             if (is_numeric($identifier)) {
@@ -184,7 +250,9 @@ class ProductController extends Controller
             return response()->json(['message' => 'Product not found'], 404);
         }
 
-        return response()->json($product);
+        return response()->json($product)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     /**
@@ -230,10 +298,27 @@ class ProductController extends Controller
             $validated['slug'] = Str::slug($validated['name']) . '-' . time();
         }
 
-        // Support explicitly clearing nullable fields
-        if ($request->has('sale_price') && ($request->input('sale_price') === '' || $request->input('sale_price') === null)) {
-            $validated['sale_price'] = null;
+        // Clean price formatting (strip $, commas, etc.)
+        if ($request->has('price')) {
+            $rawPrice = $request->input('price');
+            $cleanPrice = preg_replace('/[^0-9.]/', '', (string)$rawPrice);
+            if ($cleanPrice !== '') {
+                $validated['price'] = $cleanPrice;
+            }
         }
+
+        // Clean sale_price formatting
+        if ($request->has('sale_price')) {
+            $rawSale = $request->input('sale_price');
+            if ($rawSale === null || trim((string)$rawSale) === '') {
+                $validated['sale_price'] = null;
+            } else {
+                $cleanSale = preg_replace('/[^0-9.]/', '', (string)$rawSale);
+                $validated['sale_price'] = $cleanSale !== '' ? $cleanSale : null;
+            }
+        }
+
+        // Support explicitly clearing nullable fields
         if ($request->has('badge') && ($request->input('badge') === '' || $request->input('badge') === null)) {
             $validated['badge'] = null;
         }
@@ -254,6 +339,8 @@ class ProductController extends Controller
         unset($validated['image'], $validated['image_urls']);
 
         $product->update($validated);
+        $product->touch();
+        $product->refresh();
         $product->load('category');
 
         if ((int)$product->stock <= 3) {
@@ -274,12 +361,20 @@ class ProductController extends Controller
             } catch (\Throwable $t) {}
         }
 
+        Cache::forget("product_single_{$product->id}");
+        Cache::forget("product_single_{$id}");
+        if ($product->slug) {
+            Cache::forget("product_single_{$product->slug}");
+        }
         Cache::increment('products_cache_version');
 
         return response()->json([
             'message' => 'Product updated successfully',
             'data' => $product
-        ]);
+        ])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**

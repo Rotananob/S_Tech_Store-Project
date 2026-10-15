@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
 import { bumpProduct, togglePinProduct } from "@/lib/services/product.service";
-import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop, Zap, Pin, Loader2 } from "lucide-react";
+import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop, Zap, Pin, Loader2, RefreshCw } from "lucide-react";
 
 type Category = {
   id: number;
@@ -51,7 +51,13 @@ export default function AdminProductsPage() {
   const fetchProducts = async (showSpinner = false) => {
     try {
       if (showSpinner) setLoading(true);
-      const res = await api.get('/products');
+      const res = await api.get('/products', {
+        params: { _t: Date.now(), fresh: 1 },
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       setProducts(list);
       try {
@@ -65,6 +71,7 @@ export default function AdminProductsPage() {
   };
 
   useEffect(() => {
+    // 1. Initial render from cache for 0ms blank screen
     let hasCache = false;
     try {
       const cached = sessionStorage.getItem('admin_cached_products');
@@ -78,7 +85,65 @@ export default function AdminProductsPage() {
       }
     } catch (e) {}
 
+    // 2. Immediately trigger fresh fetch from database
     fetchProducts(!hasCache);
+
+    // 3. Real-time In-Page & Cross-Tab Synchronizer
+    const handleProductUpdated = (e: any) => {
+      const updated = e.detail || e;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      
+      setProducts(prev => {
+        const exists = prev.some(p => Number(p.id) === numId);
+        let next: Product[];
+        if (exists) {
+          next = prev.map(p => Number(p.id) === numId ? { ...p, ...updated } : p);
+        } else {
+          next = [updated, ...prev];
+        }
+        try {
+          sessionStorage.setItem('admin_cached_products', JSON.stringify(next));
+        } catch (_) {}
+        return next;
+      });
+
+      showToast(`⚡ ផលិតផល "${updated.name}" បាន update ក្នុងតារាងភ្លាមៗ!`);
+    };
+
+    window.addEventListener('stech:product-updated', handleProductUpdated as EventListener);
+
+    // 4. BroadcastChannel for cross-tab instant sync
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        channel = new BroadcastChannel('stech_products_channel');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'PRODUCT_UPDATED' && event.data.product) {
+            handleProductUpdated({ detail: event.data.product });
+          }
+        };
+      }
+    } catch (_) {}
+
+    // 5. Storage event fallback (different browser windows)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'stech_last_product_update' && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.product) {
+            handleProductUpdated({ detail: data.product });
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('stech:product-updated', handleProductUpdated as EventListener);
+      window.removeEventListener('storage', handleStorage);
+      if (channel) channel.close();
+    };
   }, []);
 
   const getStockStatus = (stock: number) => {
@@ -256,13 +321,24 @@ export default function AdminProductsPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
           <p className="text-gray-500 text-sm">Manage inventory, pricing, and specifications.</p>
         </div>
-        <button 
-          onClick={() => router.push("/rok-mix-khernh/products/new")} 
-          className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors"
-        >
-          <Plus size={16} />
-          Add New Product
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button 
+            onClick={() => fetchProducts(true)} 
+            disabled={loading}
+            className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+            title="Refresh Live Data"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin text-[#8B1A1A]" : ""} />
+            <span>Refresh</span>
+          </button>
+          <button 
+            onClick={() => router.push("/rok-mix-khernh/products/new")} 
+            className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors cursor-pointer"
+          >
+            <Plus size={16} />
+            Add New Product
+          </button>
+        </div>
       </div>
 
       {/* Main Card */}

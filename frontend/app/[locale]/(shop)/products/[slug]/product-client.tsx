@@ -14,7 +14,55 @@ import { submitProductReview } from "@/lib/services/product.service";
 import PublicProfileModal from "@/components/ui/PublicProfileModal";
 import SocialShareModal from "@/components/ui/SocialShareModal";
 
-export function ProductDetailClient({ product }: { product: any }) {
+export function ProductDetailClient({ product: initialProduct }: { product: any }) {
+  const [product, setProduct] = useState(initialProduct);
+
+  useEffect(() => {
+    setProduct(initialProduct);
+  }, [initialProduct]);
+
+  useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      const updated = e.detail || e;
+      if (!updated) return;
+      if (Number(updated.id) === Number(product.id) || (updated.slug && updated.slug === product.slug)) {
+        setProduct((prev: any) => ({ ...prev, ...updated }));
+      }
+    };
+
+    window.addEventListener("stech:product-updated", handleProductUpdated as EventListener);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_products_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "PRODUCT_UPDATED" && event.data.product) {
+            handleProductUpdated({ detail: event.data.product });
+          }
+        };
+      }
+    } catch (_) {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "stech_last_product_update" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.product) {
+            handleProductUpdated({ detail: data.product });
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("stech:product-updated", handleProductUpdated as EventListener);
+      window.removeEventListener("storage", handleStorage);
+      if (channel) channel.close();
+    };
+  }, [product?.id, product?.slug]);
+
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);

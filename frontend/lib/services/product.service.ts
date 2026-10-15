@@ -126,24 +126,84 @@ export async function getCategories(): Promise<Category[] | ApiResponse<Category
 }
 
 let lastProductFetchTime = 0;
-const CLIENT_CACHE_TTL = 45 * 1000; // 45 seconds instant client cache
+const CLIENT_CACHE_TTL = 5 * 1000; // 5 seconds instant client cache for ultra-responsive navigation
 let inFlightProductsPromise: Promise<Product[] | ApiResponse<Product[]>> | null = null;
 
-export function invalidateProductCache(): void {
+export function invalidateProductCache(updatedProduct?: any): void {
   lastProductFetchTime = 0;
   lastCategoryFetchTime = 0;
+  singleProductCache.clear();
+  inFlightProductsPromise = null;
+
+  if (updatedProduct && updatedProduct.id) {
+    const normalized = normalizeProduct(updatedProduct);
+    const numId = Number(normalized.id);
+    const idx = cachedProducts.findIndex((p) => p.id === numId || (normalized.slug && p.slug === normalized.slug));
+    if (idx !== -1) {
+      cachedProducts[idx] = { ...cachedProducts[idx], ...normalized };
+    } else {
+      cachedProducts.unshift(normalized);
+    }
+    // Seed single product cache immediately
+    singleProductCache.set(String(numId), { product: normalized, time: Date.now() });
+    if (normalized.slug) {
+      singleProductCache.set(String(normalized.slug), { product: normalized, time: Date.now() });
+    }
+
+    if (typeof window !== "undefined") {
+      // 1. In-page Custom Event
+      try {
+        window.dispatchEvent(new CustomEvent("stech:product-updated", { detail: normalized }));
+      } catch (_) {}
+
+      // 2. Cross-tab BroadcastChannel
+      try {
+        if (typeof BroadcastChannel !== "undefined") {
+          const bc = new BroadcastChannel("stech_products_channel");
+          bc.postMessage({ type: "PRODUCT_UPDATED", product: normalized });
+          bc.close();
+        }
+      } catch (_) {}
+
+      // 3. LocalStorage cross-window storage event fallback
+      try {
+        localStorage.setItem(
+          "stech_last_product_update",
+          JSON.stringify({ product: normalized, timestamp: Date.now() })
+        );
+      } catch (_) {}
+
+      // 4. Update admin_cached_products in sessionStorage if present
+      try {
+        const adminCache = sessionStorage.getItem("admin_cached_products");
+        if (adminCache) {
+          const list = JSON.parse(adminCache);
+          if (Array.isArray(list)) {
+            const aIdx = list.findIndex((p: any) => Number(p.id) === numId);
+            if (aIdx !== -1) {
+              list[aIdx] = { ...list[aIdx], ...normalized };
+            } else {
+              list.unshift(normalized);
+            }
+            sessionStorage.setItem("admin_cached_products", JSON.stringify(list));
+          }
+        }
+      } catch (_) {}
+    }
+  }
 }
 
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
   const isGlobalCatalog = !params || Object.keys(params).length === 0;
+  const isForcedFresh = Boolean(params?._t || params?.fresh);
 
-  // Instant client cache return for fast navigation without redundant DB roundtrips
-  if (typeof window !== "undefined" && isGlobalCatalog && cachedProducts.length > 0 && (Date.now() - lastProductFetchTime < CLIENT_CACHE_TTL)) {
+  // Instant client cache return for fast navigation without redundant DB roundtrips (bypassed if forced fresh)
+  if (!isForcedFresh && typeof window !== "undefined" && isGlobalCatalog && cachedProducts.length > 0 && (Date.now() - lastProductFetchTime < CLIENT_CACHE_TTL)) {
     return cachedProducts;
   }
 
   // Deduplicate concurrent global catalog fetches across multiple components
-  if (isGlobalCatalog && inFlightProductsPromise) {
+  if (isGlobalCatalog && inFlightProductsPromise && !isForcedFresh) {
     return inFlightProductsPromise;
   }
 
@@ -155,9 +215,14 @@ export async function getProducts(params?: Record<string, any>): Promise<Product
       const timeout = setTimeout(() => controller.abort(), 12000);
 
       const res = await fetch(`${getBaseUrl()}/products${query}`, {
-        headers: { Accept: "application/json" },
+        headers: { 
+          Accept: "application/json",
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache"
+        },
+        cache: isForcedFresh ? "no-store" : "default",
         signal: controller.signal,
-        next: { revalidate: 15 },
+        next: isForcedFresh ? { revalidate: 0 } : { revalidate: 15 },
       });
       clearTimeout(timeout);
 
@@ -206,7 +271,7 @@ export async function getProducts(params?: Record<string, any>): Promise<Product
     return filtered;
   })();
 
-  if (isGlobalCatalog) {
+  if (isGlobalCatalog && !isForcedFresh) {
     inFlightProductsPromise = fetchPromise;
   }
 
@@ -218,7 +283,7 @@ const singleProductCache = new Map<string, { product: Product; time: number }>()
 export async function getProduct(id: string | number): Promise<Product | ApiResponse<Product> | null> {
   const cacheKey = String(id);
   const cached = singleProductCache.get(cacheKey);
-  if (cached && (Date.now() - cached.time < 60 * 1000)) {
+  if (cached && (Date.now() - cached.time < 5 * 1000)) {
     return cached.product;
   }
 
@@ -226,7 +291,12 @@ export async function getProduct(id: string | number): Promise<Product | ApiResp
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
     const res = await fetch(`${getBaseUrl()}/products/${id}`, {
-      headers: { Accept: "application/json" },
+      headers: { 
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache"
+      },
+      cache: "no-store",
       signal: controller.signal,
       next: { revalidate: 15 },
     });

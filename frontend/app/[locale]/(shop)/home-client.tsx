@@ -1036,10 +1036,10 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
   const [products, setProducts] = useState<any[]>(initialProducts);
   const t = useTranslations("Products");
 
-  // Client background sync so newly added/edited products in admin reflect immediately
+  // Client background sync & real-time sync so edited products in admin reflect immediately
   useEffect(() => {
     import("@/lib/services/product.service").then(({ getProducts }) => {
-      getProducts()
+      getProducts({ _t: Date.now(), fresh: 1 })
         .then((res) => {
           const list = Array.isArray(res) ? res : (res?.data || []);
           if (list && list.length > 0) {
@@ -1048,6 +1048,45 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
         })
         .catch((err) => console.error("Client fetch products error:", err));
     });
+
+    const handleProductUpdated = (e: any) => {
+      const updated = e.detail || e;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      setProducts(prev => prev.map(p => Number(p.id) === numId ? { ...p, ...updated } : p));
+    };
+
+    window.addEventListener("stech:product-updated", handleProductUpdated as EventListener);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_products_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "PRODUCT_UPDATED" && event.data.product) {
+            handleProductUpdated({ detail: event.data.product });
+          }
+        };
+      }
+    } catch (_) {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "stech_last_product_update" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.product) {
+            handleProductUpdated({ detail: data.product });
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("stech:product-updated", handleProductUpdated as EventListener);
+      window.removeEventListener("storage", handleStorage);
+      if (channel) channel.close();
+    };
   }, []);
 
   useEffect(() => {

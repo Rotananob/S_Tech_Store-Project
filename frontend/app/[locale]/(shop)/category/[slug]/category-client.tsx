@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "@/i18n/routing";
 import ProductCard from "@/components/product/ProductCard";
 import { useLangStore } from "@/store/langStore";
@@ -39,6 +39,55 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
   const { lang } = useLangStore();
   const t = translations[lang].categories;
 
+  const [rawProducts, setRawProducts] = useState<RawProduct[]>(initialProducts);
+
+  useEffect(() => {
+    setRawProducts(initialProducts);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      const updated = e.detail || e;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      setRawProducts((prev) =>
+        prev.map((p) => (Number(p.id) === numId ? { ...p, ...updated } : p))
+      );
+    };
+
+    window.addEventListener("stech:product-updated", handleProductUpdated as EventListener);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_products_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "PRODUCT_UPDATED" && event.data.product) {
+            handleProductUpdated({ detail: event.data.product });
+          }
+        };
+      }
+    } catch (_) {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "stech_last_product_update" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.product) {
+            handleProductUpdated({ detail: data.product });
+          }
+        } catch (_) {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("stech:product-updated", handleProductUpdated as EventListener);
+      window.removeEventListener("storage", handleStorage);
+      if (channel) channel.close();
+    };
+  }, []);
+
   const [sort, setSort] = useState("Popular");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,7 +107,7 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
     return slug;
   };
 
-  let products = initialProducts.filter((p) => {
+  let products = rawProducts.filter((p) => {
     if (slug === "all") return true;
     if (slug === "secondhand") {
       return (

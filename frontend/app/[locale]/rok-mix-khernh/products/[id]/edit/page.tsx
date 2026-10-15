@@ -220,15 +220,18 @@ export default function EditProductPage(props: {
     setSavingStep(1);
 
     try {
+      const cleanPrice = price.trim().replace(/[^0-9.]/g, "");
+      const cleanSalePrice = salePrice.trim().replace(/[^0-9.]/g, "");
+
       const formData = new FormData();
       formData.append("_method", "PUT");
       formData.append("name", name.trim());
       formData.append("category_id", categoryId);
-      formData.append("price", price.trim());
+      formData.append("price", cleanPrice);
       formData.append("stock", String(Math.max(0, parseInt(stock, 10))));
       
-      if (salePrice.trim()) {
-        formData.append("sale_price", salePrice.trim());
+      if (cleanSalePrice) {
+        formData.append("sale_price", cleanSalePrice);
       } else {
         formData.append("sale_price", "");
       }
@@ -259,14 +262,21 @@ export default function EditProductPage(props: {
 
       setSavingStep(2);
 
-      const targetId = productId || originalProduct?.id;
+      const targetId = originalProduct?.id || productId;
       const res = await api.post(`/products/${targetId}`, formData);
-      const updatedData = res.data?.data || res.data || { name, price, stock };
+      const updatedData = res.data?.data || res.data || { 
+        ...originalProduct, 
+        id: Number(targetId), 
+        name: name.trim(), 
+        price: cleanPrice, 
+        sale_price: cleanSalePrice || null,
+        stock: parseInt(stock, 10) 
+      };
 
       setSavingStep(3);
       setSavedProduct(updatedData);
       setOriginalProduct(updatedData);
-      invalidateProductCache();
+      invalidateProductCache(updatedData);
       setModalState("success");
     } catch (e: any) {
       const errorMsg = e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែទំនិញ";

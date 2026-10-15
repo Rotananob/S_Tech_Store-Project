@@ -236,7 +236,7 @@ export default function AddNewProductPage() {
 
       setSavingStep(3);
       setSavedProduct(createdData);
-      invalidateProductCache();
+      invalidateProductCache(createdData);
       setModalState("success");
     } catch (e: any) {
       const errorMsg =
