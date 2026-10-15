@@ -12,10 +12,17 @@ import api from "@/lib/api";
 import { updateCachedWallet } from "@/lib/services/wallet.service";
 import { playCelebrationSound } from "@/lib/celebration-audio";
 import ConfettiShower from "@/components/promotions/ConfettiShower";
-import { useRouter } from "@/i18n/routing";
+import { useRouter, usePathname } from "@/i18n/routing";
 
 export default function WelcomeGiftModal() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Do not render gift modal or floating button inside the Admin portal
+  if (pathname?.includes("/rok-mix-khernh")) {
+    return null;
+  }
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [hasShared, setHasShared] = useState(false);

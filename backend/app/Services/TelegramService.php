@@ -470,11 +470,50 @@ class TelegramService
                 return false;
             }
 
-            // When switching to a genuinely new chat group, reset old topics to generate fresh ones
+            // When switching or connecting, archive old topics and restore target chat topics from vault to prevent duplicates
             $isSwitchingChat = !empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr;
             if ($isSwitchingChat) {
-                Log::info("[TelegramService] Switching bot group from {$settings['chat_id']} to new chat {$chatIdStr}");
-                $settings['topics'] = [];
+                $oldCId = (string)$settings['chat_id'];
+                if (!empty($settings['topics'])) {
+                    $vault = $settings['group_topics_vault'] ?? [];
+                    $vault[$oldCId] = $settings['topics'];
+                    $settings['group_topics_vault'] = $vault;
+                }
+                Log::info("[TelegramService] Switching bot group from {$oldCId} to new chat {$chatIdStr}");
+                $settings['topics'] = $settings['group_topics_vault'][$chatIdStr] ?? [];
+            } else {
+                $cleanChatId = ltrim($chatIdStr, '-');
+                $vault = $settings['group_topics_vault'] ?? [];
+                $vaultTopics = $vault[$chatIdStr] 
+                    ?? $vault["-{$cleanChatId}"] 
+                    ?? $vault["-100{$cleanChatId}"] 
+                    ?? $vault[$cleanChatId] 
+                    ?? null;
+
+                if (empty($vaultTopics) && !empty($settings['previous_topics'])) {
+                    $cleanPrevId = ltrim((string)($settings['previous_chat_id'] ?? ''), '-');
+                    if ($cleanPrevId === $cleanChatId || str_ends_with($cleanChatId, $cleanPrevId) || str_ends_with($cleanPrevId, $cleanChatId)) {
+                        $vaultTopics = $settings['previous_topics'];
+                    }
+                }
+
+                if (empty($vaultTopics)) {
+                    try {
+                        $dbRow = \Illuminate\Support\Facades\DB::table('system_settings')
+                            ->where('key', 'telegram_topics_' . $cleanChatId)
+                            ->first();
+                        if ($dbRow && !empty($dbRow->value)) {
+                            $dbData = json_decode($dbRow->value, true);
+                            if (!empty($dbData['topics']) && is_array($dbData['topics'])) {
+                                $vaultTopics = $dbData['topics'];
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
+                if (!empty($vaultTopics) && is_array($vaultTopics)) {
+                    $settings['topics'] = $vaultTopics;
+                }
             }
 
             $settings['connected'] = true;
@@ -3310,15 +3349,46 @@ class TelegramService
                 ],
             ];
 
+            $cleanChatId = ltrim($chatIdStr, '-');
             $createdTopics = $settings['topics'] ?? [];
             if (!is_array($createdTopics)) {
                 $createdTopics = [];
             }
+
+            // 1. Permanent Vault & DB Restoration: If current memory is empty or missing topics, recover them from the permanent vault or database!
+            if (empty($createdTopics) || count($createdTopics) < count($topicsToCreate)) {
+                $vault = $settings['group_topics_vault'] ?? [];
+                $cleanPrevId = ltrim((string)($settings['previous_chat_id'] ?? ''), '-');
+                $recovered = $vault[$chatIdStr]
+                    ?? $vault["-{$cleanChatId}"]
+                    ?? $vault["-100{$cleanChatId}"]
+                    ?? $vault[$cleanChatId]
+                    ?? null;
+
+                if (empty($recovered) && !empty($settings['previous_topics']) && ($cleanPrevId === $cleanChatId || str_ends_with($cleanChatId, $cleanPrevId) || str_ends_with($cleanPrevId, $cleanChatId))) {
+                    $recovered = $settings['previous_topics'];
+                }
+
+                if (!empty($recovered) && is_array($recovered)) {
+                    $createdTopics = array_merge($recovered, $createdTopics);
+                }
+
+                // Check Neon PostgreSQL database
+                try {
+                    $dbRow = \Illuminate\Support\Facades\DB::table('system_settings')
+                        ->where('key', 'telegram_topics_' . $cleanChatId)
+                        ->first();
+                    if ($dbRow && !empty($dbRow->value)) {
+                        $dbData = json_decode($dbRow->value, true);
+                        if (!empty($dbData['topics']) && is_array($dbData['topics'])) {
+                            $createdTopics = array_merge($dbData['topics'], $createdTopics);
+                        }
+                    }
+                } catch (\Throwable $e) {}
+            }
+
             $connectedChatId = (string)($settings['chat_id'] ?? '');
             $topicsChatId = (string)($settings['topics_chat_id'] ?? $connectedChatId);
-
-            // Normalize chat IDs for robust comparison
-            $cleanChatId = ltrim($chatIdStr, '-');
             $cleanTopicsChatId = ltrim($topicsChatId, '-');
             $cleanConnectedChatId = ltrim($connectedChatId, '-');
 
@@ -3370,7 +3440,25 @@ class TelegramService
                     $settings['topics_chat_id'] = $chatIdStr;
                 }
                 $settings['topics'] = $createdTopics;
+                $vault = $settings['group_topics_vault'] ?? [];
+                $vault[$chatIdStr] = $createdTopics;
+                $settings['group_topics_vault'] = $vault;
                 self::saveSettings($settings);
+
+                try {
+                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                        ['key' => 'telegram_topics_' . $cleanChatId],
+                        [
+                            'value' => json_encode([
+                                'chat_id' => $chatIdStr,
+                                'topics' => $createdTopics,
+                                'updated_at' => now()->toDateTimeString(),
+                            ]),
+                            'updated_at' => now(),
+                        ]
+                    );
+                } catch (\Throwable $e) {}
+
                 return [
                     'ok' => true,
                     'already_exists' => true,
@@ -3517,6 +3605,28 @@ class TelegramService
                 self::sendMessageWithKeyboard($chatId, $topicsOverview, $overviewKb);
             }
 
+            // Always persist confirmed topics to settings, permanent vault, and Neon DB
+            $vault = $settings['group_topics_vault'] ?? [];
+            $vault[$chatIdStr] = $createdTopics;
+            $settings['group_topics_vault'] = $vault;
+            $settings['topics'] = $createdTopics;
+            $settings['topics_chat_id'] = $chatIdStr;
+            self::saveSettings($settings);
+
+            try {
+                \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                    ['key' => 'telegram_topics_' . $cleanChatId],
+                    [
+                        'value' => json_encode([
+                            'chat_id' => $chatIdStr,
+                            'topics' => $createdTopics,
+                            'updated_at' => now()->toDateTimeString(),
+                        ]),
+                        'updated_at' => now(),
+                    ]
+                );
+            } catch (\Throwable $e) {}
+
             return [
                 'ok' => true,
                 'topics' => $createdTopics,
@@ -3533,12 +3643,39 @@ class TelegramService
     public static function disconnect(): bool
     {
         $settings = self::getSettings();
-        if (!empty($settings['chat_id'])) {
+        $oldChatId = (string)($settings['chat_id'] ?? '');
+        $oldTopics = $settings['topics'] ?? [];
+
+        if (!empty($oldChatId)) {
             try {
                 $byeText = "⚠️ <b>ការជូនដំណឹងពី S Tech Store:</b>\n\n"
                     . "Bot ត្រូវបានផ្តាច់ចេញពីគ្រុបនេះដោយ Admin ។ គ្រុបនេះនឹងលែងទទួលបាន Notification ស្វ័យប្រវត្តិទៀតហើយ។";
                 self::sendMessage($settings['chat_id'], $byeText);
             } catch (\Throwable $e) {}
+
+            // Archive the topics permanently in vault so if reconnected to this same group, topics are reused instead of duplicated!
+            if (!empty($oldTopics) && is_array($oldTopics)) {
+                $vault = $settings['group_topics_vault'] ?? [];
+                $vault[$oldChatId] = $oldTopics;
+                $settings['group_topics_vault'] = $vault;
+                $settings['previous_chat_id'] = $oldChatId;
+                $settings['previous_topics'] = $oldTopics;
+
+                try {
+                    $cleanOldId = ltrim($oldChatId, '-');
+                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                        ['key' => 'telegram_topics_' . $cleanOldId],
+                        [
+                            'value' => json_encode([
+                                'chat_id' => $oldChatId,
+                                'topics' => $oldTopics,
+                                'archived_at' => now()->toDateTimeString(),
+                            ]),
+                            'updated_at' => now(),
+                        ]
+                    );
+                } catch (\Throwable $e) {}
+            }
         }
 
         $settings['connected'] = false;
@@ -3547,8 +3684,7 @@ class TelegramService
         $settings['chat_type'] = null;
         $settings['connected_at'] = null;
         $settings['connected_by'] = null;
-        $settings['topics'] = [];
-        $settings['topics_chat_id'] = null;
+        // Keep topics in vault and previous_topics, do NOT wipe memory of the group's threads!
         $settings['pending_tokens'] = [];
 
         self::$cachedSettings = null;
