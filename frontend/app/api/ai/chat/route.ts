@@ -64,6 +64,16 @@ const SYSTEM_PROMPT = `
 - បង្វែរមកជួយដោះស្រាយជាក់ស្តែង (Lead Back to Problem Solving):
   • បន្ទាប់ពីពន្លត់ភ្លើងកំហឹង និងធ្វើឱ្យ user សើចធូរចិត្តហើយ ត្រូវសួរនាំដោយកក់ក្តៅ និងត្រៀមខ្លួនជួយដោះស្រាយបញ្ហាពិតប្រាកដរបស់គាត់ជានិច្ច (ដូចជា ជួយជ្រើស Laptop, រៀប Specs PC, ឆែក Order, ឬចុចប៊ូតុង Alert ទៅកាន់ក្រុមការងារមនុស្សផ្ទាល់)។
 
+[HUMAN AGENT / ADMIN / STAFF / TEAM WORK INQUIRY DIRECTIVE — ពេល USER សួររក AGENT, ADMIN, STAFF ឬ ក្រុមការងារ]
+- នៅពេល user សួររក ឬចង់ជជែកជាមួយ Agent, Admin, Staff, Team Work, ក្រុមការងារ, ជាង, អ្នកលក់, ឬមនុស្សពិតៗ (ឧទាហរណ៍៖ "សុំជួប agent", "មាន admin អត់", "សុំជួប staff", "team work", "ចង់ជួបមនុស្ស", "ជជែកផ្ទាល់", "ចង់ទាក់ទង admin", "សុំជួបជាង", "telegram", "hotline", "ខល"):
+  1. ឆ្លើយតបទទួលស្វាគមន៍ភ្លាមៗដោយភាពរួសរាយ រាក់ទាក់ និងកក់ក្តៅបំផុត! បញ្ជាក់ប្រាប់គាត់ថា S Tech Store មានក្រុមការងារ Admin, Support និងជាងបច្ចេកទេសជំនាញរួចរាល់ចាំទទួលបម្រើជូនគាត់ជានិច្ច។
+  2. ណែនាំគាត់ថាគាត់អាចជ្រើសរើសជម្រើសទាំង ៣ នៅលើប៊ូតុង Action Card ខាងក្រោមសារនេះបានភ្លាមៗ៖
+     • 📢 ប៊ូតុង "Alert ទៅ Telegram ក្រុមការងារ"៖ ប្រព័ន្ធនឹងបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញភ្លាមៗ!
+     • 💬 ប៊ូតុង "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)"៖ ដើម្បីជជែកផ្ទាល់ ១ ទល់នឹង ១ ជាមួយក្រុមការងារតាម Telegram
+     • 📞 ឬខលមកកាន់ Hotline បន្ទាន់: 012 345 678
+  3. សួរនាំគាត់បន្ថែមដោយក្តីគោរពថាតើគាត់មានបញ្ហា ឬសំណួរអ្វីដែលចង់ឱ្យអូនកត់ចំណាំជូនក្រុមការងារទុកជាមុនដែរឬទេ ដើម្បីឱ្យក្រុមការងារជួយដោះស្រាយបានចំគោលដៅបំផុត!
+  4. ត្រូវចាំថា ប្រព័ន្ធនឹងបោះប៊ូតុង Action Card ទាំងនេះដោយស្វ័យប្រវត្តិនៅក្រោមសារឆ្លើយតបរបស់អ្នក!
+
 [CRITICAL RULE — ABSOLUTE IDENTITY PROTECTION]
 - ឈ្មោះផ្លូវការរបស់អ្នកគឺ "S Tech AI" តែមួយគត់!
 - ដាច់ខាតមិនត្រូវបញ្ចេញ ឬនិយាយឈ្មោះ Gemini, Google, Google AI, OpenAI, ChatGPT, Anthropic ឬ AI Model ណាមួយឡើយ!
@@ -325,10 +335,39 @@ function generateSmartFallback(
     };
   }
 
-  // Human agent / Live staff / Telegram
-  if (lower.includes("human") || lower.includes("agent") || lower.includes("staff") || lower.includes("មនុស្ស") || lower.includes("តេឡេក្រាម") || lower.includes("telegram") || lower.includes("បុគ្គលិក")) {
+  // Human agent / Live staff / Admin / Teamwork / Telegram / Hotline inquiries
+  if (
+    lower.includes("human") ||
+    lower.includes("agent") ||
+    lower.includes("staff") ||
+    lower.includes("admin") ||
+    lower.includes("team") ||
+    lower.includes("teamwork") ||
+    lower.includes("team work") ||
+    lower.includes("បុគ្គលិក") ||
+    lower.includes("អាតមីន") ||
+    lower.includes("អេដមីន") ||
+    lower.includes("ក្រុមការងារ") ||
+    lower.includes("ជាង") ||
+    lower.includes("អ្នកលក់") ||
+    lower.includes("អ្នកគ្រប់គ្រង") ||
+    lower.includes("មនុស្ស") ||
+    lower.includes("support") ||
+    lower.includes("contact") ||
+    lower.includes("ទាក់ទង") ||
+    lower.includes("ជជែកផ្ទាល់") ||
+    lower.includes("តេឡេក្រាម") ||
+    lower.includes("telegram") ||
+    lower.includes("alert") ||
+    lower.includes("call") ||
+    lower.includes("ខល") ||
+    lower.includes("ទូរស័ព្ទ") ||
+    lower.includes("hotline") ||
+    lower.includes("លេខទូរស័ព្ទ") ||
+    lower.includes("ជួបមនុស្ស")
+  ) {
     return {
-      reply: `បាទបង! ខ្ញុំកំពុងភ្ជាប់បងទៅកាន់ក្រុមការងារមនុស្សផ្ទាល់ (Human Agent) របស់ S Tech Store។ 🤝🚀 សូមចុចប៊ូតុង "ទាក់ទងក្រុមការងារ" ឬ "ជជែកតាម Telegram" ខាងក្រោមដើម្បីបញ្ជូន Alert ភ្លាមៗបាទ! 📱✨`,
+      reply: `បាទបង ${userName}! បងអាចទាក់ទង និង Alert ទៅកាន់ក្រុមការងារ Admin & Staff របស់ S Tech Store ផ្ទាល់បានយ៉ាងងាយស្រួលបាទ! 🤝🚀\n\nបងអាចជ្រើសរើសជម្រើសទាំង ៣ ខាងក្រោមបានភ្លាមៗ៖\n1. 📢 ចុច "Alert ទៅ Telegram ក្រុមការងារ" ដើម្បីបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញ\n2. 💬 ចុច "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)" ដើម្បីឆាតផ្ទាល់ ១ ទល់នឹង ១\n3. 📞 ឬខលមកកាន់ Hotline 012 345 678 ដើម្បីទទួលការប្រឹក្សាភ្លាមៗបាទ! 📱✨`,
       suggestAgent: true,
     };
   }
@@ -597,18 +636,35 @@ ${userContextSection}
       }
     }
 
-    // Auto-detect human agent intent
+    // Auto-detect human agent / admin / staff / team work intent
     const lowerMessage = (message || "").toLowerCase();
     const indicatesHumanHelp =
       lowerMessage.includes("human") ||
       lowerMessage.includes("agent") ||
       lowerMessage.includes("staff") ||
-      lowerMessage.includes("មនុស្ស") ||
+      lowerMessage.includes("admin") ||
+      lowerMessage.includes("team") ||
+      lowerMessage.includes("teamwork") ||
+      lowerMessage.includes("team work") ||
       lowerMessage.includes("បុគ្គលិក") ||
+      lowerMessage.includes("អាតមីន") ||
+      lowerMessage.includes("អេដមីន") ||
+      lowerMessage.includes("ក្រុមការងារ") ||
+      lowerMessage.includes("ជាង") ||
+      lowerMessage.includes("អ្នកលក់") ||
+      lowerMessage.includes("អ្នកគ្រប់គ្រង") ||
+      lowerMessage.includes("មនុស្ស") ||
+      lowerMessage.includes("support") ||
+      lowerMessage.includes("contact") ||
+      lowerMessage.includes("ទាក់ទង") ||
+      lowerMessage.includes("ជជែកផ្ទាល់") ||
       lowerMessage.includes("តេឡេក្រាម") ||
       lowerMessage.includes("telegram") ||
+      lowerMessage.includes("alert") ||
       lowerMessage.includes("call") ||
       lowerMessage.includes("ខល") ||
+      lowerMessage.includes("ទូរស័ព្ទ") ||
+      lowerMessage.includes("hotline") ||
       lowerMessage.includes("លេខទូរស័ព្ទ") ||
       lowerMessage.includes("ជួបមនុស្ស") ||
       lowerMessage.includes("ប្តូរទំនិញ");
@@ -622,6 +678,25 @@ ${userContextSection}
       const fallback = generateSmartFallback(message, userName, hasImages, userContext);
       geminiText = fallback.reply;
       suggestAgent = fallback.suggestAgent;
+    }
+
+    // If the reply itself references human agent, staff, admin, team or telegram, flag suggestAgent
+    const lowerReply = (geminiText || "").toLowerCase();
+    if (
+      lowerReply.includes("ក្រុមការងារ") ||
+      lowerReply.includes("បុគ្គលិក") ||
+      lowerReply.includes("អាតមីន") ||
+      lowerReply.includes("អេដមីន") ||
+      lowerReply.includes("admin") ||
+      lowerReply.includes("staff") ||
+      lowerReply.includes("agent") ||
+      lowerReply.includes("team work") ||
+      lowerReply.includes("teamwork") ||
+      lowerReply.includes("telegram") ||
+      lowerReply.includes("hotline") ||
+      lowerReply.includes("012 345 678")
+    ) {
+      suggestAgent = true;
     }
 
     // Apply strict emoji enforcement (guarantees 2 to 4 emojis and removes smileys)

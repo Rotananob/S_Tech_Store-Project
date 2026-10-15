@@ -1245,7 +1245,18 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       const aiReplyText =
         data?.reply ||
         "ប្រព័ន្ធ AI កំពុងរវល់ ឬជួបបញ្ហាបច្ចេកទេសបន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីឆាតផ្ទាល់ជាមួយ Telegram Bot Assistant (@S_TECH_ASSISTANTBOT) ឬ Alert ទៅកាន់ក្រុមការងារបច្ចេកទេសរបស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝";
-      const shouldSuggestAgent = !!data?.suggestAgent || !data?.reply;
+
+      const lowerInput = (textToSend || "").toLowerCase();
+      const lowerReply = (aiReplyText || "").toLowerCase();
+      const indicatesAgentIntent =
+        /agent|admin|staff|team|team\s*work|teamwork|support|contact|help|telegram|hotline|call|phone|មនុស្ស|បុគ្គលិក|អាតមីន|អេដមីន|ក្រុមការងារ|ជាង|អ្នកលក់|អ្នកគ្រប់គ្រង|ទាក់ទង|ជជែកផ្ទាល់|តេឡេក្រាម|ខល|ទូរស័ព្ទ|ជំនួយ/i.test(
+          lowerInput
+        ) ||
+        /agent|admin|staff|team|team\s*work|teamwork|telegram|hotline|បុគ្គលិក|អាតមីន|អេដមីន|ក្រុមការងារ|ទាក់ទង|ជជែក|alert/i.test(
+          lowerReply
+        );
+
+      const shouldSuggestAgent = !!data?.suggestAgent || indicatesAgentIntent || !data?.reply;
 
       const aiMsg: ChatItem = {
         sender: "bot",
@@ -1319,6 +1330,35 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       ) {
         fallbackText = `បាទបង ${userName}! រូបភាពនេះគឺជារង្វាន់ "កាដូស្វាគមន៍ $5.00 Voucher (WELCOME5)" សម្រាប់អតិថិជនថ្មីរបស់ S Tech Store បាទ! 🎁✨\n\n• មានន័យថា៖ បងទទួលបានទឹកប្រាក់បញ្ចុះតម្លៃ $5.00 ភ្លាមៗ (ឥតគិតថ្លៃ) លើរាល់ការទិញ Laptop, PC builds ឬគ្រឿងបន្លាស់ IT គ្រប់ប្រភេទ 💻💳\n• របៀបដោះសោ និងប្រើប្រាស់៖\n  1. ចុចប៊ូតុង Share ទៅ Telegram, Facebook ឬចុច "Copy Link" ផ្ញើទៅមិត្តភក្តិ ដើម្បីដោះសោរប៊ូតុង "Claim $5"\n  2. ចុច Claim យក Voucher រួចបំពេញកូដ WELCOME5 នៅទំព័រ Checkout នោះប្រព័ន្ធនឹងបញ្ចុះតម្លៃ $5.00 ជូនភ្លាមៗបាទ! 🚀🤝`;
         shouldSuggestAgent = false;
+      } else if (
+        lowerText.includes("agent") ||
+        lowerText.includes("admin") ||
+        lowerText.includes("staff") ||
+        lowerText.includes("team") ||
+        lowerText.includes("teamwork") ||
+        lowerText.includes("team work") ||
+        lowerText.includes("បុគ្គលិក") ||
+        lowerText.includes("អាតមីន") ||
+        lowerText.includes("អេដមីន") ||
+        lowerText.includes("ក្រុមការងារ") ||
+        lowerText.includes("ជាង") ||
+        lowerText.includes("អ្នកលក់") ||
+        lowerText.includes("អ្នកគ្រប់គ្រង") ||
+        lowerText.includes("មនុស្ស") ||
+        lowerText.includes("support") ||
+        lowerText.includes("contact") ||
+        lowerText.includes("ទាក់ទង") ||
+        lowerText.includes("ជជែកផ្ទាល់") ||
+        lowerText.includes("តេឡេក្រាម") ||
+        lowerText.includes("telegram") ||
+        lowerText.includes("alert") ||
+        lowerText.includes("call") ||
+        lowerText.includes("ខល") ||
+        lowerText.includes("ទូរស័ព្ទ") ||
+        lowerText.includes("hotline")
+      ) {
+        fallbackText = `បាទបង ${userName}! បងអាចទាក់ទង និង Alert ទៅកាន់ក្រុមការងារ Admin & Staff របស់ S Tech Store ផ្ទាល់បានយ៉ាងងាយស្រួលបាទ! 🤝🚀\n\nបងអាចជ្រើសរើសជម្រើសទាំង ៣ ខាងក្រោមបានភ្លាមៗ៖\n1. 📢 ចុច "Alert ទៅ Telegram ក្រុមការងារ" ដើម្បីបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញ\n2. 💬 ចុច "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)" ដើម្បីឆាតផ្ទាល់ ១ ទល់នឹង ១\n3. 📞 ឬខលមកកាន់ Hotline 012 345 678 ដើម្បីទទួលការប្រឹក្សាភ្លាមៗបាទ! 📱✨`;
+        shouldSuggestAgent = true;
       } else {
         try {
           const decodedFallback = typeof atob !== "undefined"
@@ -1875,42 +1915,54 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
                   {/* ── Interactive Live Human Support Card when AI suggests agent or Error occurs ── */}
                   {msg.suggestAgent && (
                     <div className="pt-2 w-full animate-in fade-in slide-in-from-bottom-2">
-                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-red-50/90 via-white to-amber-50/60 dark:from-[#19141d] dark:via-[#131620] dark:to-[#17141f] border border-red-200/90 dark:border-red-900/50 shadow-sm flex flex-col gap-3">
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-red-50/95 via-white to-amber-50/70 dark:from-[#19141d] dark:via-[#131620] dark:to-[#17141f] border border-red-200/90 dark:border-red-900/50 shadow-sm flex flex-col gap-3">
                         <div className="flex items-start gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 text-white flex items-center justify-center text-sm font-black shadow-xs shrink-0 mt-0.5">
                             <Headphones size={16} />
                           </div>
                           <div>
-                            <h5 className="text-xs sm:text-[13px] font-black text-gray-900 dark:text-white">
-                              ត្រូវការជំនួយផ្ទាល់ ឬប្រព័ន្ធ AI ជួបបញ្ហា?
+                            <h5 className="text-xs sm:text-[13px] font-black text-gray-900 dark:text-white flex items-center gap-1.5">
+                              <span>🤝 ទំនាក់ទំនងក្រុមការងារ & Human Support</span>
+                              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                             </h5>
                             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-                              បងអាចឆាតផ្ទាល់ជាមួយ Telegram Bot Assistant ផ្លូវការ ឬ Alert ទៅបុគ្គលិកបច្ចេកទេស S Tech Store បានភ្លាមៗ៖
+                              បងអាច Alert ដំណឹងបន្ទាន់ទៅ Telegram ក្រុមការងារ ឬឆាតផ្ទាល់ជាមួយ Admin & ជាងជំនាញបានភ្លាមៗ៖
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                          {/* Direct to Real Telegram Assistant Bot (@S_TECH_ASSISTANTBOT) */}
-                          <a
-                            href="https://t.me/S_TECH_ASSISTANTBOT"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
-                          >
-                            <Send size={14} />
-                            <span>ឆាត Telegram Bot (@S_TECH_ASSISTANTBOT)</span>
-                          </a>
+                        <div className="flex flex-col gap-2 pt-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Alert to Team Work Telegram Group */}
+                            <button
+                              type="button"
+                              onClick={() => setShowAgentModal(true)}
+                              className="flex-1 min-w-[145px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#8B1A1A] text-white text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
+                            >
+                              <BellRing size={14} className="animate-pulse" />
+                              <span>📢 Alert ទៅ Telegram ក្រុមការងារ</span>
+                            </button>
 
-                          {/* Alert to Staff Button */}
-                          <button
-                            type="button"
-                            onClick={() => setShowAgentModal(true)}
-                            className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-red-600 hover:to-[#8B1A1A] text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95"
+                            {/* Direct to Real Telegram Assistant Bot (@S_TECH_ASSISTANTBOT) */}
+                            <a
+                              href="https://t.me/S_TECH_ASSISTANTBOT"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 min-w-[145px] flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-black shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-95"
+                            >
+                              <Send size={14} />
+                              <span>💬 ឆាតផ្ទាល់ Telegram Bot</span>
+                            </a>
+                          </div>
+
+                          {/* Direct Hotline Call */}
+                          <a
+                            href="tel:012345678"
+                            className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-800 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border border-gray-200/60 dark:border-white/10 active:scale-95"
                           >
-                            <BellRing size={14} />
-                            <span>📢 Alert ទៅបុគ្គលិកហាង</span>
-                          </button>
+                            <Phone size={13} className="text-emerald-500" />
+                            <span>📞 Hotline ទំនាក់ទំនងបន្ទាន់: 012 345 678 (24/7)</span>
+                          </a>
                         </div>
                       </div>
                     </div>
