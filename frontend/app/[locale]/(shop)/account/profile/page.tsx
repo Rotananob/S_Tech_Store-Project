@@ -580,6 +580,7 @@ export default function UserProfilePage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "processing" | "packing" | "shipped" | "completed">("all");
+  const [visibleOrderCount, setVisibleOrderCount] = useState<number>(8);
 
   const { lang } = useLangStore();
   const t = translations[lang].profilePage;
@@ -1709,6 +1710,9 @@ export default function UserProfilePage() {
     if (orderFilter === "completed") return o.status === "completed" || o.status === "delivered";
     return o.status === orderFilter;
   });
+  const visibleOrders = filteredOrders.slice(0, visibleOrderCount);
+  const hasMoreOrders = filteredOrders.length > visibleOrderCount;
+  const remainingOrdersCount = Math.max(0, filteredOrders.length - visibleOrderCount);
   const toPayCount = orders.filter((o) => o.status === "pending" || o.status === "to_pay").length;
   const processingCount = orders.filter((o) => o.status === "processing" || o.status === "to_share").length;
   const packingCount = orders.filter((o) => o.status === "packing" || o.status === "confirmed").length;
@@ -2170,7 +2174,7 @@ export default function UserProfilePage() {
             </div>
             <button 
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); setVisibleOrderCount(8); }}
               className="text-xs font-bold text-gray-500 hover:text-[#8B1A1A] dark:text-gray-400 dark:hover:text-red-400 flex items-center gap-0.5 transition-colors cursor-pointer bg-transparent border-none p-0"
             >
               <span>View All Orders</span>
@@ -2182,7 +2186,7 @@ export default function UserProfilePage() {
             {/* 1. To Pay */}
             <button
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("pending"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("pending"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
               <div className="relative mb-2">
@@ -2201,7 +2205,7 @@ export default function UserProfilePage() {
             {/* 2. Processing */}
             <button
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("processing"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("processing"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
               <div className="relative mb-2">
@@ -2220,7 +2224,7 @@ export default function UserProfilePage() {
             {/* 3. Packing */}
             <button
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("packing"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("packing"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
               <div className="relative mb-2">
@@ -2239,7 +2243,7 @@ export default function UserProfilePage() {
             {/* 4. Shipped */}
             <button
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("shipped"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("shipped"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
               <div className="relative mb-2">
@@ -2258,7 +2262,7 @@ export default function UserProfilePage() {
             {/* 5. Reviews */}
             <button
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("completed"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("completed"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all cursor-pointer border-none bg-transparent group"
             >
               <div className="relative mb-2">
@@ -2350,7 +2354,7 @@ export default function UserProfilePage() {
             {/* Browsing History */}
             <button 
               type="button"
-              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); }}
+              onClick={() => { setActiveTab("orders"); setOrderFilter("all"); setVisibleOrderCount(8); }}
               className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-all border-none bg-transparent cursor-pointer group"
             >
               <div className="w-11 h-11 rounded-2xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.06] text-purple-500 flex items-center justify-center mb-1.5 group-hover:scale-105 group-hover:bg-purple-500/10 transition-all">
@@ -3559,7 +3563,10 @@ export default function UserProfilePage() {
                         <button
                           key={st}
                           type="button"
-                          onClick={() => setOrderFilter(st as any)}
+                          onClick={() => {
+                            setOrderFilter(st as any);
+                            setVisibleOrderCount(8);
+                          }}
                           className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all border-none cursor-pointer ${
                             orderFilter === st
                               ? "bg-white dark:bg-black text-[#8B1A1A] shadow-sm"
@@ -3596,7 +3603,7 @@ export default function UserProfilePage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {filteredOrders.map((order) => (
+                      {visibleOrders.map((order) => (
                         <div
                           key={order.id}
                           className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -3660,6 +3667,41 @@ export default function UserProfilePage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* See More Controls */}
+                  {filteredOrders.length > 0 && hasMoreOrders && (
+                    <div className="pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-100 dark:border-white/10">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        កំពុងបង្ហាញ <span className="font-bold text-gray-900 dark:text-white">{visibleOrders.length}</span> នៃ <span className="font-bold text-gray-900 dark:text-white">{filteredOrders.length}</span> ការបញ្ជាទិញ
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setVisibleOrderCount((prev) => prev + 5)}
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white dark:bg-white/10 hover:bg-gray-100 dark:hover:bg-white/15 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-white/10 text-xs font-bold transition-all shadow-xs hover:shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer group"
+                      >
+                        <span>See More (មើលបន្ថែម +5)</span>
+                        <ChevronDown size={15} className="text-gray-500 group-hover:translate-y-0.5 transition-transform" />
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 font-bold">
+                          សល់ {remainingOrdersCount}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {filteredOrders.length > 8 && !hasMoreOrders && (
+                    <div className="pt-3 flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 dark:border-white/10">
+                      <span>បានបង្ហាញការបញ្ជាទិញទាំងអស់ចំនួន {filteredOrders.length} រួចរាល់។</span>
+                      <button
+                        type="button"
+                        onClick={() => setVisibleOrderCount(8)}
+                        className="text-xs text-[#8B1A1A] dark:text-red-400 hover:underline font-bold flex items-center gap-1 cursor-pointer bg-transparent border-none"
+                      >
+                        <span>បង្រួមមកវិញ (Show Less)</span>
+                        <ChevronUp size={14} />
+                      </button>
                     </div>
                   )}
                 </div>
