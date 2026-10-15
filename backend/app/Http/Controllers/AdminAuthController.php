@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Cache;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Branch;
@@ -13,6 +14,62 @@ use App\Services\TelegramService;
 
 class AdminAuthController extends Controller
 {
+    /**
+     * Tiered Password Complexity Validation by Role:
+     * - Master / Super Admin: Min 12 chars, uppercase (A-Z), lowercase (a-z), numbers (0-9), special symbols (@$!%*#?&)
+     * - Admin: Min 8 chars, letters (a-z/A-Z), numbers (0-9), special symbols (@$!%*#?&)
+     * - Staff / Manager: Min 6 chars, letters (a-z/A-Z) and numbers (0-9)
+     * Returns null if valid, or an error string if invalid.
+     */
+    public static function validatePasswordForRole(string $password, string $role): ?string
+    {
+        $role = strtolower(trim($role));
+
+        if ($role === 'super_admin') {
+            if (strlen($password) < 12) {
+                return 'ពាក្យសម្ងាត់ Master (System Owner) ត្រូវមានយ៉ាងតិច ១២ តួអក្សរ • Super Admin password must be at least 12 characters.';
+            }
+            if (!preg_match('/[A-Z]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរធំយ៉ាងតិច ១ (A-Z) • Master password must contain at least 1 uppercase letter.';
+            }
+            if (!preg_match('/[a-z]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរតូចយ៉ាងតិច ១ (a-z) • Master password must contain at least 1 lowercase letter.';
+            }
+            if (!preg_match('/[0-9]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានលេខយ៉ាងតិច ១ (0-9) • Master password must contain at least 1 number.';
+            }
+            if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?\/\\|~`]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&) • Master password must contain at least 1 special character.';
+            }
+        } elseif ($role === 'admin') {
+            if (strlen($password) < 8) {
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានយ៉ាងតិច ៨ តួអក្សរ • Admin password must be at least 8 characters.';
+            }
+            if (!preg_match('/[a-zA-Z]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានអក្សរយ៉ាងតិច ១ (A-Z or a-z) • Admin password must contain letters.';
+            }
+            if (!preg_match('/[0-9]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានលេខយ៉ាងតិច ១ (0-9) • Admin password must contain at least 1 number.';
+            }
+            if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?\/\\|~`]/', $password)) {
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&) • Admin password must contain at least 1 special character.';
+            }
+        } else {
+            // staff, manager, etc.
+            if (strlen($password) < 6) {
+                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ • Staff password must be at least 6 characters.';
+            }
+            if (!preg_match('/[a-zA-Z]/', $password)) {
+                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានអក្សរ • Staff password must contain letters.';
+            }
+            if (!preg_match('/[0-9]/', $password)) {
+                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានលេខ • Staff password must contain numbers.';
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Admin/Staff Login
      * High security: bcrypt password checking + rate limiting (5 attempts/min) + Telegram Red Team Alerts
@@ -130,6 +187,9 @@ class AdminAuthController extends Controller
         $user->last_login_at = now();
         $user->save();
 
+        // Multi-Session Token Cache: 30 days session persistence across browser tab close & reload
+        \Illuminate\Support\Facades\Cache::put("admin_token_{$token}", $user->id, 86400 * 30);
+
         // Also ensure user is in UserProfile with is_admin = true
         UserProfile::updateOrCreate(
             ['email' => $user->email],
@@ -155,7 +215,7 @@ class AdminAuthController extends Controller
                 'status' => $user->status,
                 'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
             ],
-        ]);
+        ])->cookie('stech_admin_token', $token, 60 * 24 * 30, '/', null, false, false, false, 'Lax');
     }
 
     /**
@@ -189,12 +249,27 @@ class AdminAuthController extends Controller
     public function logout(Request $request)
     {
         $user = $request->attributes->get('auth_user');
+
+        $authHeader = $request->header('Authorization', '');
+        $token = null;
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $token = substr($authHeader, 7);
+        }
+        if (!$token) {
+            $token = $request->header('X-Admin-Token') ?: $request->cookie('stech_admin_token');
+        }
+
+        if ($token) {
+            Cache::forget("admin_token_{$token}");
+        }
+
         if ($user) {
             $user->api_token = null;
             $user->save();
         }
 
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()->json(['message' => 'Logged out successfully'])
+            ->withCookie(cookie()->forget('stech_admin_token'));
     }
 
     /**
@@ -238,9 +313,17 @@ class AdminAuthController extends Controller
             return response()->json(['message' => 'Forbidden: Only Super-Admin / System Owner can create another Super-Admin.'], 403);
         }
 
+        // Enforce tiered password complexity by role
+        $pwError = self::validatePasswordForRole($validated['password'], $validated['role']);
+        if ($pwError) {
+            return response()->json(['message' => $pwError], 422);
+        }
+
         $defaultPermissions = in_array($validated['role'], ['admin', 'super_admin'])
             ? ['*'] 
             : ['manage_products', 'manage_orders', 'view_inventory', 'customer_service'];
+
+        $apiToken = bin2hex(random_bytes(32));
 
         $user = User::create([
             'name' => $validated['name'],
@@ -252,8 +335,11 @@ class AdminAuthController extends Controller
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
             'permissions' => $defaultPermissions,
-            'api_token' => bin2hex(random_bytes(32)),
+            'api_token' => $apiToken,
         ]);
+
+        // Cache staff token for 30 days
+        Cache::put("admin_token_{$apiToken}", $user->id, 86400 * 30);
 
         UserProfile::updateOrCreate(
             ['email' => $user->email],
@@ -313,6 +399,11 @@ class AdminAuthController extends Controller
         }
 
         if (!empty($validated['password'])) {
+            $targetRole = $validated['role'] ?? $user->role;
+            $pwError = self::validatePasswordForRole($validated['password'], $targetRole);
+            if ($pwError) {
+                return response()->json(['message' => $pwError], 422);
+            }
             $validated['password'] = Hash::make($validated['password'], ['rounds' => 12]);
         } else {
             unset($validated['password']);

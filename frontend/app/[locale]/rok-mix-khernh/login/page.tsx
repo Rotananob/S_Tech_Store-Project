@@ -35,11 +35,11 @@ export default function AdminLoginPage() {
 
       const { token, user } = res.data;
 
-      // Persist auth session
+      // Persist auth session (30 days)
       if (typeof window !== "undefined") {
         localStorage.setItem("stech_admin_token", token);
         localStorage.setItem("stech_admin_user", JSON.stringify(user));
-        document.cookie = `stech_admin_token=${token}; path=/; max-age=604800; SameSite=Lax`;
+        document.cookie = `stech_admin_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
       }
 
       const isOwner = user.role === "super_admin" || user.email === "nobrothana180703@gmail.com";

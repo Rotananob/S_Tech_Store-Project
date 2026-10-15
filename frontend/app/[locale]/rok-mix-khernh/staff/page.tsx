@@ -94,11 +94,47 @@ export default function AdminStaffPage() {
     setModalOpen(true);
   };
 
+  const validateTieredPassword = (pwd: string, targetRole: string) => {
+    const r = targetRole.toLowerCase();
+    if (r === "super_admin") {
+      if (pwd.length < 12) return "ពាក្យសម្ងាត់ Master ត្រូវមានយ៉ាងតិច ១២ តួអក្សរ (Min 12 characters)";
+      if (!/[A-Z]/.test(pwd)) return "ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរធំយ៉ាងតិច ១ (A-Z)";
+      if (!/[a-z]/.test(pwd)) return "ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរតូចយ៉ាងតិច ១ (a-z)";
+      if (!/[0-9]/.test(pwd)) return "ពាក្យសម្ងាត់ Master ត្រូវមានលេខយ៉ាងតិច ១ (0-9)";
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) return "ពាក្យសម្ងាត់ Master ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&)";
+    } else if (r === "admin") {
+      if (pwd.length < 8) return "ពាក្យសម្ងាត់ Admin ត្រូវមានយ៉ាងតិច ៨ តួអក្សរ (Min 8 characters)";
+      if (!/[a-zA-Z]/.test(pwd)) return "ពាក្យសម្ងាត់ Admin ត្រូវមានអក្សរ (Letters)";
+      if (!/[0-9]/.test(pwd)) return "ពាក្យសម្ងាត់ Admin ត្រូវមានលេខយ៉ាងតិច ១ (0-9)";
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pwd)) return "ពាក្យសម្ងាត់ Admin ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&)";
+    } else {
+      if (pwd.length < 6) return "ពាក្យសម្ងាត់បុគ្គលិក Staff ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ (Min 6 characters)";
+      if (!/[a-zA-Z]/.test(pwd)) return "ពាក្យសម្ងាត់ Staff ត្រូវមានអក្សរ (Letters)";
+      if (!/[0-9]/.test(pwd)) return "ពាក្យសម្ងាត់ Staff ត្រូវមានលេខ (Numbers)";
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSuperAdmin && (role === "admin" || role === "super_admin")) {
       showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលអាចតែងតាំង ឬបង្កើតតួនាទីជា Admin / Super Admin។", "error");
       return;
+    }
+
+    // Validate tiered password complexity
+    if (!editTarget || password.trim()) {
+      if (!editTarget && !password.trim()) {
+        showToast("សូមបញ្ចូលពាក្យសម្ងាត់សម្រាប់គណនីថ្មី • Password is required", "error");
+        return;
+      }
+      if (password.trim()) {
+        const pwErr = validateTieredPassword(password.trim(), role);
+        if (pwErr) {
+          showToast(pwErr, "error");
+          return;
+        }
+      }
     }
 
     try {
@@ -110,11 +146,6 @@ export default function AdminStaffPage() {
         await api.put(`/admin/staff/${editTarget.id}`, payload);
         showToast("Staff account updated successfully!");
       } else {
-        // Create
-        if (!password.trim()) {
-          showToast("Password is required for new accounts.", "error");
-          return;
-        }
         await api.post("/admin/staff", {
           name,
           email,
@@ -465,16 +496,51 @@ export default function AdminStaffPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  {editTarget ? "ពាក្យសម្ងាត់ថ្មី • Password • ទុកទទេរបើមិនផ្លាស់ប្តូរ" : "ពាក្យសម្ងាត់ • Password *"}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-gray-700">
+                    {editTarget ? "ពាក្យសម្ងាត់ថ្មី • Password • ទុកទទេរបើមិនផ្លាស់ប្តូរ" : "ពាក្យសម្ងាត់ • Password *"}
+                  </label>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-md font-bold border ${
+                    role === "super_admin" 
+                      ? "bg-red-50 text-red-700 border-red-200" 
+                      : role === "admin" 
+                      ? "bg-amber-50 text-amber-700 border-amber-200" 
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  }`}>
+                    {role === "super_admin" ? "🔒 Master (ពិបាកបំផុត • 12+ chars)" : role === "admin" ? "🛡️ Admin (កម្រិតខ្ពស់ • 8+ chars)" : "👤 Staff (ងាយស្រួល & សុវត្ថិភាព • 6+ chars)"}
+                  </span>
+                </div>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={editTarget ? "•••••••• • Keep unchanged" : "យ៉ាងតិច ៦ តួអក្សរ • Min 6 chars"}
-                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A]"
+                  placeholder={
+                    role === "super_admin" 
+                      ? "យ៉ាងតិច ១២ តួ (A-Z, a-z, 0-9, សញ្ញាពិសេស)" 
+                      : role === "admin" 
+                      ? "យ៉ាងតិច ៨ តួ (អក្សរ, លេខ, សញ្ញាពិសេស)" 
+                      : "យ៉ាងតិច ៦ តួ (អក្សរ និងលេខ)"
+                  }
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] font-mono"
                 />
+                <p className="text-[11px] text-gray-500 mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="font-semibold text-gray-700">លក្ខខណ្ឌសុវត្ថិភាព:</span>
+                  {role === "super_admin" && (
+                    <span className="text-red-700 font-medium">
+                      យ៉ាងតិច ១២ តួអក្សរ, អក្សរធំ (A-Z), អក្សរតូច (a-z), លេខ (0-9) និងសញ្ញាពិសេស (@$!%*#?&)
+                    </span>
+                  )}
+                  {role === "admin" && (
+                    <span className="text-amber-700 font-medium">
+                      យ៉ាងតិច ៨ តួអក្សរ, អក្សរ (A-Z/a-z), លេខ (0-9) និងសញ្ញាពិសេស (@$!%*#?&)
+                    </span>
+                  )}
+                  {role !== "super_admin" && role !== "admin" && (
+                    <span className="text-emerald-700 font-medium">
+                      យ៉ាងតិច ៦ តួអក្សរ ដោយរួមបញ្ចូលទាំងអក្សរ និងលេខ
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

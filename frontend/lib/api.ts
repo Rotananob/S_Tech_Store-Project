@@ -42,7 +42,17 @@ api.interceptors.request.use(
     if (typeof window !== "undefined") {
       // 1. Attach Admin/Staff Token if logged into Admin portal
       try {
-        const adminToken = localStorage.getItem("stech_admin_token");
+        let adminToken = localStorage.getItem("stech_admin_token");
+        if (!adminToken && typeof document !== "undefined") {
+          const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
+          if (match && match[1]) {
+            adminToken = decodeURIComponent(match[1]);
+            try {
+              localStorage.setItem("stech_admin_token", adminToken);
+            } catch (err) {}
+          }
+        }
+
         if (adminToken) {
           config.headers["Authorization"] = `Bearer ${adminToken}`;
           config.headers["X-Admin-Token"] = adminToken;

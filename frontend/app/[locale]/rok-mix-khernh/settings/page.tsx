@@ -72,6 +72,7 @@ export default function SystemSettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isToggling2FA, setIsToggling2FA] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
     setToast({ msg, type });
@@ -81,6 +82,12 @@ export default function SystemSettingsPage() {
   // ─── Fetch Real Settings from Backend ──────────────────────────────────────
   useEffect(() => {
     fetchSettings();
+    try {
+      const stored = localStorage.getItem("stech_admin_user");
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      }
+    } catch (e) {}
   }, []);
 
   const fetchSettings = async () => {
@@ -189,13 +196,56 @@ export default function SystemSettingsPage() {
   // ─── Change Password ──────────────────────────────────────────────────────
   const handleSaveSecurity = async () => {
     if (!currentPassword) {
-      return showToast("សូមបញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន", "error");
+      return showToast("សូមបញ្ចូលពាក្យសម្ងាត់បច្ចុប្បន្ន • Current password is required", "error");
     }
-    if (newPassword.length < 8) {
-      return showToast("ពាក្យសម្ងាត់ថ្មីត្រូវមានយ៉ាងតិច ៨ តួអក្សរ (Min 8 characters)", "error");
+
+    const r = (currentUser?.role || "admin").toLowerCase();
+    const isOwnerUser = r === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com";
+
+    // Tiered client-side complexity check
+    if (isOwnerUser) {
+      if (newPassword.length < 12) {
+        return showToast("ពាក្យសម្ងាត់ Master (System Owner) ត្រូវមានយ៉ាងតិច ១២ តួអក្សរ • Min 12 chars", "error");
+      }
+      if (!/[A-Z]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរធំយ៉ាងតិច ១ (A-Z)", "error");
+      }
+      if (!/[a-z]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរតូចយ៉ាងតិច ១ (a-z)", "error");
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Master ត្រូវមានលេខយ៉ាងតិច ១ (0-9)", "error");
+      }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Master ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&)", "error");
+      }
+    } else if (r === "admin") {
+      if (newPassword.length < 8) {
+        return showToast("ពាក្យសម្ងាត់ Admin ត្រូវមានយ៉ាងតិច ៨ តួអក្សរ • Min 8 chars", "error");
+      }
+      if (!/[a-zA-Z]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Admin ត្រូវមានអក្សរ (Letters)", "error");
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Admin ត្រូវមានលេខយ៉ាងតិច ១ (0-9)", "error");
+      }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Admin ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&)", "error");
+      }
+    } else {
+      if (newPassword.length < 6) {
+        return showToast("ពាក្យសម្ងាត់ Staff ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ • Min 6 chars", "error");
+      }
+      if (!/[a-zA-Z]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Staff ត្រូវមានអក្សរ (Letters)", "error");
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return showToast("ពាក្យសម្ងាត់ Staff ត្រូវមានលេខ (Numbers)", "error");
+      }
     }
+
     if (newPassword !== confirmPassword) {
-      return showToast("ពាក្យសម្ងាត់បញ្ជាក់មិនត្រូវគ្នាទេ!", "error");
+      return showToast("ពាក្យសម្ងាត់បញ្ជាក់មិនត្រូវគ្នាទេ! • Passwords do not match", "error");
     }
 
     setIsChangingPassword(true);
@@ -203,7 +253,7 @@ export default function SystemSettingsPage() {
       const res = await api.post("/admin/settings/change-password", {
         current_password: currentPassword,
         new_password: newPassword,
-        new_password_confirmation: confirmPassword,
+        confirm_password: confirmPassword,
       });
       if (res.data?.success) {
         setCurrentPassword("");
@@ -627,10 +677,25 @@ export default function SystemSettingsPage() {
 
               {/* Change Password Form */}
               <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-5 sm:p-7">
-                <h2 className="text-base sm:text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
-                  <Lock className="text-[#8B1A1A]" size={20} />
-                  <span>Change Password • ផ្លាស់ប្តូរពាក្យសម្ងាត់</span>
-                </h2>
+                <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Lock className="text-[#8B1A1A]" size={20} />
+                    <span>Change Password • ផ្លាស់ប្តូរពាក្យសម្ងាត់</span>
+                  </h2>
+                  <span className={`text-[11px] px-2.5 py-1 rounded-md font-bold border ${
+                    (currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com")
+                      ? "bg-red-50 text-red-700 border-red-200" 
+                      : currentUser?.role === "admin" 
+                      ? "bg-amber-50 text-amber-700 border-amber-200" 
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  }`}>
+                    {(currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com") 
+                      ? "🔒 Master (ពិបាកបំផុត • 12+ chars)" 
+                      : currentUser?.role === "admin" 
+                      ? "🛡️ Admin (កម្រិតខ្ពស់ • 8+ chars)" 
+                      : "👤 Staff (ងាយស្រួល & សុវត្ថិភាព • 6+ chars)"}
+                  </span>
+                </div>
                 
                 <div className="flex flex-col gap-4 max-w-md">
                   <div>
@@ -647,15 +712,39 @@ export default function SystemSettingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5">
-                      ពាក្យសម្ងាត់ថ្មី (New Password • យ៉ាងតិច ៨ តួ)
+                      ពាក្យសម្ងាត់ថ្មី (New Password)
                     </label>
                     <input 
                       type="password" 
                       value={newPassword} 
                       onChange={(e) => setNewPassword(e.target.value)} 
-                      placeholder="យ៉ាងតិច ៨ តួអក្សរ" 
+                      placeholder={
+                        (currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com")
+                          ? "យ៉ាងតិច ១២ តួ (A-Z, a-z, 0-9, សញ្ញាពិសេស)"
+                          : currentUser?.role === "admin"
+                          ? "យ៉ាងតិច ៨ តួ (អក្សរ, លេខ, សញ្ញាពិសេស)"
+                          : "យ៉ាងតិច ៦ តួ (អក្សរ និងលេខ)"
+                      } 
                       className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] transition-all font-mono" 
                     />
+                    <p className="text-[11px] text-gray-500 mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-gray-700">លក្ខខណ្ឌសុវត្ថិភាព:</span>
+                      {(currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com") && (
+                        <span className="text-red-700 font-medium">
+                          យ៉ាងតិច ១២ តួអក្សរ, អក្សរធំ (A-Z), អក្សរតូច (a-z), លេខ (0-9) និងសញ្ញាពិសេស (@$!%*#?&)
+                        </span>
+                      )}
+                      {currentUser?.role === "admin" && (
+                        <span className="text-amber-700 font-medium">
+                          យ៉ាងតិច ៨ តួអក្សរ, អក្សរ (A-Z/a-z), លេខ (0-9) និងសញ្ញាពិសេស (@$!%*#?&)
+                        </span>
+                      )}
+                      {currentUser?.role !== "super_admin" && currentUser?.role !== "admin" && currentUser?.email !== "nobrothana180703@gmail.com" && (
+                        <span className="text-emerald-700 font-medium">
+                          យ៉ាងតិច ៦ តួអក្សរ ដោយរួមបញ្ចូលទាំងអក្សរ និងលេខ
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-1.5">

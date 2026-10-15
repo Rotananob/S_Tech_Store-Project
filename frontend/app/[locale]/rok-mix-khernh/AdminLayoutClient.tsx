@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { AdminPWAController, AdminPWAInstallButton } from "@/components/admin/AdminPWAController";
 import { getPublicStoreStatus } from "@/lib/services/master.service";
+import api from "@/lib/api";
 
 type AdminUser = {
   id: number;
@@ -80,7 +81,18 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     }
 
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("stech_admin_token");
+      let token = localStorage.getItem("stech_admin_token");
+      if (!token) {
+        // Fallback to cookie if localStorage was cleared on tab close
+        const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
+        if (match && match[1]) {
+          token = decodeURIComponent(match[1]);
+          try {
+            localStorage.setItem("stech_admin_token", token);
+          } catch (err) {}
+        }
+      }
+
       const userStr = localStorage.getItem("stech_admin_user");
       const hasDirectToken = (
         window.location.search.includes("token=") || 
@@ -109,6 +121,31 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         }
       }
       setCheckingAuth(false);
+
+      // Verify and sync profile with backend silently
+      if (token) {
+        api.get("/admin/me")
+          .then((res) => {
+            if (res.data?.user) {
+              const freshUser = res.data.user;
+              setUser(freshUser);
+              try {
+                localStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
+              } catch (e) {}
+            }
+          })
+          .catch((err) => {
+            // Only redirect on explicit 401 unauthenticated
+            if (err.response?.status === 401) {
+              try {
+                localStorage.removeItem("stech_admin_token");
+                localStorage.removeItem("stech_admin_user");
+                document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+              } catch (e) {}
+              router.push("/rok-mix-khernh/login");
+            }
+          });
+      }
     }
   }, [pathname, isLoginPage, router]);
 

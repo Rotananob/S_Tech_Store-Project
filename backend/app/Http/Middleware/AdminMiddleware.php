@@ -37,6 +37,21 @@ class AdminMiddleware
             $user = User::where('api_token', $token)
                 ->where('status', 'active')
                 ->first();
+
+            // Multi-Session Token Cache fallback: supports multiple tabs/devices & bypass links without session drop
+            if (!$user) {
+                $cachedUserId = \Illuminate\Support\Facades\Cache::get("admin_token_{$token}");
+                if ($cachedUserId) {
+                    $user = User::where('id', $cachedUserId)
+                        ->where('status', 'active')
+                        ->first();
+                }
+            }
+
+            // Keep token cache alive (30 days sliding window)
+            if ($user) {
+                \Illuminate\Support\Facades\Cache::put("admin_token_{$token}", $user->id, 86400 * 30);
+            }
         }
 
         // 2. Fallback: Firebase Auth Header verification & Super Admin Recognition
@@ -143,7 +158,8 @@ class AdminMiddleware
         }
 
         return response()->json([
-            'message' => 'Forbidden: Not authenticated or invalid admin session',
-        ], 403);
+            'message' => 'Unauthenticated: Invalid or expired admin session',
+            'code' => 'UNAUTHENTICATED',
+        ], 401);
     }
 }

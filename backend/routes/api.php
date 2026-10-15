@@ -178,7 +178,9 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
 
     if ($adminUser) {
         $apiToken = bin2hex(random_bytes(32));
-        $adminUser->api_token = $apiToken;
+        // Multi-Session Token Cache: Cache bypass session token for 7 days without overwriting
+        // $adminUser->api_token in the database, preserving desktop browser sessions!
+        \Illuminate\Support\Facades\Cache::put("admin_token_{$apiToken}", $adminUser->id, 86400 * 7);
         $adminUser->last_login_at = now();
         $adminUser->save();
 
