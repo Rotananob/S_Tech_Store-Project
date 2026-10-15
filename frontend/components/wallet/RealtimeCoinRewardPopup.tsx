@@ -95,11 +95,11 @@ export default function RealtimeCoinRewardPopup() {
             // Update wallet cached data and dispatch live event
             updateCachedWallet({
               coins: res.total_coins,
-              coins_usd_value: Number((res.total_coins / 100).toFixed(2)),
+              coins_usd_value: Number((res.total_coins / 200).toFixed(2)),
             });
             window.dispatchEvent(
               new CustomEvent("stech_wallet_updated", {
-                detail: { coins: res.total_coins, coins_usd_value: Number((res.total_coins / 100).toFixed(2)) },
+                detail: { coins: res.total_coins, coins_usd_value: Number((res.total_coins / 200).toFixed(2)) },
               })
             );
           } else if (res.already_claimed) {
@@ -134,11 +134,11 @@ export default function RealtimeCoinRewardPopup() {
 
             updateCachedWallet({
               coins: res.total_coins,
-              coins_usd_value: Number((res.total_coins / 100).toFixed(2)),
+              coins_usd_value: Number((res.total_coins / 200).toFixed(2)),
             });
             window.dispatchEvent(
               new CustomEvent("stech_wallet_updated", {
-                detail: { coins: res.total_coins, coins_usd_value: Number((res.total_coins / 100).toFixed(2)) },
+                detail: { coins: res.total_coins, coins_usd_value: Number((res.total_coins / 200).toFixed(2)) },
               })
             );
           } else if (res.already_claimed) {
@@ -243,7 +243,7 @@ export default function RealtimeCoinRewardPopup() {
                   <div className="text-lg font-black text-amber-400 font-mono">
                     {reward.totalCoins} Coins{" "}
                     <span className="text-xs text-gray-400 font-normal">
-                      (~${(reward.totalCoins / 100).toFixed(2)} USD)
+                      (~${(reward.totalCoins / 200).toFixed(2)} USD)
                     </span>
                   </div>
                 </div>

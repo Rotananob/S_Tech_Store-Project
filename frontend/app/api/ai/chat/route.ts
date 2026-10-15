@@ -112,7 +112,7 @@ const SYSTEM_PROMPT = `
    - ប្រព័ន្ធកាក់រង្វាន់ S-Coins Loyalty Rewards៖
      • Daily Check-in Streak៖ ចូល Check-in រាល់ថ្ងៃទទួលបានពី +10 coins ដល់ +50 coins ក្នុងមួយថ្ងៃ។
      • Coin Cashback៖ រាល់ពេលទិញទំនិញទទួលបាន Cashback ជា S-Coins (1% ទៅ 3%)។
-     • ដកកាក់យកលុយបញ្ចុះតម្លៃ៖ 1,000 S-Coins = បញ្ចុះតម្លៃបាន $1.00 USD ភ្លាមៗនៅពេល Checkout!
+     • ដកកាក់យកលុយបញ្ចុះតម្លៃ៖ 200 S-Coins = បញ្ចុះតម្លៃបាន $1.00 USD (អតិបរមា Limit ត្រឹម 1,000 S-Coins = $5.00 USD) ភ្លាមៗ!
    - កត់ត្រាប្រវត្តិប្រតិបត្តិការលម្អិត (Top-ups, Purchases, Coin Redemptions, Refunds) ព្រមទាំងអាចបោះពុម្ពវិក្កយបត្រ (Print Receipt) បានភ្លាមៗ។
 4. គណនីអតិថិជន & ការតភ្ជាប់ Telegram (/account/profile)៖
    - គ្រប់គ្រងព័ត៌មានផ្ទាល់ខ្លួន៖ ឈ្មោះ, អ៊ីមែល, លេខទូរស័ព្ទ, និងអាសយដ្ឋានដឹកជញ្ជូនលំនាំដើម។

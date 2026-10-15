@@ -962,7 +962,7 @@ export default function WalletAndCoinsPage() {
         onClose={() => setShowConvertModal(false)}
         currentCoins={wallet?.coins || 0}
         onSuccess={(newBal, remCoins) => {
-          setWallet((prev) => prev ? { ...prev, balance: newBal, coins: remCoins, coins_usd_value: roundTwoDecimals(remCoins / 100) } : prev);
+          setWallet((prev) => prev ? { ...prev, balance: newBal, coins: remCoins, coins_usd_value: roundTwoDecimals(remCoins / 200) } : prev);
           triggerToast("🔄 ប្តូរកាក់ជោគជ័យ!", `លោកអ្នកទទួលបានសាច់ប្រាក់បញ្ចូលទៅក្នុងកាបូបដោយជោគជ័យ`);
           loadData(true);
         }}

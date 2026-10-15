@@ -217,7 +217,7 @@ export const convertCoinsToUSD = async (coins: number): Promise<{
     updateCachedWallet({
       balance: Number(res.data.new_wallet_balance),
       coins: Number(res.data.remaining_coins),
-      coins_usd_value: round(Number(res.data.remaining_coins) / 100, 2),
+      coins_usd_value: round(Number(res.data.remaining_coins) / 200, 2),
     });
   }
   return res.data;

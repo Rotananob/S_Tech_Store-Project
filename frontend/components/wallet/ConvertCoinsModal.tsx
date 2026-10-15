@@ -19,13 +19,13 @@ export default function ConvertCoinsModal({
   currentCoins,
   onSuccess,
 }: ConvertCoinsModalProps) {
-  const [coinsToConvert, setCoinsToConvert] = useState<number>(Math.min(100, currentCoins));
+  const [coinsToConvert, setCoinsToConvert] = useState<number>(Math.min(200, Math.min(1000, currentCoins)));
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const usdValue = roundTwoDecimals(coinsToConvert / 100);
+  const usdValue = roundTwoDecimals(coinsToConvert / 200);
 
   function roundTwoDecimals(num: number): number {
     return Math.round(num * 100) / 100;
@@ -33,7 +33,11 @@ export default function ConvertCoinsModal({
 
   const handleConvert = async () => {
     if (coinsToConvert < 50) {
-      setErrorMsg("ចំនួនកាក់អប្បបរមាដើម្បីប្តូរគឺ 50 Coins ($0.50 USD)");
+      setErrorMsg("ចំនួនកាក់អប្បបរមាដើម្បីប្តូរគឺ 50 Coins ($0.25 USD)");
+      return;
+    }
+    if (coinsToConvert > 1000) {
+      setErrorMsg("ចំនួនកាក់អតិបរមាដែលអាចប្តូរបានគឺ 1,000 Coins ($5.00 USD) ក្នុងមួយលើក!");
       return;
     }
     if (coinsToConvert > currentCoins) {
@@ -81,7 +85,7 @@ export default function ConvertCoinsModal({
             ប្តូរកាក់ S-Coins ទៅជាសាច់ប្រាក់កាបូប
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            អត្រាប្តូរប្រាក់ផ្លូវការ: <strong>100 Coins = $1.00 USD</strong>
+            អត្រាប្តូរប្រាក់ផ្លូវការ: <strong>200 Coins = $1.00 USD</strong> (អតិបរមា Limit: <strong>1,000 Coins = $5.00 USD</strong>)
           </p>
         </div>
 
@@ -106,7 +110,7 @@ export default function ConvertCoinsModal({
             <input
               type="range"
               min="50"
-              max={Math.max(50, currentCoins)}
+              max={Math.min(1000, Math.max(50, currentCoins))}
               step="10"
               value={coinsToConvert}
               onChange={(e) => setCoinsToConvert(Number(e.target.value))}
@@ -116,20 +120,25 @@ export default function ConvertCoinsModal({
           </div>
 
           {/* Preset Buttons */}
-          <div className="flex gap-2 pt-1">
-            {[50, 100, 200, 500].map((preset) => (
+          <div className="grid grid-cols-4 gap-1.5 pt-1">
+            {[
+              { coins: 100, label: "100 ($0.50)" },
+              { coins: 200, label: "200 ($1.00)" },
+              { coins: 500, label: "500 ($2.50)" },
+              { coins: 1000, label: "1,000 ($5.00)" },
+            ].map((preset) => (
               <button
-                key={preset}
+                key={preset.coins}
                 type="button"
-                disabled={currentCoins < preset}
-                onClick={() => setCoinsToConvert(preset)}
-                className={`flex-1 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                  coinsToConvert === preset
-                    ? "bg-amber-500 text-black border-amber-400 font-black"
+                disabled={currentCoins < preset.coins}
+                onClick={() => setCoinsToConvert(preset.coins)}
+                className={`py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-bold border transition-all cursor-pointer text-center disabled:opacity-30 disabled:cursor-not-allowed ${
+                  coinsToConvert === preset.coins
+                    ? "bg-amber-500 text-black border-amber-400 font-black shadow-sm"
                     : "bg-white/5 hover:bg-white/10 text-gray-300 border-white/10"
                 }`}
               >
-                {preset}
+                {preset.label}
               </button>
             ))}
           </div>
@@ -154,7 +163,7 @@ export default function ConvertCoinsModal({
             </>
           ) : (
             <>
-              <span>ប្តូរជាសាច់ប្រាក់ ${usdValue.toFixed(2)} ភ្លាមៗ</span>
+              <span>ប្តូរជាសាច់ប្រាក់ ${usdValue.toFixed(2)} ភ្លាមៗ (អតិបរមា $5)</span>
               <ArrowRight size={16} />
             </>
           )}

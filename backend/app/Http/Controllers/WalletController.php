@@ -18,10 +18,10 @@ class WalletController extends Controller
      * CRITICAL INTERNAL ANTI-BOT PROTECTION RULE:
      * User can earn free bonus coins through daily check-ins and activities.
      * To protect from automated bots/scripts registering accounts and mining unlimited coins,
-     * the system quietly caps lifetime free coins earned at 500 coins ($5.00 value).
+     * the system quietly caps lifetime free coins earned at 1000 coins ($5.00 value at 200 coins = $1).
      * This limit is strictly enforced internally and kept invisible to normal users.
      */
-    private const MAX_LIFETIME_FREE_COINS = 500;
+    private const MAX_LIFETIME_FREE_COINS = 1000;
 
     /**
      * Extract firebase_uid from request header or session token.
@@ -170,7 +170,7 @@ class WalletController extends Controller
             'wallet' => [
                 'balance' => (float)($user->wallet_balance ?? 0.00),
                 'coins' => (int)($user->points ?? 0),
-                'coins_usd_value' => round(((int)($user->points ?? 0)) / 100, 2),
+                'coins_usd_value' => round(((int)($user->points ?? 0)) / 200, 2),
                 'daily_checkin' => [
                     'can_claim' => $canClaimDaily,
                     'already_claimed_today' => !$canClaimDaily,
@@ -805,7 +805,7 @@ class WalletController extends Controller
 
     /**
      * POST /api/user/wallet/redeem-coins
-     * Converts S-Coins into Real USD Wallet Balance (100 coins = $1.00 USD).
+     * Converts S-Coins into Real USD Wallet Balance (200 coins = $1.00 USD, Max Limit 1,000 coins = $5.00 USD).
      */
     public function convertCoins(Request $request)
     {
@@ -815,10 +815,17 @@ class WalletController extends Controller
         }
 
         $validated = $request->validate([
-            'coins' => 'required|integer|min:50',
+            'coins' => 'required|integer|min:50|max:1000',
         ]);
 
         $coinsToRedeem = (int)$validated['coins'];
+        if ($coinsToRedeem > 1000) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ចំនួនកាក់អតិបរមាដែលអាចប្តូរបានគឺ 1,000 Coins ($5.00 USD) ក្នុងមួយលើក!',
+            ], 422);
+        }
+
         $currentCoins = (int)($user->points ?? 0);
 
         if ($coinsToRedeem > $currentCoins) {
@@ -828,8 +835,8 @@ class WalletController extends Controller
             ], 422);
         }
 
-        // Conversion rate: 100 coins = $1.00 USD
-        $usdAmount = round($coinsToRedeem / 100, 2);
+        // Conversion rate: 200 coins = $1.00 USD (Max 1,000 coins = $5.00 USD)
+        $usdAmount = round($coinsToRedeem / 200, 2);
 
         // Deduct coins and credit wallet balance
         $user->points = $currentCoins - $coinsToRedeem;

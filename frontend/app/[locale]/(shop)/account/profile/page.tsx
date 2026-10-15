@@ -1944,7 +1944,7 @@ export default function UserProfilePage() {
                   <Sparkles size={16} className="text-amber-400" />
                   <span className="text-xs font-bold text-gray-200">S Tech Loyalty Coins</span>
                 </div>
-                <span className="text-xs font-black text-amber-400">≈ ${(stats.points / 100).toFixed(2)} USD</span>
+                <span className="text-xs font-black text-amber-400">≈ ${(stats.points / 200).toFixed(2)} USD</span>
               </div>
 
               <div className="text-2xl sm:text-3xl font-black text-white mb-2">
@@ -4456,12 +4456,16 @@ export default function UserProfilePage() {
 
               <div className="my-4 p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">100 S-Tech Coins</span>
+                  <span className="text-gray-400">200 S-Tech Coins</span>
                   <span className="font-bold text-emerald-400">$1.00 USD Off</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-400">1,000 S-Tech Coins (Max Limit)</span>
+                  <span className="font-bold text-emerald-400">$5.00 USD Off</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-400">Current Balance Value</span>
-                  <span className="font-bold text-amber-400">${(stats.points / 100).toFixed(2)} USD</span>
+                  <span className="font-bold text-amber-400">${(stats.points / 200).toFixed(2)} USD</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Tier Status (កម្រិតសមាជិក)</span>
