@@ -15,6 +15,7 @@ import PublicProfileModal from "@/components/ui/PublicProfileModal";
 
 export function ProductDetailClient({ product }: { product: any }) {
   const [activeImage, setActiveImage] = useState(0);
+  const [quantity, setQuantity] = useState(1);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [heartPulsing, setHeartPulsing] = useState(false);
@@ -130,7 +131,7 @@ export function ProductDetailClient({ product }: { product: any }) {
       id: product.id,
       name: product.name,
       price: product.sale_price || product.price,
-      quantity: 1,
+      quantity: Math.max(1, quantity),
       image_url: product.image_url,
     });
     setTimeout(() => {
@@ -166,7 +167,7 @@ export function ProductDetailClient({ product }: { product: any }) {
       id: product.id,
       name: product.name,
       price: product.sale_price || product.price,
-      quantity: 1,
+      quantity: Math.max(1, quantity),
       image_url: product.image_url,
     });
 
@@ -373,20 +374,25 @@ export function ProductDetailClient({ product }: { product: any }) {
           <div className="lg:py-4">
             
             {/* Price Banner */}
-            <div className="bg-white dark:bg-[#151922] p-4 mb-2 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
+            <div className="bg-white dark:bg-[#151922] p-4 sm:p-6 mb-3 lg:rounded-2xl lg:shadow-sm border border-gray-100 dark:border-white/10">
               <div className="flex justify-between items-end mb-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[#e02e24] dark:text-red-400 text-[28px] font-bold leading-none">
-                    {formatUSD(hasSale ? activeSalePrice! : activeOriginalPrice)}
-                  </span>
-                  {hasSale && (
-                    <span className="text-gray-400 dark:text-gray-500 text-[14px] line-through font-mono">
-                      {formatUSD(activeOriginalPrice)}
+                <div>
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-[#e02e24] dark:text-red-400 text-2xl sm:text-3xl lg:text-4xl font-black leading-none font-mono">
+                      {formatUSD(hasSale ? activeSalePrice! : activeOriginalPrice)}
                     </span>
-                  )}
+                    {hasSale && (
+                      <span className="text-gray-400 dark:text-gray-500 text-sm sm:text-base line-through font-mono">
+                        {formatUSD(activeOriginalPrice)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1 font-khmer">
+                    {formatKHR(hasSale ? activeSalePrice! : activeOriginalPrice)}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 {hasSale && discountPct && (
                   <span className="inline-flex items-center gap-1 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-sm animate-pulse">
                     🔥 -{discountPct}% OFF PROMO
@@ -412,13 +418,107 @@ export function ProductDetailClient({ product }: { product: any }) {
                 )}
               </div>
 
-              <h1 className="text-[16px] font-bold text-gray-900 leading-snug mb-2">
+              <h1 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-extrabold text-gray-900 dark:text-white leading-tight mb-2.5 tracking-tight">
                 {product.name}
               </h1>
               
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                <span className="text-[#16a34a] flex items-center gap-1"><CheckCircle2 size={12}/> Guarantee Genuine</span>
-                <span className="text-gray-500">• Fast Delivery</span>
+              <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-white/5">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1"><CheckCircle2 size={13}/> Guarantee Genuine 100%</span>
+                <span>• Fast 25 Provinces Delivery</span>
+                <span>• Official Warranty</span>
+              </div>
+            </div>
+
+            {/* Desktop Action & Purchase Panel (Prominent on lg+) */}
+            <div className="hidden lg:block bg-white dark:bg-[#151922] p-5 sm:p-6 mb-3 rounded-2xl shadow-sm border border-gray-100 dark:border-white/10">
+              <div className="flex items-center justify-between gap-4 pb-4 mb-4 border-b border-gray-100 dark:border-white/10">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                  បរិមាណ • Quantity
+                </span>
+                <div className="flex items-center border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden bg-gray-50 dark:bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-9 h-9 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 font-bold transition-colors cursor-pointer border-none bg-transparent"
+                  >
+                    -
+                  </button>
+                  <div className="w-12 h-9 flex items-center justify-center text-sm font-black font-mono text-gray-900 dark:text-white border-x border-gray-200 dark:border-white/10">
+                    {quantity}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-9 h-9 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 font-bold transition-colors cursor-pointer border-none bg-transparent"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-red-600/10 to-[#8B1A1A]/10 hover:bg-red-50 dark:hover:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 border border-red-300 dark:border-red-900/60 font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  <ShoppingCart size={17} strokeWidth={2.3} />
+                  <span>ដាក់ចូលកន្ត្រក</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg active:scale-95 border-none"
+                >
+                  <span>ទិញភ្លាមៗ (Buy Now)</span>
+                </button>
+              </div>
+
+              {/* Quick Actions (Wishlist & Telegram Specialist Consultation) */}
+              <div className="flex items-center gap-2.5 pt-3 border-t border-gray-100 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={toggleWishlist}
+                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    isSaved
+                      ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-[#8B1A1A] dark:text-red-400"
+                      : "bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-gray-300"
+                  }`}
+                >
+                  <Heart size={14} fill={isSaved ? "currentColor" : "none"} className={heartPulsing ? "scale-125 transition-transform" : ""} />
+                  <span>{isSaved ? "បានរក្សាទុក (Saved)" : "រក្សាទុក (Wishlist)"}</span>
+                </button>
+
+                <a
+                  href="https://t.me/S_TECH_ASSISTANTBOT"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 px-3 rounded-xl bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all no-underline shadow-xs"
+                >
+                  <Send size={13} />
+                  <span>Telegram Specialist</span>
+                </a>
+              </div>
+
+              {/* Genuine Warranty Perks */}
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 grid grid-cols-2 gap-2 text-[11px] text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>ធានាផលិតផលសុទ្ធ ១០០%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>ដឹកជញ្ជូនរហ័ស ២៥ ខេត្ត-ក្រុង</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>ធានាប្តូរថ្មីក្នុងរយៈពេល ៧ ថ្ងៃ</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>ដំឡើង Software ឥតគិតថ្លៃ</span>
+                </div>
               </div>
             </div>
 
@@ -772,16 +872,16 @@ export function ProductDetailClient({ product }: { product: any }) {
       </div>
 
       {/* Desktop Fixed Action Bar (Hidden on Mobile) */}
-      <div className="hidden lg:flex fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-50 h-[80px] shadow-[0_-4px_24px_rgba(0,0,0,0.06)] items-center justify-center">
+      <div className="hidden lg:flex fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#12151e]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 z-50 h-[80px] shadow-[0_-4px_24px_rgba(0,0,0,0.06)] items-center justify-center transition-colors">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-             <img src={images[0]} className="w-12 h-12 rounded-xl object-contain border border-gray-100 bg-gray-50" alt=""/>
+             <img src={images[0]} className="w-12 h-12 rounded-xl object-contain border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5" alt=""/>
              <div>
-                <h3 className="text-[14px] font-bold text-gray-900 line-clamp-1">{product.name}</h3>
+                <h3 className="text-[14px] font-bold text-gray-900 dark:text-white line-clamp-1">{product.name}</h3>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#e02e24] font-extrabold text-base">{formatUSD(product.sale_price || product.price)}</span>
-                  {product.sale_price && (
-                    <span className="text-gray-400 text-xs line-through">{formatUSD(product.price)}</span>
+                  <span className="text-[#e02e24] dark:text-red-400 font-extrabold text-base font-mono">{formatUSD(hasSale ? activeSalePrice! : activeOriginalPrice)}</span>
+                  {hasSale && (
+                    <span className="text-gray-400 dark:text-gray-500 text-xs line-through font-mono">{formatUSD(activeOriginalPrice)}</span>
                   )}
                 </div>
              </div>
@@ -791,7 +891,7 @@ export function ProductDetailClient({ product }: { product: any }) {
               type="button"
               onClick={toggleWishlist}
               className={`p-3 rounded-full border transition-all cursor-pointer ${
-                isSaved ? "bg-red-50 border-red-200 text-[#e02e24]" : "border-gray-200 text-gray-500 hover:text-gray-800"
+                isSaved ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-[#e02e24] dark:text-red-400" : "border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
               }`}
               title="Save to Wishlist"
             >
@@ -799,13 +899,13 @@ export function ProductDetailClient({ product }: { product: any }) {
             </button>
             <button 
               onClick={handleAddToCart} 
-              className="bg-[#f89c9c] text-white px-8 py-3 rounded-full font-bold hover:bg-[#f48484] transition-all shadow-sm hover:shadow active:scale-95 cursor-pointer"
+              className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/40 text-[#8B1A1A] dark:text-red-400 px-7 py-3 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-all shadow-xs active:scale-95 cursor-pointer"
             >
               Add to Cart
             </button>
             <button 
               onClick={handleBuyNow} 
-              className="bg-[#e02e24] text-white px-8 py-3 rounded-full font-bold hover:bg-[#c82218] transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer"
+              className="bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md shadow-red-600/20 active:scale-95 cursor-pointer border-none"
             >
               Buy Now
             </button>

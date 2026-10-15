@@ -31,6 +31,13 @@
       }
     },
 
+    "system": {
+      "store_status": {
+        ".read": true,
+        ".write": "auth != null || (newData.child('broadcast_timestamp').isNumber() && newData.child('broadcast_timestamp').val() <= now + 120000)"
+      }
+    },
+
     "rate_limits": {
       ".read": false,
       ".write": false

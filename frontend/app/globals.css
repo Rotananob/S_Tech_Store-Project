@@ -118,11 +118,13 @@ html[data-font="inter"], body[data-font="inter"], [data-font="inter"] {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: var(--font-inter), var(--font-khmer), 'Battambang', -apple-system, sans-serif;
+  font-family: 'Kantumruy Pro', var(--font-inter), var(--font-khmer), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg-white); /* Light theme default for mobile */
   color: var(--text-dark);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 a { color: inherit; text-decoration: none; }
 a.text-white, a.bg-gradient-to-r, a .text-white, .btn-red, .text-white, a[class*="text-white"], a[class*="bg-[#8B1A1A]"] {
@@ -138,18 +140,18 @@ img { max-width: 100%; display: block; }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-inter), var(--font-khmer), 'Battambang', sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Kantumruy Pro', var(--font-inter), var(--font-khmer), system-ui, sans-serif;
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 /* ─── Khmer Fonts ──────────────────────────────────────────────────────────── */
 .font-khmer {
-  font-family: var(--font-khmer), 'Battambang', sans-serif;
+  font-family: 'Kantumruy Pro', var(--font-khmer), sans-serif;
   font-weight: 400;
-  line-height: 1.8;
-  letter-spacing: 0.01em;
+  line-height: 1.75;
+  letter-spacing: 0.005em;
 }
 .font-dangrek {
   font-family: 'Dangrek', cursive;

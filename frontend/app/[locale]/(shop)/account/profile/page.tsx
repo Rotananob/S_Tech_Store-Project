@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useRouter, usePathname } from "@/i18n/routing";
 import { onAuthStateChanged, User as FirebaseUser, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -392,6 +392,7 @@ export default function UserProfilePage() {
   const [telegramSuccess, setTelegramSuccess] = useState(false);
   const [telegramUnlinking, setTelegramUnlinking] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const openedTgTabRef = useRef<Window | null>(null);
 
   // History Sub-Tabs & Activity Tracking (Orders, Viewed Products, Searches)
   const [historySubTab, setHistorySubTab] = useState<"orders" | "viewed" | "searches">("orders");
@@ -1173,6 +1174,63 @@ export default function UserProfilePage() {
   };
 
   const handleConnectTelegram = async () => {
+    // 1. Detect mobile device
+    const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // 2. Pre-open blank tab synchronously in direct user click gesture to defeat desktop popup blockers
+    let preOpenedTab: Window | null = null;
+    if (!isMobile && typeof window !== "undefined") {
+      try {
+        preOpenedTab = window.open("about:blank", "_blank");
+        if (preOpenedTab) {
+          openedTgTabRef.current = preOpenedTab;
+          preOpenedTab.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <title>កំពុងបើក Telegram Bot...</title>
+              <style>
+                body {
+                  margin: 0;
+                  background-color: #0e1621;
+                  color: #ffffff;
+                  font-family: system-ui, -apple-system, sans-serif;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  height: 100vh;
+                  text-align: center;
+                }
+                .spinner {
+                  width: 44px;
+                  height: 44px;
+                  border: 3px solid rgba(255,255,255,0.15);
+                  border-top-color: #0088cc;
+                  border-radius: 50%;
+                  animation: spin 0.8s linear infinite;
+                  margin: 0 auto 16px auto;
+                }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                h2 { margin: 0 0 8px 0; font-size: 19px; font-weight: 700; }
+                p { margin: 0; font-size: 13px; color: #8e9aa8; }
+              </style>
+            </head>
+            <body>
+              <div>
+                <div class="spinner"></div>
+                <h2>កំពុងបញ្ជូនទៅកាន់ Telegram Bot... ✈️</h2>
+                <p>សូមចុច "START" ក្នុង Telegram ដើម្បីភ្ជាប់គណនី</p>
+              </div>
+            </body>
+            </html>
+          `);
+        }
+      } catch (_) {
+        preOpenedTab = null;
+      }
+    }
+
     try {
       setTelegramLinking(true);
       const res = await api.post("/user/telegram/link-init");
@@ -1187,18 +1245,54 @@ export default function UserProfilePage() {
         setTelegramModalOpen(true);
         setTelegramSuccess(false);
 
-        const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|Android/i.test(navigator.userAgent);
-
-        if (isMobile && cleanAppLink) {
-          // Open Telegram App directly without navigating browser tab away from S Tech Store
+        // 3. Auto-direct / push user directly to Telegram!
+        if (isMobile) {
+          // On mobile: trigger custom scheme tg:// so Telegram app opens instantly without leaving browser tab
           window.location.href = cleanAppLink;
+          setTimeout(() => {
+            // If native app scheme wasn't handled, fallback to Universal Link
+            if (document.visibilityState === "visible") {
+              window.location.href = cleanDeepLink;
+            }
+          }, 800);
         } else {
-          window.open(cleanDeepLink, "_blank");
+          // On desktop:
+          // A. If preOpenedTab was created synchronously, navigate it to cleanDeepLink
+          if (preOpenedTab && !preOpenedTab.closed) {
+            preOpenedTab.location.href = cleanDeepLink;
+          } else {
+            // Fallback synthetic link click
+            try {
+              const a = document.createElement("a");
+              a.href = cleanDeepLink;
+              a.target = "_blank";
+              a.rel = "noopener noreferrer";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } catch (_) {
+              window.open(cleanDeepLink, "_blank");
+            }
+          }
+
+          // B. Also invoke native Telegram Desktop protocol tg:// via hidden iframe
+          try {
+            const iframe = document.createElement("iframe");
+            iframe.style.display = "none";
+            iframe.src = cleanAppLink;
+            document.body.appendChild(iframe);
+            setTimeout(() => {
+              try { document.body.removeChild(iframe); } catch (_) {}
+            }, 3000);
+          } catch (_) {}
         }
 
         startTelegramPolling(res.data.link_token);
+      } else {
+        if (preOpenedTab && !preOpenedTab.closed) preOpenedTab.close();
       }
     } catch (err: any) {
+      if (preOpenedTab && !preOpenedTab.closed) preOpenedTab.close();
       console.error("Failed to init telegram link:", err);
       alert(err?.response?.data?.error || "មិនអាចបង្កើតតំណភ្ជាប់ Telegram បានទេ សូមព្យាយាមម្តងទៀត");
     } finally {
@@ -1210,6 +1304,12 @@ export default function UserProfilePage() {
     setTelegramPolling(true);
     let attempts = 0;
     let pollInterval: any = null;
+
+    const onReturn = () => {
+      if (document.visibilityState === "visible") {
+        checkLink();
+      }
+    };
 
     const cleanup = () => {
       if (pollInterval) {
@@ -1227,6 +1327,15 @@ export default function UserProfilePage() {
           cleanup();
           setTelegramPolling(false);
           setTelegramSuccess(true);
+
+          // Close pre-opened tab if still open
+          if (openedTgTabRef.current && !openedTgTabRef.current.closed) {
+            try {
+              openedTgTabRef.current.close();
+            } catch (_) {}
+            openedTgTabRef.current = null;
+          }
+
           setProfile((prev) => ({
             ...prev,
             telegram: res.data.telegram || prev.telegram,
@@ -1247,6 +1356,14 @@ export default function UserProfilePage() {
           cleanup();
           setTelegramPolling(false);
           setTelegramModalOpen(false);
+
+          if (openedTgTabRef.current && !openedTgTabRef.current.closed) {
+            try {
+              openedTgTabRef.current.close();
+            } catch (_) {}
+            openedTgTabRef.current = null;
+          }
+
           const errMsg = res.data?.error || `គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី "${res.data?.already_linked_name || "ផ្សេង"}"! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។`;
           setSaveModal({
             show: true,
@@ -1265,20 +1382,14 @@ export default function UserProfilePage() {
 
     pollInterval = setInterval(async () => {
       attempts++;
-      if (attempts > 80) {
+      if (attempts > 120) {
         cleanup();
         setTelegramPolling(false);
         return;
       }
       await checkLink();
-    }, 1200);
+    }, 800);
 
-    // Immediate check on tab return from Telegram app
-    const onReturn = () => {
-      if (document.visibilityState === "visible") {
-        checkLink();
-      }
-    };
     window.addEventListener("focus", onReturn);
     document.addEventListener("visibilitychange", onReturn);
   };
@@ -4203,7 +4314,14 @@ export default function UserProfilePage() {
             >
               <button
                 type="button"
-                onClick={() => { setTelegramModalOpen(false); setTelegramPolling(false); }}
+                onClick={() => {
+                  setTelegramModalOpen(false);
+                  setTelegramPolling(false);
+                  if (openedTgTabRef.current && !openedTgTabRef.current.closed) {
+                    try { openedTgTabRef.current.close(); } catch (_) {}
+                    openedTgTabRef.current = null;
+                  }
+                }}
                 className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-all cursor-pointer border-none bg-transparent"
               >
                 <X size={18} />
@@ -4238,10 +4356,10 @@ export default function UserProfilePage() {
 
                   <div className="space-y-1.5">
                     <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
-                      ភ្ជាប់ Telegram Bot ផ្លូវការ (Official Bot)
+                      កំពុងបើក Telegram Bot ស្វ័យប្រវត្តិ ✈️
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      ចុចប៊ូតុងខាងក្រោមដើម្បីបើក Bot ក្នុង Telegram រួចចុច <strong>START</strong>
+                      ប្រព័ន្ធកំពុងបញ្ជូនទៅ Telegram... សូមចុច <strong>START</strong> លើ Telegram ដើម្បីភ្ជាប់ភ្លាមៗ!
                     </p>
                     <div className="flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 py-1 px-3 rounded-lg mx-auto w-fit">
                       <ShieldCheck size={13} />
@@ -4251,29 +4369,33 @@ export default function UserProfilePage() {
 
                   {telegramDeepLink && (
                     <div className="space-y-3 pt-2">
+                      <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-800/40 flex items-center justify-center gap-2.5 text-xs text-sky-700 dark:text-sky-300 font-medium">
+                        <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping"></span>
+                        <span>កំពុងរង់ចាំលោកអ្នកចុច Start ក្នុង Telegram...</span>
+                      </div>
+
                       <a
                         href={sanitizeTgDeepLink(telegramDeepLink, telegramToken) || "https://t.me/S_TECH_ASSISTANTBOT"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-full py-3.5 px-4 rounded-2xl bg-[#0088cc] hover:bg-[#0077b5] text-white text-sm font-extrabold transition-all no-underline flex items-center justify-center gap-2 shadow-lg shadow-sky-500/25 cursor-pointer"
+                        className="w-full py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-800 dark:text-white text-xs font-bold transition-all no-underline flex items-center justify-center gap-2 cursor-pointer border border-gray-200 dark:border-white/10"
                       >
-                        <Send size={16} />
-                        <span>បើកកម្មវិធី Telegram (@{sanitizeTgBot(telegramBotUsername)})</span>
-                        <ExternalLink size={14} />
+                        <Send size={14} className="text-[#0088cc]" />
+                        <span>បើក Telegram ម្តងទៀត (ប្រសិនបើមិនទាន់លោត)</span>
+                        <ExternalLink size={13} className="text-gray-400" />
                       </a>
-
-                      <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping"></span>
-                        <span>កំពុងរង់ចាំលោកអ្នកចុច Start ក្នុង Telegram...</span>
-                      </div>
 
                       <button
                         type="button"
                         onClick={() => {
                           setTelegramModalOpen(false);
                           setTelegramPolling(false);
+                          if (openedTgTabRef.current && !openedTgTabRef.current.closed) {
+                            try { openedTgTabRef.current.close(); } catch (_) {}
+                            openedTgTabRef.current = null;
+                          }
                         }}
-                        className="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 text-xs font-bold transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 px-4 rounded-xl bg-transparent hover:bg-gray-50 dark:hover:bg-white/5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xs font-medium transition-all cursor-pointer border-none flex items-center justify-center gap-1.5"
                       >
                         <X size={14} />
                         <span>✕ បោះបង់ ឬត្រឡប់ក្រោយ (Cancel & Return)</span>

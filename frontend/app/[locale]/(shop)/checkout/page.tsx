@@ -431,6 +431,26 @@ export default function CheckoutPage() {
         setShowPhoneSyncModal(true);
         setPhoneSyncLoading(false);
 
+        // Auto-launch Telegram app
+        try {
+          const appUrl = botUrl.replace("https://t.me/", "tg://resolve?domain=").replace("?start=", "&start=");
+          const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            window.location.href = appUrl;
+            setTimeout(() => {
+              if (document.visibilityState === "visible") window.location.href = botUrl;
+            }, 800);
+          } else {
+            const a = document.createElement("a");
+            a.href = botUrl;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        } catch (_) {}
+
         // Start polling /auth/telegram/poll-phone-sync every 1s
         if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
         phoneSyncPollRef.current = setInterval(async () => {
@@ -712,6 +732,26 @@ export default function CheckoutPage() {
         setTelegramLocBotUrl(botUrl);
         setShowTelegramLocModal(true);
         setTelegramLocLoading(false);
+
+        // Auto-launch Telegram app
+        try {
+          const appUrl = botUrl.replace("https://t.me/", "tg://resolve?domain=").replace("?start=", "&start=");
+          const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile) {
+            window.location.href = appUrl;
+            setTimeout(() => {
+              if (document.visibilityState === "visible") window.location.href = botUrl;
+            }, 800);
+          } else {
+            const a = document.createElement("a");
+            a.href = botUrl;
+            a.target = "_blank";
+            a.rel = "noopener noreferrer";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+        } catch (_) {}
 
         // Start polling /auth/telegram/poll-location-sync every 1s
         if (telegramLocPollRef.current) clearInterval(telegramLocPollRef.current);

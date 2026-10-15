@@ -233,74 +233,51 @@ export default function OrdersPage() {
       )}
 
       {/* Hero */}
-      <section
-        style={{
-          background: "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)",
-          padding: "64px 0 48px",
-          textAlign: "center",
-        }}
-      >
-        <div className="container">
-          <h1 style={{ fontSize: 42, fontWeight: 900, color: "#fff", marginBottom: 10, letterSpacing: "-0.02em" }}>
-            My Orders
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#12141a] via-[#1a1415] to-[#0c0e12] text-white py-12 lg:py-16 border-b border-gray-800 text-center">
+        <div className="absolute inset-0 bg-[radial-gradient(#8B1A1A_1px,transparent_1px)] [background-size:24px_24px] opacity-15 pointer-events-none" />
+        <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 text-xs font-bold tracking-wide uppercase mb-3">
+            <Package size={13} className="text-red-400" />
+            <span>Order History & Invoices</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white mb-2 tracking-tight">
+            My Orders <span className="text-[#8B1A1A] dark:text-red-500">.</span>
           </h1>
-          <p className="font-khmer" style={{ fontSize: 16, color: "rgba(255,255,255,0.55)" }}>
-            ការបញ្ជាទិញរបស់ខ្ញុំ
+          <p className="font-khmer text-sm sm:text-base text-gray-400">
+            ប្រវត្តិការបញ្ជាទិញ ស្ថានភាពដឹកជញ្ជូន និងវិក្កយបត្រផ្លូវការរបស់អ្នក
           </p>
         </div>
       </section>
 
-      <div className="container" style={{ padding: "40px 24px 64px" }}>
+      <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         {/* Not logged in */}
         {loggedIn === false && (
-          <div
-            style={{
-              maxWidth: 440,
-              margin: "0 auto",
-              textAlign: "center",
-              padding: 48,
-              background: "#f9f9f9",
-              borderRadius: 12,
-              border: "1px solid #e5e5e5",
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>
-              Please sign in
+          <div className="max-w-md mx-auto text-center p-8 sm:p-12 bg-white dark:bg-[#151922] rounded-3xl border border-gray-200/80 dark:border-white/10 shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto mb-4 text-2xl">
+              🔒
+            </div>
+            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">
+              Please Sign In
             </h2>
-            <p style={{ fontSize: 14, color: "#777", marginBottom: 24, lineHeight: 1.7 }}>
-              You need to be logged in to view your orders.
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+              You need to be logged in to view your past orders, delivery tracking, and official invoices.
             </p>
             <Link
               href="/login"
-              style={{
-                display: "inline-block",
-                padding: "12px 32px",
-                background: "#8B1A1A",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 14,
-                textDecoration: "none",
-              }}
+              className="inline-flex items-center justify-center px-8 py-3 bg-[#8B1A1A] hover:bg-[#6b1010] text-white rounded-xl font-bold text-sm shadow-md transition-all no-underline"
             >
-              Sign In
+              Sign In Now
             </Link>
           </div>
         )}
 
         {/* Loading */}
         {loggedIn && loading && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="space-y-4 max-w-4xl mx-auto">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                style={{
-                  height: 120,
-                  borderRadius: 10,
-                  background: "#f3f3f3",
-                  animation: "pulse 1.5s ease-in-out infinite",
-                }}
+                className="h-32 rounded-2xl bg-white dark:bg-[#151922] border border-gray-200/60 dark:border-white/5 animate-pulse"
               />
             ))}
           </div>
@@ -308,36 +285,19 @@ export default function OrdersPage() {
 
         {/* Empty state */}
         {loggedIn && !loading && orders.length === 0 && (
-          <div
-            style={{
-              maxWidth: 440,
-              margin: "0 auto",
-              textAlign: "center",
-              padding: 48,
-              background: "#f9f9f9",
-              borderRadius: 12,
-              border: "1px solid #e5e5e5",
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🛍️</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>
+          <div className="max-w-md mx-auto text-center p-8 sm:p-12 bg-white dark:bg-[#151922] rounded-3xl border border-gray-200/80 dark:border-white/10 shadow-xs">
+            <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center mx-auto mb-4 text-2xl">
+              🛍️
+            </div>
+            <h2 className="text-xl font-extrabold text-gray-900 dark:text-white mb-2">
               No orders yet
             </h2>
-            <p style={{ fontSize: 14, color: "#777", marginBottom: 24, lineHeight: 1.7 }}>
-              You haven&apos;t placed any orders. Start shopping and your orders will appear here.
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+              You haven&apos;t placed any orders yet. Explore our genuine laptops, gaming rigs and components!
             </p>
             <Link
               href="/"
-              style={{
-                display: "inline-block",
-                padding: "12px 32px",
-                background: "#8B1A1A",
-                color: "#fff",
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 14,
-                textDecoration: "none",
-              }}
+              className="inline-flex items-center justify-center px-8 py-3 bg-[#8B1A1A] hover:bg-[#6b1010] text-white rounded-xl font-bold text-sm shadow-md transition-all no-underline"
             >
               Start Shopping
             </Link>
@@ -346,54 +306,28 @@ export default function OrdersPage() {
 
         {/* Order list */}
         {loggedIn && !loading && orders.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="space-y-4 max-w-5xl mx-auto">
             {orders.map((order) => {
               const st = STATUS_STYLES[order.status] || STATUS_STYLES.pending;
               return (
                 <div
                   key={order.id}
                   id={`order-${order.order_id || order.id}`}
-                  style={{
-                    background: "#fff",
-                    border: "1px solid #e5e5e5",
-                    borderRadius: 10,
-                    padding: 24,
-                    transition: "box-shadow 200ms, transform 200ms",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.08)";
-                    (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-                    (e.currentTarget as HTMLDivElement).style.transform = "none";
-                  }}
+                  className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs hover:shadow-md transition-all"
                 >
                   {/* Top row */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: 12,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <div>
-                      <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a1a" }}>
+                  <div className="flex items-center justify-between flex-wrap gap-3 pb-4 mb-4 border-b border-gray-100 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-base sm:text-lg font-black text-gray-900 dark:text-white font-mono">
                         {order.order_id}
                       </span>
-                      <span style={{ fontSize: 13, color: "#999", marginLeft: 12 }}>
+                      <span className="text-xs text-gray-400 font-medium">
                         {fmtDate(order.created_at)}
                       </span>
                     </div>
                     <span
+                      className="px-3.5 py-1 rounded-full text-xs font-bold"
                       style={{
-                        padding: "5px 14px",
-                        borderRadius: 20,
-                        fontSize: 12,
-                        fontWeight: 700,
                         background: st.bg,
                         color: st.color,
                       }}
@@ -403,84 +337,50 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Details grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-1">
                     <div>
-                      <p style={{ fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                        Total
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                        Total Amount
                       </p>
-                      <p style={{ fontSize: 18, fontWeight: 800, color: "#8B1A1A" }}>
+                      <p className="text-lg sm:text-xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
                         {fmtUSD(order.total_amount)}
                       </p>
                     </div>
                     <div>
-                      <p style={{ fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                        Items
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                        Items Count
                       </p>
-                      <p style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>
+                      <p className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
                         {order.items?.length || 0} product{(order.items?.length || 0) !== 1 ? "s" : ""}
                       </p>
                     </div>
                     <div>
-                      <p style={{ fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                        Payment
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                        Payment Method
                       </p>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                         {order.payment_method ? order.payment_method.toUpperCase() : "N/A"}
                       </p>
                     </div>
                     <div>
-                      <p style={{ fontSize: 11, color: "#999", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
-                        Delivery
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">
+                        Delivery Region
                       </p>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>
+                      <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                         {order.delivery_type === "pnompenh" ? "Phnom Penh" : order.delivery_type === "province" ? "Province" : order.delivery_type || "N/A"}
                       </p>
                     </div>
                   </div>
 
                   {/* Action Bar */}
-                  <div
-                    style={{
-                      marginTop: 16,
-                      paddingTop: 12,
-                      borderTop: "1px solid #f0f0f0",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      flexWrap: "wrap",
-                      gap: 8,
-                    }}
-                  >
-                    <span style={{ fontSize: 11, color: "#888" }}>
-                      Official Electronic Proof of Purchase
+                  <div className="mt-5 pt-4 border-t border-gray-100 dark:border-white/5 flex items-center justify-between flex-wrap gap-3">
+                    <span className="text-xs text-gray-400">
+                      Official Electronic Proof of Purchase • S Tech Store
                     </span>
                     <button
                       type="button"
                       onClick={() => handleViewReceipt(order)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "6px 14px",
-                        borderRadius: 8,
-                        fontSize: 12,
-                        fontWeight: 700,
-                        background: "#f3f4f6",
-                        color: "#1f2937",
-                        border: "1px solid #e5e7eb",
-                        cursor: "pointer",
-                        transition: "all 150ms",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#8B1A1A";
-                        e.currentTarget.style.color = "#fff";
-                        e.currentTarget.style.borderColor = "#8B1A1A";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#f3f4f6";
-                        e.currentTarget.style.color = "#1f2937";
-                        e.currentTarget.style.borderColor = "#e5e7eb";
-                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] hover:text-white text-gray-800 dark:text-gray-200 transition-all border border-gray-200 dark:border-white/10 cursor-pointer shadow-2xs"
                     >
                       {loadingDetailOrderId === order.order_id ? (
                         <>

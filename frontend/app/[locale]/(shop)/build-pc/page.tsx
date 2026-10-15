@@ -9,6 +9,10 @@ import {
 import NextImage from "next/image";
 import { useLangStore } from "@/store/langStore";
 import { translations } from "@/lib/translations";
+import { 
+  CheckCircle2, AlertTriangle, Cpu, Wrench, ShoppingCart, 
+  Bookmark, X, Search, Sparkles, ShieldCheck 
+} from "lucide-react";
 
 const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
@@ -88,71 +92,72 @@ function SelectModal({
   );
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 200,
-      background: "rgba(0,0,0,0.55)", display: "flex",
-      alignItems: "center", justifyContent: "center", padding: "20px",
-    }} onClick={onClose}>
-      <div style={{
-        background: "#fff", borderRadius: "10px", width: "100%",
-        maxWidth: "680px", maxHeight: "85vh", display: "flex",
-        flexDirection: "column", overflow: "hidden",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
-      }} onClick={e => e.stopPropagation()}>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-[#151922] rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100 dark:border-white/10"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
           <div>
-            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8B1A1A", letterSpacing: ".08em", textTransform: "uppercase" }}>Select Component</p>
-            <h3 style={{ fontSize: "17px", fontWeight: 700, color: "#1a1a1a" }}>{meta.label}</h3>
+            <p className="text-[11px] font-black text-[#8B1A1A] dark:text-red-400 tracking-wider uppercase">Select Component</p>
+            <h3 className="text-lg sm:text-xl font-extrabold text-gray-900 dark:text-white">{meta.label}</h3>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", color: "#888" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <button 
+            onClick={onClose} 
+            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-500 dark:text-gray-300 flex items-center justify-center cursor-pointer transition-colors border-none"
+          >
+            <X size={18} />
           </button>
         </div>
+
         {/* Search */}
-        <div style={{ padding: "12px 24px", borderBottom: "1px solid #f0f0f0" }}>
-          <input
-            autoFocus
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={`Search ${meta.label}...`}
-            style={{
-              width: "100%", padding: "9px 14px", border: "1px solid #ddd",
-              borderRadius: "6px", fontSize: "14px", outline: "none", color: "#1a1a1a",
-            }}
-          />
+        <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/[0.02]">
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={`Search ${meta.label}...`}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#12151e] text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 transition-colors shadow-2xs"
+            />
+          </div>
         </div>
+
         {/* List */}
-        <div style={{ overflowY: "auto", flex: 1 }}>
+        <div className="overflow-y-auto flex-1 divide-y divide-gray-100 dark:divide-white/5 p-2">
           {filtered.map(c => (
-            <button key={c.id} onClick={() => { onSelect(c); onClose(); }}
-              style={{
-                display: "flex", alignItems: "center", gap: "14px",
-                width: "100%", padding: "14px 24px", background: "none",
-                border: "none", borderBottom: "1px solid #f5f5f5",
-                cursor: "pointer", textAlign: "left", transition: "background 150ms",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#f8f8f8")}
-              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            <button 
+              key={c.id} 
+              onClick={() => { onSelect(c); onClose(); }}
+              className="flex items-center gap-4 w-full p-3.5 sm:p-4 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-left cursor-pointer border-none bg-transparent group"
             >
-              <div style={{ width: 52, height: 52, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0, position: "relative" }}>
-                <NextImage src={c.image || "/placeholder.png"} alt={c.name || "Component"} fill className="object-cover" />
+              <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 dark:bg-white/5 flex-shrink-0 relative border border-gray-100 dark:border-white/10 p-1">
+                <NextImage src={c.image || "/placeholder.png"} alt={c.name || "Component"} fill className="object-contain p-1 group-hover:scale-105 transition-transform" />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{c.name}</span>
-                  {c.badge && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 2, background: c.badge === "HOT" ? "#c0392b" : "#1a4fa0", color: "#fff" }}>{c.badge}</span>}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors line-clamp-1">{c.name}</span>
+                  {c.badge && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-600 text-white uppercase tracking-wider">
+                      {c.badge}
+                    </span>
+                  )}
                 </div>
-                <p style={{ fontSize: 12, color: "#888", margin: 0 }}>{c.specs}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{c.specs}</p>
               </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#8B1A1A" }}>${c.price.toFixed(2)}</div>
-                <div style={{ fontSize: 11, color: "#aaa" }}>{fmtKHR(c.price)}</div>
+              <div className="text-right flex-shrink-0 pl-2">
+                <div className="text-base font-black text-[#8B1A1A] dark:text-red-400 font-mono">${c.price.toFixed(2)}</div>
+                <div className="text-[11px] text-gray-400 font-medium font-khmer">{fmtKHR(c.price)}</div>
               </div>
             </button>
           ))}
           {filtered.length === 0 && (
-            <div style={{ padding: "40px 24px", textAlign: "center", color: "#aaa", fontSize: 14 }}>No results found.</div>
+            <div className="py-16 text-center text-gray-400 text-sm">No components found matching your search.</div>
           )}
         </div>
       </div>
@@ -224,8 +229,6 @@ export default function BuildPCPage() {
   };
 
   const handleSaveBuild = () => {
-    // Phase 24 asks for Save Build functionality. 
-    // Usually this is saved to DB, but a local mockup alert works for the scope if API isn't built yet.
     alert("Build Saved Successfully!");
   };
 
@@ -237,128 +240,131 @@ export default function BuildPCPage() {
   const allCompatible = issues.filter(i => i.type === "error").length === 0;
 
   return (
-    <div style={{ background: "#f9f9f9", minHeight: "100vh" }}>
+    <div className="bg-gray-50 dark:bg-[#0c0e12] min-h-screen text-gray-900 dark:text-gray-100 transition-colors pb-16">
       {/* Page Header */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "28px 0 0" }}>
-        <div className="container">
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#1a1a1a", letterSpacing: "-0.02em" }}>{t.title}</h1>
-          <p style={{ fontSize: 14, color: "#777", marginTop: 4, marginBottom: 16 }}>{t.subtitle}</p>
-          <div style={{ width: 48, height: 3, background: "linear-gradient(90deg,#8B1A1A,#1a4fa0)", borderRadius: 2 }} />
+      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-white/10 py-8 lg:py-10">
+        <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] animate-pulse" />
+            <span className="text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Custom PC Rig Builder</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white tracking-tight">{t.title}</h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">{t.subtitle}</p>
         </div>
       </div>
 
       {/* Compatibility Banner */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5" }}>
-        <div className="container" style={{ padding: "14px 24px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            background: checked ? (allCompatible ? "#f0fdf4" : "#fff5f5") : "#f5f8ff",
-            border: `1px solid ${checked ? (allCompatible ? "#86efac" : "#fca5a5") : "#bfdbfe"}`,
-            borderRadius: 6, padding: "12px 16px",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all shadow-xs ${
+          checked 
+            ? (allCompatible 
+                ? "bg-emerald-50/80 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40 text-emerald-900 dark:text-emerald-200" 
+                : "bg-red-50/80 dark:bg-red-950/20 border-red-200 dark:border-red-800/40 text-red-900 dark:text-red-200") 
+            : "bg-white dark:bg-[#151922] border-gray-200/80 dark:border-white/10"
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              checked 
+                ? (allCompatible ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40" : "bg-red-100 text-red-600 dark:bg-red-900/40")
+                : "bg-blue-50 text-blue-600 dark:bg-blue-950/40"
+            }`}>
               {checked ? (
-                allCompatible
-                  ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                allCompatible ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />
               ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <Wrench size={20} />
               )}
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: checked ? (allCompatible ? "#166534" : "#991b1b") : "#1e40af", letterSpacing: ".07em", textTransform: "uppercase" }}>
-                  {checked ? (allCompatible ? "Compatibility Status" : "Compatibility Issues") : "Compatibility Check"}
-                </p>
-                <p style={{ fontSize: 13, color: checked ? (allCompatible ? "#15803d" : "#b91c1c") : "#3b82f6" }}>
-                  {!checked
-                    ? "Click \"Run Check\" to verify component compatibility."
-                    : allCompatible
-                    ? "All selected components are compatible."
-                    : issues.map(i => i.message).join(" • ")}
-                </p>
-              </div>
             </div>
-            <button
-              onClick={() => setChecked(true)}
-              style={{
-                padding: "8px 18px", fontSize: 12, fontWeight: 700, letterSpacing: ".06em",
-                textTransform: "uppercase", background: "#fff", border: "1px solid #1a1a1a",
-                borderRadius: 4, cursor: "pointer", color: "#1a1a1a", whiteSpace: "nowrap",
-                transition: "all 150ms",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#1a1a1a"; e.currentTarget.style.color = "#fff"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#1a1a1a"; }}
-            >
-              {t.runCheck}
-            </button>
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider">
+                {checked ? (allCompatible ? "Hardware Compatible ✓" : "Compatibility Conflict Detected") : "Automatic Compatibility Engine"}
+              </p>
+              <p className="text-xs sm:text-sm mt-0.5 opacity-90">
+                {!checked
+                  ? "Click \"Run Compatibility Check\" to verify socket, memory type and power wattage."
+                  : allCompatible
+                  ? "All selected components are fully compatible and ready to build."
+                  : issues.map(i => i.message).join(" • ")}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setChecked(true)}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#8B1A1A] hover:bg-[#6b1010] text-white shadow-xs transition-all cursor-pointer whitespace-nowrap border-none self-end sm:self-auto"
+          >
+            {t.runCheck}
+          </button>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="container" style={{ padding: "28px 24px" }}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+      {/* Main Content (2-Column Desktop Grid) */}
+      <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] gap-8 items-start">
 
-          {/* Component Slots */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* LEFT: Component Slots */}
+          <div className="space-y-3.5">
             {SLOTS.map(slot => {
               const comp = selected[slot.id];
               return (
-                <div key={slot.id} style={{
-                  background: "#fff", border: `1px dashed ${comp ? "#1a4fa0" : "#d0d0d0"}`,
-                  borderRadius: 8, padding: "16px 20px",
-                  transition: "border-color 200ms, box-shadow 200ms",
-                  boxShadow: comp ? "0 2px 12px rgba(26,79,160,0.08)" : "none",
-                }}>
+                <div 
+                  key={slot.id} 
+                  className={`p-4 sm:p-5 rounded-2xl transition-all duration-200 border ${
+                    comp 
+                      ? "bg-white dark:bg-[#151922] border-[#8B1A1A]/30 dark:border-red-500/30 shadow-xs" 
+                      : "bg-white/70 dark:bg-[#151922]/50 border-dashed border-gray-200 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20"
+                  }`}
+                >
                   {comp ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ width: 48, height: 48, borderRadius: 6, overflow: "hidden", background: "#f0f0f0", flexShrink: 0, position: "relative" }}>
-                        <NextImage src={comp.image || "/placeholder.png"} alt={comp.name || "Component"} fill className="object-cover" />
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-50 dark:bg-white/5 flex-shrink-0 relative border border-gray-100 dark:border-white/10 p-1">
+                        <NextImage src={comp.image || "/placeholder.png"} alt={comp.name || "Component"} fill className="object-contain p-1" />
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 11, fontWeight: 700, color: "#1a4fa0", letterSpacing: ".07em", textTransform: "uppercase" }}>{slot.label}</p>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{comp.name}</p>
-                        <p style={{ fontSize: 12, color: "#888" }}>{comp.specs}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">{slot.label}</p>
+                        <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white line-clamp-1">{comp.name}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">{comp.specs}</p>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#8B1A1A" }}>${comp.price.toFixed(2)}</div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="text-base sm:text-lg font-black text-[#8B1A1A] dark:text-red-400 font-mono">${comp.price.toFixed(2)}</div>
+                          <div className="text-[10px] text-gray-400 font-khmer">{fmtKHR(comp.price)}</div>
                         </div>
-                        <button onClick={() => remove(slot.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", padding: 4 }}
-                          onMouseEnter={e => (e.currentTarget.style.color = "#e53e3e")}
-                          onMouseLeave={e => (e.currentTarget.style.color = "#bbb")}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        <button 
+                          onClick={() => remove(slot.id)} 
+                          className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-gray-400 flex items-center justify-center cursor-pointer transition-colors border-none"
+                          title="Remove Component"
+                        >
+                          <X size={16} />
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 6, background: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", color: "#aaa", flexShrink: 0 }}>
-                        <SlotIcon type={slot.icon} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{slot.label}</p>
-                        <p style={{ fontSize: 12, color: "#aaa" }}>{slot.sublabel}</p>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0">
+                          <SlotIcon type={slot.icon} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">{slot.label}</h4>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{slot.sublabel}</p>
+                        </div>
                       </div>
                       <button
                         onClick={() => setOpenSlot(slot.id)}
-                        style={{
-                          padding: "9px 22px", fontSize: 13, fontWeight: 700, background: "#1a1a1a",
-                          color: "#fff", border: "none", borderRadius: 4, cursor: "pointer",
-                          letterSpacing: ".04em", transition: "background 150ms",
-                        }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#333")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "#1a1a1a")}
+                        className="px-4 py-2 rounded-xl text-xs font-bold bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-950 transition-all cursor-pointer border-none shadow-xs"
                       >
-                        SELECT
+                        Select
                       </button>
                     </div>
                   )}
+
                   {comp && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f0f0f0", display: "flex", gap: 8 }}>
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/5 flex gap-3 text-xs">
                       <button
                         onClick={() => setOpenSlot(slot.id)}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#1a4fa0", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                      >Change</button>
+                        className="text-[#1a4fa0] dark:text-blue-400 font-bold hover:underline cursor-pointer border-none bg-transparent p-0"
+                      >
+                        Change Component &rarr;
+                      </button>
                     </div>
                   )}
                 </div>
@@ -366,58 +372,71 @@ export default function BuildPCPage() {
             })}
           </div>
 
-          {/* Build Summary Sidebar */}
-          <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 8, padding: 24, position: "sticky", top: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1a1a1a", marginBottom: 20 }}>{t.buildSummary}</h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {/* RIGHT: Build Summary Sidebar (Sticky Desktop) */}
+          <div className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-sm sticky top-24 space-y-6">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 pb-4">
+              <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <Sparkles size={18} className="text-[#8B1A1A] dark:text-red-400" />
+                <span>{t.buildSummary}</span>
+              </h2>
+              <span className="text-xs font-bold text-gray-500 bg-gray-100 dark:bg-white/10 px-2.5 py-1 rounded-full">
+                {Object.keys(selected).length} / {SLOTS.length} Slots
+              </span>
+            </div>
+
+            <div className="space-y-3">
               {SLOTS.map(slot => (
-                <div key={slot.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, color: "#777" }}>{slot.label.replace(" Processor", "").replace(" (RAM)", "").replace(" (SSD/HDD)", "").replace(" (PSU)", "")}</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: selected[slot.id] ? "#1a1a1a" : "#ccc" }}>
-                    {selected[slot.id] ? `$${selected[slot.id]!.price.toFixed(2)}` : "——"}
+                <div key={slot.id} className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 truncate max-w-[180px]">{slot.label.split(" (")[0]}</span>
+                  <span className={`font-mono font-bold ${selected[slot.id] ? "text-gray-900 dark:text-white" : "text-gray-300 dark:text-gray-600"}`}>
+                    {selected[slot.id] ? `$${selected[slot.id]!.price.toFixed(2)}` : "—"}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div style={{ borderTop: "2px solid #e5e5e5", paddingTop: 14, marginBottom: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{t.totalUsd}</span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: "#8B1A1A" }}>{fmtUSD(totalUSD)}</span>
+            <div className="border-t border-dashed border-gray-200 dark:border-white/10 pt-4 space-y-1">
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-bold text-gray-900 dark:text-white">{t.totalUsd}</span>
+                <span className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">{fmtUSD(totalUSD)}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "#aaa" }}>{t.totalKhr}</span>
-                <span style={{ fontSize: 13, color: "#aaa" }}>{fmtKHR(totalUSD)}</span>
+              <div className="flex justify-between text-xs text-gray-400 font-medium font-khmer">
+                <span>{t.totalKhr}</span>
+                <span>{fmtKHR(totalUSD)}</span>
               </div>
             </div>
 
-            <button
-              style={{
-                width: "100%", padding: "13px", fontSize: 13, fontWeight: 800,
-                background: totalUSD > 0 ? "#8B1A1A" : "#ccc",
-                color: "#fff", border: "none", borderRadius: 6, cursor: totalUSD > 0 ? "pointer" : "not-allowed",
-                letterSpacing: ".07em", textTransform: "uppercase", marginBottom: 10,
-                transition: "background 150ms",
-              }}
-              disabled={totalUSD === 0}
-              onMouseEnter={e => { if (totalUSD > 0) e.currentTarget.style.background = "#6B1010"; }}
-              onMouseLeave={e => { if (totalUSD > 0) e.currentTarget.style.background = "#8B1A1A"; }}
-            >
-              {t.addToCart}
-            </button>
-            <button
-              style={{
-                width: "100%", padding: "13px", fontSize: 13, fontWeight: 700,
-                background: "#fff", color: "#1a4fa0", border: "2px solid #1a4fa0",
-                borderRadius: 6, cursor: "pointer", letterSpacing: ".07em",
-                textTransform: "uppercase", transition: "all 150ms",
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#1a4fa0"; e.currentTarget.style.color = "#fff"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#1a4fa0"; }}
-            >
-              {t.saveBuild}
-            </button>
+            <div className="space-y-2.5 pt-2">
+              <button
+                onClick={handleAddToCart}
+                disabled={totalUSD === 0}
+                className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-md disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white"
+              >
+                <ShoppingCart size={17} />
+                <span>{t.addToCart}</span>
+              </button>
+
+              <button
+                onClick={handleSaveBuild}
+                className="w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-gray-800 dark:text-gray-200"
+              >
+                <Bookmark size={15} />
+                <span>{t.saveBuild}</span>
+              </button>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 dark:border-white/5 space-y-2 text-[11px] text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={14} className="text-emerald-600" />
+                <span>100% Genuine Boxed Hardware</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                <span>Free Assembly & Thermal Paste Cable Management</span>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
 

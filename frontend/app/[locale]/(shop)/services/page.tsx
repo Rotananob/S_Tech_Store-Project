@@ -1,5 +1,10 @@
 "use client";
 import { useState } from "react";
+import { 
+  Wrench, CheckCircle2, Laptop, Calendar, Clock, MapPin, 
+  Phone, User, ShieldCheck, Sparkles, Check 
+} from "lucide-react";
+import { Link } from "@/i18n/routing";
 
 const SERVICES = [
   { id: "screen", label: "Screen Replacement", price: 45, time: "1–2 hrs", icon: "🖥️", desc: "Cracked or dead display replacement for laptops & phones." },
@@ -46,85 +51,111 @@ export default function ServicesPage() {
 
   if (submitted) {
     return (
-      <div style={{ background: "#f9f9f9", minHeight: "100vh" }}>
-        <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "28px 0" }}>
-          <div className="container">
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a" }}>Repair & Services</h1>
+      <div className="bg-gray-50 dark:bg-[#0c0e12] min-h-screen text-gray-900 dark:text-gray-100 transition-colors py-12 lg:py-20 flex items-center justify-center px-4">
+        <div className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-8 sm:p-12 max-w-lg w-full text-center shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-5 border border-emerald-200 dark:border-emerald-800/40 shadow-sm">
+            <CheckCircle2 size={32} />
           </div>
-        </div>
-        <div className="container" style={{ padding: "60px 24px", textAlign: "center" }}>
-          <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 12, padding: "56px 40px", maxWidth: 480, margin: "0 auto", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#f0fdf4", border: "2px solid #86efac", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Booking Confirmed!</h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+            We'll contact <strong className="text-gray-900 dark:text-white">{name}</strong> at <strong className="text-gray-900 dark:text-white font-mono">{phone}</strong>
+          </p>
+          <p className="text-xs text-gray-400 mb-6 font-mono">
+            Appointment: {date} at {time} ({dropoff === "pickup" ? "Pickup" : "Walk-in"})
+          </p>
+          
+          <div className="bg-gray-50 dark:bg-white/5 rounded-2xl p-4 mb-6 text-left border border-gray-100 dark:border-white/5 space-y-2">
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Booked Services</p>
+            {selected.map(id => {
+              const svc = SERVICES.find(x => x.id === id)!;
+              return (
+                <div key={id} className="flex justify-between text-xs">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{svc.icon} {svc.label}</span>
+                  <span className="font-bold font-mono text-[#8B1A1A] dark:text-red-400">${svc.price}</span>
+                </div>
+              );
+            })}
+            <div className="border-t border-gray-200 dark:border-white/10 pt-2.5 mt-2 flex justify-between font-black text-sm">
+              <span className="text-gray-900 dark:text-white">Est. Total</span>
+              <span className="text-[#8B1A1A] dark:text-red-400 font-mono">${totalFee + (dropoff === "pickup" ? 2 : 0)}</span>
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#1a1a1a", marginBottom: 8 }}>Booking Confirmed!</h2>
-            <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>We'll contact <strong style={{ color: "#1a1a1a" }}>{name}</strong> at <strong style={{ color: "#1a1a1a" }}>{phone}</strong></p>
-            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 24 }}>Appointment: {date} at {time}</p>
-            <div style={{ background: "#f9f9f9", borderRadius: 8, padding: "14px 18px", marginBottom: 24, textAlign: "left" }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".06em" }}>Services Booked</p>
-              {selected.map(id => {
-                const svc = SERVICES.find(x => x.id === id)!;
-                return <div key={id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}><span>{svc.icon} {svc.label}</span><span style={{ fontWeight: 700 }}>${svc.price}</span></div>;
-              })}
-              <div style={{ borderTop: "1px solid #e5e5e5", marginTop: 10, paddingTop: 10, display: "flex", justifyContent: "space-between", fontWeight: 800, color: "#8B1A1A" }}>
-                <span>Est. Total</span><span>${totalFee}</span>
-              </div>
-            </div>
-            <a href="/" style={{ display: "block", padding: "12px", background: "#8B1A1A", color: "#fff", borderRadius: 6, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Back to Home</a>
           </div>
+
+          <Link 
+            href="/" 
+            className="block w-full py-3.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6b1010] text-white font-bold text-sm shadow-md transition-all no-underline"
+          >
+            Back to Home
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ background: "#f9f9f9", minHeight: "100vh" }}>
+    <div className="bg-gray-50 dark:bg-[#0c0e12] min-h-screen text-gray-900 dark:text-gray-100 transition-colors pb-16">
       {/* Header */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e5e5e5", padding: "28px 0 0" }}>
-        <div className="container">
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8B1A1A" strokeWidth="2">
-              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-            </svg>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#1a1a1a" }}>Repair & Services</h1>
+      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200 dark:border-white/10 py-8 lg:py-10">
+        <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] animate-pulse" />
+            <span className="text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Fast Hardware Support</span>
           </div>
-          <p style={{ fontSize: 14, color: "#777", marginBottom: 16 }}>Book a professional repair. Same-day service available in Phnom Penh.</p>
-          <div style={{ width: 48, height: 3, background: "linear-gradient(90deg,#8B1A1A,#1a4fa0)", borderRadius: 2, marginBottom: 0 }} />
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+            Repair & IT Services <span className="text-[#8B1A1A] dark:text-red-500">.</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl font-khmer">
+            សេវាជួសជុល និងដំឡើងកុំព្យូទ័រ Laptop, Desktop និង Apple MacBooks ប្រកបដោយវិជ្ជាជីវៈ និងរហ័សទាន់ចិត្ត
+          </p>
         </div>
       </div>
 
-      <div className="container" style={{ padding: "28px 24px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+      <div className="container max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] gap-8 items-start">
 
-          {/* LEFT */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* LEFT: Steps */}
+          <div className="space-y-6">
 
-            {/* Step 1: Services */}
-            <section style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#8B1A1A", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>1</div>
-                <h2 style={{ fontSize: 17, fontWeight: 800, color: "#1a1a1a" }}>Select Services</h2>
-                <span style={{ fontSize: 12, color: "#aaa" }}>(choose one or more)</span>
+            {/* Step 1: Services Selection */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs">
+              <div className="flex items-center gap-3 mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
+                <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-xs shadow-xs">1</div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">ជ្រើសរើសសេវាកម្ម • Select Services</h2>
+                  <p className="text-xs text-gray-400">Choose one or multiple repair tasks</p>
+                </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {SERVICES.map(svc => {
                   const active = selected.includes(svc.id);
                   return (
-                    <button key={svc.id} onClick={() => toggle(svc.id)}
-                      style={{
-                        padding: "14px 16px", border: `2px solid ${active ? "#8B1A1A" : "#e5e5e5"}`,
-                        borderRadius: 8, background: active ? "#fff5f5" : "#fff",
-                        cursor: "pointer", textAlign: "left", transition: "all 150ms", position: "relative",
-                      }}>
-                      <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: 4, border: `2px solid ${active ? "#8B1A1A" : "#ccc"}`, background: active ? "#8B1A1A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {active && <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="2 6 5 9 10 3"/></svg>}
+                    <button 
+                      key={svc.id} 
+                      onClick={() => toggle(svc.id)}
+                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between gap-3 ${
+                        active 
+                          ? "border-[#8B1A1A] bg-red-50/20 dark:bg-red-950/20 dark:border-red-500/60 ring-1 ring-[#8B1A1A]/30 shadow-xs" 
+                          : "border-gray-200 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <span className="text-2xl">{svc.icon}</span>
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                          active ? "bg-[#8B1A1A] border-[#8B1A1A] text-white" : "border-gray-300 dark:border-white/20"
+                        }`}>
+                          {active && <Check size={12} strokeWidth={3} />}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 22, marginBottom: 6 }}>{svc.icon}</div>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", marginBottom: 2, paddingRight: 24 }}>{svc.label}</p>
-                      <p style={{ fontSize: 11, color: "#999", marginBottom: 6 }}>{svc.desc}</p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: "#8B1A1A" }}>From ${svc.price}</span>
-                        <span style={{ fontSize: 11, color: "#bbb" }}>· {svc.time}</span>
+
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">{svc.label}</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{svc.desc}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-white/5 text-xs">
+                        <span className="font-black text-[#8B1A1A] dark:text-red-400 font-mono">From ${svc.price}</span>
+                        <span className="text-gray-400 font-medium">⏱️ {svc.time}</span>
                       </div>
                     </button>
                   );
@@ -132,123 +163,155 @@ export default function ServicesPage() {
               </div>
             </section>
 
-            {/* Step 2: Device Info */}
-            <section style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#8B1A1A", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>2</div>
-                <h2 style={{ fontSize: 17, fontWeight: 800, color: "#1a1a1a" }}>Device Information</h2>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            {/* Step 2: Device Information */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs">
+              <div className="flex items-center gap-3 mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
+                <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-xs shadow-xs">2</div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Device Type *</label>
-                  <select value={device} onChange={e => setDevice(e.target.value)}
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: device ? "#1a1a1a" : "#aaa", background: "#fafafa", outline: "none" }}>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">ព័ត៌មានឧបករណ៍ • Device Information</h2>
+                  <p className="text-xs text-gray-400">Tell us what brand and problem you are experiencing</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Device Type *</label>
+                  <select 
+                    value={device} 
+                    onChange={e => setDevice(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-medium text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A]"
+                  >
                     <option value="">Select device...</option>
                     {DEVICE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
+
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Brand</label>
-                  <select value={brand} onChange={e => setBrand(e.target.value)}
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: brand ? "#1a1a1a" : "#aaa", background: "#fafafa", outline: "none" }}>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Brand</label>
+                  <select 
+                    value={brand} 
+                    onChange={e => setBrand(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-medium text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A]"
+                  >
                     <option value="">Select brand...</option>
                     {BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
               </div>
+
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Describe the Issue</label>
-                <textarea value={issue} onChange={e => setIssue(e.target.value)} rows={3}
-                  placeholder="e.g. Screen has black spots, laptop won't turn on, keyboard keys not working..."
-                  style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: "#1a1a1a", background: "#fafafa", resize: "vertical", fontFamily: "inherit", outline: "none" }}
-                  onFocus={e => (e.target.style.borderColor = "#8B1A1A")}
-                  onBlur={e => (e.target.style.borderColor = "#e0e0e0")} />
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Describe the Issue</label>
+                <textarea 
+                  value={issue} 
+                  onChange={e => setIssue(e.target.value)} 
+                  rows={3}
+                  placeholder="e.g. Screen has black lines, laptop gets hot and shuts down, keyboard keys not working..."
+                  className="w-full p-3.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] resize-none"
+                />
               </div>
             </section>
 
-            {/* Step 3: Appointment */}
-            <section style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#8B1A1A", color: "#fff", fontSize: 13, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center" }}>3</div>
-                <h2 style={{ fontSize: 17, fontWeight: 800, color: "#1a1a1a" }}>Appointment & Contact</h2>
+            {/* Step 3: Appointment & Contact */}
+            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-xs">
+              <div className="flex items-center gap-3 mb-5 pb-3 border-b border-gray-100 dark:border-white/5">
+                <div className="w-8 h-8 rounded-full bg-[#8B1A1A] text-white flex items-center justify-center font-bold text-xs shadow-xs">3</div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">ការណាត់ជួប • Appointment & Contact</h2>
+                  <p className="text-xs text-gray-400">Choose drop-off method and preferred schedule</p>
+                </div>
               </div>
 
               {/* Drop-off options */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-5">
                 {[
-                  { id: "walkin", label: "Walk-in / Drop-off", sub: "Bring device to our store", icon: "🏪" },
-                  { id: "pickup", label: "Pickup Service", sub: "We collect from your location (+$2)", icon: "🚗" },
+                  { id: "walkin", label: "Walk-in / Drop-off", sub: "Bring device to our store in St. 271", icon: "🏪" },
+                  { id: "pickup", label: "Pickup Service", sub: "We collect from your home (+$2.00)", icon: "🚗" },
                 ].map(opt => (
-                  <button key={opt.id} onClick={() => setDropoff(opt.id as typeof dropoff)}
-                    style={{
-                      padding: "14px 16px", border: `2px solid ${dropoff === opt.id ? "#1a4fa0" : "#e5e5e5"}`,
-                      borderRadius: 8, background: dropoff === opt.id ? "#f0f5ff" : "#fff",
-                      cursor: "pointer", textAlign: "left", transition: "all 150ms", position: "relative",
-                    }}>
-                    <div style={{ position: "absolute", top: 12, right: 12, width: 18, height: 18, borderRadius: "50%", border: `2px solid ${dropoff === opt.id ? "#1a4fa0" : "#ccc"}`, background: dropoff === opt.id ? "#1a4fa0" : "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {dropoff === opt.id && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
+                  <button 
+                    key={opt.id} 
+                    onClick={() => setDropoff(opt.id as typeof dropoff)}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center gap-3.5 ${
+                      dropoff === opt.id 
+                        ? "border-[#8B1A1A] bg-red-50/20 dark:bg-red-950/20 dark:border-red-500/60 ring-1 ring-[#8B1A1A]/30 shadow-xs" 
+                        : "border-gray-200 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02]"
+                    }`}
+                  >
+                    <span className="text-2xl">{opt.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">{opt.label}</h4>
+                      <p className="text-xs text-gray-400 mt-0.5">{opt.sub}</p>
                     </div>
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>{opt.icon}</div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", paddingRight: 24 }}>{opt.label}</p>
-                    <p style={{ fontSize: 11, color: "#999" }}>{opt.sub}</p>
                   </button>
                 ))}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Full Name *</label>
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="Sok San"
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: "#1a1a1a", background: "#fafafa", outline: "none" }}
-                    onFocus={e => (e.target.style.borderColor = "#8B1A1A")}
-                    onBlur={e => (e.target.style.borderColor = "#e0e0e0")} />
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Full Name *</label>
+                  <input 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    placeholder="Sok San"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A]" 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Phone Number *</label>
-                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="012 345 678"
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: "#1a1a1a", background: "#fafafa", outline: "none" }}
-                    onFocus={e => (e.target.style.borderColor = "#8B1A1A")}
-                    onBlur={e => (e.target.style.borderColor = "#e0e0e0")} />
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Phone Number *</label>
+                  <input 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value)} 
+                    placeholder="012 345 678"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] font-mono" 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Preferred Date *</label>
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: "#1a1a1a", background: "#fafafa", outline: "none" }}
-                    onFocus={e => (e.target.style.borderColor = "#8B1A1A")}
-                    onBlur={e => (e.target.style.borderColor = "#e0e0e0")} />
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Preferred Date *</label>
+                  <input 
+                    type="date" 
+                    value={date} 
+                    onChange={e => setDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A]" 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 6 }}>Time Slot *</label>
-                  <select value={time} onChange={e => setTime(e.target.value)}
-                    style={{ width: "100%", padding: "10px 14px", border: "1px solid #e0e0e0", borderRadius: 6, fontSize: 14, color: time ? "#1a1a1a" : "#aaa", background: "#fafafa", outline: "none" }}>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Time Slot *</label>
+                  <select 
+                    value={time} 
+                    onChange={e => setTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A]"
+                  >
                     <option value="">Select time...</option>
                     {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
             </section>
+
           </div>
 
-          {/* RIGHT — Booking Summary */}
-          <div style={{ background: "#fff", border: "1px solid #e5e5e5", borderRadius: 10, padding: 24, position: "sticky", top: 20 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: "#1a1a1a", marginBottom: 18 }}>Booking Summary</h2>
+          {/* RIGHT: Booking Summary Sticky Desktop Card */}
+          <div className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-3xl p-6 sm:p-7 shadow-sm sticky top-24 space-y-5">
+            <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 border-b border-gray-100 dark:border-white/10 pb-4">
+              <Sparkles size={18} className="text-[#8B1A1A] dark:text-red-400" />
+              <span>Booking Summary</span>
+            </h2>
 
             {selected.length === 0 ? (
-              <div style={{ padding: "24px 0", textAlign: "center", color: "#ccc" }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🔧</div>
-                <p style={{ fontSize: 13 }}>No services selected yet</p>
+              <div className="py-8 text-center text-gray-400 text-xs">
+                <Wrench size={32} className="mx-auto mb-2 opacity-40" />
+                <p>No services selected yet</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+              <div className="space-y-3">
                 {selected.map(id => {
                   const svc = SERVICES.find(x => x.id === id)!;
                   return (
-                    <div key={id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={id} className="flex justify-between items-center text-xs">
                       <div>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a" }}>{svc.icon} {svc.label}</p>
-                        <p style={{ fontSize: 11, color: "#aaa" }}>{svc.time}</p>
+                        <p className="font-bold text-gray-800 dark:text-gray-200">{svc.icon} {svc.label}</p>
+                        <p className="text-[11px] text-gray-400">{svc.time}</p>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>${svc.price}</span>
+                      <span className="font-bold font-mono text-[#8B1A1A] dark:text-red-400">${svc.price}</span>
                     </div>
                   );
                 })}
@@ -256,44 +319,40 @@ export default function ServicesPage() {
             )}
 
             {dropoff === "pickup" && selected.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #f0f0f0", marginBottom: 10 }}>
-                <span style={{ fontSize: 13, color: "#777" }}>🚗 Pickup Fee</span>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>$2.00</span>
+              <div className="flex justify-between items-center text-xs pt-3 border-t border-gray-100 dark:border-white/5">
+                <span className="text-gray-500">🚗 Pickup Fee</span>
+                <span className="font-bold font-mono">$2.00</span>
               </div>
             )}
 
             {selected.length > 0 && (
-              <div style={{ borderTop: "2px solid #e5e5e5", paddingTop: 14, marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: "#1a1a1a" }}>Est. Total</span>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: "#8B1A1A" }}>${(totalFee + (dropoff === "pickup" ? 2 : 0)).toFixed(2)}</div>
-                    <div style={{ fontSize: 11, color: "#aaa" }}>≈{((totalFee + (dropoff === "pickup" ? 2 : 0)) * 4060).toLocaleString()} ៛</div>
-                  </div>
+              <div className="border-t border-dashed border-gray-200 dark:border-white/10 pt-4">
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">Est. Total</span>
+                  <span className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                    ${(totalFee + (dropoff === "pickup" ? 2 : 0)).toFixed(2)}
+                  </span>
+                </div>
+                <div className="text-right text-xs text-gray-400 font-khmer">
+                  ≈{((totalFee + (dropoff === "pickup" ? 2 : 0)) * 4060).toLocaleString()} ៛
                 </div>
               </div>
             )}
 
-            <button onClick={handleSubmit}
-              style={{
-                width: "100%", padding: "13px", fontSize: 14, fontWeight: 800,
-                background: selected.length > 0 ? "#8B1A1A" : "#ccc",
-                color: "#fff", border: "none", borderRadius: 8,
-                cursor: selected.length > 0 ? "pointer" : "not-allowed",
-                letterSpacing: ".03em", transition: "background 150ms",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12,
-              }}
-              onMouseEnter={e => { if (selected.length > 0) e.currentTarget.style.background = "#6B1010"; }}
-              onMouseLeave={e => { if (selected.length > 0) e.currentTarget.style.background = "#8B1A1A"; }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              Book Appointment
+            <button 
+              onClick={handleSubmit}
+              disabled={selected.length === 0}
+              className="w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border-none shadow-md disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6B1010] hover:to-[#8B1A1A] text-white"
+            >
+              <Calendar size={16} />
+              <span>Book Appointment</span>
             </button>
 
-            <div style={{ background: "#f9f9f9", borderRadius: 6, padding: "12px 14px" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#555", marginBottom: 6, textTransform: "uppercase", letterSpacing: ".05em" }}>Store Info</p>
-              <p style={{ fontSize: 12, color: "#777", lineHeight: 1.6 }}>📍 St. 271, Phnom Penh<br/>⏰ Mon–Sat: 8AM – 6PM<br/>📞 +855 12 345 678</p>
+            <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 space-y-2 text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Store Information</p>
+              <p className="flex items-center gap-2"><MapPin size={13} className="text-[#8B1A1A]" /> St. 271, Phnom Penh</p>
+              <p className="flex items-center gap-2"><Clock size={13} className="text-[#8B1A1A]" /> Mon–Sat: 8AM – 6PM</p>
+              <p className="flex items-center gap-2"><Phone size={13} className="text-[#8B1A1A]" /> +855 12 345 678</p>
             </div>
           </div>
 

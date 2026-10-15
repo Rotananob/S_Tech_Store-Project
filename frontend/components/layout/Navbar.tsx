@@ -601,21 +601,21 @@ export default function Navbar() {
         </div>
 
         {/* ── 3. Dedicated Category Navigation Bar (Desktop lg+) ── */}
-        <nav className="hidden lg:block bg-gray-50/80 dark:bg-[#0c0d12]/90 border-t border-gray-100 dark:border-white/5">
-          <div className="container flex items-center justify-center gap-6 xl:gap-8 py-2.5 overflow-x-auto no-scrollbar">
+        <nav className="hidden lg:block bg-gray-50/90 dark:bg-[#0c0d12]/95 border-t border-gray-100 dark:border-white/5 backdrop-blur-md">
+          <div className="container flex items-center justify-center gap-2 lg:gap-2.5 xl:gap-5 2xl:gap-7 py-2 overflow-x-auto no-scrollbar">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative px-3 py-1.5 text-[14px] font-medium rounded-md whitespace-nowrap transition-colors no-underline group overflow-hidden ${
+                className={`relative px-2.5 lg:px-3 py-1.5 text-[13px] xl:text-[14px] font-semibold rounded-lg whitespace-nowrap transition-all no-underline group ${
                   pathname === link.href
-                    ? "text-[#8B1A1A] dark:text-red-400 font-bold bg-red-50/30 dark:bg-red-950/20"
-                    : "text-[#444] dark:text-gray-300 hover:text-[#8B1A1A] dark:hover:text-red-400"
+                    ? "text-[#8B1A1A] dark:text-red-400 font-bold bg-red-50/60 dark:bg-red-950/30 shadow-2xs"
+                    : "text-gray-700 dark:text-gray-300 hover:text-[#8B1A1A] dark:hover:text-red-400 hover:bg-gray-100/70 dark:hover:bg-white/5"
                 }`}
               >
                 {link.label}
                 <span 
-                  className={`absolute left-0 bottom-0 w-full h-[2px] bg-[#8B1A1A] dark:bg-red-500 transition-transform duration-300 origin-left ${
+                  className={`absolute left-2 right-2 bottom-0 h-[2px] bg-[#8B1A1A] dark:bg-red-500 rounded-full transition-transform duration-250 origin-center ${
                     pathname === link.href ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                   }`} 
                 />
