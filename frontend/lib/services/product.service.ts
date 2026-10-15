@@ -193,6 +193,75 @@ export function invalidateProductCache(updatedProduct?: any): void {
   }
 }
 
+export function removeProductFromCache(productId: number | string): void {
+  lastProductFetchTime = 0;
+  lastCategoryFetchTime = 0;
+  inFlightProductsPromise = null;
+
+  const numId = Number(productId);
+  const strId = String(productId);
+
+  // Remove from in-memory cached products
+  cachedProducts = cachedProducts.filter(
+    (p) => Number(p.id) !== numId && p.slug !== strId
+  );
+
+  // Clear from single product cache
+  singleProductCache.delete(strId);
+  singleProductCache.delete(String(numId));
+  for (const [key, val] of singleProductCache.entries()) {
+    if (Number(val.product.id) === numId || val.product.slug === strId) {
+      singleProductCache.delete(key);
+    }
+  }
+
+  if (typeof window !== "undefined") {
+    // 1. In-page Custom Event
+    try {
+      window.dispatchEvent(
+        new CustomEvent("stech:product-deleted", {
+          detail: { id: numId, rawId: productId },
+        })
+      );
+    } catch (_) {}
+
+    // 2. Cross-tab BroadcastChannel
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        const bc = new BroadcastChannel("stech_products_channel");
+        bc.postMessage({
+          type: "PRODUCT_DELETED",
+          productId: numId,
+          rawId: productId,
+        });
+        bc.close();
+      }
+    } catch (_) {}
+
+    // 3. LocalStorage cross-window storage event fallback
+    try {
+      localStorage.setItem(
+        "stech_last_product_delete",
+        JSON.stringify({ productId: numId, rawId: productId, timestamp: Date.now() })
+      );
+    } catch (_) {}
+
+    // 4. Update admin_cached_products in sessionStorage if present
+    try {
+      const adminCache = sessionStorage.getItem("admin_cached_products");
+      if (adminCache) {
+        const list = JSON.parse(adminCache);
+        if (Array.isArray(list)) {
+          const next = list.filter(
+            (p: any) => Number(p.id) !== numId && p.slug !== strId
+          );
+          sessionStorage.setItem("admin_cached_products", JSON.stringify(next));
+        }
+      }
+    } catch (_) {}
+  }
+}
+
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
   const isGlobalCatalog = !params || Object.keys(params).length === 0;
   const isForcedFresh = Boolean(params?._t || params?.fresh);

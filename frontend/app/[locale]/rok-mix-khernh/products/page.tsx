@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { bumpProduct, togglePinProduct } from "@/lib/services/product.service";
+import { bumpProduct, togglePinProduct, removeProductFromCache } from "@/lib/services/product.service";
 import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop, Zap, Pin, Loader2, RefreshCw } from "lucide-react";
 
 type Category = {
@@ -113,6 +113,21 @@ export default function AdminProductsPage() {
 
     window.addEventListener('stech:product-updated', handleProductUpdated as EventListener);
 
+    const handleProductDeleted = (e: any) => {
+      const delId = e.detail?.id ?? e.productId ?? e.detail?.rawId ?? e;
+      if (!delId) return;
+      const numId = Number(delId);
+      setProducts(prev => {
+        const next = prev.filter(p => Number(p.id) !== numId && (p as any).slug !== String(delId));
+        try {
+          sessionStorage.setItem('admin_cached_products', JSON.stringify(next));
+        } catch (_) {}
+        return next;
+      });
+    };
+
+    window.addEventListener('stech:product-deleted', handleProductDeleted as EventListener);
+
     // 4. BroadcastChannel for cross-tab instant sync
     let channel: BroadcastChannel | null = null;
     try {
@@ -121,6 +136,8 @@ export default function AdminProductsPage() {
         channel.onmessage = (event) => {
           if (event.data?.type === 'PRODUCT_UPDATED' && event.data.product) {
             handleProductUpdated({ detail: event.data.product });
+          } else if (event.data?.type === 'PRODUCT_DELETED') {
+            handleProductDeleted({ detail: { id: event.data.productId, rawId: event.data.rawId } });
           }
         };
       }
@@ -135,12 +152,20 @@ export default function AdminProductsPage() {
             handleProductUpdated({ detail: data.product });
           }
         } catch (_) {}
+      } else if (e.key === 'stech_last_product_delete' && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.productId || data?.rawId) {
+            handleProductDeleted({ detail: { id: data.productId, rawId: data.rawId } });
+          }
+        } catch (_) {}
       }
     };
     window.addEventListener('storage', handleStorage);
 
     return () => {
       window.removeEventListener('stech:product-updated', handleProductUpdated as EventListener);
+      window.removeEventListener('stech:product-deleted', handleProductDeleted as EventListener);
       window.removeEventListener('storage', handleStorage);
       if (channel) channel.close();
     };
@@ -179,6 +204,7 @@ export default function AdminProductsPage() {
     showToast("កំពុងលុបទំនិញពីប្រព័ន្ធ...", "success");
     try {
       await api.delete(`/products/${deleteTarget.id}`);
+      removeProductFromCache(deleteTarget.id);
       setProducts(prev => {
         const next = prev.filter(p => p.id !== deleteTarget.id);
         try {

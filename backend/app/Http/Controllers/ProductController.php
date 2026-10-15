@@ -193,7 +193,8 @@ class ProductController extends Controller
 
         // 2. Dispatch instant alert to Telegram Stock Forum Topic
         try {
-            \App\Services\TelegramService::sendNewProductAlert($product);
+            $actor = $request->header('X-User-Email') ?: ($request->header('X-Admin-Role') ? 'Admin (' . $request->header('X-Admin-Role') . ')' : 'Admin / Staff');
+            \App\Services\TelegramService::sendNewProductAlert($product, $actor);
         } catch (\Throwable $e) {
             Log::error("Failed to send telegram new product alert: " . $e->getMessage());
         }
@@ -262,6 +263,14 @@ class ProductController extends Controller
     {
         $product = is_numeric($id) ? Product::findOrFail($id) : Product::where('slug', $id)->firstOrFail();
         
+        $oldValues = [
+            'name' => $product->name,
+            'price' => $product->price,
+            'sale_price' => $product->sale_price,
+            'stock' => $product->stock,
+            'brand' => $product->brand,
+        ];
+
         $validated = $request->validate([
             'category_id' => 'sometimes|exists:categories,id',
             'name' => 'sometimes|string|max:255',
@@ -342,6 +351,31 @@ class ProductController extends Controller
         $product->touch();
         $product->refresh();
         $product->load('category');
+
+        $actor = $request->header('X-User-Email') ?: ($request->header('X-Admin-Role') ? 'Admin (' . $request->header('X-Admin-Role') . ')' : 'Admin / Staff');
+
+        $changes = [];
+        if ($oldValues['name'] !== $product->name) {
+            $changes['name'] = ['old' => $oldValues['name'], 'new' => $product->name];
+        }
+        if ((float)($oldValues['price'] ?? 0) != (float)($product->price ?? 0)) {
+            $changes['price'] = ['old' => $oldValues['price'], 'new' => $product->price];
+        }
+        if ((float)($oldValues['sale_price'] ?? 0) != (float)($product->sale_price ?? 0)) {
+            $changes['sale_price'] = ['old' => $oldValues['sale_price'] ?: '-', 'new' => $product->sale_price ?: '-'];
+        }
+        if ((int)($oldValues['stock'] ?? 0) !== (int)($product->stock ?? 0)) {
+            $changes['stock'] = ['old' => $oldValues['stock'], 'new' => $product->stock];
+        }
+        if (($oldValues['brand'] ?? '') !== ($product->brand ?? '')) {
+            $changes['brand'] = ['old' => $oldValues['brand'] ?: '-', 'new' => $product->brand ?: '-'];
+        }
+
+        try {
+            \App\Services\TelegramService::sendEditProductAlert($product, $changes, $actor);
+        } catch (\Throwable $t) {
+            Log::error("Failed to send telegram edit product alert: " . $t->getMessage());
+        }
 
         if ((int)$product->stock <= 3) {
             try {
@@ -429,16 +463,38 @@ class ProductController extends Controller
     /**
      * Remove the specified product.
      */
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        $product = Product::findOrFail($id);
-        $product->delete();
+        $product = is_numeric($id) ? Product::with('category')->findOrFail($id) : Product::with('category')->where('slug', $id)->firstOrFail();
 
+        $actor = $request->header('X-User-Email') ?: ($request->header('X-Admin-Role') ? 'Admin (' . $request->header('X-Admin-Role') . ')' : 'Admin / Staff');
+
+        // 1. Dispatch Telegram Alert before deletion
+        try {
+            \App\Services\TelegramService::sendDeleteProductAlert($product, $actor);
+        } catch (\Throwable $e) {
+            Log::error("Failed to send telegram delete product alert: " . $e->getMessage());
+        }
+
+        // 2. Clear caches immediately
+        Cache::forget("product_single_{$product->id}");
+        Cache::forget("product_single_{$id}");
+        if ($product->slug) {
+            Cache::forget("product_single_{$product->slug}");
+        }
         Cache::increment('products_cache_version');
 
+        // 3. Delete product
+        $product->delete();
+
         return response()->json([
-            'message' => 'Product deleted successfully'
-        ]);
+            'success' => true,
+            'message' => 'Product deleted successfully',
+            'id' => $id
+        ])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**

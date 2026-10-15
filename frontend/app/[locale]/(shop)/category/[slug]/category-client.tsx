@@ -55,7 +55,17 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
       );
     };
 
+    const handleProductDeleted = (e: any) => {
+      const delId = e.detail?.id ?? e.productId ?? e.detail?.rawId ?? e;
+      if (!delId) return;
+      const numId = Number(delId);
+      setRawProducts((prev) =>
+        prev.filter((p) => Number(p.id) !== numId && p.slug !== String(delId))
+      );
+    };
+
     window.addEventListener("stech:product-updated", handleProductUpdated as EventListener);
+    window.addEventListener("stech:product-deleted", handleProductDeleted as EventListener);
 
     let channel: BroadcastChannel | null = null;
     try {
@@ -64,6 +74,8 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
         channel.onmessage = (event) => {
           if (event.data?.type === "PRODUCT_UPDATED" && event.data.product) {
             handleProductUpdated({ detail: event.data.product });
+          } else if (event.data?.type === "PRODUCT_DELETED") {
+            handleProductDeleted({ detail: { id: event.data.productId, rawId: event.data.rawId } });
           }
         };
       }
@@ -77,12 +89,20 @@ export default function CategoryClient({ slug, initialProducts }: Props) {
             handleProductUpdated({ detail: data.product });
           }
         } catch (_) {}
+      } else if (e.key === "stech_last_product_delete" && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data?.productId || data?.rawId) {
+            handleProductDeleted({ detail: { id: data.productId, rawId: data.rawId } });
+          }
+        } catch (_) {}
       }
     };
     window.addEventListener("storage", handleStorage);
 
     return () => {
       window.removeEventListener("stech:product-updated", handleProductUpdated as EventListener);
+      window.removeEventListener("stech:product-deleted", handleProductDeleted as EventListener);
       window.removeEventListener("storage", handleStorage);
       if (channel) channel.close();
     };

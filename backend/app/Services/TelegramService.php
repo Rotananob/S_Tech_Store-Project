@@ -5229,9 +5229,9 @@ class TelegramService
     }
 
     /**
-     * Send instant notification to Telegram group when a new product is added by Admin
+     * Send instant notification to Telegram group when a new product is added by Admin or Staff
      */
-    public static function sendNewProductAlert($product): bool
+    public static function sendNewProductAlert($product, ?string $actor = null): bool
     {
         $settings = self::getSettings();
         if (empty($settings['connected']) || empty($settings['chat_id'])) {
@@ -5244,6 +5244,7 @@ class TelegramService
         $categoryName = htmlspecialchars($product->category->name ?? 'ទូទៅ');
         $slug = $product->slug ?? '';
         $brand = !empty($product->brand) ? htmlspecialchars($product->brand) : 'S Tech';
+        $actorText = htmlspecialchars($actor ?? 'Admin / Staff');
 
         $stockTopicId = self::resolveTopicId('stock');
 
@@ -5253,8 +5254,103 @@ class TelegramService
             . "📦 <b>ចំនួនស្តុក:</b> {$stock} គ្រឿង\n"
             . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
             . "🏢 <b>ម៉ាក:</b> {$brand}\n"
+            . "👤 <b>អ្នកបន្ថែម:</b> {$actorText}\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($product->created_at ?? null) . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send instant notification to Telegram group when a product is edited/updated by Admin or Staff
+     */
+    public static function sendEditProductAlert($product, array $changes = [], ?string $actor = null): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $pName = htmlspecialchars($product->name ?? 'ផលិតផល');
+        $price = number_format((float)($product->price ?? 0), 2);
+        $stock = (int)($product->stock ?? 0);
+        $categoryName = htmlspecialchars($product->category->name ?? 'ទូទៅ');
+        $slug = $product->slug ?? '';
+        $brand = !empty($product->brand) ? htmlspecialchars($product->brand) : 'S Tech';
+        $actorText = htmlspecialchars($actor ?? 'Admin / Staff');
+
+        $stockTopicId = self::resolveTopicId('stock');
+
+        $changeDetails = "";
+        if (!empty($changes)) {
+            $changeDetails = "📝 <b>ព័ត៌មានដែលបានកែប្រែ:</b>\n";
+            foreach ($changes as $field => $diff) {
+                $fieldKhmer = match($field) {
+                    'name' => 'ឈ្មោះ',
+                    'price' => 'តម្លៃ',
+                    'sale_price' => 'តម្លៃបញ្ចុះ',
+                    'stock' => 'ចំនួនស្តុក',
+                    'category_id' => 'ប្រភេទទំនិញ',
+                    'brand' => 'ម៉ាក',
+                    'is_featured' => 'ទំនិញលេចធ្លោ',
+                    'pinned_to_top' => 'ខ្ទាស់លើគេ',
+                    default => $field,
+                };
+                $oldVal = htmlspecialchars((string)($diff['old'] ?? '-'));
+                $newVal = htmlspecialchars((string)($diff['new'] ?? '-'));
+                if ($field === 'price' || $field === 'sale_price') {
+                    $oldVal = $oldVal !== '-' ? "\${$oldVal}" : '-';
+                    $newVal = $newVal !== '-' ? "\${$newVal}" : '-';
+                }
+                $changeDetails .= "  • <b>{$fieldKhmer}:</b> <code>{$oldVal}</code> ➔ <b>{$newVal}</b>\n";
+            }
+            $changeDetails .= "\n";
+        }
+
+        $msg = "✏️ <b>ផលិតផលត្រូវបានកែប្រែព័ត៌មាន! (PRODUCT UPDATED)</b>\n\n"
+            . "🏷️ <b>ឈ្មោះទំនិញ:</b> <b>{$pName}</b>\n"
+            . "💰 <b>តម្លៃបច្ចុប្បន្ន:</b> <b>\${$price} USD</b>\n"
+            . "📦 <b>ចំនួនស្តុកបច្ចុប្បន្ន:</b> {$stock} គ្រឿង\n"
+            . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
+            . "🏢 <b>ម៉ាក:</b> {$brand}\n"
+            . "👤 <b>អ្នកកែប្រែ:</b> {$actorText}\n"
+            . ($changeDetails !== "" ? $changeDetails : "")
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime(now()) . "\n\n"
+            . "👉 <a href=\"https://www.s-tech-store.tech/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
+
+        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send instant notification to Telegram group when a product is deleted by Admin or Staff
+     */
+    public static function sendDeleteProductAlert($product, ?string $actor = null): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+
+        $pName = htmlspecialchars($product->name ?? 'ផលិតផល');
+        $price = number_format((float)($product->price ?? 0), 2);
+        $stock = (int)($product->stock ?? 0);
+        $categoryName = htmlspecialchars($product->category->name ?? 'ទូទៅ');
+        $brand = !empty($product->brand) ? htmlspecialchars($product->brand) : 'S Tech';
+        $actorText = htmlspecialchars($actor ?? 'Admin / Staff');
+
+        $stockTopicId = self::resolveTopicId('stock');
+
+        $msg = "🗑️ <b>ផលិតផលត្រូវបានលុបចេញពីប្រព័ន្ធ! (PRODUCT DELETED)</b>\n\n"
+            . "🏷️ <b>ឈ្មោះទំនិញដែលលុប:</b> <b>{$pName}</b>\n"
+            . "💰 <b>តម្លៃចុងក្រោយ:</b> <b>\${$price} USD</b>\n"
+            . "📦 <b>ចំនួនស្តុកចុងក្រោយ:</b> {$stock} គ្រឿង\n"
+            . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
+            . "🏢 <b>ម៉ាក:</b> {$brand}\n"
+            . "👤 <b>អ្នកលុប:</b> {$actorText}\n"
+            . "⏰ <b>កាលបរិច្ឆេទលុប:</b> " . self::khmerTime(now()) . "\n\n"
+            . "⚠️ <i>ទំនិញនេះត្រូវបានដកចេញពីគេហទំព័រ និងឃ្លាំងស្តុកទាំងស្រុង។</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
         return ($res['ok'] ?? false) === true;

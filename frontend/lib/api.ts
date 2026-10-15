@@ -63,6 +63,12 @@ api.interceptors.request.use(
             if (parsed?.role) {
               config.headers["X-Admin-Role"] = parsed.role;
             }
+            if (parsed?.email) {
+              config.headers["X-User-Email"] = parsed.email;
+            }
+            if (parsed?.name) {
+              config.headers["X-User-Name"] = parsed.name;
+            }
           }
         }
       } catch (e) {
