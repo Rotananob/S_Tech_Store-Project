@@ -35,11 +35,15 @@ export default function AdminLoginPage() {
 
       const { token, user } = res.data;
 
-      // Persist auth session (30 days)
+      // Persist auth session (90 days unbreakable signed session)
       if (typeof window !== "undefined") {
-        localStorage.setItem("stech_admin_token", token);
-        localStorage.setItem("stech_admin_user", JSON.stringify(user));
-        document.cookie = `stech_admin_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+        try {
+          localStorage.setItem("stech_admin_token", token);
+          localStorage.setItem("stech_admin_user", JSON.stringify(user));
+          sessionStorage.setItem("stech_admin_token", token);
+          sessionStorage.setItem("stech_admin_user", JSON.stringify(user));
+          document.cookie = `stech_admin_token=${token}; path=/; max-age=7776000; SameSite=Lax`;
+        } catch (e) {}
       }
 
       const isOwner = user.role === "super_admin" || user.email === "nobrothana180703@gmail.com";

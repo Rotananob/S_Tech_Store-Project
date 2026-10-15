@@ -81,7 +81,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
     }
 
     if (typeof window !== "undefined") {
-      let token = localStorage.getItem("stech_admin_token");
+      let token = localStorage.getItem("stech_admin_token") || sessionStorage.getItem("stech_admin_token");
       if (!token) {
         // Fallback to cookie if localStorage was cleared on tab close
         const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
@@ -89,11 +89,12 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
           token = decodeURIComponent(match[1]);
           try {
             localStorage.setItem("stech_admin_token", token);
+            sessionStorage.setItem("stech_admin_token", token);
           } catch (err) {}
         }
       }
 
-      const userStr = localStorage.getItem("stech_admin_user");
+      const userStr = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
       const hasDirectToken = (
         window.location.search.includes("token=") || 
         window.location.search.includes("bypass_token=")
@@ -112,7 +113,10 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
           if (parsed && parsed.role !== "super_admin" && typeof parsed.name === "string") {
             if (parsed.name.toLowerCase().includes("super admin")) {
               parsed.name = parsed.name.replace(/Super Admin/gi, "Admin");
-              localStorage.setItem("stech_admin_user", JSON.stringify(parsed));
+              try {
+                localStorage.setItem("stech_admin_user", JSON.stringify(parsed));
+                sessionStorage.setItem("stech_admin_user", JSON.stringify(parsed));
+              } catch (e) {}
             }
           }
           setUser(parsed);
@@ -122,32 +126,87 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       }
       setCheckingAuth(false);
 
-      // Verify and sync profile with backend silently
+      // Verify and sync profile with backend silently (resilient to Render cold-boot)
       if (token) {
-        api.get("/admin/me")
-          .then((res) => {
-            if (res.data?.user) {
-              const freshUser = res.data.user;
-              setUser(freshUser);
-              try {
-                localStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
-              } catch (e) {}
-            }
-          })
-          .catch((err) => {
-            // Only redirect on explicit 401 unauthenticated
-            if (err.response?.status === 401) {
-              try {
-                localStorage.removeItem("stech_admin_token");
-                localStorage.removeItem("stech_admin_user");
-                document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-              } catch (e) {}
-              router.push("/rok-mix-khernh/login");
-            }
-          });
+        const verifySession = (isRetry = false) => {
+          api.get("/admin/me")
+            .then((res) => {
+              if (res.data?.user) {
+                const freshUser = res.data.user;
+                setUser(freshUser);
+                try {
+                  localStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
+                  sessionStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
+                  if (res.data?.token) {
+                    localStorage.setItem("stech_admin_token", res.data.token);
+                    sessionStorage.setItem("stech_admin_token", res.data.token);
+                  }
+                } catch (e) {}
+              }
+            })
+            .catch((err) => {
+              // Cold boot or transient network interruption retry
+              if (!isRetry && (err.response?.status === 401 || !err.response || err.response?.status >= 500)) {
+                setTimeout(() => verifySession(true), 2500);
+                return;
+              }
+
+              // Only redirect on confirmed 401 unauthenticated after retry
+              if (err.response?.status === 401) {
+                try {
+                  localStorage.removeItem("stech_admin_token");
+                  localStorage.removeItem("stech_admin_user");
+                  sessionStorage.removeItem("stech_admin_token");
+                  sessionStorage.removeItem("stech_admin_user");
+                  document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                } catch (e) {}
+                router.push("/rok-mix-khernh/login");
+              }
+            });
+        };
+
+        verifySession(false);
       }
     }
   }, [pathname, isLoginPage, router]);
+
+  // Silent session re-validation when returning to PWA app or browser tab after inactivity
+  useEffect(() => {
+    if (isLoginPage) return;
+
+    const handleWakeup = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        const token = localStorage.getItem("stech_admin_token") || sessionStorage.getItem("stech_admin_token");
+        if (token) {
+          api.get("/admin/me")
+            .then((res) => {
+              if (res.data?.user) {
+                const freshUser = res.data.user;
+                setUser(freshUser);
+                try {
+                  localStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
+                  sessionStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
+                  if (res.data?.token) {
+                    localStorage.setItem("stech_admin_token", res.data.token);
+                    sessionStorage.setItem("stech_admin_token", res.data.token);
+                  }
+                } catch (e) {}
+              }
+            })
+            .catch(() => {
+              // Ignore background sync errors on wakeup — do not kick user out
+            });
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleWakeup);
+    window.addEventListener("focus", handleWakeup);
+    return () => {
+      document.removeEventListener("visibilitychange", handleWakeup);
+      window.removeEventListener("focus", handleWakeup);
+    };
+  }, [isLoginPage]);
 
   // Listen for dynamic auth updates from 1-click token verification
   useEffect(() => {

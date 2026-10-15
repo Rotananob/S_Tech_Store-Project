@@ -60,7 +60,20 @@ interface Props {
 
 export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshStats }: Props) {
   const [loading, setLoading] = useState(true);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(isSuperAdminProp ?? false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const u = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
+        if (u) {
+          const p = JSON.parse(u);
+          if (p.role === "super_admin" || p.role === "admin" || p.email === "nobrothana180703@gmail.com") {
+            return true;
+          }
+        }
+      } catch (e) {}
+    }
+    return isSuperAdminProp ?? false;
+  });
   const [currentRole, setCurrentRole] = useState<string>("admin");
   const [state, setState] = useState<MasterSystemState>({
     mode: "online",
@@ -149,7 +162,9 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
     if (!silent) setLoading(true);
     try {
       // Also inspect client storage for instant role resolution
-      const userStr = typeof window !== "undefined" ? localStorage.getItem("stech_admin_user") : null;
+      const userStr = typeof window !== "undefined" 
+        ? (localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user")) 
+        : null;
       if (userStr) {
         try {
           const parsed = JSON.parse(userStr);

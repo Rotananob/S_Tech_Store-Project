@@ -181,14 +181,8 @@ class AdminAuthController extends Controller
             $user->name = trim(str_ireplace(['Super Admin', 'super_admin'], 'Admin', $user->name)) ?: 'S Tech Admin';
         }
 
-        // Generate high-entropy 64-char API token
-        $token = bin2hex(random_bytes(32));
-        $user->api_token = $token;
-        $user->last_login_at = now();
-        $user->save();
-
-        // Multi-Session Token Cache: 30 days session persistence across browser tab close & reload
-        \Illuminate\Support\Facades\Cache::put("admin_token_{$token}", $user->id, 86400 * 30);
+        // Generate unbreakable 90-day cryptographically signed API token
+        $token = \App\Services\AdminTokenService::createToken($user, 90);
 
         // Also ensure user is in UserProfile with is_admin = true
         UserProfile::updateOrCreate(
@@ -215,11 +209,11 @@ class AdminAuthController extends Controller
                 'status' => $user->status,
                 'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
             ],
-        ])->cookie('stech_admin_token', $token, 60 * 24 * 30, '/', null, false, false, false, 'Lax');
+        ])->cookie('stech_admin_token', $token, 60 * 24 * 90, '/', null, false, false, false, 'Lax');
     }
 
     /**
-     * Get current authenticated admin/staff profile
+     * Get current authenticated admin/staff profile & refresh token silently
      */
     public function me(Request $request)
     {
@@ -228,7 +222,27 @@ class AdminAuthController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return response()->json([
+        // Guarantee System Owner status and role
+        if ($user->email === 'nobrothana180703@gmail.com' && $user->role !== 'super_admin') {
+            $user->role = 'super_admin';
+            $user->save();
+        }
+
+        $authHeader = $request->header('Authorization', '');
+        $incomingToken = null;
+        if (str_starts_with($authHeader, 'Bearer ')) {
+            $incomingToken = substr($authHeader, 7);
+        }
+        if (!$incomingToken) {
+            $incomingToken = $request->header('X-Admin-Token') ?: $request->cookie('stech_admin_token');
+        }
+
+        $tokenToReturn = $incomingToken;
+        if (empty($incomingToken) || \App\Services\AdminTokenService::shouldRefreshToken($incomingToken)) {
+            $tokenToReturn = \App\Services\AdminTokenService::createToken($user);
+        }
+
+        $res = response()->json([
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -238,9 +252,16 @@ class AdminAuthController extends Controller
                 'shift' => $user->shift,
                 'phone' => $user->phone,
                 'status' => $user->status,
-                'permissions' => $user->permissions,
+                'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
             ],
+            'token' => $tokenToReturn,
         ]);
+
+        if ($tokenToReturn && $tokenToReturn !== $incomingToken) {
+            $res->cookie('stech_admin_token', $tokenToReturn, 60 * 24 * 90, '/', null, false, false, false, 'Lax');
+        }
+
+        return $res;
     }
 
     /**

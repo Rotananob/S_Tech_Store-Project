@@ -34,7 +34,7 @@ export default function MasterControlPage() {
     setMounted(true);
     if (typeof window !== "undefined") {
       try {
-        const u = localStorage.getItem("stech_admin_user");
+        const u = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
         if (u) setUser(JSON.parse(u));
       } catch (e) {}
     }

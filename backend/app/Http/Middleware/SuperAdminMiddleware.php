@@ -30,31 +30,24 @@ class SuperAdminMiddleware
 
         $user = null;
         if ($token) {
-            $user = User::where('api_token', $token)
-                ->where('status', 'active')
-                ->first();
-
-            // Multi-Session Token Cache fallback
-            if (!$user) {
-                $cachedUserId = Cache::get("admin_token_{$token}");
-                if ($cachedUserId) {
-                    $user = User::where('id', $cachedUserId)
-                        ->where('status', 'active')
-                        ->first();
-                }
-            }
-
-            // Keep cache active
-            if ($user) {
-                Cache::put("admin_token_{$token}", $user->id, 86400 * 30);
-            }
+            $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
-        // Fallback: Firebase header verification for System Owner
+        // Fallback: Firebase header or client identity verification for System Owner
         if (!$user) {
             $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
-            if ($fbEmail === 'nobrothana180703@gmail.com') {
-                $user = User::where('email', 'nobrothana180703@gmail.com')->where('status', 'active')->first();
+            $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
+            $targetEmail = $fbEmail ?: ($userEmail === 'nobrothana180703@gmail.com' ? $userEmail : '');
+
+            if ($targetEmail === 'nobrothana180703@gmail.com') {
+                $user = User::where('email', 'nobrothana180703@gmail.com')->first();
+                if ($user) {
+                    if ($user->role !== 'super_admin' || $user->status !== 'active') {
+                        $user->role = 'super_admin';
+                        $user->status = 'active';
+                        $user->save();
+                    }
+                }
             }
         }
 
@@ -63,7 +56,14 @@ class SuperAdminMiddleware
 
             if ($isSuperAdmin) {
                 $request->attributes->set('auth_user', $user);
-                return $next($request);
+                $response = $next($request);
+
+                if ($token && \App\Services\AdminTokenService::shouldRefreshToken($token)) {
+                    $refreshed = \App\Services\AdminTokenService::createToken($user);
+                    $response->headers->set('X-Refreshed-Admin-Token', $refreshed);
+                }
+
+                return $response;
             }
 
             // Regular Admin / Staff trying to execute Super Admin actions

@@ -42,13 +42,14 @@ api.interceptors.request.use(
     if (typeof window !== "undefined") {
       // 1. Attach Admin/Staff Token if logged into Admin portal
       try {
-        let adminToken = localStorage.getItem("stech_admin_token");
+        let adminToken = localStorage.getItem("stech_admin_token") || sessionStorage.getItem("stech_admin_token");
         if (!adminToken && typeof document !== "undefined") {
           const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
           if (match && match[1]) {
             adminToken = decodeURIComponent(match[1]);
             try {
               localStorage.setItem("stech_admin_token", adminToken);
+              sessionStorage.setItem("stech_admin_token", adminToken);
             } catch (err) {}
           }
         }
@@ -57,9 +58,9 @@ api.interceptors.request.use(
           config.headers["Authorization"] = `Bearer ${adminToken}`;
           config.headers["X-Admin-Token"] = adminToken;
           
-          const storedUser = localStorage.getItem("stech_admin_user");
-          if (storedUser) {
-            const parsed = JSON.parse(storedUser);
+          const storedUserStr = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
+          if (storedUserStr) {
+            const parsed = JSON.parse(storedUserStr);
             if (parsed?.role) {
               config.headers["X-Admin-Role"] = parsed.role;
             }
@@ -148,9 +149,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle 401 / 403 globally
+// Response interceptor — handle token refreshes and 401 / 403 globally
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (typeof window !== "undefined" && response.headers) {
+      const refreshedToken = response.headers["x-refreshed-admin-token"];
+      if (refreshedToken) {
+        try {
+          localStorage.setItem("stech_admin_token", refreshedToken);
+          sessionStorage.setItem("stech_admin_token", refreshedToken);
+          document.cookie = `stech_admin_token=${refreshedToken}; path=/; max-age=7776000; SameSite=Lax`;
+        } catch (e) {}
+      }
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       // If unauthorized on admin route, we let the admin layout / view handle it
