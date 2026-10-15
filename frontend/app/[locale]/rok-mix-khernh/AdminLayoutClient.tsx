@@ -863,14 +863,14 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                 className="w-8 h-8 rounded-lg object-contain border border-gray-200" 
               />
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold text-gray-900 tracking-tight">
+                <span className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
                   S <span className="text-[#8B1A1A]">Tech</span> Store
                 </span>
-                <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider font-mono ${
                   isSuperAdmin 
-                    ? 'bg-amber-400/20 text-amber-900 border border-amber-300' 
+                    ? 'bg-amber-400/25 text-amber-950 border border-amber-400/60 shadow-2xs' 
                     : isAdmin 
-                    ? 'bg-[#8B1A1A] text-white' 
+                    ? 'bg-[#8B1A1A] text-white shadow-2xs' 
                     : 'bg-neutral-800 text-white'
                 }`}>
                   {isSuperAdmin ? "Owner" : isAdmin ? "Admin" : "Staff"}
