@@ -104,6 +104,84 @@ class TelegramService
     }
 
     /**
+     * Format timestamp strictly in Cambodia timezone (Asia/Phnom_Penh, UTC+7).
+     * Guaranteed accurate Cambodian local time across all Telegram notifications.
+     */
+    public static function khmerTime($timestamp = null, string $format = 'd-m-Y H:i:s'): string
+    {
+        try {
+            $tz = new \DateTimeZone('Asia/Phnom_Penh');
+            if ($timestamp instanceof \DateTimeInterface) {
+                $dt = (clone $timestamp)->setTimezone($tz);
+            } elseif (is_numeric($timestamp)) {
+                $dt = new \DateTime('@' . $timestamp);
+                $dt->setTimezone($tz);
+            } elseif (is_string($timestamp) && trim($timestamp) !== '') {
+                $dt = new \DateTime($timestamp);
+                $dt->setTimezone($tz);
+            } else {
+                $dt = new \DateTime('now', $tz);
+            }
+            return $dt->format($format);
+        } catch (\Throwable $e) {
+            return date($format);
+        }
+    }
+
+    /**
+     * Resolve the designated forum topic message_thread_id for a notification category.
+     * Prevents alerts from dropping into #General when forum topics exist.
+     */
+    public static function resolveTopicId(string $category): ?int
+    {
+        $settings = self::getSettings();
+        $topics = $settings['topics'] ?? [];
+        if (!is_array($topics)) {
+            $topics = [];
+        }
+
+        // 1. Direct match
+        if (!empty($topics[$category])) {
+            return (int)$topics[$category];
+        }
+
+        // 2. Logical topic fallbacks if specific topic is not yet registered
+        $fallbacks = [
+            'users' => ['users', 'chat', 'orders'],
+            'orders' => ['orders', 'finance'],
+            'stock' => ['stock', 'promotions'],
+            'repairs' => ['repairs', 'orders'],
+            'chat' => ['chat', 'orders'],
+            'traffic' => ['traffic'],
+            'security' => ['security', 'system_errors'],
+            'promotions' => ['promotions', 'stock'],
+            'finance' => ['finance', 'orders'],
+            'system_errors' => ['system_errors', 'security'],
+        ];
+
+        if (isset($fallbacks[$category])) {
+            foreach ($fallbacks[$category] as $fb) {
+                if (!empty($topics[$fb])) {
+                    return (int)$topics[$fb];
+                }
+            }
+        }
+
+        // 3. Auto-heal missing topic via setupTopics if connected to a staff group
+        if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+            try {
+                self::setupTopics($settings['chat_id']);
+                $fresh = self::getSettings();
+                if (!empty($fresh['topics'][$category])) {
+                    return (int)$fresh['topics'][$category];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        return null;
+    }
+
+    /**
      * Check if a valid, non-placeholder bot token is configured
      */
     public static function isConfigured(): bool
@@ -1686,7 +1764,7 @@ class TelegramService
                 . "• 📱 <b>លេខទូរស័ព្ទ / Phone:</b> " . htmlspecialchars($phoneNumber) . "\n"
                 . "• 🪙 <b>ពិន្ទុ S-Coins:</b> <b>" . (int)($user->points ?? 0) . " Coins</b>\n"
                 . "• 🔐 <b>ស្ថានភាព (Status):</b> <b>✅ ចូលគណនីស្វ័យប្រវត្តិ (Auto-Sign In Active)</b>\n"
-                . "• ⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i:s') . "\n\n"
+                . "• ⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
                 . "🚀 <b>គណនីរបស់អ្នកត្រូវបាន Auto-Sign In នៅក្នុងគេហទំព័រ S Tech Store រួចរាល់ហើយ!</b>\n"
                 . "<i>លោកអ្នកមិនបាច់វាយលេខសម្ងាត់ ឬចុច Connect ម្តងទៀតឡើយ។</i>\n\n"
                 . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) ឬចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញភ្លាមៗ៖</b>";
@@ -2735,7 +2813,7 @@ class TelegramService
                     . "🛍️ <b>មុខទំនិញក្នុងកញ្ចប់:</b>\n{$itemsText}\n\n"
                     . "📍 <b>អាសយដ្ឋានដឹក:</b> {$shippingAddress}\n"
                     . "🚚 <b>សេវាដឹក:</b> {$deliveryStr}\n"
-                    . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($order->created_at ? $order->created_at->format('d-m-Y H:i') : date('d-m-Y')) . "\n"
+                    . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null, 'd-m-Y H:i') . "\n"
                     . "</blockquote>\n\n"
                     . "👉 លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមនៅក្នុង Mini App!";
 
@@ -3672,6 +3750,13 @@ class TelegramService
                     self::saveSettings($settings);
                 }
 
+                // If this is the staff forum group, STRICTLY DO NOT dump into #General to prevent spam
+                $isStaffGroup = !empty($settings['chat_id']) && (string)$chatId === (string)$settings['chat_id'];
+                if ($isStaffGroup && !empty($topics)) {
+                    Log::warning("[Telegram] Topic thread {$threadId} not found in staff group. Suppressing fallback to #General to prevent spam.");
+                    return ['ok' => false, 'error' => 'Thread not found in forum group; suppressed fallback to #General'];
+                }
+
                 unset($payload['message_thread_id']);
                 $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
@@ -3729,6 +3814,13 @@ class TelegramService
                 if ($healed) {
                     $settings['topics'] = $topics;
                     self::saveSettings($settings);
+                }
+
+                // If this is the staff forum group, STRICTLY DO NOT dump into #General to prevent spam
+                $isStaffGroup = !empty($settings['chat_id']) && (string)$chatId === (string)$settings['chat_id'];
+                if ($isStaffGroup && !empty($topics)) {
+                    Log::warning("[Telegram] Topic thread {$threadId} not found in staff group. Suppressing fallback to #General to prevent spam.");
+                    return ['ok' => false, 'error' => 'Thread not found in forum group; suppressed fallback to #General'];
                 }
 
                 unset($payload['message_thread_id']);
@@ -4412,7 +4504,7 @@ class TelegramService
         $paymentStatus = ucfirst($order->payment_status ?? 'unpaid');
         $delivery = htmlspecialchars($order->delivery_type ?? 'Standard Delivery');
         $address = htmlspecialchars($order->shipping_address ?? 'Phnom Penh');
-        $date = $order->created_at ? $order->created_at->format('d/m/Y H:i') : date('d/m/Y H:i');
+        $date = self::khmerTime($order->created_at ?? null, 'd/m/Y H:i');
 
         $itemsText = "";
         if (!empty($order->items)) {
@@ -4456,7 +4548,7 @@ class TelegramService
                 . "ជម្រាបសួរ <b>{$customerName}</b>!\n\n"
                 . "វិក្កយបត្រ <code>#{$orderId}</code> ចំនួន <b>\${$total} USD</b> ត្រូវបានផ្ទៀងផ្ទាត់ការទូទាត់ជោគជ័យតាមរយៈ <b>{$paymentMethod}</b>។\n\n"
                 . "🔄 <b>ស្ថានភាពឥឡូវនេះ:</b> <b>កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)</b>\n"
-                . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+                . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime(null, 'd/m/Y H:i') . "\n\n"
                 . "👉 <i>ក្រុមការងារយើងខ្ញុំកំពុងរៀបចំកញ្ចប់ទំនិញយ៉ាងម៉ត់ចត់ដើម្បីប្រគល់ជូនផ្នែកដឹកជញ្ជូន!</i>";
 
             $kb = [
@@ -4492,7 +4584,7 @@ class TelegramService
                 . "⚡ <b>ស្ថានភាពថ្មី:</b> <b>{$statusBadge}</b>\n\n"
                 . "ℹ️ <i>{$statusNote}</i>\n\n"
                 . "💰 <b>តម្លៃសរុប:</b> <b>\${$total} USD</b> ({$paymentMethod} - {$paymentStatus})\n"
-                . "⏰ <b>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង:</b> " . date('d/m/Y H:i') . "\n\n"
+                . "⏰ <b>ធ្វើបច្ចុប្បន្នភាពនៅម៉ោង:</b> " . self::khmerTime(null, 'd/m/Y H:i') . "\n\n"
                 . "👉 <i>លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមតាមរយៈប៊ូតុងខាងក្រោម!</i>";
 
             $kb = [
@@ -4533,7 +4625,7 @@ class TelegramService
             . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
             . "📌 <b>{$cleanTitle}</b>\n\n"
             . "{$cleanMsg}\n\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime(null, 'd/m/Y H:i') . "\n\n"
             . "👉 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យមើលក្នុងគេហទំព័រ ឬ Mini App!</i>";
 
         $kb = [
@@ -4606,7 +4698,7 @@ class TelegramService
             . "━━━━━━━━━━━━━━━━━━━━\n\n"
             . "👤 <b>{$staff}</b> បានឆ្លើយតបសាររបស់អ្នក៖\n\n"
             . "<i>\"{$cleanReply}\"</i>\n\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime(null, 'd/m/Y H:i') . "\n\n"
             . "👉 <i>សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើកមើលការសន្ទនាផ្ទាល់ក្នុង Live Chat!</i>";
 
         $kb = [
@@ -4657,7 +4749,7 @@ class TelegramService
             . "👨‍🔧 <b>ជាងទទួលបន្ទុក:</b> {$tech}\n"
             . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$cost} USD\n"
             . (!empty($repair->notes) ? "📝 <b>កំណត់សម្គាល់:</b> <i>" . htmlspecialchars($repair->notes) . "</i>\n" : "")
-            . "⏰ <b>ធ្វើបច្ចុប្បន្នភាព:</b> " . date('d/m/Y H:i') . "\n\n"
+            . "⏰ <b>ធ្វើបច្ចុប្បន្នភាព:</b> " . self::khmerTime(null, 'd/m/Y H:i') . "\n\n"
             . "👉 <i>លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិត ឬទាក់ទងជាងបច្ចេកទេសតាមប៊ូតុងខាងក្រោម!</i>";
 
         $kb = [
@@ -4900,7 +4992,7 @@ class TelegramService
 
         $chatId = $settings['chat_id'];
         $chatTitle = $settings['chat_title'] ?? 'Store Group';
-        $threadId = $settings['topics']['chat'] ?? $settings['topics']['orders'] ?? null;
+        $threadId = self::resolveTopicId('chat') ?? self::resolveTopicId('orders');
 
         $text = "🔔 <b>[TEST] សាកល្បងការតភ្ជាប់ប្រព័ន្ធ TELEGRAM BOT</b>\n"
               . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -4909,7 +5001,7 @@ class TelegramService
               . "🌐 <b>គេហទំព័រ:</b> https://www.s-tech-store.tech\n"
               . "👥 <b>គ្រុប:</b> " . htmlspecialchars($chatTitle) . "\n"
               . "🆔 <b>Chat ID:</b> <code>{$chatId}</code>\n"
-              . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('Y-m-d H:i:s') . "\n\n"
+              . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
               . "✅ <i>ប្រព័ន្ធជូនដំណឹង Telegram របស់ S Tech Store បានភ្ជាប់ជាមួយប្រព័ន្ធទិន្នន័យ Neon PostgreSQL ដោយរលូន និងត្រៀមខ្លួនរួចរាល់សម្រាប់ការងារ!</i>";
 
         $keyboard = [
@@ -4954,7 +5046,7 @@ class TelegramService
             $itemsText = "  • <i>(ព័ត៌មានទំនិញត្រូវបានកត់ត្រាក្នុង Admin)</i>\n";
         }
 
-        $orderTopicId = $settings['topics']['orders'] ?? null;
+        $orderTopicId = self::resolveTopicId('orders');
 
         $msg = "🛒 <b>ការបញ្ជាទិញថ្មី (NEW ORDER RECEIVED)!</b>\n\n"
             . "🔖 <b>លេខវិក្កយបត្រ:</b> <code>{$orderId}</code>\n"
@@ -4966,7 +5058,7 @@ class TelegramService
             . "📦 <b>មុខទំនិញកុម្ម៉ង់:</b>\n"
             . $itemsText . "\n"
             . "💵 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
@@ -4990,7 +5082,7 @@ class TelegramService
         $message = htmlspecialchars($data['message'] ?? 'មានសំណួរចង់សាកសួរក្រុមការងារ...');
         $product = !empty($data['product_name']) ? htmlspecialchars($data['product_name']) : null;
 
-        $chatTopicId = $settings['topics']['chat'] ?? null;
+        $chatTopicId = self::resolveTopicId('chat');
 
         $text = "💬 <b>សំណើសន្ទនាផ្ទាល់ពីអតិថិជន (LIVE CHAT REQUEST)!</b>\n\n"
             . "👤 <b>ឈ្មោះអតិថិជន:</b> <b>{$name}</b>\n"
@@ -5003,7 +5095,7 @@ class TelegramService
         }
 
         $text .= "📝 <b>សារសាកសួរ:</b>\n<i>\"{$message}\"</i>\n\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n";
+            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n";
 
         $bypassToken = $data['bypass_token'] ?? null;
         $chatId = $data['chat_id'] ?? null;
@@ -5055,7 +5147,7 @@ class TelegramService
         $slug = $product->slug ?? '';
         $brand = !empty($product->brand) ? htmlspecialchars($product->brand) : 'S Tech';
 
-        $stockTopicId = $settings['topics']['stock'] ?? null;
+        $stockTopicId = self::resolveTopicId('stock');
 
         $msg = "📦 <b>ផលិតផលថ្មីត្រូវបានបន្ថែមក្នុងប្រព័ន្ធ! (NEW PRODUCT ADDED)</b>\n\n"
             . "🏷️ <b>ឈ្មោះទំនិញ:</b> <b>{$pName}</b>\n"
@@ -5063,7 +5155,7 @@ class TelegramService
             . "📦 <b>ចំនួនស្តុក:</b> {$stock} គ្រឿង\n"
             . "📂 <b>ប្រភេទទំនិញ:</b> {$categoryName}\n"
             . "🏢 <b>ម៉ាក:</b> {$brand}\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($product->created_at ?? null) . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/products/{$slug}\">ចុចទីនេះដើម្បីពិនិត្យទំនិញលើគេហទំព័រ</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $stockTopicId);
@@ -5214,7 +5306,7 @@ class TelegramService
         $technician = htmlspecialchars($repair->technician_name ?? 'Unassigned');
         $cost = number_format((float)($repair->estimated_cost ?? 0), 2);
 
-        $repairsTopicId = $settings['topics']['repairs'] ?? null;
+        $repairsTopicId = self::resolveTopicId('repairs');
 
         $msg = "🛠️ <b>បណ្ណជួសជុល / TICKET សេវាកម្មថ្មី!</b>\n\n"
             . "🎫 <b>កូដ Ticket:</b> <code>{$code}</code>\n"
@@ -5226,7 +5318,7 @@ class TelegramService
             . "⚡ <b>ស្ថានភាព:</b> <code>{$status}</code>\n"
             . "👨‍🔧 <b>ជាងទទួលបន្ទុក:</b> {$technician}\n"
             . "💵 <b>តម្លៃប៉ាន់ស្មាន:</b> \${$cost} USD\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($repair->created_at ?? null) . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/repairs\">ចូលទៅកាន់ Repair Center ដើម្បីចាត់ចែង</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $repairsTopicId);
@@ -5243,13 +5335,27 @@ class TelegramService
             return false;
         }
 
+        $uid = htmlspecialchars((string)($userData['id'] ?? $userData['firebase_uid'] ?? 'NEW'));
+
+        // 5-minute deduplication cache per user to prevent duplicate registration alerts
+        $dedupKey = "tg_user_reg_alert_sent_{$uid}";
+        if ($uid !== 'NEW' && Cache::has($dedupKey)) {
+            return true;
+        }
+        if ($uid !== 'NEW') {
+            Cache::put($dedupKey, true, 300);
+        }
+
         $name = htmlspecialchars($userData['name'] ?? $userData['display_name'] ?? 'អតិថិជនថ្មី');
         $email = htmlspecialchars($userData['email'] ?? 'N/A');
         $phone = htmlspecialchars($userData['phone'] ?? 'N/A');
-        $uid = htmlspecialchars((string)($userData['id'] ?? 'NEW'));
         $role = htmlspecialchars($userData['role'] ?? 'customer');
 
-        $usersTopicId = $settings['topics']['users'] ?? null;
+        $usersTopicId = self::resolveTopicId('users');
+        if (!$usersTopicId && !empty($settings['topics'])) {
+            // Never drop registration alert to #General if forum topics exist
+            return false;
+        }
 
         $msg = "👤 <b>ការចុះឈ្មោះអតិថិជនថ្មី (NEW USER REGISTERED)!</b>\n\n"
             . "🆔 <b>User ID:</b> <code>#{$uid}</code>\n"
@@ -5257,7 +5363,7 @@ class TelegramService
             . "📧 <b>អ៊ីមែល:</b> <code>{$email}</code>\n"
             . "📱 <b>ទូរស័ព្ទ:</b> {$phone}\n"
             . "🔰 <b>ប្រភេទគណនី:</b> <code>{$role}</code>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/users\">ពិនិត្យមើល Customer Profiles ក្នុង Admin</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $usersTopicId);
@@ -5335,7 +5441,11 @@ class TelegramService
         }
         Cache::put($throttleKey, true, 20);
 
-        $trafficTopicId = $settings['topics']['traffic'] ?? null;
+        $trafficTopicId = self::resolveTopicId('traffic');
+        if (!$trafficTopicId && !empty($settings['topics'])) {
+            // Never drop traffic alerts into #General when forum topics exist
+            return true;
+        }
 
         $locParts = [];
         if (!empty($city)) $locParts[] = $city;
@@ -5352,7 +5462,7 @@ class TelegramService
             . "📱 <b>ឧបករណ៍ & ប្រព័ន្ធ:</b> {$device}" . (!empty($screen) ? " [{$screen}]" : "") . "\n"
             . "📍 <b>ទីតាំង (Location):</b> {$locationText}\n"
             . "🌐 <b>Real IP Address:</b> <code>{$ip}</code>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ & ម៉ោង:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ & ម៉ោង:</b> " . self::khmerTime() . "\n\n"
             . "⚡ <i>ប្រព័ន្ធតាមដាន S Tech Store Real-time Traffic Counter</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $trafficTopicId);
@@ -5459,7 +5569,10 @@ class TelegramService
         $displayMethod = str_replace(['Verified', 'VERIFIED'], ['ជោគជ័យ', 'ជោគជ័យ'], $method);
 
         // Route strictly to users topic (👤 អតិថិជនចុះឈ្មោះថ្មី / ចូលគណនី)
-        $userTopicId = $settings['topics']['users'] ?? null;
+        $userTopicId = self::resolveTopicId('users');
+        if (!$userTopicId && !empty($settings['topics'])) {
+            return false;
+        }
 
         $msg = "🎉 <b>[CUSTOMER LOGIN] ការចូលប្រើប្រាស់គណនីជោគជ័យ!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5469,7 +5582,7 @@ class TelegramService
             . "📱 <b>ឧបករណ៍ / Device:</b> {$device}\n"
             . "✅ <b>ស្ថានភាព:</b> <code>ចូលជោគជ័យ (Verified & Active)</code>\n"
             . "📝 <b>ព័ត៌មានលម្អិត:</b> <i>{$details}</i>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "🛍️ <i>ស្វាគមន៍អតិថិជនមកកាន់គេហទំព័រ S Tech Store!</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $userTopicId);
@@ -5504,7 +5617,7 @@ class TelegramService
         $action = htmlspecialchars($data['action'] ?? 'Blocked & Logged');
         $details = htmlspecialchars($data['details'] ?? 'N/A');
 
-        $secTopicId = $settings['topics']['security'] ?? null;
+        $secTopicId = self::resolveTopicId('security');
 
         $isThreat = preg_match('/(attack|exploit|threat|penalty|ban|sql|xss|brute|malicious|drain|flood|suspicious|hijack|honeypot)/i', $allText);
 
@@ -5522,7 +5635,7 @@ class TelegramService
             . "👤 <b>អ្នកប្រើប្រាស់:</b> {$user}\n"
             . "{$actionLabel} <code>{$action}</code>\n"
             . "📝 <b>ព័ត៌មានលម្អិត:</b> <i>{$details}</i>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "🔒 <i>ប្រព័ន្ធការពារសុវត្ថិភាព S Tech Store Firewall</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $secTopicId);
@@ -5544,7 +5657,7 @@ class TelegramService
         $details = htmlspecialchars($data['details'] ?? 'N/A');
         $discount = htmlspecialchars($data['discount'] ?? 'N/A');
 
-        $promoTopicId = $settings['topics']['promotions'] ?? $settings['topics']['stock'] ?? null;
+        $promoTopicId = self::resolveTopicId('promotions') ?? self::resolveTopicId('stock');
 
         $msg = "🎁 <b>[PROMOTION & STOCK] បច្ចុប្បន្នភាពប្រូម៉ូសិន ឬស្តុក!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5552,7 +5665,7 @@ class TelegramService
             . "👤 <b>អ្នករៀបចំ:</b> {$actor}\n"
             . "🎟️ <b>Discount / Code:</b> <code>{$discount}</code>\n"
             . "📦 <b>ព័ត៌មានលម្អិត:</b> {$details}\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/promotions\">ពិនិត្យមើលក្នុងផ្ទាំង Admin</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $promoTopicId);
@@ -5575,7 +5688,7 @@ class TelegramService
         $orderId = htmlspecialchars($data['order_id'] ?? 'N/A');
         $customer = htmlspecialchars($data['customer'] ?? 'Customer');
 
-        $financeTopicId = $settings['topics']['finance'] ?? $settings['topics']['orders'] ?? null;
+        $financeTopicId = self::resolveTopicId('finance') ?? self::resolveTopicId('orders');
 
         $msg = "💳 <b>[FINANCE] ប្រតិបត្តិការហិរញ្ញវត្ថុ / ទូទាត់ប្រាក់!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5584,7 +5697,7 @@ class TelegramService
             . "🏦 <b>វិធីសាស្ត្រទូទាត់:</b> {$method}\n"
             . "🔖 <b>លេខវិក្កយបត្រ / Order:</b> <code>{$orderId}</code>\n"
             . "👤 <b>អតិថិជន:</b> {$customer}\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/orders\">ពិនិត្យមើលក្នុងបញ្ជី Orders</a>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $financeTopicId);
@@ -5606,7 +5719,7 @@ class TelegramService
         $actor = htmlspecialchars($data['actor'] ?? request()->ip() ?? 'System');
         $file = htmlspecialchars($data['file'] ?? 'N/A');
 
-        $errTopicId = $settings['topics']['system_errors'] ?? null;
+        $errTopicId = self::resolveTopicId('system_errors') ?? self::resolveTopicId('security');
 
         $msg = "🚨 <b>[CRITICAL SYSTEM ERROR] បញ្ហាប្រព័ន្ធបច្ចេកវិទ្យា!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5614,7 +5727,7 @@ class TelegramService
             . "📍 <b>បរិបទ / Function:</b> <b>{$context}</b>\n"
             . "📁 <b>ទីតាំង File:</b> <i>{$file}</i>\n"
             . "👤 <b>ប្រភព / IP:</b> {$actor}\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "⚠️ <i>សូមក្រុមការងារបច្ចេកវិទ្យាជួយត្រួតពិនិត្យជាបន្ទាន់</i>";
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $errTopicId);
@@ -5645,7 +5758,7 @@ class TelegramService
         $phone = htmlspecialchars($user->phone ?: 'N/A');
         $method = strtoupper($tx->payment_method ?: 'ABA / Bakong');
 
-        $financeTopicId = $settings['topics']['finance'] ?? $settings['topics']['orders'] ?? null;
+        $financeTopicId = self::resolveTopicId('finance') ?? self::resolveTopicId('orders');
 
         $msg = "⚡ <b>[TOP-UP VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការបញ្ចូលលុយ Wallet!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5654,7 +5767,7 @@ class TelegramService
             . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
             . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
             . "🔖 <b>Ref Deposit ID:</b> <code>{$depositId}</code>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($tx->created_at ?? null) . "\n\n"
             . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
 
         $replyMarkup = [
@@ -5750,7 +5863,7 @@ class TelegramService
                 . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
                 . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($tx->payment_method ?: 'ABA/KHQR') . "\n"
                 . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-                . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+                . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
                 . "💰 <b>សមតុល្យថ្មីរបស់អតិថិជន:</b> \$" . number_format($user->wallet_balance, 2) . " USD";
 
             return [
@@ -5796,7 +5909,7 @@ class TelegramService
             . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$tx->amount, 2) . " USD</b>\n"
             . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
             . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
             . "⚠️ <i>ប្រតិបត្តិការនេះត្រូវបានច្រានចោល មិនមានការបញ្ចូលទឹកប្រាក់ឡើយ។</i>";
 
         return [
@@ -5827,7 +5940,7 @@ class TelegramService
         $phone = htmlspecialchars($order->customer_phone ?: 'N/A');
         $methodName = strtoupper($method ?: 'KHQR');
 
-        $ordersTopicId = $settings['topics']['orders'] ?? $settings['topics']['finance'] ?? null;
+        $ordersTopicId = self::resolveTopicId('orders') ?? self::resolveTopicId('finance');
 
         $msg = "⚡ <b>[ORDER PAYMENT VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការទូទាត់ទំនិញ!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -5837,7 +5950,7 @@ class TelegramService
             . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
             . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
             . "🔖 <b>Ref Tran ID:</b> <code>{$tranId}</code>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
             . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
 
         $replyMarkup = [
@@ -5888,7 +6001,7 @@ class TelegramService
             . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . " (" . htmlspecialchars($order->customer_phone) . ")\n"
             . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($order->payment_method ?: 'KHQR') . "\n"
             . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
             . "🚀 <i>ស្ថានភាព Order ត្រូវបានផ្លាស់ប្តូរទៅ Processing រួចរាល់!</i>";
 
         return [
@@ -5919,7 +6032,7 @@ class TelegramService
             . "🧾 <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
             . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$order->total_amount, 2) . " USD</b>\n"
             . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . date('d-m-Y H:i:s') . "\n\n"
+            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
             . "⚠️ <i>ការទូទាត់ត្រូវបានច្រានចោល។</i>";
 
         return [
