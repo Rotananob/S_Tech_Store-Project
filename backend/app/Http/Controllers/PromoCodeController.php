@@ -61,43 +61,12 @@ class PromoCodeController extends Controller
         $rawCode = trim($validated['code']);
         $code = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $rawCode));
 
-        // Built-in store promo configurations for instant reliability
-        $builtInCodes = [
-            'STECH20' => ['name' => 'S Tech Promo 20% OFF', 'type' => 'percentage', 'value' => 20.00, 'description' => 'បញ្ចុះតម្លៃ ២០% លើគ្រប់ទំនិញ IT'],
-            'PROMO' => ['name' => 'October Mega Sale 20% OFF', 'type' => 'percentage', 'value' => 20.00, 'description' => 'ប្រូម៉ូសិនពិសេសប្រចាំខែ ២០%'],
-            'STECH10' => ['name' => 'S Tech Member 10% OFF', 'type' => 'percentage', 'value' => 10.00, 'description' => 'បញ្ចុះតម្លៃ ១០% សម្រាប់សមាជិក'],
-            'WELCOME' => ['name' => 'ស្វាគមន៍អតិថិជនថ្មី $10 OFF', 'type' => 'fixed', 'value' => 10.00, 'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $10 ភ្លាមៗ'],
-            'WELCOME5' => ['name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF', 'type' => 'fixed', 'value' => 5.00, 'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $5.00 ភ្លាមៗ'],
-            'VIP10' => ['name' => 'VIP Member 10% OFF', 'type' => 'percentage', 'value' => 10.00, 'description' => 'បញ្ចុះតម្លៃ ១០% សម្រាប់ VIP Member'],
-            'PCHUM' => ['name' => 'ប្រូម៉ូសិន ភ្ជុំបិណ្ឌ 30% OFF', 'type' => 'percentage', 'value' => 30.00, 'description' => 'បញ្ចុះតម្លៃ ៣០% ពិធីបុណ្យភ្ជុំបិណ្ឌ'],
-        ];
-
         $promo = PromoCode::whereRaw('UPPER(TRIM(code)) = ?', [$code])->first();
-
-        // If not found in DB or inactive scheduled, but is a recognized built-in code, activate/create it
-        if ((!$promo || $promo->status !== 'active') && isset($builtInCodes[$code])) {
-            $def = $builtInCodes[$code];
-            if (!$promo) {
-                $promo = PromoCode::create([
-                    'name' => $def['name'],
-                    'code' => $code,
-                    'type' => $def['type'],
-                    'value' => $def['value'],
-                    'status' => 'active',
-                    'description' => $def['description'],
-                    'usage_max' => 99999,
-                    'usage_count' => 0,
-                ]);
-            } else {
-                $promo->status = 'active';
-                $promo->save();
-            }
-        }
 
         if (!$promo) {
             return response()->json([
                 'success' => false,
-                'message' => 'កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ (Invalid promo code)',
+                'message' => 'កូដប្រូម៉ូសិនមិនត្រឹមត្រូវ ឬត្រូវបានលុបចេញ (Invalid or deleted promo code)',
             ], 404);
         }
 

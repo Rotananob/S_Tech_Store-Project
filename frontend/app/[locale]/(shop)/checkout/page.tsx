@@ -212,6 +212,7 @@ export default function CheckoutPage() {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState("");
   const [promoSuccessMsg, setPromoSuccessMsg] = useState("");
+  const [availablePromos, setAvailablePromos] = useState<any[]>([]);
 
   // KHQR Payment Session State
   const [showKHQRModal, setShowKHQRModal] = useState(false);
@@ -349,6 +350,22 @@ export default function CheckoutPage() {
       return () => unsub();
     }
   }, [fetchCart, router]);
+
+  // Dynamic promo codes fetch (only show promos that currently exist in DB and are active)
+  useEffect(() => {
+    let mounted = true;
+    api.get("/promo-codes?active_only=1")
+      .then((res) => {
+        if (!mounted) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const valid = list.filter((p: any) => p && p.code && p.status === "active");
+        setAvailablePromos(valid);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Clean up polling & timers on unmount
   useEffect(() => {
@@ -2312,7 +2329,7 @@ export default function CheckoutPage() {
                           setPromoInput(e.target.value.toUpperCase());
                           setPromoError("");
                         }}
-                        placeholder="e.g. STECH20, PROMO"
+                        placeholder="បញ្ចូលកូដប្រូម៉ូសិន (Enter promo code)"
                         className="flex-1 px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
                       />
                       <button
@@ -2325,33 +2342,29 @@ export default function CheckoutPage() {
                       </button>
                     </div>
 
-                    {/* 1-Click Interactive Promo Suggestions */}
-                    <div className="mt-2.5">
-                      <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-                        <Sparkles size={11} className="text-amber-500" />
-                        <span>កូដពិសេសចុចយកភ្លាមៗ (Tap to Apply):</span>
+                    {/* 1-Click Interactive Promo Suggestions (Only shown if active promos exist in DB) */}
+                    {availablePromos.length > 0 && (
+                      <div className="mt-2.5">
+                        <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
+                          <Sparkles size={11} className="text-amber-500" />
+                          <span>កូដពិសេសចុចយកភ្លាមៗ (Tap to Apply):</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availablePromos.map((item) => (
+                            <button
+                              key={item.code}
+                              type="button"
+                              onClick={() => handleApplyPromo(item.code)}
+                              disabled={promoLoading}
+                              className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                            >
+                              <Tag size={10} />
+                              <span>{item.code} ({item.type === "percentage" ? `${item.value}%` : `$${item.value}`})</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          { code: "WELCOME5", label: "🎁 WELCOME5 ($5 Gift)" },
-                          { code: "STECH20", label: "STECH20 (20%)" },
-                          { code: "PROMO", label: "PROMO (20%)" },
-                          { code: "PCHUM", label: "PCHUM (30%)" },
-                          { code: "WELCOME", label: "WELCOME ($10)" },
-                        ].map((item) => (
-                          <button
-                            key={item.code}
-                            type="button"
-                            onClick={() => handleApplyPromo(item.code)}
-                            disabled={promoLoading}
-                            className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-                          >
-                            <Tag size={10} />
-                            <span>{item.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    )}
 
                     {promoError && (
                       <div className="mt-2 text-[11px] text-red-500 font-medium flex items-center gap-1">

@@ -749,8 +749,7 @@ class TelegramService
                     . "🎉 <b>មហាប្រូម៉ូសិន និងការបញ្ចុះតម្លៃពិសេស៖</b>\n"
                     . "• 💥 បញ្ចុះតម្លៃពិសេសរហូតដល់ <b>30%</b> លើម៉ូឌែល Laptops & Accessories\n"
                     . "• 🎟️ <b>កូដបញ្ចុះតម្លៃពិសេស (Promo Codes):</b>\n"
-                    . "   - <code>STECH10</code> — បញ្ចុះ 10% ភ្លាមៗលើរាល់ការបញ្ជាទិញ\n"
-                    . "   - <code>PCHUMBEN2026</code> — បញ្ចុះតម្លៃរហូតដល់ $50 សម្រាប់ Laptop Gaming\n"
+                    . self::formatActivePromoCodesText() . "\n"
                     . "• 🚚 <b>Free Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ (ចាប់ពី $50 ឡើងទៅ)\n"
                     . "• 🎁 <b>កាដូថែមជូន:</b> ថែម Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows ឥតគិតថ្លៃ!\n\n"
                     . "👉 បើក Mini App ឥឡូវនេះដើម្បីប្រើប្រាស់កូដបញ្ចុះតម្លៃ និងទិញទំនិញតម្លៃពិសេស!";
@@ -2385,8 +2384,7 @@ class TelegramService
                 . "🎉 <b>មហាប្រូម៉ូសិន និងការបញ្ចុះតម្លៃពិសេស៖</b>\n"
                 . "• 💥 បញ្ចុះតម្លៃពិសេសរហូតដល់ <b>30%</b> លើម៉ូឌែល Laptops & Accessories\n"
                 . "• 🎟️ <b>កូដបញ្ចុះតម្លៃពិសេស (Promo Codes):</b>\n"
-                . "   - <code>STECH10</code> — បញ្ចុះ 10% ភ្លាមៗលើរាល់ការបញ្ជាទិញ\n"
-                . "   - <code>PCHUMBEN2026</code> — បញ្ចុះតម្លៃរហូតដល់ $50 សម្រាប់ Laptop Gaming\n"
+                . self::formatActivePromoCodesText() . "\n"
                 . "• 🚚 <b>Free Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ (ចាប់ពី $50 ឡើងទៅ)\n"
                 . "• 🎁 <b>កាដូថែមជូន:</b> ថែម Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows ឥតគិតថ្លៃ!\n\n"
                 . "👉 បើក Mini App ឥឡូវនេះដើម្បីប្រើប្រាស់កូដបញ្ចុះតម្លៃ និងទិញទំនិញតម្លៃពិសេស!";
@@ -2968,8 +2966,7 @@ class TelegramService
             if ($messageId) self::setMessageReaction($chatId, $messageId, '🎉', true, $activeToken);
             $promoText = "🔥 <b>កូដបញ្ចុះតម្លៃ & ប្រូម៉ូសិនពិសេស (Vouchers & Deals):</b>\n\n"
                 . "🎉 <b>កូដបញ្ចុះតម្លៃសកម្មបច្ចុប្បន្ន (Active Promo Codes):</b>\n"
-                . "• 🎟️ <code>STECH10</code> — បញ្ចុះ <b>10% ភ្លាមៗ</b> លើរាល់ការបញ្ជាទិញ\n"
-                . "• 🎟️ <code>PCHUMBEN2026</code> — បញ្ចុះតម្លៃរហូតដល់ <b>\$50 USD</b> លើ Laptop Gaming\n\n"
+                . self::formatActivePromoCodesText() . "\n\n"
                 . "🚚 <b>Free Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ (ចាប់ពី \$50 ឡើងទៅ)\n"
                 . "🎁 <b>កាដូថែមជូន:</b> Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows 11 Free!\n\n"
                 . "👉 <b>សូមចុចបើក Mini App ដើម្បីប្រើប្រាស់កូដបញ្ចុះតម្លៃភ្លាមៗ!</b>";
@@ -6585,6 +6582,32 @@ class TelegramService
             'toast' => "❌ បានបដិសេធការទូទាត់ Order #{$cleanOrderId}!",
             'new_text' => $newText,
         ];
+    }
+
+    public static function formatActivePromoCodesText(): string
+    {
+        try {
+            $activePromos = \App\Models\PromoCode::where('status', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('valid_until')->orWhere('valid_until', '>=', now());
+                })
+                ->where(function ($q) {
+                    $q->whereNull('valid_from')->orWhere('valid_from', '<=', now());
+                })
+                ->take(5)
+                ->get();
+
+            if ($activePromos->count() > 0) {
+                $lines = [];
+                foreach ($activePromos as $ap) {
+                    $valStr = $ap->type === 'percentage' ? "{$ap->value}%" : "\${$ap->value}";
+                    $lines[] = "   - <code>{$ap->code}</code> — បញ្ចុះ {$valStr} ({$ap->name})";
+                }
+                return implode("\n", $lines);
+            }
+        } catch (\Throwable $e) {}
+
+        return "   - <i>បច្ចុប្បន្នពុំមានកូដប្រូម៉ូសិនសកម្មទេ (No active promo codes)</i>";
     }
 }
 

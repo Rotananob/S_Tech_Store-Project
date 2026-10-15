@@ -769,8 +769,8 @@ export default function AdminDashboardOverview() {
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <div className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/20 backdrop-blur-md flex items-center gap-2">
                 <Tag size={14} className="text-amber-400" />
-                <span className="text-xs text-red-200">Active Coupon:</span>
-                <span className="font-mono font-black text-amber-300 text-sm tracking-wider">PCHUMBEN2026</span>
+                <span className="text-xs text-red-200">Promotions Engine:</span>
+                <span className="font-mono font-black text-amber-300 text-sm tracking-wider">Live Active Sync</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
                 <ShieldCheck size={14} className="text-emerald-400" />

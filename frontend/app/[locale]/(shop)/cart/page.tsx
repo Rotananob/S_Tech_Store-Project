@@ -9,9 +9,11 @@ import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
 import { useTranslations } from "next-intl";
+import api from "@/lib/api";
 
 export default function CartPage() {
   const [mounted, setMounted] = useState(false);
+  const [activePromos, setActivePromos] = useState<any[]>([]);
   const { items, fetchCart, updateQuantity, removeItem } = useCartStore();
   const t = useTranslations('Cart');
 
@@ -23,6 +25,15 @@ export default function CartPage() {
         fetchCart();
       }
     });
+
+    api.get("/promo-codes?active_only=1")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const valid = list.filter((p: any) => p && p.code && p.status === "active");
+        setActivePromos(valid);
+      })
+      .catch(() => {});
+
     return () => unsubscribe();
   }, []);
 
@@ -203,16 +214,27 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                {/* Promo Code Teaser */}
-                <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs">
-                  <div className="font-extrabold flex items-center gap-1.5 mb-1 text-amber-800 dark:text-amber-300">
-                    <Sparkles size={13} className="text-amber-500" />
-                    <span>កូដប្រូម៉ូសិនពិសេស (Promo Codes Available)</span>
+                {/* Promo Code Teaser (Only rendered if active promos exist in DB) */}
+                {activePromos.length > 0 && (
+                  <div className="mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs">
+                    <div className="font-extrabold flex items-center gap-1.5 mb-1 text-amber-800 dark:text-amber-300">
+                      <Sparkles size={13} className="text-amber-500" />
+                      <span>កូដប្រូម៉ូសិនពិសេស (Promo Codes Available)</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
+                      ប្រើកូដ{" "}
+                      {activePromos.slice(0, 2).map((p: any, idx: number) => (
+                        <span key={p.code}>
+                          {idx > 0 && " ឬ "}
+                          <span className="font-mono font-black text-red-600 dark:text-red-400 bg-white dark:bg-black/40 px-1 py-0.5 rounded border border-amber-500/30">
+                            {p.code}
+                          </span>
+                        </span>
+                      ))}{" "}
+                      នៅទំព័រ Checkout ដើម្បីបញ្ចុះតម្លៃពិសេសភ្លាមៗ!
+                    </p>
                   </div>
-                  <p className="text-[11px] text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
-                    ប្រើកូដ <span className="font-mono font-black text-red-600 dark:text-red-400 bg-white dark:bg-black/40 px-1 py-0.5 rounded border border-amber-500/30">STECH20</span> ឬ <span className="font-mono font-black text-red-600 dark:text-red-400 bg-white dark:bg-black/40 px-1 py-0.5 rounded border border-amber-500/30">PROMO</span> នៅទំព័រ Checkout ដើម្បីបញ្ចុះតម្លៃ ២០% ភ្លាមៗ!
-                  </p>
-                </div>
+                )}
 
                 <Link
                   href="/checkout"

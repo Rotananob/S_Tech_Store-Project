@@ -334,7 +334,7 @@ export default function OrderReceiptModal({
                   </div>
                   {Boolean(receipt.discountAmount && receipt.discountAmount > 0) && (
                     <div className="flex justify-between text-emerald-600 font-semibold">
-                      <span>Discount ({receipt.promoCode || "PROMO"}):</span>
+                      <span>Discount{receipt.promoCode ? ` (${receipt.promoCode})` : ""}:</span>
                       <span className="font-mono">-{fmtUSD(receipt.discountAmount || 0)}</span>
                     </div>
                   )}

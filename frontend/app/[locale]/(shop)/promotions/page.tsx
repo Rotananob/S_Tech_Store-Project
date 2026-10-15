@@ -28,6 +28,7 @@ import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
 import { getProducts } from "@/lib/services/product.service";
 import { Product } from "@/types";
+import api from "@/lib/api";
 
 const USD_TO_KHR = 4060;
 const fmtKHR = (n: number) => `~${(Math.round(n * USD_TO_KHR)).toLocaleString()} ៛`;
@@ -186,37 +187,13 @@ const BUNDLE_PACKAGES = [
   },
 ];
 
-// ─── Verified Store Coupons ──────────────────────────────────────────────────
-const STORE_COUPONS = [
-  {
-    code: "STECH10",
-    discount: "$10 OFF",
-    title: "បញ្ចុះតម្លៃ $10 លើគ្រប់ការកុម្ម៉ង់",
-    minOrder: "ចាប់ពី $200 ឡើងទៅ",
-    color: "#8B1A1A",
-  },
-  {
-    code: "BUILD50",
-    discount: "$50 OFF",
-    title: "បញ្ចុះតម្លៃ $50 សម្រាប់ឈុត PC Build",
-    minOrder: "សម្រាប់ឈុតផ្គុំលើស $1,000",
-    color: "#1e40af",
-  },
-  {
-    code: "FREESHIP",
-    discount: "FREE DELIVERY",
-    title: "ហ្វ្រីសេវាដឹកជញ្ជូនរហ័សទូទាំងប្រទេស",
-    minOrder: "ចាប់ពី $100 ឡើងទៅ (២៥ ខេត្ត-ក្រុង)",
-    color: "#059669",
-  },
-];
-
 export default function PromotionsPage() {
   const { lang } = useLangStore();
   const isKhmer = lang === "KM";
   const addItem = useCartStore((s) => s.addItem);
 
   const [deals, setDeals] = useState(REAL_FLASH_DEALS);
+  const [storeCoupons, setStoreCoupons] = useState<any[]>([]);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [addedItemName, setAddedItemName] = useState<string | null>(null);
 
@@ -249,6 +226,23 @@ export default function PromotionsPage() {
             setDeals(mapped);
           }
         }
+      })
+      .catch(() => {});
+
+    // Fetch active promo codes dynamically
+    api.get("/promo-codes?active_only=1")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const valid = list.filter((p: any) => p && p.code && p.status === "active");
+        const colors = ["#8B1A1A", "#1e40af", "#059669", "#d97706", "#7c3aed"];
+        const mapped = valid.map((p: any, idx: number) => ({
+          code: p.code,
+          discount: p.type === "percentage" ? `${p.value}% OFF` : `$${p.value} OFF`,
+          title: p.name || `បញ្ចុះតម្លៃ ${p.value}`,
+          minOrder: p.description || "ការបញ្ចុះតម្លៃពិសេសពី S Tech Store",
+          color: colors[idx % colors.length],
+        }));
+        setStoreCoupons(mapped);
       })
       .catch(() => {});
   }, []);
@@ -603,73 +597,75 @@ export default function PromotionsPage() {
           </div>
         </section>
 
-        {/* ── 4. STORE COUPON CODES (1-Click Copy with Real Codes) ── */}
-        <section className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-3xl p-5 sm:p-8 space-y-5 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-              <Tag size={20} />
+        {/* ── 4. STORE COUPON CODES (Only rendered if active promos exist in DB) ── */}
+        {storeCoupons.length > 0 && (
+          <section className="bg-white dark:bg-[#151922] border border-gray-200 dark:border-white/10 rounded-3xl p-5 sm:p-8 space-y-5 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Tag size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
+                  {isKhmer ? "🏷️ កូដបញ្ចុះតម្លៃពិសេស (Store Coupons)" : "🏷️ Store Promo Coupons"}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {isKhmer ? "ចម្លងកូដដើម្បីទទួលបានការបញ្ចុះតម្លៃពេល Checkout" : "Copy coupon codes and apply at checkout for extra savings"}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
-                {isKhmer ? "🏷️ កូដបញ្ចុះតម្លៃពិសេស (Store Coupons)" : "🏷️ Store Promo Coupons"}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {isKhmer ? "ចម្លងកូដដើម្បីទទួលបានការបញ្ចុះតម្លៃពេល Checkout" : "Copy coupon codes and apply at checkout for extra savings"}
-              </p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-5">
-            {STORE_COUPONS.map((coupon) => {
-              const isCopied = copiedCode === coupon.code;
-              return (
-                <div
-                  key={coupon.code}
-                  className="rounded-2xl border-2 border-dashed p-4 sm:p-5 flex flex-col justify-between space-y-3 transition-all"
-                  style={{
-                    borderColor: `${coupon.color}40`,
-                    backgroundColor: `${coupon.color}08`,
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="space-y-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
-                        {coupon.discount}
-                      </span>
-                      <span
-                        className="font-mono text-lg font-black tracking-wider block"
-                        style={{ color: coupon.color }}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-5">
+              {storeCoupons.map((coupon) => {
+                const isCopied = copiedCode === coupon.code;
+                return (
+                  <div
+                    key={coupon.code}
+                    className="rounded-2xl border-2 border-dashed p-4 sm:p-5 flex flex-col justify-between space-y-3 transition-all"
+                    style={{
+                      borderColor: `${coupon.color}40`,
+                      backgroundColor: `${coupon.color}08`,
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-gray-400 block">
+                          {coupon.discount}
+                        </span>
+                        <span
+                          className="font-mono text-lg font-black tracking-wider block"
+                          style={{ color: coupon.color }}
+                        >
+                          {coupon.code}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyCode(coupon.code)}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-black text-white flex items-center gap-1.5 cursor-pointer border-none shadow-xs transition-all"
+                        style={{
+                          backgroundColor: isCopied ? "#059669" : coupon.color,
+                        }}
                       >
-                        {coupon.code}
-                      </span>
+                        {isCopied ? <Check size={13} /> : <Copy size={13} />}
+                        <span>{isCopied ? (isKhmer ? "បានចម្លង!" : "Copied!") : (isKhmer ? "ចម្លង" : "Copy")}</span>
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleCopyCode(coupon.code)}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-black text-white flex items-center gap-1.5 cursor-pointer border-none shadow-xs transition-all"
-                      style={{
-                        backgroundColor: isCopied ? "#059669" : coupon.color,
-                      }}
-                    >
-                      {isCopied ? <Check size={13} /> : <Copy size={13} />}
-                      <span>{isCopied ? (isKhmer ? "បានចម្លង!" : "Copied!") : (isKhmer ? "ចម្លង" : "Copy")}</span>
-                    </button>
+                    <div className="pt-2 border-t border-black/5 dark:border-white/5">
+                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        {coupon.title}
+                      </p>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        {coupon.minOrder}
+                      </p>
+                    </div>
                   </div>
-
-                  <div className="pt-2 border-t border-black/5 dark:border-white/5">
-                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
-                      {coupon.title}
-                    </p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                      {coupon.minOrder}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* ── 5. STORE GUARANTEES & AUTHENTIC KHMER SHOP SERVICES ── */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">

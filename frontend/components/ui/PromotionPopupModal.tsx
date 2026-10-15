@@ -19,19 +19,6 @@ type ActivePromotion = {
   endDate?: string | Date;
 };
 
-// Grand Pchum Ben Festival Promotion (ពិធីបុណ្យភ្ជំបិណ្ឌ) 7-day default campaign
-const DEFAULT_PCHUM_BEN_PROMO: ActivePromotion = {
-  id: "pchum-ben-2026",
-  name: "មហាប្រូម៉ូសិន ពិធីបុណ្យភ្ជំបិណ្ឌ 30% OFF",
-  code: "PCHUM",
-  type: "percentage",
-  value: "30",
-  description: "អបអរសាទរពិធីបុណ្យភ្ជំបិណ្ឌ! បញ្ចុះតម្លៃពិសេសរហូតដល់ 30% លើ Laptops, Custom PC Builds, Gaming Gear និងគ្រឿងបន្លាស់គ្រប់ប្រភេទ ធានា ៣ ទៅ ៦ ខែ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង!",
-  image_url: "/images/pchum-ben-promo.jpg",
-  target_url: "/category/all",
-  endDate: "2026-10-31T23:59:59",
-};
-
 // 22 Festive confetti particle presets for celebratory shower (🎉 ធ្លាក់តិចៗ)
 const CONFETTI_PARTICLES = Array.from({ length: 22 }, (_, i) => ({
   id: i,
@@ -60,21 +47,23 @@ export default function PromotionPopupModal() {
 
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [promo, setPromo] = useState<ActivePromotion>(DEFAULT_PCHUM_BEN_PROMO);
+  const [promo, setPromo] = useState<ActivePromotion | null>(null);
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   const autoGlideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Dynamic Real-data Countdown Timer (Ending October 31, 2026 at 23:59:59)
+  // Dynamic Real-data Countdown Timer
   const [timeLeft, setTimeLeft] = useState({
-    days: 17,
-    hours: 15,
+    days: 0,
+    hours: 0,
     minutes: 0,
     seconds: 0,
   });
 
   useEffect(() => {
+    if (!promo) return;
+
     const calculateTimeLeft = () => {
       const now = new Date().getTime();
       let targetTime: number;
@@ -110,17 +99,12 @@ export default function PromotionPopupModal() {
       const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
       const isTestPreview = urlParams?.has("promo") || urlParams?.has("test_promo");
 
-      if (isTestPreview) {
-        setIsOpen(true);
-        return;
-      }
-
       try {
         const dismissed = sessionStorage.getItem("stech_promo_popup_dismissed");
-        if (dismissed) return;
+        if (dismissed && !isTestPreview) return;
 
         const cachedStr = sessionStorage.getItem("stech_cached_active_promo");
-        if (cachedStr) {
+        if (cachedStr && !isTestPreview) {
           const parsed = JSON.parse(cachedStr);
           if (parsed && (Date.now() - (parsed.time || 0)) < 10 * 60 * 1000 && parsed.promo) {
             setPromo(parsed.promo);
@@ -134,26 +118,35 @@ export default function PromotionPopupModal() {
 
       try {
         const res = await api.get("/promotions/active-popup");
-        const activePromo = (res.data?.success && res.data?.promo) ? res.data.promo : DEFAULT_PCHUM_BEN_PROMO;
-        setPromo(activePromo);
-        try {
-          sessionStorage.setItem("stech_cached_active_promo", JSON.stringify({ promo: activePromo, time: Date.now() }));
-        } catch (_) {}
+        const activePromo = (res.data?.success && res.data?.promo) ? res.data.promo : null;
+        if (activePromo) {
+          setPromo(activePromo);
+          try {
+            sessionStorage.setItem("stech_cached_active_promo", JSON.stringify({ promo: activePromo, time: Date.now() }));
+          } catch (_) {}
+          initialTimer = setTimeout(() => {
+            setIsOpen(true);
+          }, 2500);
+        } else {
+          setPromo(null);
+          setIsOpen(false);
+          try {
+            sessionStorage.removeItem("stech_cached_active_promo");
+          } catch (_) {}
+        }
       } catch {
-        setPromo(DEFAULT_PCHUM_BEN_PROMO);
+        setPromo(null);
+        setIsOpen(false);
       }
-
-      // Initial friendly appearance delay: 2.5s after page load
-      initialTimer = setTimeout(() => {
-        setIsOpen(true);
-      }, 2500);
     };
 
     checkAndFetchPromo();
 
     const handleTriggerPromo = () => {
-      setIsOpen(true);
-      setIsMinimized(false);
+      if (promo) {
+        setIsOpen(true);
+        setIsMinimized(false);
+      }
     };
     window.addEventListener("stech:trigger-promo", handleTriggerPromo);
 
@@ -202,16 +195,18 @@ export default function PromotionPopupModal() {
     setIsOpen(true);
   };
 
-  const promoCode = promo.code || "PCHUMBEN2026";
+  if (isAdminRoute || !promo) return null;
+
+  const promoCode = promo.code || "";
 
   const handleCopyCode = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    navigator.clipboard?.writeText(promoCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    if (promoCode) {
+      navigator.clipboard?.writeText(promoCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
-
-  if (isAdminRoute) return null;
 
   const isFixed = (promo.type || "").toLowerCase().includes("fix");
   const discountLabel = isFixed ? `$${promo.value} OFF` : `${promo.value}% OFF`;
@@ -335,8 +330,8 @@ export default function PromotionPopupModal() {
                     <img src="/logo.jpg" alt="S Tech Store" className="w-full h-full object-cover" />
                   </div>
                   <span className="text-sm">🇰🇭</span>
-                  <span className="text-[10px] sm:text-[11px] font-black text-amber-300 uppercase tracking-wider">
-                    S Tech • PCHUM BEN SPECIAL
+                  <span className="text-[10px] sm:text-[11px] font-black text-amber-300 uppercase tracking-wider truncate max-w-[200px]">
+                    S Tech • {promo.name || "SPECIAL OFFER"}
                   </span>
                 </div>
 
@@ -351,7 +346,7 @@ export default function PromotionPopupModal() {
               <div className="relative p-5 sm:p-6 pt-3.5 flex flex-col items-center text-center">
                 <div className="flex items-center gap-1.5 text-amber-400 text-xs font-bold mb-1">
                   <Sparkles size={14} className="animate-spin text-amber-400" style={{ animationDuration: "6s" }} />
-                  <span>កាដូពិសេសអបអរបុណ្យភ្ជំបិណ្ឌ</span>
+                  <span>ការផ្តល់ជូនពិសេសពី S Tech Store</span>
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-snug drop-shadow-md">
@@ -481,7 +476,7 @@ export default function PromotionPopupModal() {
               <span className="text-sm">🎉</span>
               <div className="text-left pr-1">
                 <div className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                  <span>ភ្ជំបិណ្ឌ 30% OFF</span>
+                  <span>{discountLabel}</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
                 <div className="text-xs font-mono font-black text-white/90">
