@@ -279,10 +279,10 @@ export default function AdminDashboardOverview() {
 
   const getStatusColor = (status: string) => {
     const s = status.toLowerCase();
-    if (s === "processing" || s === "pending") return "bg-blue-100 text-blue-700";
-    if (s === "completed" || s === "delivered") return "bg-green-100 text-green-700";
-    if (s === "cancelled") return "bg-red-100 text-red-700";
-    return "bg-gray-100 text-gray-700";
+    if (s === "processing" || s === "pending") return "bg-sky-50 text-sky-700 border border-sky-200/70";
+    if (s === "completed" || s === "delivered") return "bg-emerald-50 text-emerald-700 border border-emerald-200/70";
+    if (s === "cancelled") return "bg-rose-50 text-rose-700 border border-rose-200/70";
+    return "bg-neutral-100 text-neutral-700 border border-neutral-200/70";
   };
 
   const filteredOrders = recentOrders.filter((order) => {
@@ -315,8 +315,8 @@ export default function AdminDashboardOverview() {
   if (loading) {
     return (
       <div className="p-16 flex flex-col items-center justify-center text-center">
-        <div className="w-12 h-12 border-3 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
-        <div className="text-gray-500 font-bold text-sm">កំពុងផ្ទុកទិន្នន័យផ្ទាំងគ្រប់គ្រង • Loading Dashboard...</div>
+        <div className="w-10 h-10 border-2 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-4" />
+        <div className="text-neutral-500 font-semibold text-xs tracking-wide">កំពុងផ្ទុកទិន្នន័យផ្ទាំងគ្រប់គ្រង • Loading Dashboard...</div>
       </div>
     );
   }
@@ -324,30 +324,30 @@ export default function AdminDashboardOverview() {
   return (
     <div className="font-sans space-y-6">
       {toast && (
-        <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-xl shadow-xl font-bold text-sm text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} transition-all animate-in fade-in slide-in-from-top-4`}>
-          {toast.type === 'error' ? <AlertTriangle size={16} /> : <Check size={16} />}
+        <div className={`fixed top-6 right-6 z-[9999] px-4 py-2.5 rounded-xl shadow-lg font-semibold text-xs text-white flex items-center gap-2 ${toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'} transition-all animate-in fade-in slide-in-from-top-4`}>
+          {toast.type === 'error' ? <AlertTriangle size={15} /> : <Check size={15} />}
           <span>{toast.msg}</span>
         </div>
       )}
 
       {/* ── TOP COMMAND HEADER & QUICK CONTROLS ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-neutral-200/80 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
-              Live Operations Command Center
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider font-mono">
+              Live Operations · 24/7 Monitoring
             </span>
           </div>
-          <h1 className="text-2xl lg:text-3xl font-black text-gray-900 tracking-tight m-0">
+          <h1 className="text-2xl lg:text-3xl font-black text-neutral-900 tracking-tight m-0">
             Store Management Dashboard
           </h1>
-          <p className="text-gray-500 text-xs sm:text-sm mt-1">
-            តាមដានការលក់ ការបញ្ជាទិញ ស្តុកទំនិញ និងការជូនដំណឹង Telegram ក្នុងពេលជាក់ស្តែង • Real-time 24/7
+          <p className="text-neutral-500 text-xs sm:text-sm mt-1">
+            តាមដានការលក់ ការបញ្ជាទិញ ស្តុកទំនិញ និងការជូនដំណឹង Telegram ក្នុងពេលជាក់ស្តែង
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Order Audio Sound Alert Toggle */}
           <button
             type="button"
@@ -357,78 +357,80 @@ export default function AdminDashboardOverview() {
               if (next) playCashChime();
               showToast(next ? "បានបើកសំឡេងជូនដំណឹង (Audio Alerts ON)" : "បានបិទសំឡេងជូនដំណឹង (Audio Alerts OFF)");
             }}
-            className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
               audioEnabled 
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs' 
-                : 'bg-gray-50 border-gray-200 text-gray-500'
+                ? 'bg-emerald-50/80 border-emerald-300 text-emerald-800' 
+                : 'bg-neutral-50 border-neutral-200 text-neutral-500'
             }`}
             title="បន្លឺសំឡេងពេលមាន Order ថ្មី"
           >
-            {audioEnabled ? <Volume2 size={16} className="text-emerald-600" /> : <VolumeX size={16} />}
-            <span>{audioEnabled ? "Sound Alert ON" : "Sound Alert OFF"}</span>
+            {audioEnabled ? <Volume2 size={15} className="text-emerald-700" /> : <VolumeX size={15} />}
+            <span>{audioEnabled ? "Audio Alert ON" : "Audio Alert OFF"}</span>
           </button>
 
           {/* Quick Refresh */}
           <button
             type="button"
             onClick={() => { fetchData(selectedYear, selectedMonth); }}
-            className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer"
+            className="p-2 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-neutral-700 rounded-xl transition-colors cursor-pointer"
             title="ទាញទិន្នន័យថ្មី • Refresh"
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={15} />
           </button>
 
           {/* Export Report */}
           <button 
             type="button"
             onClick={() => window.print()}
-            className="px-4 py-2.5 bg-white text-[#8B1A1A] border border-[#8B1A1A] hover:bg-red-50 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+            className="px-3.5 py-2 bg-white text-[#8B1A1A] border border-[#8B1A1A]/60 hover:bg-red-50/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
           >
-            <FileText size={16} />
+            <FileText size={15} />
             <span>Export Report</span>
           </button>
         </div>
       </div>
 
       {/* ── LIVE STORE OPERATIONAL STATUS BAR ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 bg-white p-3.5 rounded-2xl border border-gray-100 shadow-xs text-xs">
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Store Database</span>
-            <span className="font-bold text-gray-800">Online & Connected</span>
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-neutral-200/80 shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50/70 border border-neutral-200/60">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="truncate">
+              <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Store Database</span>
+              <span className="font-semibold text-neutral-800 text-[11px]">Connected</span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Customer Chat</span>
-            <span className="font-bold text-gray-800">Live Support Ready</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50/70 border border-neutral-200/60">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="truncate">
+              <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Live Chat</span>
+              <span className="font-semibold text-neutral-800 text-[11px]">Ready</span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
-          <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-pulse" />
-          <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Telegram Alerts</span>
-            <span className="font-bold text-sky-700">Sentinel Connected</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50/70 border border-neutral-200/60">
+            <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
+            <div className="truncate">
+              <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Telegram Bot</span>
+              <span className="font-semibold text-neutral-800 text-[11px]">Sentinel Active</span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-          <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Smart Assistant</span>
-            <span className="font-bold text-purple-700">S Tech AI Online</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50/70 border border-neutral-200/60">
+            <span className="w-2 h-2 rounded-full bg-neutral-400 shrink-0" />
+            <div className="truncate">
+              <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Smart Assistant</span>
+              <span className="font-semibold text-neutral-800 text-[11px]">Online</span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-gray-50/80 col-span-2 sm:col-span-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-          <div className="truncate">
-            <span className="text-gray-400 block text-[10px]">Defense Shield</span>
-            <span className="font-bold text-indigo-700">Firewall Protection Active</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50/70 border border-neutral-200/60 col-span-2 sm:col-span-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <div className="truncate">
+              <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Firewall Shield</span>
+              <span className="font-semibold text-neutral-800 text-[11px]">Armed</span>
+            </div>
           </div>
         </div>
       </div>
@@ -437,51 +439,50 @@ export default function AdminDashboardOverview() {
       <GrandMasterCommandConsole onRefreshStats={() => fetchData(selectedYear, selectedMonth, true)} />
 
       {/* ── TELEGRAM QUICK NOTIFICATION & BROADCAST CENTER ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         {/* Banner with 1-Click Bot Setup */}
-        <div className="lg:col-span-2 p-6 rounded-2xl bg-gradient-to-r from-[#0088cc] via-[#0077b5] to-[#1a4fa0] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-sm relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="lg:col-span-2 p-6 rounded-2xl bg-[#0c1626] border border-[#0088cc]/25 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xs relative overflow-hidden">
           <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30 shadow-xs">
-              <Send size={26} className="text-white fill-white/20" />
+            <div className="w-12 h-12 rounded-xl bg-[#0088cc]/20 border border-[#0088cc]/40 text-[#38bdf8] flex items-center justify-center shrink-0">
+              <Send size={22} />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-bold text-sky-100 mb-1">
-                <Sparkles size={12} /> ABA Merchant Style One-Click
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-sky-200 border border-white/10 mb-1.5 font-mono">
+                <Sparkles size={11} /> 1-Click Telegram Sentinel
               </div>
-              <h3 className="text-lg font-black text-white m-0">
-                Official Telegram Bot Sentinel
+              <h3 className="text-base sm:text-lg font-bold text-white m-0">
+                Official Telegram Bot Integration
               </h3>
-              <p className="text-xs text-sky-100 mt-1 leading-relaxed max-w-md">
+              <p className="text-xs text-neutral-300 mt-1 leading-relaxed max-w-md">
                 ទទួលការជូនដំណឹងពីការបញ្ជាទិញថ្មី (New Orders) និងបែងចែកតាម Forum Topics ដោយស្វ័យប្រវត្តក្នុង Telegram Group។
               </p>
             </div>
           </div>
           <Link
             href="/rok-mix-khernh/settings"
-            className="relative z-10 px-5 py-3 rounded-xl bg-white text-[#0088cc] hover:bg-sky-50 font-black text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all no-underline shrink-0 hover:scale-105 active:scale-95"
+            className="relative z-10 px-4 py-2.5 rounded-xl bg-white hover:bg-neutral-100 text-[#0c1626] font-bold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all no-underline shrink-0"
           >
             <span>គ្រប់គ្រង Telegram Bot</span>
-            <ArrowUpRight size={16} />
+            <ArrowUpRight size={15} />
           </Link>
         </div>
 
         {/* Instant Staff Telegram Broadcast Card */}
-        <div className="bg-white p-5 rounded-2xl border border-sky-100 shadow-xs flex flex-col justify-between">
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Radio size={16} className="text-[#0088cc] animate-pulse" />
-                <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                  Instant Telegram Broadcast
+                <Radio size={15} className="text-[#0088cc]" />
+                <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider font-mono">
+                  Instant Broadcast
                 </span>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-[#0088cc]">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0088cc] border border-sky-200/60 font-mono">
                 Live
               </span>
             </div>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-neutral-500 mb-3">
               ផ្ញើសារប្រកាសបន្ទាន់ ឬដំណឹងថ្មីទៅកាន់ Telegram Group របស់បុគ្គលិកភ្លាមៗ។
             </p>
           </div>
@@ -491,7 +492,7 @@ export default function AdminDashboardOverview() {
               <select
                 value={broadcastTopic}
                 onChange={(e) => setBroadcastTopic(e.target.value)}
-                className="px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg text-gray-700 outline-none font-semibold"
+                className="px-2.5 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-700 outline-none font-semibold focus:border-[#0088cc]"
               >
                 <option value="chat">Chat Topic</option>
                 <option value="orders">Orders Topic</option>
@@ -509,14 +510,14 @@ export default function AdminDashboardOverview() {
                 placeholder="វាយសារប្រកាសទៅគ្រុប..."
                 value={broadcastMsg}
                 onChange={(e) => setBroadcastMsg(e.target.value)}
-                className="flex-1 px-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#0088cc] focus:bg-white"
+                className="flex-1 px-3 py-2 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-[#0088cc] focus:bg-white"
               />
               <button
                 type="submit"
                 disabled={sendingBroadcast}
                 className="px-4 py-2 bg-[#0088cc] hover:bg-[#0077b5] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-none shrink-0 disabled:opacity-50"
               >
-                <Send size={13} className={sendingBroadcast ? "animate-spin" : ""} />
+                <Send size={12} className={sendingBroadcast ? "animate-spin" : ""} />
                 <span>{sendingBroadcast ? "..." : "Send"}</span>
               </button>
             </div>
@@ -526,81 +527,101 @@ export default function AdminDashboardOverview() {
       </div>
 
       {/* ── 4 CORE KPI STATS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
         {/* Stat 1: Total Sales */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-blue-200 transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-              <DollarSign size={22} />
-            </div>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 ${stats?.salesGrowth && stats.salesGrowth >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-              {stats?.salesGrowth && stats.salesGrowth >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 hover:border-neutral-300 shadow-2xs transition-all flex flex-col justify-between group">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">TOTAL SALES</span>
+            <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 font-mono border ${
+              stats?.salesGrowth && stats.salesGrowth >= 0 
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" 
+                : "bg-rose-50 text-rose-700 border-rose-200/60"
+            }`}>
+              {stats?.salesGrowth && stats.salesGrowth >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
               {Math.abs(stats?.salesGrowth || 0)}%
             </span>
           </div>
-          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1 uppercase">TOTAL SALES</div>
-          <div className="text-2xl font-black text-gray-900">
-            ${(stats?.totalSales || 0).toLocaleString()} <span className="text-xs font-bold text-gray-400">USD</span>
+          <div className="mt-2">
+            <div className="text-2xl lg:text-3xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">
+              ${(stats?.totalSales || 0).toLocaleString()} <span className="text-xs font-semibold text-neutral-400 font-sans">USD</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 font-medium mt-1">Real-time lifetime sales volume</div>
           </div>
         </div>
 
         {/* Stat 2: Total Orders */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-indigo-200 transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-              <ShoppingBag size={22} />
-            </div>
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 ${stats?.ordersGrowth && stats.ordersGrowth >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-              {stats?.ordersGrowth && stats.ordersGrowth >= 0 ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 hover:border-neutral-300 shadow-2xs transition-all flex flex-col justify-between group">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">TOTAL ORDERS</span>
+            <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 font-mono border ${
+              stats?.ordersGrowth && stats.ordersGrowth >= 0 
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200/60" 
+                : "bg-rose-50 text-rose-700 border-rose-200/60"
+            }`}>
+              {stats?.ordersGrowth && stats.ordersGrowth >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
               {Math.abs(stats?.ordersGrowth || 0)}%
             </span>
           </div>
-          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1 uppercase">TOTAL ORDERS</div>
-          <div className="text-2xl font-black text-gray-900">{(stats?.totalOrders || 0).toLocaleString()}</div>
+          <div className="mt-2">
+            <div className="text-2xl lg:text-3xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">
+              {(stats?.totalOrders || 0).toLocaleString()} <span className="text-xs font-semibold text-neutral-400 font-sans">Orders</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 font-medium mt-1">Completed & active purchases</div>
+          </div>
         </div>
 
         {/* Stat 3: Pending Repairs */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-amber-200 transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
-              <Wrench size={22} />
-            </div>
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 hover:border-neutral-300 shadow-2xs transition-all flex flex-col justify-between group">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">PENDING REPAIRS</span>
             {stats?.pendingRepairs ? (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-red-100 text-red-700 animate-pulse">Needs Action</span>
-            ) : null}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 font-mono">
+                Needs Action
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200/60 font-mono">
+                Cleared
+              </span>
+            )}
           </div>
-          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1 uppercase">PENDING REPAIRS</div>
-          <div className="text-2xl font-black text-gray-900">{stats?.pendingRepairs || 0}</div>
+          <div className="mt-2">
+            <div className="text-2xl lg:text-3xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">
+              {stats?.pendingRepairs || 0} <span className="text-xs font-semibold text-neutral-400 font-sans">Tickets</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 font-medium mt-1">Repairs awaiting triage & technician</div>
+          </div>
         </div>
 
         {/* Stat 4: Active Promotions */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex flex-col hover:border-rose-200 transition-all">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-rose-600">
-              <Tag size={22} />
-            </div>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-              Active Promo
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 hover:border-neutral-300 shadow-2xs transition-all flex flex-col justify-between group">
+          <div className="flex justify-between items-start mb-2">
+            <span className="text-[11px] font-bold text-neutral-500 uppercase tracking-wider">ACTIVE PROMOTIONS</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-[#8B1A1A] border border-red-200/60 font-mono">
+              Live
             </span>
           </div>
-          <div className="text-xs font-bold text-gray-400 tracking-wider mb-1 uppercase">ACTIVE PROMOTIONS</div>
-          <div className="text-2xl font-black text-gray-900">{stats?.activePromotions || 0}</div>
+          <div className="mt-2">
+            <div className="text-2xl lg:text-3xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">
+              {stats?.activePromotions || 0} <span className="text-xs font-semibold text-neutral-400 font-sans">Campaigns</span>
+            </div>
+            <div className="text-[11px] text-neutral-400 font-medium mt-1">Active discount codes & banners</div>
+          </div>
         </div>
       </div>
 
       {/* ── MIDDLE ROW: ADVANCED SALES PERFORMANCE & REVENUE FILTER (MONTH & YEAR) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         
         {/* Sales Performance & Revenue Chart with Dynamic Month & Year Search */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-xs p-5 sm:p-6 flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-neutral-200/80 shadow-2xs p-5 sm:p-6 flex flex-col justify-between">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-neutral-200/70">
               <div>
-                <h2 className="text-base sm:text-lg font-black text-gray-900 m-0 flex items-center gap-2">
-                  <Activity size={18} className="text-[#8B1A1A]" />
+                <h2 className="text-base sm:text-lg font-bold text-neutral-900 m-0 flex items-center gap-2">
+                  <Activity size={17} className="text-[#8B1A1A]" />
                   <span>Sales Performance & Revenue Analytics</span>
                 </h2>
-                <p className="text-xs text-gray-400 m-0 mt-0.5">
+                <p className="text-xs text-neutral-400 m-0 mt-0.5">
                   ស្វែងរក និងតាមដានចំណូលនៃការលក់តាមខែ និងតាមឆ្នាំជាក់លាក់
                 </p>
               </div>
@@ -612,7 +633,7 @@ export default function AdminDashboardOverview() {
                   <select 
                     value={selectedYear}
                     onChange={(e) => handleYearChange(Number(e.target.value))}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-800 font-bold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
+                    className="px-3 py-1.5 border border-neutral-200 rounded-xl text-xs bg-neutral-50 text-neutral-800 font-semibold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
                   >
                     {availableYearsList.map((y) => (
                       <option key={y} value={y}>Year {y}</option>
@@ -625,7 +646,7 @@ export default function AdminDashboardOverview() {
                   <select 
                     value={selectedMonth}
                     onChange={(e) => handleMonthChange(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 text-gray-800 font-bold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
+                    className="px-3 py-1.5 border border-neutral-200 rounded-xl text-xs bg-neutral-50 text-neutral-800 font-semibold outline-none focus:ring-2 focus:ring-red-100 focus:border-[#8B1A1A] cursor-pointer"
                   >
                     {MONTH_OPTIONS.map((m) => (
                       <option key={m.value} value={m.value}>{m.label}</option>
@@ -636,29 +657,29 @@ export default function AdminDashboardOverview() {
             </div>
 
             {/* Filter Metrics Summary Strip */}
-            <div className="grid grid-cols-3 gap-3 p-3.5 mb-5 rounded-xl bg-gray-50/80 border border-gray-100 text-xs">
+            <div className="grid grid-cols-3 gap-3 p-3.5 mb-5 rounded-xl bg-neutral-50/80 border border-neutral-200/60 text-xs">
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-bold">
+                <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">
                   {selectedMonth === "all" ? `Total Revenue (${selectedYear})` : `Revenue (${selectedMonthObj?.label.split(" ")[2] || "Month"})`}
                 </span>
-                <span className="text-sm sm:text-base font-black text-gray-900 font-mono">
-                  ${Number(currentPeriodSales).toLocaleString()} <span className="text-[10px] font-bold text-gray-500">USD</span>
+                <span className="text-sm sm:text-base font-bold text-neutral-900 font-mono">
+                  ${Number(currentPeriodSales).toLocaleString()} <span className="text-[10px] font-semibold text-neutral-400">USD</span>
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-bold">
+                <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">
                   {selectedMonth === "all" ? "Orders in Year" : "Orders in Month"}
                 </span>
-                <span className="text-sm sm:text-base font-black text-gray-900 font-mono">
-                  {currentPeriodOrders} <span className="text-[10px] font-bold text-gray-500">Orders</span>
+                <span className="text-sm sm:text-base font-bold text-neutral-900 font-mono">
+                  {currentPeriodOrders} <span className="text-[10px] font-semibold text-neutral-400">Orders</span>
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-bold">Average Order Value</span>
-                <span className="text-sm sm:text-base font-black text-[#8B1A1A] font-mono">
-                  ${avgOrderValue} <span className="text-[10px] font-bold text-gray-500">USD</span>
+                <span className="text-neutral-400 block text-[9.5px] uppercase font-bold tracking-wider">Average Order Value</span>
+                <span className="text-sm sm:text-base font-bold text-[#8B1A1A] font-mono">
+                  ${avgOrderValue} <span className="text-[10px] font-semibold text-neutral-400">USD</span>
                 </span>
               </div>
             </div>
@@ -672,53 +693,53 @@ export default function AdminDashboardOverview() {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#888' }} dx={-10} tickFormatter={(val) => `$${val}`} />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}
+                  contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
                   itemStyle={{ color: '#8B1A1A', fontWeight: 'bold' }}
                   formatter={(value: any) => [
                     `$${Number(value).toLocaleString()} USD`,
                     "Revenue"
                   ]}
                 />
-                <Line type="monotone" dataKey="sales" stroke="#8B1A1A" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#8B1A1A' }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="sales" stroke="#8B1A1A" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#8B1A1A' }} activeDot={{ r: 5.5 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Quick Actions & Short Cuts */}
-        <div className="flex flex-col gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-xs p-6">
-            <h2 className="text-base font-black text-gray-900 mb-4 flex items-center gap-2">
-              <Zap size={18} className="text-[#8B1A1A]" />
+        <div className="flex flex-col gap-5">
+          <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xs p-5 sm:p-6">
+            <h2 className="text-sm sm:text-base font-bold text-neutral-900 mb-3.5 flex items-center gap-2">
+              <Zap size={16} className="text-[#8B1A1A]" />
               <span>Quick Actions</span>
             </h2>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               <Link 
                 href="/rok-mix-khernh/products/new" 
-                className="flex items-center gap-3.5 p-3 rounded-xl border border-gray-100 hover:border-[#8B1A1A]/30 hover:bg-red-50/30 transition-all group no-underline"
+                className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200/70 hover:border-[#8B1A1A]/40 hover:bg-neutral-50/50 transition-all group no-underline"
               >
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-[#8B1A1A] group-hover:text-white transition-colors">
-                  <ShoppingBag size={18} />
+                <div className="w-9 h-9 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-600 group-hover:bg-[#8B1A1A] group-hover:text-white transition-colors shrink-0">
+                  <ShoppingBag size={17} />
                 </div>
                 <div>
-                  <div className="text-xs sm:text-sm font-bold text-gray-900">Add New Product</div>
-                  <div className="text-[11px] text-gray-400">បន្ថែមទំនិញថ្មីចូលស្តុក</div>
+                  <div className="text-xs sm:text-sm font-semibold text-neutral-900">Add New Product</div>
+                  <div className="text-[11px] text-neutral-400">បន្ថែមទំនិញថ្មីចូលស្តុក</div>
                 </div>
               </Link>
 
               <Link 
                 href="/rok-mix-khernh/repairs" 
-                className="flex items-center gap-3.5 p-3 rounded-xl border border-gray-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all group no-underline"
+                className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200/70 hover:border-amber-400/40 hover:bg-neutral-50/50 transition-all group no-underline"
               >
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                  <Wrench size={18} />
+                <div className="w-9 h-9 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-600 group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
+                  <Wrench size={17} />
                 </div>
-                <div className="flex-1">
-                  <div className="text-xs sm:text-sm font-bold text-gray-900">Repair Tickets</div>
-                  <div className="text-[11px] text-gray-400">តាមដានសំណើជួសជុល</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs sm:text-sm font-semibold text-neutral-900">Repair Tickets</div>
+                  <div className="text-[11px] text-neutral-400">តាមដានសំណើជួសជុល</div>
                 </div>
                 {stats?.pendingRepairs ? (
-                  <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/80 text-[10.5px] font-bold font-mono">
                     {stats.pendingRepairs}
                   </span>
                 ) : null}
@@ -726,14 +747,14 @@ export default function AdminDashboardOverview() {
 
               <Link 
                 href="/rok-mix-khernh/settings" 
-                className="flex items-center gap-3.5 p-3 rounded-xl border border-gray-100 hover:border-sky-200 hover:bg-sky-50/30 transition-all group no-underline"
+                className="flex items-center gap-3 p-3 rounded-xl border border-neutral-200/70 hover:border-sky-400/40 hover:bg-neutral-50/50 transition-all group no-underline"
               >
-                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-600 group-hover:bg-[#0088cc] group-hover:text-white transition-colors">
-                  <Settings size={18} />
+                <div className="w-9 h-9 rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-600 group-hover:bg-[#0088cc] group-hover:text-white transition-colors shrink-0">
+                  <Settings size={17} />
                 </div>
                 <div>
-                  <div className="text-xs sm:text-sm font-bold text-gray-900">Settings & Telegram Bot</div>
-                  <div className="text-[11px] text-gray-400">ការកំណត់ប្រព័ន្ធ & Bot</div>
+                  <div className="text-xs sm:text-sm font-semibold text-neutral-900">Settings & Bot Sentinel</div>
+                  <div className="text-[11px] text-neutral-400">ការកំណត់ប្រព័ន្ធ & Bot</div>
                 </div>
               </Link>
             </div>
@@ -743,37 +764,37 @@ export default function AdminDashboardOverview() {
       </div>
 
       {/* ── PROMOTIONS & CYBER DEFENSE CARDS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
         {/* Card 1: Active Promotion Campaign Card */}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-[#8B1A1A] via-[#6d1313] to-[#450a0a] text-white shadow-xs relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="p-6 rounded-2xl bg-[#140505] border border-red-950/80 text-white shadow-2xs relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute right-0 top-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-black">
-                <Sparkles size={14} className="text-amber-300" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 text-[11px] font-bold font-mono">
+                <Sparkles size={12} className="text-amber-300" />
                 Featured Promotion Campaign
               </span>
-              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white">
-                Active Campaign
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10 font-mono">
+                Active
               </span>
             </div>
 
-            <h3 className="text-xl sm:text-2xl font-black text-white m-0 tracking-tight">
+            <h3 className="text-lg sm:text-xl font-bold text-white m-0 tracking-tight">
               Storewide Mega Discount & Promo Campaigns
             </h3>
-            <p className="text-xs sm:text-sm text-red-100/90 mt-2 leading-relaxed">
+            <p className="text-xs sm:text-sm text-neutral-300 mt-2 leading-relaxed">
               ផ្ទាំងផ្សព្វផ្សាយពិសេសបង្ហាញលើគេហទំព័រជូនអតិថិជនទាំងអស់! បញ្ចុះតម្លៃពិសេសលើកុំព្យូទ័រយួរដៃ, PC Gaming, គ្រឿងបន្លាស់ ធានា ៣ ទៅ ៦ ខែពេញ។
             </p>
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <div className="px-3 py-1.5 rounded-xl bg-black/30 border border-white/20 backdrop-blur-md flex items-center gap-2">
-                <Tag size={14} className="text-amber-400" />
-                <span className="text-xs text-red-200">Promotions Engine:</span>
-                <span className="font-mono font-black text-amber-300 text-sm tracking-wider">Live Active Sync</span>
+              <div className="px-3 py-1.5 rounded-xl bg-black/40 border border-white/10 backdrop-blur-md flex items-center gap-2">
+                <Tag size={13} className="text-amber-400" />
+                <span className="text-xs text-neutral-300">Promotions Engine:</span>
+                <span className="font-mono font-bold text-amber-300 text-xs tracking-wider">Live Active Sync</span>
               </div>
-              <div className="px-3 py-1.5 rounded-xl bg-white/10 border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-emerald-400" />
+              <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-neutral-200 flex items-center gap-1.5">
+                <ShieldCheck size={13} className="text-emerald-400" />
                 <span>ធានាផ្លូវការ (Warranty Included)</span>
               </div>
             </div>
@@ -782,98 +803,98 @@ export default function AdminDashboardOverview() {
           <div className="mt-6 pt-4 border-t border-white/10 flex flex-wrap items-center gap-3">
             <Link
               href="/rok-mix-khernh/promotions"
-              className="px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-gray-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all no-underline"
+              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-neutral-950 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-2xs transition-all no-underline"
             >
               <span>គ្រប់គ្រងប្រូម៉ូសិន (Manage Promotions)</span>
-              <ArrowUpRight size={15} />
+              <ArrowUpRight size={14} />
             </Link>
           </div>
         </div>
 
         {/* Card 2: Cyber Security & Health Probe Sentinel Card */}
-        <div className="p-6 rounded-2xl bg-white border border-gray-100 shadow-xs flex flex-col justify-between">
+        <div className="p-6 rounded-2xl bg-white border border-neutral-200/80 shadow-2xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-emerald-600" />
-                <h3 className="text-base font-black text-gray-900 m-0">
+                <ShieldCheck size={17} className="text-emerald-600" />
+                <h3 className="text-sm sm:text-base font-bold text-neutral-900 m-0">
                   Real-Time Security & Sentinel Protection
                 </h3>
               </div>
-              <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70 font-mono">
                 SHIELD ARMED
               </span>
             </div>
 
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-neutral-500 mb-3">
               ប្រព័ន្ធការពារការវាយប្រហារ Token Draining, DDoS, Spam Flood និង Bot Abuse ដំណើរការដោយស្វ័យប្រវត្ត ២៤/៧។
             </p>
 
             {/* Daily Traffic Counter Highlight (12:00 AM - 11:59 PM) */}
-            <div className="mb-3.5 p-3 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 border border-sky-100 flex items-center justify-between">
+            <div className="mb-3.5 p-3 rounded-xl bg-neutral-50 border border-neutral-200/70 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center text-[#0088cc]">
-                  <Eye size={18} />
+                  <Eye size={16} />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-gray-500 block">Total Views ថ្ងៃនេះ (12:00 AM - 11:59 PM)</span>
-                  <span className="text-base font-black text-gray-900">
+                  <span className="text-[10.5px] font-semibold text-neutral-500 block">Total Views ថ្ងៃនេះ (12:00 AM - 11:59 PM)</span>
+                  <span className="text-sm font-bold text-neutral-900 font-mono">
                     {todayTraffic?.hits_today ?? 0} ដង
                     <span className="text-xs font-semibold text-sky-600 ml-2">({todayTraffic?.unique_today ?? 0} Unique Visitors)</span>
                   </span>
                 </div>
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-[#0088cc]">
-                Live Counter
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0088cc] border border-sky-200/60 font-mono">
+                Live
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">
-                <Cpu size={16} className="text-[#8B1A1A] shrink-0 mt-0.5" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-neutral-50/70 border border-neutral-200/60 flex items-start gap-2">
+                <Cpu size={15} className="text-[#8B1A1A] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-gray-800 block">Sliding-Window Rate Limiter</span>
-                  <span className="text-[11px] text-gray-500">កំណត់ 7 req/នាទី (Friendly throttle)</span>
+                  <span className="font-semibold text-neutral-800 block">Rate Limiter</span>
+                  <span className="text-[10.5px] text-neutral-500">7 req/នាទី (Friendly throttle)</span>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">
-                <ShieldAlert size={16} className="text-red-600 shrink-0 mt-0.5" />
+              <div className="p-2.5 rounded-xl bg-neutral-50/70 border border-neutral-200/60 flex items-start gap-2">
+                <ShieldAlert size={15} className="text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-gray-800 block">Flood Ban Defense</span>
-                  <span className="text-[11px] text-gray-500">&gt;12 req/30s ផ្អាក IP ១០ នាទី</span>
+                  <span className="font-semibold text-neutral-800 block">Flood Ban Defense</span>
+                  <span className="text-[10.5px] text-neutral-500">&gt;12 req/30s ផ្អាក IP ១០ នាទី</span>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">
-                <Lock size={16} className="text-indigo-600 shrink-0 mt-0.5" />
+              <div className="p-2.5 rounded-xl bg-neutral-50/70 border border-neutral-200/60 flex items-start gap-2">
+                <Lock size={15} className="text-neutral-700 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-gray-800 block">One-Click Chat Token</span>
-                  <span className="text-[11px] text-gray-500">កំណត់អតិបរមា ២ ដងក្នុងមួយ Token</span>
+                  <span className="font-semibold text-neutral-800 block">Chat Token Defense</span>
+                  <span className="text-[10.5px] text-neutral-500">អតិបរមា ២ ដងក្នុងមួយ Token</span>
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 flex items-start gap-2">
-                <Send size={16} className="text-[#0088cc] shrink-0 mt-0.5" />
+              <div className="p-2.5 rounded-xl bg-neutral-50/70 border border-neutral-200/60 flex items-start gap-2">
+                <Send size={15} className="text-[#0088cc] shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-gray-800 block">Telegram Incident Sentinel</span>
-                  <span className="text-[11px] text-gray-500">បញ្ជូន Alert ទៅ Security Topic</span>
+                  <span className="font-semibold text-neutral-800 block">Telegram Sentinel</span>
+                  <span className="text-[10.5px] text-neutral-500">Alert ទៅ Security Topic</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-[11px] text-gray-400 font-medium">
+          <div className="mt-5 pt-3.5 border-t border-neutral-200/70 flex items-center justify-between">
+            <span className="text-[11px] text-neutral-400 font-medium">
               ប្រព័ន្ធសុវត្ថិភាព Standby រួចរាល់
             </span>
             <button
               type="button"
               disabled={pentestRunning}
               onClick={runSecurityHealthProbe}
-              className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              className="px-3.5 py-2 bg-neutral-900 hover:bg-black text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
             >
-              <Terminal size={14} className={pentestRunning ? "animate-spin" : ""} />
+              <Terminal size={13} className={pentestRunning ? "animate-spin" : ""} />
               <span>{pentestRunning ? "កំពុងធ្វើតេស្ត..." : "Run Security Health Probe"}</span>
             </button>
           </div>
@@ -882,29 +903,29 @@ export default function AdminDashboardOverview() {
       </div>
 
       {/* ── RECENT ORDERS COMMAND TABLE WITH SEARCH FILTER ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden mb-10">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-5 sm:p-6 border-b border-gray-100">
+      <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-2xs overflow-hidden mb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-5 sm:p-6 border-b border-neutral-200/70">
           <div>
-            <h2 className="text-lg font-black text-gray-900 m-0">Recent Orders</h2>
-            <p className="text-xs text-gray-400 m-0 mt-0.5">បញ្ជីការបញ្ជាទិញចុងក្រោយបំផុត</p>
+            <h2 className="text-base sm:text-lg font-bold text-neutral-900 m-0">Recent Orders</h2>
+            <p className="text-xs text-neutral-400 m-0 mt-0.5">បញ្ជីការបញ្ជាទិញចុងក្រោយបំផុត</p>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             {/* Search Box */}
             <div className="relative flex-1 sm:w-64">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
               <input
                 type="text"
                 placeholder="ស្វែងរកតាម ID, ឈ្មោះ, លេខទូរស័ព្ទ..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#8B1A1A] focus:bg-white font-medium"
+                className="w-full pl-9 pr-3 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-[#8B1A1A] focus:bg-white font-medium"
               />
             </div>
 
             <Link 
               href="/rok-mix-khernh/orders" 
-              className="text-xs font-bold text-[#8B1A1A] hover:underline no-underline shrink-0 px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 transition-colors"
+              className="text-xs font-semibold text-[#8B1A1A] no-underline shrink-0 px-3 py-1.5 rounded-xl bg-red-50/80 hover:bg-red-100/80 border border-red-100 transition-colors"
             >
               View All Orders →
             </Link>
@@ -912,34 +933,34 @@ export default function AdminDashboardOverview() {
         </div>
         
         {filteredOrders.length === 0 ? (
-          <div className="p-12 text-center text-gray-400 text-sm">
+          <div className="p-12 text-center text-neutral-400 text-xs">
             {searchQuery ? "រកមិនឃើញការកុម្ម៉ង់ដែលត្រូវនឹងពាក្យស្វែងរកឡើយ" : "មិនទាន់មានការបញ្ជាទិញថ្មីឡើយ"}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
-                <tr className="bg-gray-50/60 text-gray-500 text-[11px] font-bold uppercase tracking-wider">
-                  <th className="p-4">Order ID</th>
-                  <th className="p-4">Customer</th>
-                  <th className="p-4">Phone</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Total Amount</th>
-                  <th className="p-4">Status</th>
+                <tr className="bg-neutral-50/70 text-neutral-500 text-[10.5px] font-bold uppercase tracking-wider border-b border-neutral-200/70">
+                  <th className="p-3.5">Order ID</th>
+                  <th className="p-3.5">Customer</th>
+                  <th className="p-3.5">Phone</th>
+                  <th className="p-3.5">Date</th>
+                  <th className="p-3.5">Total Amount</th>
+                  <th className="p-3.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-xs">
+              <tbody className="divide-y divide-neutral-100 text-xs">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="p-4 font-mono font-bold text-gray-900">{order.order_id}</td>
-                    <td className="p-4 font-semibold text-gray-800">{order.customer_name}</td>
-                    <td className="p-4 font-mono text-gray-500">{order.customer_phone || "-"}</td>
-                    <td className="p-4 text-gray-500">{formatDate(order.created_at)}</td>
-                    <td className="p-4 font-black text-gray-900 font-mono">
+                  <tr key={order.id} className="hover:bg-neutral-50/50 transition-colors">
+                    <td className="p-3.5 font-mono font-bold text-neutral-900">{order.order_id}</td>
+                    <td className="p-3.5 font-semibold text-neutral-800">{order.customer_name}</td>
+                    <td className="p-3.5 font-mono text-neutral-500">{order.customer_phone || "-"}</td>
+                    <td className="p-3.5 text-neutral-500">{formatDate(order.created_at)}</td>
+                    <td className="p-3.5 font-bold text-neutral-900 font-mono">
                       ${Number(order.total_amount).toLocaleString()} USD
                     </td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg ${getStatusColor(order.status)}`}>
+                    <td className="p-3.5">
+                      <span className={`px-2 py-0.5 text-[10.5px] font-bold rounded-lg border font-mono ${getStatusColor(order.status)}`}>
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                       </span>
                     </td>

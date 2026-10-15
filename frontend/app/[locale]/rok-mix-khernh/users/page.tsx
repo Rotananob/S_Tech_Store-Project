@@ -738,9 +738,9 @@ export default function AdminUsersPage() {
 
       {/* Overview Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
               {roleTab === "customers"
                 ? "អតិថិជនសរុប"
                 : roleTab === "staff"
@@ -749,10 +749,10 @@ export default function AdminUsersPage() {
                 ? "ADMIN & OWNER សរុប"
                 : "គណនីសរុបទាំងអស់"}
             </span>
-            <Users size={18} className="text-[#8B1A1A]" />
+            <Users size={16} className="text-[#8B1A1A]" />
           </div>
-          <div className="text-2xl font-black text-gray-900 font-mono">{currentRoleTotal}</div>
-          <div className="text-[11px] text-gray-400 mt-1">
+          <div className="text-2xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">{currentRoleTotal}</div>
+          <div className="text-[11px] text-neutral-400 mt-1">
             {roleTab === "customers"
               ? "អតិថិជនពិតប្រាកដក្នុងប្រព័ន្ធ"
               : roleTab === "staff"
@@ -763,24 +763,24 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">ប្រភពផ្ទៀងផ្ទាត់ (AUTH)</span>
-            <Globe size={18} className="text-purple-600" />
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">ប្រភពផ្ទៀងផ្ទាត់ (AUTH)</span>
+            <Globe size={16} className="text-neutral-600" />
           </div>
-          <div className="text-2xl font-black text-purple-700 font-mono">{counts.all}</div>
-          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-amber-700">Google ({counts.channel_firebase})</span>
-            <span>•</span>
-            <span className="font-bold text-sky-700">TG ({counts.channel_telegram})</span>
-            <span>•</span>
-            <span className="font-bold text-purple-700">Linked ({counts.channel_linked})</span>
+          <div className="text-2xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">{counts.all}</div>
+          <div className="text-[10.5px] text-neutral-500 mt-1 flex items-center gap-1.5 flex-wrap font-mono">
+            <span className="font-semibold text-neutral-700">Google ({counts.channel_firebase})</span>
+            <span className="text-neutral-300">•</span>
+            <span className="font-semibold text-sky-700">TG ({counts.channel_telegram})</span>
+            <span className="text-neutral-300">•</span>
+            <span className="font-semibold text-neutral-700">Linked ({counts.channel_linked})</span>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
               {roleTab === "customers"
                 ? "អតិថិជនសកម្ម"
                 : roleTab === "staff"
@@ -789,23 +789,23 @@ export default function AdminUsersPage() {
                 ? "ADMIN សកម្ម"
                 : "គណនីសកម្មសរុប"}
             </span>
-            <UserCheck size={18} className="text-emerald-600" />
+            <UserCheck size={16} className="text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-emerald-600 font-mono">
-            {currentRoleActive} <span className="text-sm font-semibold text-gray-400">/ {currentRoleTotal}</span>
+          <div className="text-2xl font-black text-emerald-700 font-mono tracking-tight tabular-nums">
+            {currentRoleActive} <span className="text-xs font-semibold text-neutral-400">/ {currentRoleTotal}</span>
           </div>
-          <div className="text-[11px] text-gray-400 mt-1">
+          <div className="text-[11px] text-neutral-400 mt-1">
             សកម្ម {currentRoleTotal > 0 ? Math.round((currentRoleActive / currentRoleTotal) * 100) : 100}% • ផ្អាក ({currentRoleDisabled})
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-sky-700">ការកុម្ម៉ង់សរុប</span>
-            <ShoppingBag size={18} className="text-sky-600" />
+        <div className="bg-white p-5 rounded-2xl border border-neutral-200/80 shadow-2xs">
+          <div className="flex items-center justify-between text-neutral-400 mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">ការកុម្ម៉ង់សរុប</span>
+            <ShoppingBag size={16} className="text-[#8B1A1A]" />
           </div>
-          <div className="text-2xl font-black text-gray-900 font-mono">{counts.total_orders}</div>
-          <div className="text-[11px] text-gray-400 mt-1">Orders ពីអតិថិជនទាំងអស់</div>
+          <div className="text-2xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">{counts.total_orders}</div>
+          <div className="text-[11px] text-neutral-400 mt-1">Orders ពីអតិថិជនទាំងអស់</div>
         </div>
       </div>
 
@@ -929,32 +929,35 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Auth Channels Banner: Firebase vs Telegram dual authentication explanation */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-amber-50/70 via-sky-50/70 to-purple-50/70 rounded-2xl border border-gray-200/80 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+      <div className="mb-6 p-4 bg-neutral-50/90 rounded-2xl border border-neutral-200/80 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-sky-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <Globe size={18} />
+          <div className="w-9 h-9 rounded-xl bg-neutral-900 text-white flex items-center justify-center shrink-0 border border-neutral-700">
+            <Globe size={17} />
           </div>
           <div>
-            <div className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-              <span>ប្រព័ន្ធបញ្ជាក់អត្តសញ្ញាណ ២ ប្រភព (Dual Authentication System)</span>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                DB Dynamic Pagination (20 / Page)
+            <div className="font-bold text-neutral-900 flex items-center gap-2 flex-wrap">
+              <span>ប្រព័ន្ធបញ្ជាក់អត្តសញ្ញាណ ២ ប្រភព (Dual Authentication Architecture)</span>
+              <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-mono">
+                Server Pagination (20 / Page)
               </span>
             </div>
-            <div className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
+            <div className="text-[11px] text-neutral-500 mt-0.5 leading-relaxed">
               ទិន្នន័យទាញផ្ទាល់ពី Database ដោយបែងចែកជា <b>Firebase Google ({counts.channel_firebase})</b> សម្រាប់ Web, <b>Telegram Bot ({counts.channel_telegram})</b> សម្រាប់ Mini App, និង <b>Linked ({counts.channel_linked})</b> ដែលភ្ជាប់ទាំងពីរ។
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 text-[11px] flex-wrap">
-          <span className="px-2.5 py-1 rounded-xl bg-amber-100/90 text-amber-900 font-bold border border-amber-300 flex items-center gap-1">
-            <span>🔥</span> Google: {counts.channel_firebase}
+        <div className="flex items-center gap-1.5 shrink-0 text-[11px] flex-wrap font-mono">
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            <span>Google: {counts.channel_firebase}</span>
           </span>
-          <span className="px-2.5 py-1 rounded-xl bg-sky-100/90 text-sky-900 font-bold border border-sky-300 flex items-center gap-1">
-            <Send size={11} /> Telegram: {counts.channel_telegram}
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+            <span>Telegram: {counts.channel_telegram}</span>
           </span>
-          <span className="px-2.5 py-1 rounded-xl bg-purple-100/90 text-purple-900 font-bold border border-purple-300 flex items-center gap-1">
-            <span>🔗</span> Linked: {counts.channel_linked}
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <span>Linked: {counts.channel_linked}</span>
           </span>
         </div>
       </div>

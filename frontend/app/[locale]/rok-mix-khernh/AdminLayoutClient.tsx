@@ -327,8 +327,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Dashboard", 
       subtitle: isKm ? "ផ្ទាំងគ្រប់គ្រងទូទៅ" : "Main Operations",
       icon: LayoutDashboard,
-      gradient: "from-rose-500 via-red-600 to-rose-700",
-      shadow: "shadow-rose-900/40",
       adminOnly: false 
     },
     { 
@@ -336,8 +334,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Products", 
       subtitle: isKm ? "គ្រប់គ្រងទំនិញ & ស្តុក" : "Inventory & Catalog",
       icon: Package,
-      gradient: "from-blue-500 via-indigo-600 to-blue-700",
-      shadow: "shadow-blue-900/40",
       adminOnly: false 
     },
     { 
@@ -345,8 +341,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Orders", 
       subtitle: isKm ? "ការបញ្ជាទិញ & ដឹកជញ្ជូន" : "Sales & Tracking",
       icon: ShoppingCart,
-      gradient: "from-emerald-500 via-teal-600 to-emerald-700",
-      shadow: "shadow-emerald-900/40",
       adminOnly: false 
     },
     { 
@@ -354,8 +348,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Repairs", 
       subtitle: isKm ? "សេវាជួសជុល & គ្រឿងបន្លាស់" : "Repair Services",
       icon: Wrench,
-      gradient: "from-amber-500 via-orange-600 to-amber-700",
-      shadow: "shadow-amber-900/40",
       adminOnly: false 
     },
     { 
@@ -363,8 +355,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Customer Accounts", 
       subtitle: isKm ? "គ្រប់គ្រងអតិថិជន & CRM" : "Customer Profiles",
       icon: UserCheck,
-      gradient: "from-sky-500 via-blue-600 to-sky-700",
-      shadow: "shadow-sky-900/40",
       adminOnly: false 
     },
     { 
@@ -372,8 +362,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Live Chat", 
       subtitle: isKm ? "ឆាតផ្ទាល់ Real-Time" : "Real-Time Support",
       icon: MessageSquare,
-      gradient: "from-pink-500 via-rose-600 to-pink-700",
-      shadow: "shadow-pink-900/40",
       badge: "Live",
       isLive: true,
       adminOnly: false 
@@ -383,9 +371,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Telegram Bot", 
       subtitle: isKm ? "គ្រប់គ្រង Bot & Alerts" : "Bot Sentinel & Alerts",
       icon: Send,
-      gradient: "from-[#0088cc] via-sky-500 to-blue-600",
-      shadow: "shadow-sky-900/40",
-      badge: "Live",
+      badge: "Bot",
       adminOnly: false 
     },
   ];
@@ -396,8 +382,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Staff Accounts", 
       subtitle: isKm ? "គ្រប់គ្រងបុគ្គលិក & សិទ្ធិ" : "Staff & Permissions",
       icon: Users,
-      gradient: "from-purple-500 via-violet-600 to-purple-700",
-      shadow: "shadow-purple-900/40",
       badge: "Admin",
       adminOnly: true 
     },
@@ -406,8 +390,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Store Branches", 
       subtitle: isKm ? "គ្រប់គ្រងសាខាហាង" : "Branches & Locations",
       icon: Building2,
-      gradient: "from-teal-500 via-emerald-600 to-teal-700",
-      shadow: "shadow-teal-900/40",
       badge: "Admin",
       adminOnly: true 
     },
@@ -416,8 +398,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Work Shifts", 
       subtitle: isKm ? "កាលវិភាគ & វេនធ្វើការ" : "Rosters & Schedules",
       icon: CalendarCheck,
-      gradient: "from-cyan-500 via-blue-600 to-cyan-700",
-      shadow: "shadow-cyan-900/40",
       badge: "Admin",
       adminOnly: true 
     },
@@ -426,8 +406,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "Promotions", 
       subtitle: isKm ? "ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ" : "Discounts & Campaigns",
       icon: Tag,
-      gradient: "from-orange-500 via-rose-600 to-orange-700",
-      shadow: "shadow-orange-900/40",
       badge: "Admin",
       adminOnly: true 
     },
@@ -436,8 +414,6 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       title: "System Settings", 
       subtitle: isKm ? "ការកំណត់ប្រព័ន្ធ & Security" : "System & Security",
       icon: Settings,
-      gradient: "from-slate-500 via-zinc-600 to-slate-700",
-      shadow: "shadow-slate-900/40",
       badge: "Admin",
       adminOnly: true 
     },
@@ -489,75 +465,75 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         </div>
 
         {/* Current User VIP Pill in Sidebar */}
-        <div className={`p-3.5 mx-3.5 my-3 border rounded-2xl shrink-0 transition-all ${
+        <div className={`p-3.5 mx-3.5 my-3 rounded-2xl shrink-0 transition-all border ${
           isSuperAdmin
-            ? "bg-gradient-to-br from-amber-950/80 via-[#2a1705] to-black border-amber-400/80 shadow-[0_4px_25px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/50"
+            ? "bg-neutral-900/90 border-amber-500/30 shadow-xs"
             : isAdmin 
-              ? "bg-gradient-to-br from-amber-950/40 via-[#1c1212] to-black/70 border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.15)]" 
-              : "bg-gradient-to-br from-blue-950/40 via-[#0f1422] to-black/70 border-blue-500/30 shadow-[0_4px_20px_rgba(59,130,246,0.12)]"
+              ? "bg-neutral-900/90 border-[#8B1A1A]/40 shadow-xs" 
+              : "bg-neutral-900/90 border-neutral-800 shadow-xs"
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`relative w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
+            <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 border ${
               isSuperAdmin
-                ? "bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-amber-950 ring-2 ring-yellow-300 shadow-amber-400/50"
+                ? "bg-amber-400/15 border-amber-400/40 text-amber-300"
                 : isAdmin 
-                  ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-amber-100 ring-2 ring-amber-400/50" 
-                  : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-700 text-cyan-100 ring-2 ring-cyan-400/50"
+                  ? "bg-[#8B1A1A]/20 border-[#8B1A1A]/50 text-red-200" 
+                  : "bg-neutral-800 border-neutral-700 text-neutral-300"
             }`}>
               {isSuperAdmin ? (
-                <ShieldCheck size={24} className="text-amber-950 drop-shadow" />
+                <ShieldCheck size={20} className="text-amber-300" />
               ) : isAdmin ? (
-                <ShieldCheck size={22} className="text-amber-200 drop-shadow" />
+                <ShieldCheck size={19} className="text-red-200" />
               ) : (
-                <ShieldCheck size={22} className="text-cyan-200 drop-shadow" />
+                <ShieldCheck size={19} className="text-neutral-300" />
               )}
-              <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0c0d12] ${isSuperAdmin ? 'bg-yellow-300 animate-pulse' : isAdmin ? 'bg-amber-400' : 'bg-cyan-400'}`} />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0c0d12] ${isSuperAdmin ? 'bg-amber-400' : 'bg-emerald-400'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs sm:text-sm font-black text-white truncate">{adminDisplayName}</span>
-                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full border shrink-0 ${
+                <span className="text-xs sm:text-sm font-bold text-white truncate">{adminDisplayName}</span>
+                <span className={`text-[8.5px] font-bold uppercase px-1.5 py-0.5 rounded-md border shrink-0 ${
                   isSuperAdmin
-                    ? "bg-yellow-400/30 text-yellow-300 border-yellow-300 shadow-sm"
+                    ? "bg-amber-400/15 text-amber-300 border-amber-400/30 font-mono"
                     : isAdmin 
-                      ? "bg-amber-500/20 text-amber-300 border-amber-400/40" 
-                      : "bg-blue-500/20 text-blue-300 border-blue-400/40"
+                      ? "bg-[#8B1A1A]/30 text-red-200 border-[#8B1A1A]/40 font-mono" 
+                      : "bg-neutral-800 text-neutral-300 border-neutral-700 font-mono"
                 }`}>
                   {isSuperAdmin ? "OWNER" : isAdmin ? "ADMIN" : "STAFF"}
                 </span>
               </div>
-              <div className="text-[10px] text-gray-400 truncate mt-0.5">{user?.email}</div>
+              <div className="text-[10px] text-neutral-400 truncate mt-0.5">{user?.email}</div>
             </div>
           </div>
           
-          <div className="mt-2.5 pt-2 border-t border-white/10 grid grid-cols-2 gap-2 text-[10px] text-gray-300">
-            <div className="flex items-center gap-1.5 truncate bg-black/30 px-2 py-1 rounded-lg">
-              <Store size={12} className={isSuperAdmin ? "text-yellow-400 shrink-0" : isAdmin ? "text-amber-400 shrink-0" : "text-blue-400 shrink-0"} />
+          <div className="mt-2.5 pt-2 border-t border-white/[0.06] grid grid-cols-2 gap-1.5 text-[10px] text-neutral-400">
+            <div className="flex items-center gap-1.5 truncate bg-black/40 px-2 py-1 rounded-lg border border-white/[0.04]">
+              <Store size={11} className={isSuperAdmin ? "text-amber-400 shrink-0" : isAdmin ? "text-red-400 shrink-0" : "text-neutral-400 shrink-0"} />
               <span className="truncate">{user?.branch?.split(' ')[0] || "Phnom Penh"}</span>
             </div>
-            <div className="flex items-center gap-1.5 truncate bg-black/30 px-2 py-1 rounded-lg">
-              <Clock size={12} className={isSuperAdmin ? "text-amber-300 shrink-0" : isAdmin ? "text-rose-400 shrink-0" : "text-cyan-400 shrink-0"} />
+            <div className="flex items-center gap-1.5 truncate bg-black/40 px-2 py-1 rounded-lg border border-white/[0.04]">
+              <Clock size={11} className={isSuperAdmin ? "text-amber-400 shrink-0" : isAdmin ? "text-red-400 shrink-0" : "text-neutral-400 shrink-0"} />
               <span className="truncate">{user?.shift?.split(' ')[0] || "Full Time"}</span>
             </div>
           </div>
         </div>
 
-        {/* Scrollable Navigation Menu - Large Touch Ergonomics */}
-        <nav className="flex-1 px-3.5 py-2 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        {/* Scrollable Navigation Menu - Human-Crafted Ergonomics */}
+        <nav className="flex-1 px-3 py-2 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           
           {/* Section 1: Core Operations */}
           <div>
-            <div className="px-2 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase text-gray-400 select-none">
-              <span className="flex items-center gap-1.5 text-gray-300">
-                <Layers size={13} className="text-gray-400" />
+            <div className="px-2 pb-2 flex items-center justify-between text-[10px] font-bold tracking-widest uppercase text-neutral-400 select-none">
+              <span className="flex items-center gap-1.5 text-neutral-300">
+                <Layers size={12} className="text-neutral-400" />
                 <span>{isKm ? "ប្រតិបត្តិការចម្បង" : "CORE OPERATIONS"}</span>
               </span>
-              <span className="text-[9px] text-gray-500 font-mono bg-white/5 px-1.5 py-0.5 rounded">
-                {CORE_LINKS.length} MODULES
+              <span className="text-[9px] text-neutral-400 font-mono bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.04]">
+                {CORE_LINKS.length}
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {CORE_LINKS.map((link) => {
                 const isActive = pathname === link.href;
 
@@ -566,54 +542,52 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                     key={link.href} 
                     href={link.href} 
                     onClick={() => setSidebarOpen(false)} 
-                    className={`group relative flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all duration-200 no-underline border ${
+                    className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 no-underline border ${
                       isActive 
-                        ? "bg-gradient-to-r from-[#8B1A1A] via-red-800 to-red-600 text-white shadow-xl shadow-red-950/70 border-red-500/50 ring-1 ring-red-400/30" 
-                        : "bg-white/[0.03] hover:bg-white/[0.08] text-gray-200 border-white/5 hover:border-white/15 active:scale-[0.98]"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-[#8B1A1A]/30 border-[#8B1A1A]" 
+                        : "bg-transparent hover:bg-white/[0.05] text-neutral-300 hover:text-white border-transparent hover:border-white/[0.06]"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Big Vibrant Icon Container */}
-                      <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md bg-gradient-to-tr ${link.gradient} text-white ${link.shadow} group-hover:scale-105 group-active:scale-95 transition-transform duration-200`}>
-                        <link.icon size={22} className="drop-shadow-xs" />
-                        {link.isLive && (
-                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-[#0c0d12]" />
-                          </span>
-                        )}
+                      {/* Refined Icon Container */}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        isActive 
+                          ? "bg-white/20 text-white shadow-xs" 
+                          : "bg-white/[0.04] text-neutral-400 group-hover:text-white group-hover:bg-white/[0.08] border border-white/[0.06]"
+                      }`}>
+                        <link.icon size={18} />
                       </div>
 
                       {/* Dual-Line Labels */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight truncate ${isActive ? 'text-white font-extrabold' : 'text-gray-100 group-hover:text-white'}`}>
+                          <span className={`text-[13px] font-semibold tracking-tight truncate ${isActive ? 'text-white font-bold' : 'text-neutral-200 group-hover:text-white'}`}>
                             {link.title}
                           </span>
                           {link.badge && (
-                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 border ${
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-md shrink-0 border ${
                               isActive 
                                 ? "bg-white/20 text-white border-white/30" 
                                 : link.badge === "Live"
-                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-mono"
-                                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-mono"
+                                : "bg-white/[0.06] text-neutral-400 border-white/10"
                             }`}>
                               {link.badge}
                             </span>
                           )}
                         </div>
-                        <div className={`text-[11px] truncate mt-0.5 font-medium ${isActive ? 'text-red-100' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                        <div className={`text-[10.5px] truncate font-medium ${isActive ? 'text-red-100' : 'text-neutral-500 group-hover:text-neutral-400'}`}>
                           {link.subtitle}
                         </div>
                       </div>
                     </div>
 
                     <ChevronRight 
-                      size={18} 
-                      className={`shrink-0 ml-2 transition-transform duration-200 ${
+                      size={15} 
+                      className={`shrink-0 ml-2 transition-transform duration-150 ${
                         isActive 
-                          ? 'text-white translate-x-0.5' 
-                          : 'text-gray-500 group-hover:text-white group-hover:translate-x-0.5'
+                          ? 'text-white/80 translate-x-0.5' 
+                          : 'text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5'
                       }`} 
                     />
                   </Link>
@@ -624,65 +598,73 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
 
           {/* Section 1.5: Grand Master Control (Reserved for System Owner) */}
           <div>
-            <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase select-none">
-              <span className="flex items-center gap-1.5 text-amber-400">
-                <Crown size={13} className="text-amber-400" />
+            <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[10px] font-bold tracking-widest uppercase select-none">
+              <span className="flex items-center gap-1.5 text-amber-400/90">
+                <Crown size={12} className="text-amber-400" />
                 <span>{isKm ? "ផ្ទាំងបញ្ជាកំពូលម្ចាស់ប្រព័ន្ធ" : "GRAND MASTER CONTROL"}</span>
               </span>
-              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+              <span className={`text-[8.5px] font-mono px-1.5 py-0.5 rounded border ${
                 isSuperAdmin 
-                  ? "bg-amber-400/20 text-amber-300 border border-amber-400/40" 
-                  : "bg-white/5 text-gray-400 border border-white/10"
+                  ? "bg-amber-400/15 text-amber-300 border-amber-400/30" 
+                  : "bg-white/[0.04] text-neutral-400 border-white/[0.06]"
               }`}>
-                {isSuperAdmin ? "MASTER ACTIVE" : "VIEW ONLY"}
+                {isSuperAdmin ? "ACTIVE" : "VIEW"}
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <Link 
                 href="/rok-mix-khernh/master-control" 
                 onClick={() => setSidebarOpen(false)} 
-                className={`group relative flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all duration-200 no-underline border ${
+                className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 no-underline border ${
                   pathname === "/rok-mix-khernh/master-control"
-                    ? "bg-gradient-to-r from-amber-600 via-yellow-600 to-amber-700 text-white shadow-xl shadow-amber-950/70 border-amber-400/60 ring-1 ring-amber-300/40" 
+                    ? "bg-gradient-to-r from-amber-700 to-amber-600 text-white shadow-md shadow-amber-950/60 border-amber-400/50" 
                     : isSuperAdmin
-                    ? "bg-gradient-to-r from-amber-950/40 via-yellow-950/20 to-black/40 hover:bg-amber-950/60 text-gray-200 border-amber-500/30 hover:border-amber-400/60 shadow-xs"
-                    : "bg-white/[0.03] hover:bg-white/[0.08] text-gray-200 border-white/5 hover:border-white/15"
+                    ? "bg-amber-950/20 hover:bg-amber-950/40 text-neutral-200 border-amber-500/20 hover:border-amber-400/40"
+                    : "bg-transparent hover:bg-white/[0.05] text-neutral-300 hover:text-white border-transparent hover:border-white/[0.06]"
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
-                    isSuperAdmin 
-                      ? "bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-600 text-amber-950 shadow-amber-400/40 group-hover:scale-105 group-active:scale-95 transition-transform" 
-                      : "bg-gradient-to-tr from-zinc-700 via-zinc-800 to-zinc-900 text-amber-300/80 shadow-black"
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                    pathname === "/rok-mix-khernh/master-control"
+                      ? "bg-white/20 text-white border-white/30 shadow-xs"
+                      : isSuperAdmin 
+                      ? "bg-amber-400/10 border-amber-400/30 text-amber-300 group-hover:bg-amber-400/20" 
+                      : "bg-white/[0.04] border-white/[0.06] text-neutral-400"
                   }`}>
-                    {isSuperAdmin ? <Crown size={22} className="drop-shadow-xs" /> : <Lock size={20} />}
+                    {isSuperAdmin ? <Crown size={18} /> : <Lock size={17} />}
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight truncate ${
-                        pathname === "/rok-mix-khernh/master-control" ? "text-white font-extrabold" : "text-gray-100 group-hover:text-white"
+                      <span className={`text-[13px] font-semibold tracking-tight truncate ${
+                        pathname === "/rok-mix-khernh/master-control" ? "text-white font-bold" : "text-neutral-200 group-hover:text-white"
                       }`}>
                         Master Controls
                       </span>
-                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 border ${
-                        isSuperAdmin 
-                          ? "bg-amber-400/30 text-amber-300 border-amber-400/50" 
-                          : "bg-white/10 text-gray-400 border-white/20"
+                      <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-md shrink-0 border ${
+                        pathname === "/rok-mix-khernh/master-control"
+                          ? "bg-white/20 text-white border-white/30"
+                          : isSuperAdmin 
+                          ? "bg-amber-400/15 text-amber-300 border-amber-400/30 font-mono" 
+                          : "bg-white/[0.06] text-neutral-400 border-white/10"
                       }`}>
-                        {isSuperAdmin ? "Owner" : "View Only"}
+                        {isSuperAdmin ? "Owner" : "View"}
                       </span>
                     </div>
-                    <div className="text-[11px] truncate mt-0.5 text-gray-400 group-hover:text-gray-300 font-medium">
+                    <div className="text-[10.5px] truncate font-medium text-neutral-500 group-hover:text-neutral-400">
                       {isKm ? "បញ្ជាបិទ/បើកហាង & Killswitches" : "Infrastructure & Killswitches"}
                     </div>
                   </div>
                 </div>
 
                 <ChevronRight 
-                  size={18} 
-                  className="shrink-0 ml-2 text-gray-500 group-hover:text-white group-hover:translate-x-0.5 transition-transform" 
+                  size={15} 
+                  className={`shrink-0 ml-2 transition-transform duration-150 ${
+                    pathname === "/rok-mix-khernh/master-control"
+                      ? "text-white/80 translate-x-0.5"
+                      : "text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5"
+                  }`} 
                 />
               </Link>
             </div>
@@ -690,17 +672,17 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
 
           {/* Section 2: Administration & System */}
           <div>
-            <div className="px-2 pt-2 pb-2 flex items-center justify-between text-[10.5px] font-black tracking-wider uppercase text-gray-400 select-none">
-              <span className="flex items-center gap-1.5 text-gray-300">
-                <Settings size={13} className="text-gray-400" />
+            <div className="px-2 pt-2 pb-2 flex items-center justify-between text-[10px] font-bold tracking-widest uppercase text-neutral-400 select-none">
+              <span className="flex items-center gap-1.5 text-neutral-300">
+                <Settings size={12} className="text-neutral-400" />
                 <span>{isKm ? "ការគ្រប់គ្រងប្រព័ន្ធ" : "SYSTEM & ADMIN"}</span>
               </span>
-              <span className="text-[9px] text-gray-500 font-mono bg-white/5 px-1.5 py-0.5 rounded">
-                {SYSTEM_LINKS.length} MODULES
+              <span className="text-[9px] text-neutral-400 font-mono bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.04]">
+                {SYSTEM_LINKS.length}
               </span>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {SYSTEM_LINKS.map((link) => {
                 const isActive = pathname === link.href;
                 const isRestrictedForStaff = link.adminOnly && !isAdmin;
@@ -709,19 +691,19 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                   return (
                     <div 
                       key={link.href}
-                      className="flex items-center justify-between p-2.5 sm:p-3 rounded-2xl bg-white/[0.01] border border-white/5 text-gray-600 cursor-not-allowed select-none opacity-40"
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-transparent border border-transparent text-neutral-600 cursor-not-allowed select-none opacity-40"
                       title={isKm ? "មុខងារនេះសម្រាប់តែ Administrator ប៉ុណ្ណោះ" : "Administrator Privilege Only"}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 bg-gray-800 text-gray-500">
-                          <link.icon size={20} />
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-white/[0.02] border border-white/[0.04] text-neutral-600">
+                          <link.icon size={17} />
                         </div>
                         <div className="min-w-0">
-                          <div className="text-[13px] font-bold text-gray-500 truncate">{link.title}</div>
-                          <div className="text-[10px] text-gray-600 truncate">{link.subtitle}</div>
+                          <div className="text-[12.5px] font-medium text-neutral-600 truncate">{link.title}</div>
+                          <div className="text-[10px] text-neutral-700 truncate">{link.subtitle}</div>
                         </div>
                       </div>
-                      <span className="text-[9px] font-semibold bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                      <span className="text-[8.5px] font-bold uppercase bg-white/[0.04] text-neutral-600 px-1.5 py-0.5 rounded border border-white/[0.06]">
                         Admin Only
                       </span>
                     </div>
@@ -733,46 +715,48 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                     key={link.href} 
                     href={link.href} 
                     onClick={() => setSidebarOpen(false)} 
-                    className={`group relative flex items-center justify-between p-2.5 sm:p-3 rounded-2xl transition-all duration-200 no-underline border ${
+                    className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 no-underline border ${
                       isActive 
-                        ? "bg-gradient-to-r from-[#8B1A1A] via-red-800 to-red-600 text-white shadow-xl shadow-red-950/70 border-red-500/50 ring-1 ring-red-400/30" 
-                        : "bg-white/[0.03] hover:bg-white/[0.08] text-gray-200 border-white/5 hover:border-white/15 active:scale-[0.98]"
+                        ? "bg-[#8B1A1A] text-white shadow-md shadow-[#8B1A1A]/30 border-[#8B1A1A]" 
+                        : "bg-transparent hover:bg-white/[0.05] text-neutral-300 hover:text-white border-transparent hover:border-white/[0.06]"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* Big Vibrant Icon Container */}
-                      <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md bg-gradient-to-tr ${link.gradient} text-white ${link.shadow} group-hover:scale-105 group-active:scale-95 transition-transform duration-200`}>
-                        <link.icon size={22} className="drop-shadow-xs" />
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                        isActive 
+                          ? "bg-white/20 text-white shadow-xs" 
+                          : "bg-white/[0.04] text-neutral-400 group-hover:text-white group-hover:bg-white/[0.08] border border-white/[0.06]"
+                      }`}>
+                        <link.icon size={18} />
                       </div>
 
-                      {/* Dual-Line Labels */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[13.5px] sm:text-[14.5px] font-bold tracking-tight truncate ${isActive ? 'text-white font-extrabold' : 'text-gray-100 group-hover:text-white'}`}>
+                          <span className={`text-[13px] font-semibold tracking-tight truncate ${isActive ? 'text-white font-bold' : 'text-neutral-200 group-hover:text-white'}`}>
                             {link.title}
                           </span>
                           {link.badge && (
-                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 border ${
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded-md shrink-0 border ${
                               isActive 
                                 ? "bg-white/20 text-white border-white/30" 
-                                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                                : "bg-white/[0.06] text-neutral-400 border-white/10"
                             }`}>
                               {link.badge}
                             </span>
                           )}
                         </div>
-                        <div className={`text-[11px] truncate mt-0.5 font-medium ${isActive ? 'text-red-100' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                        <div className={`text-[10.5px] truncate font-medium ${isActive ? 'text-red-100' : 'text-neutral-500 group-hover:text-neutral-400'}`}>
                           {link.subtitle}
                         </div>
                       </div>
                     </div>
 
                     <ChevronRight 
-                      size={18} 
-                      className={`shrink-0 ml-2 transition-transform duration-200 ${
+                      size={15} 
+                      className={`shrink-0 ml-2 transition-transform duration-150 ${
                         isActive 
-                          ? 'text-white translate-x-0.5' 
-                          : 'text-gray-500 group-hover:text-white group-hover:translate-x-0.5'
+                          ? 'text-white/80 translate-x-0.5' 
+                          : 'text-neutral-600 group-hover:text-neutral-400 group-hover:translate-x-0.5'
                       }`} 
                     />
                   </Link>
@@ -782,65 +766,65 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
           </div>
 
           {/* Section 3: Operational Status Card */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 shadow-inner mt-2">
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] mt-2">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="text-xs font-bold text-white flex items-center gap-1">
-                  System Status
+                <span className="text-[11px] font-bold text-neutral-300 tracking-wide uppercase">
+                  System Health
                 </span>
               </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                All Operational
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-mono">
+                Normal
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
-                <span className="text-gray-400 text-[9px]">Store Service</span>
-                <span className="font-bold text-emerald-400 font-mono">Normal</span>
+            <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+              <div className="p-2 rounded-lg bg-black/40 border border-white/[0.04] flex flex-col">
+                <span className="text-neutral-500 text-[9px]">Store Engine</span>
+                <span className="font-semibold text-emerald-400 font-mono text-[10px]">Online 24/7</span>
               </div>
-              <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col">
-                <span className="text-gray-400 text-[9px]">Sync Engine</span>
-                <span className="font-bold text-sky-400 font-mono">Active</span>
+              <div className="p-2 rounded-lg bg-black/40 border border-white/[0.04] flex flex-col">
+                <span className="text-neutral-500 text-[9px]">Sync Sentinel</span>
+                <span className="font-semibold text-neutral-300 font-mono text-[10px]">Connected</span>
               </div>
             </div>
           </div>
         </nav>
 
         {/* Bottom Actions Dock */}
-        <div className="p-3.5 sm:p-4 border-t border-white/10 space-y-2.5 bg-[#0a0a0f] shrink-0">
+        <div className="p-3.5 border-t border-white/[0.07] space-y-2 bg-[#090a0e] shrink-0">
           <Link 
             href="/rok-mix-khernh/products/new" 
             onClick={() => setSidebarOpen(false)}
-            className="w-full py-3.5 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all no-underline shadow-lg shadow-red-950/70 active:scale-[0.98] border border-red-500/30"
+            className="w-full py-2.5 px-3.5 bg-[#8B1A1A] hover:bg-[#a11e1e] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all no-underline shadow-sm active:scale-[0.98] border border-red-500/30"
           >
-            <Package size={18} className="animate-pulse" />
+            <Package size={16} />
             <span>{isKm ? "+ បន្ថែមទំនិញថ្មី • Add Product" : "+ Add New Product"}</span>
           </Link>
 
           {/* PWA Install Button in Sidebar */}
           <AdminPWAInstallButton variant="sidebar" />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2.5 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition-all no-underline border border-white/10 active:scale-95"
+              className="py-2 px-2.5 bg-white/[0.04] hover:bg-white/[0.08] text-neutral-400 hover:text-white rounded-lg font-medium text-[11px] flex items-center justify-center gap-1.5 transition-all no-underline border border-white/[0.06] active:scale-95"
               title="បើកមើល Website"
             >
-              <Globe size={14} className="text-sky-400" />
+              <Globe size={13} className="text-neutral-400" />
               <span>{isKm ? "មើល Store" : "Live Store"}</span>
             </a>
 
             <button
               onClick={handleLogout}
-              className="py-2.5 px-3 bg-red-950/30 hover:bg-red-950/60 text-red-300 hover:text-red-200 rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-500/20 active:scale-95"
+              className="py-2 px-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-300 hover:text-red-200 rounded-lg font-medium text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-500/20 active:scale-95"
             >
-              <LogOut size={14} />
+              <LogOut size={13} />
               <span>{isKm ? "ចាកចេញ" : "Logout"}</span>
             </button>
           </div>
@@ -851,7 +835,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
       <div className="flex-1 flex flex-col min-w-0">
         
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shadow-xs">
+        <header className="h-16 bg-white/90 backdrop-blur-md border-b border-gray-200/80 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
           
           <div className="flex items-center gap-3">
             <button 
@@ -871,7 +855,13 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
                 <span className="text-base font-bold text-gray-900 tracking-tight">
                   S <span className="text-[#8B1A1A]">Tech</span> Store
                 </span>
-                <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full uppercase tracking-wider ${isSuperAdmin ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-amber-950 font-black' : isAdmin ? 'bg-[#8B1A1A]' : 'bg-blue-600'}`}>
+                <span className={`text-[9.5px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  isSuperAdmin 
+                    ? 'bg-amber-400/20 text-amber-900 border border-amber-300' 
+                    : isAdmin 
+                    ? 'bg-[#8B1A1A] text-white' 
+                    : 'bg-neutral-800 text-white'
+                }`}>
                   {isSuperAdmin ? "Owner" : isAdmin ? "Admin" : "Staff"}
                 </span>
               </div>
@@ -880,11 +870,11 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
 
           <div className="flex items-center gap-2.5 sm:gap-3.5">
             {/* Branch and Shift Badge on Top Header for quick viewing */}
-            <div className="hidden md:flex items-center gap-2 bg-gray-100/80 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-700">
+            <div className="hidden md:flex items-center gap-2 bg-neutral-100/70 px-3 py-1.5 rounded-xl border border-neutral-200/70 text-xs text-neutral-700">
               <Store size={13} className="text-[#8B1A1A]" />
               <span className="font-semibold">{user?.branch?.split(' ')[0] || "Phnom Penh"}</span>
               <span className="text-gray-300">|</span>
-              <Clock size={13} className="text-blue-600" />
+              <Clock size={13} className="text-neutral-500" />
               <span>{user?.shift?.split(' ')[0] || "Day"}</span>
             </div>
 
@@ -896,14 +886,14 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
               href="/rok-mix-khernh/master-control"
               className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all no-underline ${
                 isSuperAdmin
-                  ? "bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border-amber-400/50 text-amber-800 hover:bg-amber-100 shadow-xs"
-                  : "bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-700"
+                  ? "bg-amber-500/10 border-amber-400/40 text-amber-900 hover:bg-amber-500/20"
+                  : "bg-gray-100 hover:bg-gray-200/70 border-gray-200 text-gray-700"
               }`}
               title={isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធកំពូលសកម្ម • Master Privileges Active" : "Admin ធម្មតា • View-Only Master Controls"}
             >
               {isSuperAdmin ? (
                 <>
-                  <Crown size={14} className="text-amber-600 animate-pulse" />
+                  <Crown size={14} className="text-amber-600" />
                   <span className="font-black">Master Control</span>
                 </>
               ) : (
@@ -918,36 +908,36 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             <LanguageSwitcher />
 
             {/* User Profile Pill & Logout */}
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-2.5 pl-2 py-1 pr-2 rounded-2xl border shadow-2xs ${
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className={`flex items-center gap-2.5 pl-2 py-1 pr-2 rounded-xl border transition-colors ${
                 isSuperAdmin 
-                  ? "bg-gradient-to-r from-amber-50 to-yellow-50/60 border-amber-300 ring-1 ring-amber-300/40"
-                  : "bg-gray-50/80 border-gray-200/80"
+                  ? "bg-amber-50/60 border-amber-200/80 hover:bg-amber-50"
+                  : "bg-neutral-50/80 border-neutral-200/80 hover:bg-neutral-100/60"
               }`}>
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
                   isSuperAdmin
-                    ? "bg-gradient-to-tr from-amber-400 via-yellow-400 to-amber-500 text-amber-950 ring-2 ring-yellow-300 shadow-amber-400/30"
+                    ? "bg-amber-400/20 text-amber-900 border border-amber-300/60"
                     : isAdmin
-                      ? "bg-gradient-to-tr from-amber-500 via-rose-600 to-red-600 text-white ring-1 ring-amber-400/60 shadow-amber-500/20"
-                      : "bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 text-white ring-1 ring-blue-400/60 shadow-blue-500/20"
+                      ? "bg-[#8B1A1A] text-white"
+                      : "bg-neutral-800 text-white"
                 }`}>
                   {isSuperAdmin ? (
-                    <ShieldCheck size={16} className="text-amber-950 drop-shadow-xs" />
+                    <ShieldCheck size={16} className="text-amber-800" />
                   ) : isAdmin ? (
-                    <ShieldCheck size={15} className="text-amber-100" />
+                    <ShieldCheck size={15} className="text-white" />
                   ) : (
-                    <ShieldCheck size={15} className="text-cyan-100" />
+                    <ShieldCheck size={15} className="text-neutral-200" />
                   )}
                 </div>
                 <div className="text-left hidden sm:block pr-1">
                   <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                     <span>{adminDisplayName}</span>
-                    <span className={`text-[8.5px] font-black uppercase px-1.5 py-0.2 rounded-full border ${
+                    <span className={`text-[8px] font-bold uppercase px-1.5 py-0.2 rounded-md border ${
                       isSuperAdmin
-                        ? "bg-amber-300 text-amber-950 border-amber-400 font-extrabold shadow-2xs"
+                        ? "bg-amber-200/70 text-amber-950 border-amber-300"
                         : isAdmin 
-                          ? "bg-amber-100 text-amber-900 border-amber-300" 
-                          : "bg-blue-100 text-blue-900 border-blue-300"
+                          ? "bg-red-100 text-[#8B1A1A] border-red-200" 
+                          : "bg-neutral-200 text-neutral-800 border-neutral-300"
                     }`}>
                       {isSuperAdmin ? "Owner" : isAdmin ? "Admin" : "Staff"}
                     </span>

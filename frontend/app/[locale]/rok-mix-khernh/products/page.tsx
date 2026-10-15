@@ -268,9 +268,9 @@ export default function AdminProductsPage() {
 
 
   const stockBadge = (status: string) => {
-    if (status === "In Stock") return "bg-indigo-100 text-indigo-700";
-    if (status === "Low Stock") return "bg-red-100 text-red-700";
-    return "bg-gray-100 text-gray-700";
+    if (status === "In Stock") return "bg-emerald-50 text-emerald-700 border border-emerald-200/70 font-mono";
+    if (status === "Low Stock") return "bg-amber-50 text-amber-700 border border-amber-200/70 font-mono";
+    return "bg-rose-50 text-rose-700 border border-rose-200/70 font-mono";
   };
 
   return (
@@ -361,17 +361,17 @@ export default function AdminProductsPage() {
           <button 
             onClick={() => fetchProducts(true)} 
             disabled={loading}
-            className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="px-3.5 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 border border-neutral-200/80"
             title="Refresh Live Data"
           >
-            <RefreshCw size={15} className={loading ? "animate-spin text-[#8B1A1A]" : ""} />
+            <RefreshCw size={14} className={loading ? "animate-spin text-[#8B1A1A]" : ""} />
             <span>Refresh</span>
           </button>
           <button 
             onClick={() => router.push("/rok-mix-khernh/products/new")} 
-            className="px-4 py-2 bg-[#8B1A1A] text-white rounded-md text-sm font-medium flex items-center gap-2 hover:bg-[#6B1010] transition-colors cursor-pointer"
+            className="px-4 py-2 bg-[#8B1A1A] hover:bg-[#a11e1e] text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
           >
-            <Plus size={16} />
+            <Plus size={15} />
             Add New Product
           </button>
         </div>
