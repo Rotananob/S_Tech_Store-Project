@@ -35,6 +35,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import api from "@/lib/api";
 import { 
   getOrCreateVisitorId, 
+  getActiveCustomerChatId,
   sendChatMessage, 
   subscribeToMessages, 
   subscribeToChatMeta,
@@ -291,6 +292,7 @@ interface ChatItem {
   text: string;
   senderName?: string;
   time?: string;
+  timestamp?: number;
   showGreetingButtons?: boolean;
   suggestAgent?: boolean;
   image?: string;
@@ -350,6 +352,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const sessionsRef = useRef<ChatSessionItem[]>([]);
   sessionsRef.current = sessions;
+  const userStorageKeyRef = useRef<string>("guest");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");
 
@@ -576,7 +579,18 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const loadAllSessions = (uid: string): ChatSessionItem[] => {
     if (typeof window === "undefined") return [];
     try {
-      const data = localStorage.getItem(getSessionsStorageKey(uid)) || localStorage.getItem(`stech_gemini_sessions_${uid || "guest"}`);
+      let data = localStorage.getItem(getSessionsStorageKey(uid)) || localStorage.getItem(`stech_gemini_sessions_${uid || "guest"}`);
+      
+      // Fallback migration: if logged-in user key has no sessions, check if sessions were saved under 'guest'
+      if (!data && uid && uid !== "guest") {
+        data = localStorage.getItem(getSessionsStorageKey("guest")) || localStorage.getItem("stech_gemini_sessions_guest");
+        if (data) {
+          try {
+            localStorage.setItem(getSessionsStorageKey(uid), data);
+          } catch {}
+        }
+      }
+
       if (data) {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -587,8 +601,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             for (const m of s.messages) {
               const clean = (m.text || "").trim();
               const lastMsg = uniqueMsgs[uniqueMsgs.length - 1];
-              // Avoid back-to-back identical messages
-              if (lastMsg && (lastMsg.text || "").trim() === clean) {
+              // Avoid back-to-back identical messages with same sender
+              if (lastMsg && (lastMsg.text || "").trim() === clean && lastMsg.sender === m.sender) {
                 continue;
               }
               // If system message has same text as an existing bot message, skip it
@@ -669,11 +683,14 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       setIsLoggedIn(isAuthed);
 
       let detectedName = initialDetectedName;
-      let activeChatId = localUser?.id ? `user_${localUser.id}` : (user ? user.uid : getOrCreateVisitorId());
-      const userKey = localUser?.id ? `user_${localUser.id}` : (user ? user.uid : "guest");
+      let activeChatId = getActiveCustomerChatId();
+      if (user && !localUser?.id) {
+        activeChatId = user.uid;
+      }
+      const userKey = activeChatId;
+      userStorageKeyRef.current = userKey;
 
       if (user) {
-        activeChatId = user.uid;
         const fbName = user.displayName || user.email?.split("@")[0];
         if (fbName && (detectedName === "អតិថិជន" || detectedName === "បង")) {
           detectedName = fbName;
@@ -723,6 +740,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             text: greetingText,
             senderName: "S Tech AI",
             time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            timestamp: 0,
             showGreetingButtons: true,
           },
         ];
@@ -755,7 +773,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     if (!activeSessionId || messages.length === 0) return;
 
     setSessions((prev) => {
-      const userUid = currentUser?.uid || "guest";
+      const userUid = userStorageKeyRef.current || "guest";
       const existingIdx = prev.findIndex((s) => s.id === activeSessionId);
 
       let title = "ការសន្ទនាថ្មី";
@@ -788,7 +806,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       saveSessionsToStorage(userUid, newList);
       return newList;
     });
-  }, [messages, activeSessionId, currentUser]);
+  }, [messages, activeSessionId]);
 
   // ─── Start New Chat Session (Gemini App Style) ─────────────────────────────
   const handleNewChat = () => {
@@ -803,6 +821,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         text: greetingText,
         senderName: "S Tech AI",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: 0,
         showGreetingButtons: true,
       },
     ];
@@ -818,7 +837,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
     setSessions((prev) => {
       const updated = [newSession, ...prev];
-      saveSessionsToStorage(currentUser?.uid || "guest", updated);
+      saveSessionsToStorage(userStorageKeyRef.current || "guest", updated);
       return updated;
     });
 
@@ -838,7 +857,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Delete Chat Session ──────────────────────────────────────────────────
   const handleDeleteSession = (e: React.MouseEvent, sid: string) => {
     e.stopPropagation();
-    const userUid = currentUser?.uid || "guest";
+    const userUid = userStorageKeyRef.current || "guest";
     setSessions((prev) => {
       const filtered = prev.filter((s) => s.id !== sid);
       saveSessionsToStorage(userUid, filtered);
@@ -871,54 +890,105 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     return () => unsub();
   }, [chatId]);
 
-  // ─── Subscribe to real-time messages from Firebase RTDB (Session Isolated) ───
+  // ─── Subscribe to real-time messages from Firebase RTDB (Both User & Staff) ───
   useEffect(() => {
     if (!chatId || !activeSessionId) return;
 
-    const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId);
-    const sessionCreatedAt = currentSession?.createdAt || Date.now();
-
     const unsub = subscribeToMessages(chatId, (firebaseMsgs) => {
       if (firebaseMsgs && firebaseMsgs.length > 0) {
-        // Merge staff/admin replies from RTDB into local message thread
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id).filter(Boolean));
-          const existingTexts = new Set(prev.map((m) => (m.text || "").trim()));
-          const newStaffMsgs: ChatItem[] = [];
+          const existingSignatures = new Set(
+            prev.map((m) => `${m.sender}:${(m.text || "").trim()}`)
+          );
+
+          let hasChanges = false;
+          const merged = [...prev];
 
           for (const m of firebaseMsgs) {
-            // NEVER import bot replies or S Tech AI replies from RTDB back into local state!
-            // handleSend manages AI replies directly to eliminate duplication.
-            if (m.sender === "bot" || m.senderName === "S Tech AI") {
+            const cleanText = (m.text || "").trim();
+            const senderType = m.sender === "admin" ? "staff" : m.sender;
+            const sig = `${senderType}:${cleanText}`;
+
+            const isAlreadyPresent =
+              (m.id && existingIds.has(m.id)) ||
+              (cleanText && existingSignatures.has(sig));
+
+            if (isAlreadyPresent) {
+              continue;
+            }
+
+            // Check if this message belongs to this customer session / live chat room
+            const isForThisSession =
+              !m.sessionId ||
+              m.sessionId === activeSessionId ||
+              isAiPaused ||
+              m.sender === "admin" ||
+              m.sender === "staff" ||
+              m.sender === "system" ||
+              (m.timestamp && Date.now() - m.timestamp < 7 * 24 * 3600 * 1000);
+
+            if (!isForThisSession) {
               continue;
             }
 
             if (m.sender === "admin" || m.sender === "staff" || m.sender === "system") {
-              // Human staff/admin replies sent to this customer chat room must ALWAYS be visible!
-              // If message specifies a sessionId, match it; otherwise accept all recent staff replies
-              const isForThisSession = !m.sessionId || m.sessionId === activeSessionId || (m.timestamp && (Date.now() - m.timestamp < 7 * 24 * 3600 * 1000));
-
-              const cleanText = (m.text || "").trim();
-              const isAlreadyPresent = (m.id && existingIds.has(m.id)) || (cleanText && existingTexts.has(cleanText));
-
-              if (isForThisSession && !isAlreadyPresent) {
-                newStaffMsgs.push({
+              merged.push({
+                id: m.id,
+                sender: m.sender === "system" ? "system" : "staff",
+                senderName: m.senderName || (m.sender === "system" ? "S Tech System" : "S Tech Support"),
+                text: m.text,
+                timestamp: m.timestamp || Date.now(),
+                time: m.timestamp
+                  ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+              });
+              if (cleanText) existingSignatures.add(sig);
+              if (m.id) existingIds.add(m.id);
+              hasChanges = true;
+            } else if (m.sender === "user") {
+              merged.push({
+                id: m.id,
+                sender: "user",
+                senderName: m.senderName || userName || "អតិថិជន",
+                text: m.text,
+                image: m.image,
+                images: m.images || (m.image ? [m.image] : undefined),
+                timestamp: m.timestamp || Date.now(),
+                time: m.timestamp
+                  ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+              });
+              if (cleanText) existingSignatures.add(sig);
+              if (m.id) existingIds.add(m.id);
+              hasChanges = true;
+            } else if (m.sender === "bot") {
+              // Restore bot replies if matching active session
+              if (m.sessionId === activeSessionId) {
+                merged.push({
                   id: m.id,
-                  sender: m.sender === "system" ? "system" : "staff",
-                  senderName: m.senderName || (m.sender === "system" ? "S Tech System" : "S Tech Support"),
+                  sender: "bot",
+                  senderName: m.senderName || "S Tech AI",
                   text: m.text,
+                  timestamp: m.timestamp || Date.now(),
                   time: m.timestamp
                     ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
                     : "",
                 });
-                if (cleanText) existingTexts.add(cleanText);
+                if (cleanText) existingSignatures.add(sig);
                 if (m.id) existingIds.add(m.id);
+                hasChanges = true;
               }
             }
           }
 
-          if (newStaffMsgs.length > 0) {
-            return [...prev, ...newStaffMsgs];
+          if (hasChanges) {
+            merged.sort((a, b) => {
+              if (a.showGreetingButtons && !b.showGreetingButtons) return -1;
+              if (!a.showGreetingButtons && b.showGreetingButtons) return 1;
+              return (a.timestamp || 0) - (b.timestamp || 0);
+            });
+            return merged;
           }
           return prev;
         });
@@ -926,7 +996,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     });
 
     return () => unsub();
-  }, [chatId, activeSessionId]);
+  }, [chatId, activeSessionId, isAiPaused, userName]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -997,6 +1067,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const imgUrls = currentImgs.map((i) => i.preview || i.base64);
+    const nowTs = Date.now();
     const userMsg: ChatItem = {
       sender: "user",
       text: textToSend,
@@ -1004,6 +1075,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       images: imgUrls,
       senderName: userName || "អតិថិជន",
       time: timeStr,
+      timestamp: nowTs,
     };
 
     // Update UI immediately
@@ -1020,6 +1092,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           text: textToSend || (imgUrls.length > 0 ? `[User uploaded ${imgUrls.length} image(s)]` : ""),
           sessionId: activeSessionId,
           productInfo: productInfo || null,
+          image: imgUrls[0],
+          images: imgUrls.length > 0 ? imgUrls : undefined,
         },
         {
           userName: userName || "អតិថិជន",
@@ -1091,6 +1165,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         senderName: "S Tech AI",
         text: aiReplyText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: Date.now(),
         suggestAgent: shouldSuggestAgent,
       };
 

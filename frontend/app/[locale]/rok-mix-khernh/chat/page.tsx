@@ -892,6 +892,23 @@ export default function AdminRealtimeChatPage() {
                             </div>
                           )}
 
+                          {/* Attached Customer Uploads (Images) */}
+                          {((msg.images && msg.images.length > 0) || msg.image) && (
+                            <div className="mb-2.5 flex flex-wrap gap-1.5">
+                              {(msg.images && msg.images.length > 0 ? msg.images : [msg.image!]).map((imgSrc, imgIdx) => (
+                                <a
+                                  key={imgIdx}
+                                  href={imgSrc}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block rounded-lg overflow-hidden border border-gray-200/50 w-24 h-24 bg-black/5 hover:opacity-90 transition-opacity"
+                                >
+                                  <img src={imgSrc} alt={`Attachment ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
+
                           <div className="whitespace-pre-wrap">{msg.text}</div>
 
                           <div

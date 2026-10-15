@@ -15,6 +15,8 @@ export interface ChatMessage {
     image?: string;
     slug?: string;
   } | null;
+  image?: string;
+  images?: string[];
 }
 
 export interface ChatSession {
@@ -50,6 +52,29 @@ export function getOrCreateVisitorId(): string {
 }
 
 /**
+ * Resolves the active customer chatId consistently across all components (Mini App & Web)
+ */
+export function getActiveCustomerChatId(): string {
+  if (typeof window === "undefined") return "server_guest";
+  try {
+    const tg = (window as any).Telegram?.WebApp;
+    const tgUser = tg?.initDataUnsafe?.user;
+    if (tgUser?.id) {
+      return `tg_${tgUser.id}`;
+    }
+
+    const stored = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed?.id) return String(parsed.id).startsWith("tg_") || String(parsed.id).startsWith("user_") ? String(parsed.id) : `user_${parsed.id}`;
+      if (parsed?.uid) return String(parsed.uid).startsWith("tg_") || String(parsed.uid).startsWith("user_") ? String(parsed.uid) : `user_${parsed.uid}`;
+      if (parsed?.firebase_uid) return String(parsed.firebase_uid);
+    }
+  } catch {}
+  return getOrCreateVisitorId();
+}
+
+/**
  * Send a chat message into Firebase Realtime Database
  */
 export async function sendChatMessage(
@@ -60,6 +85,8 @@ export async function sendChatMessage(
     text: string;
     sessionId?: string | null;
     productInfo?: ChatMessage["productInfo"];
+    image?: string;
+    images?: string[];
   },
   meta?: {
     userName?: string;
@@ -76,7 +103,7 @@ export async function sendChatMessage(
   const newMsgRef = push(messagesRef);
   const now = Date.now();
 
-  const msgPayload = {
+  const msgPayload: Record<string, any> = {
     sender: message.sender,
     senderName: message.senderName,
     text: message.text,
@@ -84,6 +111,9 @@ export async function sendChatMessage(
     sessionId: message.sessionId || meta?.sessionId || null,
     productInfo: message.productInfo || null,
   };
+
+  if (message.image) msgPayload.image = message.image;
+  if (message.images && message.images.length > 0) msgPayload.images = message.images;
 
   await set(newMsgRef, msgPayload);
 

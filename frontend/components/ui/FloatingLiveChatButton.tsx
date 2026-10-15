@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { MessageSquare, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChatStore } from "@/store/chatStore";
-import { getOrCreateVisitorId, subscribeToChatMeta, markChatReadByUser } from "@/lib/services/chat.service";
+import { getActiveCustomerChatId, subscribeToChatMeta, markChatReadByUser } from "@/lib/services/chat.service";
 
 export default function FloatingLiveChatButton() {
   const { isOpen, openChat } = useChatStore();
@@ -13,8 +13,8 @@ export default function FloatingLiveChatButton() {
 
   useEffect(() => {
     try {
-      const visitorId = getOrCreateVisitorId();
-      const unsub = subscribeToChatMeta(visitorId, (meta) => {
+      const activeChatId = getActiveCustomerChatId();
+      const unsub = subscribeToChatMeta(activeChatId, (meta) => {
         if (meta && typeof meta.unreadUserCount === "number") {
           setUnreadCount(meta.unreadUserCount);
           if (meta.unreadUserCount > 0) {
@@ -37,8 +37,8 @@ export default function FloatingLiveChatButton() {
 
   const handleClick = () => {
     try {
-      const visitorId = getOrCreateVisitorId();
-      markChatReadByUser(visitorId).catch(() => {});
+      const activeChatId = getActiveCustomerChatId();
+      markChatReadByUser(activeChatId).catch(() => {});
     } catch (e) {}
     setUnreadCount(0);
     openChat();
