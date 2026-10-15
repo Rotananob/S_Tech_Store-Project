@@ -57,6 +57,53 @@ export const STATIC_SYSTEM_PROMPTS = [
   { label: "💳 ការទូទាត់ KHQR / COD", text: "តើហាងទទួលការទូទាត់តាមវិធីណាខ្លះ (KHQR/ABA/COD)?" },
   { label: "📞 ជជែកផ្ទាល់ជាមួយក្រុមការងារ", isAgent: true, text: "" },
 ];
+
+export const STATIC_FAQ_ANSWERS: Record<string, string> = {
+  "តើហាង S Tech Store មានសេវាដឹកជញ្ជូន និងសាខានៅឯណាខ្លះ?":
+    `🚚 **សេវាដឹកជញ្ជូន & ទីតាំងហាង S Tech Store:**\n\n` +
+    `• 🛵 **ក្នុងរាជធានីភ្នំពេញ:** តម្លៃដឹកត្រឹមតែ **$2.00** ប៉ុណ្ណោះ! ដឹកលឿនទាន់ចិត្តដល់មុខផ្ទះក្នុងថ្ងៃតែមួយ ឬក្រោម ២ ម៉ោង 📦⚡\n` +
+    `• 🚛 **តាមបណ្តាខេត្ត (២៥ ខេត្ត-ក្រុង):** តម្លៃដឹក **$3.00** តាមរយៈក្រុមហ៊ុនដឹកជញ្ជូនល្បីៗ (វីរៈប៊ុនថាំ VET, J&T Express, Capitol) ដឹកដល់ដៃក្នុងរយៈពេល ១ ទៅ ២ ថ្ងៃ 🚀\n` +
+    `• 🎉 **ប្រូម៉ូសិនពិសេស:** រាល់ការបញ្ជាទិញចាប់ពី **$50.00** ឡើងទៅ ហាងដឹកជញ្ជូនជូន **ឥតគិតថ្លៃ (FREE Delivery)**!\n\n` +
+    `📍 **ទីតាំងហាង:** រាជធានីភ្នំពេញ (បើកបម្រើ 8:00 AM ដល់ 8:00 PM រៀងរាល់ថ្ងៃ គ្មានថ្ងៃសម្រាក)\n` +
+    `📞 **លេខទំនាក់ទំនងបន្ទាន់:** \`012 345 678\` / \`098 765 432\``,
+
+  "តើហាងមានការធានាលើកុំព្យូទ័រ និងគ្រឿងបន្លាស់រយៈពេលប៉ុន្មាន?":
+    `🛡️ **គោលការណ៍ធានាគុណភាពផ្លូវការ (Official Warranty):**\n\n` +
+    `• 💻 **Laptops ថ្មី (Brand New):** ធានាផ្លូវការពីរោងចក្រ **១ ទៅ ៣ ឆ្នាំពេញ** (ASUS, Apple MacBook, Dell, Lenovo Legion, Acer, MSI)\n` +
+    `• 🖥️ **Custom PC & គ្រឿងបន្លាស់:** ធានារយៈពេល **១ ទៅ ៣ ឆ្នាំ** លើ CPU, GPU, Mainboard, RAM, SSD, Power Supply\n` +
+    `• 🔄 **គោលការណ៍ប្តូរថ្មី (Replacement):** ប្តូរថ្មីជូនក្នុងរយៈពេល **៧ ថ្ងៃ** ប្រសិនបើមានបញ្ហាបច្ចេកទេសពីរោងចក្រ\n\n` +
+    `✨ **សេវាកម្មឥតគិតថ្លៃពេញមួយជីវិត (Lifetime Support):**\n` +
+    `• សម្អាតធូលី & ប្តូរទឹកកម្ដៅ (Thermal Paste) ឥតគិតថ្លៃ\n` +
+    `• ជួយដំឡើង Windows 11 Pro License & កម្មវិធីការិយាល័យ Free\n` +
+    `• Support បច្ចេកទេស និងដោះស្រាយបញ្ហាតាម Telegram 24/7!`,
+
+  "ខ្ញុំចង់ដំឡើង PC សម្រាប់ Gaming និងកាត់ត តើហាងអាចជួយរៀបគ្រឿងបានទេ?":
+    `💻 **សេវាកម្មដំឡើង Custom PC តាមតម្រូវការ (PC Builder):**\n\n` +
+    `• 🎮 **Gaming & Streaming PC:** រៀបចំតាមកម្លាំងដែលបងចង់បាន (Core i5/i7/i9, AMD Ryzen 5/7/9, RTX 4060/4070/4080) លេងហ្គេមរលូន 100+ FPS!\n` +
+    `• 🎬 **PC កាត់តវីដេអូ & Graphic Design (Render/3D):** បំពាក់ RAM ធំ 32GB-64GB និង SSD M.2 NVMe Gen4 ល្បឿនខ្ពស់ រួមទាំងប្រព័ន្ធត្រជាក់ Liquid Cooler\n` +
+    `• 💼 **Office & Study PC:** ឈុតកុំព្យូទ័រតម្លៃសន្សំសំចៃ ចាប់ពី **$299** ឡើងទៅ\n\n` +
+    `🛠️ **ការថែមជូនពិសេស:**\n` +
+    `• ដំឡើងគ្រឿង និង Cable Management ស្អាតបាត ១០០%\n` +
+    `• ដំឡើង Windows 11 Pro License & Drivers ស្រេចមួយកំផ្លេ\n` +
+    `• 🎁 ថែម Mousepad ធំ, Power Cable និងសេវាដឹកដល់មុខផ្ទះ!`,
+
+  "តើបច្ចុប្បន្នហាងមាន Promotion ឬការបញ្ចុះតម្លៃពិសេសអ្វីខ្លះ?":
+    `🎁 **ប្រូម៉ូសិនពិសេស & Voucher បញ្ចុះតម្លៃនៅ S Tech Store:**\n\n` +
+    `• 🎟️ **Voucher ស្វាគមន៍ $5.00 (WELCOME5):** បញ្ចុះតម្លៃ $5.00 ភ្លាមៗសម្រាប់អតិថិជនថ្មីលើរាល់ការទិញ Laptop ឬគ្រឿងបន្លាស់\n` +
+    `• 🔥 **កូដបញ្ចុះតម្លៃ:** បំពេញកូដ \`STECH10\` ដើម្បីទទួលបានការបញ្ចុះ **10%** លើគ្រឿង Gaming & Accessories\n` +
+    `• 🚚 **Free Shipping:** ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ សម្រាប់ការកុម្ម៉ង់ចាប់ពី $50 ឡើងទៅ\n\n` +
+    `🎒 **កាដូថែមជូនពេលទិញ Laptop/PC:**\n` +
+    `• កាតាបស្ពាយធន់ទឹក (Laptop Backpack)\n` +
+    `• Mouse Wireless & Mousepad ធំ\n` +
+    `• Flash Drive ឬ USB Hub (តាមម៉ូឌែល)`,
+
+  "តើហាងទទួលការទូទាត់តាមវិធីណាខ្លះ (KHQR/ABA/COD)?":
+    `💳 **វិធីសាស្ត្រទូទាត់ប្រាក់នៅ S Tech Store:**\n\n` +
+    `• 🇰🇭 **KHQR / Bakong / ABA Pay:** ស្កេនទូទាត់ប្រាក់រហ័សទាន់ចិត្ត ងាយស្រួល និងគ្មានថ្លៃសេវាបន្ថែម (Zero Fee)\n` +
+    `• 💵 **ទូទាត់ពេលទំនិញដល់ដៃ (Cash on Delivery - COD):** ពិនិត្យទំនិញត្រឹមត្រូវរួច ទើបប្រគល់ប្រាក់ជូនអ្នកដឹកជញ្ជូន\n` +
+    `• 💰 **S-Tech Wallet:** ទូទាត់ចេញពីសមតុល្យកាបូបលុយផ្ទាល់ខ្លួន ទទួលបានការបញ្ចុះតម្លៃ និងពិន្ទុបន្ថែម (S-Coins)\n` +
+    `• 🔐 ប្រព័ន្ធទូទាត់មានសុវត្ថិភាពខ្ពស់កម្រិត 256-bit SSL Gateway ផ្ទៀងផ្ទាត់ដោយស្វ័យប្រវត្តិ!`,
+};
 // ─── Native Telegram Mini App & Mobile Haptic Feedback ───────────────────────
 export const triggerHaptic = (style: "light" | "medium" | "heavy" | "rigid" | "soft" = "light") => {
   if (typeof window !== "undefined") {
@@ -1317,6 +1364,87 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     }
   };
 
+  // ─── Instant Local-First Static FAQ Click Handler (Sub-50ms Response) ────────
+  const handleStaticPromptClick = (item: (typeof STATIC_SYSTEM_PROMPTS)[number]) => {
+    triggerHaptic("medium");
+
+    if (item.isAgent) {
+      // Guests are explicitly allowed to alert staff!
+      setShowAgentModal(true);
+      return;
+    }
+
+    if (!item.text) return;
+
+    // Check if we have an instant official local FAQ response
+    const instantAnswer = STATIC_FAQ_ANSWERS[item.text];
+
+    if (instantAnswer) {
+      const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const nowTs = Date.now();
+
+      // 1. Instantly display user question
+      const userMsg: ChatItem = {
+        sender: "user",
+        text: item.text,
+        senderName: userName || "អតិថិជន",
+        time: timeStr,
+        timestamp: nowTs,
+      };
+
+      // 2. Instantly prepare bot answer
+      const botMsg: ChatItem = {
+        sender: "bot",
+        senderName: "S Tech AI",
+        text: instantAnswer,
+        time: timeStr,
+        timestamp: nowTs + 50,
+        suggestAgent: false,
+      };
+
+      // Update UI state with both messages in lightning speed (< 50ms)
+      setMessages((prev) => [...prev, userMsg, botMsg]);
+
+      // 3. Non-blocking Firebase sync if customer has a live room
+      if (chatId) {
+        sendChatMessage(
+          chatId,
+          {
+            sender: "user",
+            senderName: userName || "អតិថិជន",
+            text: item.text,
+            sessionId: activeSessionId,
+          },
+          { userName: userName || "អតិថិជន", sessionId: activeSessionId }
+        ).catch(() => {});
+
+        setTimeout(() => {
+          sendChatMessage(
+            chatId,
+            {
+              sender: "bot",
+              senderName: "S Tech AI",
+              text: instantAnswer,
+              sessionId: activeSessionId,
+            },
+            { userName: userName || "អតិថិជន", sessionId: activeSessionId }
+          ).catch(() => {});
+        }, 80);
+      }
+
+      triggerHaptic("light");
+      return;
+    }
+
+    // Fallback to standard send (with login check for custom server prompts)
+    if (!isLoggedIn) {
+      showToast("🔒 សូមចូលគណនី (Login) ជាមុនសិន ដើម្បីជជែកជាមួយ AI ឬបុគ្គលិក!", "warning");
+      return;
+    }
+
+    handleSend(item.text);
+  };
+
   // ─── Human Agent Telegram Alert Submission ────────────────────────────────
   const handleRequestAgentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1788,43 +1916,74 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             </div>
 
             {/* Thinking HUD Box */}
-            <div className="flex-1 bg-gradient-to-br from-red-50/60 via-slate-50/50 to-amber-50/40 dark:from-[#181216] dark:via-[#13151f] dark:to-[#17141f] rounded-2xl rounded-tl-sm p-3.5 border border-red-500/20 dark:border-red-500/25 shadow-sm relative overflow-hidden">
+            <div className="flex-1 bg-gradient-to-br from-red-50/70 via-slate-50/70 to-amber-50/50 dark:from-[#181216] dark:via-[#13151f] dark:to-[#17141f] rounded-2xl rounded-tl-sm p-3.5 border border-red-500/25 dark:border-red-500/30 shadow-md relative overflow-hidden backdrop-blur-sm">
+              {/* Header with timer and live pulsing badge */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#8B1A1A] dark:bg-red-500 animate-ping" />
-                  <span className="font-extrabold text-xs bg-gradient-to-r from-[#8B1A1A] via-red-600 to-amber-600 bg-clip-text text-transparent">
-                    S Tech AI • កំពុងវិភាគ & គិតគូរ ({thinkingSeconds.toFixed(1)}s)
+                  <div className="relative flex items-center justify-center">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] dark:bg-red-500 animate-ping absolute" />
+                    <span className="w-2 h-2 rounded-full bg-[#8B1A1A] dark:bg-red-500 relative" />
+                  </div>
+                  <span className="font-extrabold text-xs bg-gradient-to-r from-[#8B1A1A] via-red-600 to-amber-600 bg-clip-text text-transparent flex items-center gap-1">
+                    <span>S Tech AI Core</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">({thinkingSeconds.toFixed(1)}s)</span>
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowThoughtProcess(!showThoughtProcess)}
-                  className="text-[10.5px] text-gray-500 hover:text-gray-800 dark:text-gray-400 font-semibold cursor-pointer underline"
-                >
-                  {showThoughtProcess ? "បិទដំណើរការគិត" : "មើលដំណើរការគិត"}
-                </button>
+                <span className="px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[10px] font-bold border border-red-200 dark:border-red-900/40">
+                  {thinkingSeconds < 1.8 ? "⚡ Phase 1/3" : thinkingSeconds < 3.8 ? "🔍 Phase 2/3" : "✨ Phase 3/3"}
+                </span>
               </div>
 
-              {showThoughtProcess && (
-                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-red-100 dark:border-white/10 text-[12px] text-gray-700 dark:text-gray-300">
-                  <div className="flex items-center gap-2 font-medium">
-                    <span className="text-gray-700 dark:text-gray-200">
-                      {thinkingSeconds < 1.6
-                        ? currentThinkingStep?.phase1 || "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បង..."
-                        : thinkingSeconds < 3.2
-                        ? currentThinkingStep?.phase2 || "🔎 ស្វែងរកទិន្នន័យបច្ចេកវិទ្យា និងព័ត៌មានហាងដែលសមស្រប..."
-                        : currentThinkingStep?.phase3 || "✍️ កំពុងរៀបចំចម្លើយយ៉ាងលម្អិតជូនបង..."}
-                    </span>
-                  </div>
-
-                  {/* Animated Wave Bars */}
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <div className="h-1.5 w-8 rounded-full bg-[#8B1A1A] animate-pulse" />
-                    <div className="h-1.5 w-14 rounded-full bg-red-500 animate-pulse [animation-delay:0.2s]" />
-                    <div className="h-1.5 w-20 rounded-full bg-amber-500 animate-pulse [animation-delay:0.4s]" />
-                  </div>
+              {/* Progressive 3-Step Flow Indicators */}
+              <div className="grid grid-cols-3 gap-1.5 mb-2">
+                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold text-center transition-all ${
+                  thinkingSeconds >= 0 ? "bg-[#8B1A1A] text-white shadow-xs" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                }`}>
+                  1. វិភាគសំណួរ
                 </div>
-              )}
+                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold text-center transition-all ${
+                  thinkingSeconds >= 1.8 ? "bg-[#8B1A1A] text-white shadow-xs" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                }`}>
+                  2. ទិន្នន័យហាង
+                </div>
+                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold text-center transition-all ${
+                  thinkingSeconds >= 3.8 ? "bg-emerald-600 text-white shadow-xs" : "bg-gray-100 dark:bg-white/5 text-gray-400"
+                }`}>
+                  3. រៀបចំចម្លើយ
+                </div>
+              </div>
+
+              {/* Dynamic Contextual Thought Text */}
+              <div className="flex flex-col gap-1.5 pt-2 border-t border-red-100 dark:border-white/10 text-[12px] text-gray-800 dark:text-gray-200">
+                <div className="flex items-start gap-2">
+                  <Sparkles size={14} className="text-[#8B1A1A] dark:text-red-400 shrink-0 mt-0.5 animate-spin [animation-duration:4s]" />
+                  <span className="leading-relaxed font-medium">
+                    {thinkingSeconds < 1.8
+                      ? currentThinkingStep?.phase1 || "⚡ S Tech AI កំពុងវិភាគសំណួររបស់បងយ៉ាងយកចិត្តទុកដាក់..."
+                      : thinkingSeconds < 3.8
+                      ? currentThinkingStep?.phase2 || "🔍 កំពុងស្វែងរកទិន្នន័យស្តុក ព័ត៌មានបច្ចេកវិទ្យា និងតម្លៃផ្លូវការ..."
+                      : currentThinkingStep?.phase3 || "✍️ កំពុងផ្ទៀងផ្ទាត់ និងរៀបចំចម្លើយយ៉ាងក្បោះក្បាយជូនបង..."}
+                  </span>
+                </div>
+
+                {/* Entertaining Live Context / Tip if server takes a moment */}
+                {thinkingSeconds >= 3.0 && (
+                  <div className="mt-1 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 animate-in fade-in">
+                    <Clock size={12} className="shrink-0 text-amber-600 dark:text-amber-400 animate-pulse" />
+                    <span>💡 <b>គន្លឹះ៖</b> ហាងមានសេវាដឹកជូនឥតគិតថ្លៃសម្រាប់ការកុម្ម៉ង់ $50+ និងធានាផ្លូវការ ១-៣ ឆ្នាំ!</span>
+                  </div>
+                )}
+
+                {/* Animated Progressive HUD Progress Bar */}
+                <div className="w-full bg-gray-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden mt-2 relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#8B1A1A] via-red-500 to-amber-500 transition-all duration-300 rounded-full"
+                    style={{
+                      width: `${Math.min(96, Math.max(15, (thinkingSeconds / 4.5) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
@@ -1842,21 +2001,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
           <button
             key={idx}
             type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              if (item.isAgent) {
-                // Guests are explicitly allowed to alert staff!
-                setShowAgentModal(true);
-              } else {
-                if (!isLoggedIn) {
-                  showToast("🔒 សូមចូលគណនី (Login) ជាមុនសិន ដើម្បីជជែកជាមួយ AI ឬបុគ្គលិក!", "warning");
-                  return;
-                }
-                if (item.text) {
-                  handleSend(item.text);
-                }
-              }
-            }}
+            onClick={() => handleStaticPromptClick(item)}
             className="px-2.5 py-1 rounded-full bg-white dark:bg-white/10 hover:bg-red-50 dark:hover:bg-white/15 text-gray-700 dark:text-gray-200 hover:text-[#8B1A1A] dark:hover:text-red-400 text-[11px] font-bold border border-gray-200/60 dark:border-white/10 shadow-xs shrink-0 transition-all cursor-pointer whitespace-nowrap active:scale-95"
           >
             {item.label}

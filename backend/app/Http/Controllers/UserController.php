@@ -1932,6 +1932,15 @@ class UserController extends Controller
             ?: $request->query('tg_token')
             ?: $request->query('token');
 
+        if (empty($chatId) && !empty($token)) {
+            if (is_numeric($token) || str_starts_with($token, 'tg_')) {
+                $clean = preg_replace('/\D/', '', $token);
+                if (!empty($clean)) {
+                    $chatId = $clean;
+                }
+            }
+        }
+
         $user = null;
         if (!empty($token)) {
             $sessUserId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
@@ -1948,6 +1957,15 @@ class UserController extends Controller
             $user = UserProfile::where('firebase_uid', $uid)
                 ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
                 ->first();
+        }
+
+        if (!$user && !empty($token)) {
+            $cleanToken = preg_replace('/\D/', '', $token);
+            if (!empty($cleanToken)) {
+                $user = UserProfile::where('telegram_chat_id', $cleanToken)
+                    ->orWhere('firebase_uid', 'tg_' . $cleanToken)
+                    ->first();
+            }
         }
 
         if ($user && !empty($user->telegram_chat_id) && !$chatId) {

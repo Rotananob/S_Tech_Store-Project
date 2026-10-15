@@ -3923,10 +3923,14 @@ class TelegramService
         $cleanChatId = preg_replace('/\D/', '', $chatId) ?: $chatId;
         $user = $user ?: self::resolveActiveUser((string)$cleanChatId);
 
-        $userIds = ['tg_' . $cleanChatId, 'tg_' . $chatId];
+        $userIds = ['tg_' . $cleanChatId, 'tg_' . $chatId, (string)$cleanChatId, (string)$chatId];
         if ($user) {
             if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
             if (!empty($user->id)) $userIds[] = (string)$user->id;
+            if (!empty($user->telegram_chat_id)) {
+                $userIds[] = (string)$user->telegram_chat_id;
+                $userIds[] = 'tg_' . $user->telegram_chat_id;
+            }
             if (!empty($user->email)) {
                 $siblingUids = \App\Models\UserProfile::where('email', $user->email)
                     ->pluck('firebase_uid')

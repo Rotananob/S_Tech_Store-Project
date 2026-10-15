@@ -90,5 +90,15 @@ export default function TrafficTracker() {
     }
   }, [pathname]);
 
+  // Keep-alive heartbeat: Ensures Render backend never spins down while active users browse
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    fetch("/api/cron/keepalive", { cache: "no-store" }).catch(() => {});
+    const interval = setInterval(() => {
+      fetch("/api/cron/keepalive", { cache: "no-store" }).catch(() => {});
+    }, 8 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return null;
 }

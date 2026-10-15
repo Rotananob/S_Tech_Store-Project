@@ -160,10 +160,17 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-      const tgToken = urlParams?.get("tg_token") || urlParams?.get("token");
+      let tgToken = urlParams?.get("tg_token") || urlParams?.get("token");
+      if (!tgToken && typeof window !== "undefined") {
+        const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+        if (tgUser?.id) {
+          tgToken = String(tgUser.id);
+        }
+      }
 
       const res = await api.get("/user/orders", {
         params: tgToken ? { tg_token: tgToken } : undefined,
+        headers: tgToken ? { "X-Telegram-Chat-ID": tgToken } : undefined,
       });
       const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
       setOrders(list);
