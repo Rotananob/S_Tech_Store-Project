@@ -968,6 +968,56 @@ Route::get('/auth/telegram/poll-phone-sync', function (Request $request) {
     return response()->json(['success' => false, 'status' => 'pending']);
 });
 
+// Generate Location Sync Code for Website Users
+Route::post('/auth/telegram/generate-location-sync', function (Request $request) {
+    $code = 'LS_' . strtoupper(\Illuminate\Support\Str::random(8));
+    \Illuminate\Support\Facades\Cache::put("tg_loc_sync_active_{$code}", true, 600);
+    $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
+    return response()->json([
+        'success' => true,
+        'sync_code' => $code,
+        'bot_url' => "https://t.me/{$botUsername}?start=syncloc_{$code}",
+    ]);
+});
+
+// Poll Location Sync result for Website Users
+Route::get('/auth/telegram/poll-location-sync', function (Request $request) {
+    $code = trim((string)$request->query('code'));
+    if (!$code) return response()->json(['success' => false], 400);
+
+    $loc = \Illuminate\Support\Facades\Cache::get("tg_loc_sync_result_{$code}");
+    if ($loc) {
+        return response()->json(['success' => true, 'location' => $loc]);
+    }
+    return response()->json(['success' => false, 'status' => 'pending']);
+});
+
+// Get Latest Saved Location for Telegram User
+Route::get('/auth/telegram/latest-location', function (Request $request) {
+    $tgId = trim((string)$request->query('telegram_id'));
+    if (!$tgId) return response()->json(['success' => false]);
+
+    $loc = \Illuminate\Support\Facades\Cache::get("tg_latest_loc_{$tgId}");
+    if ($loc) {
+        return response()->json(['success' => true, 'location' => $loc]);
+    }
+
+    $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
+        ->orWhere('firebase_uid', 'tg_' . $tgId)
+        ->first();
+    if ($user && (!empty($user->latitude) || !empty($user->address))) {
+        return response()->json([
+            'success' => true,
+            'location' => [
+                'address' => $user->address ?? '',
+                'lat' => $user->latitude ?? null,
+                'lng' => $user->longitude ?? null,
+            ]
+        ]);
+    }
+    return response()->json(['success' => false]);
+});
+
 // Official TikTok OAuth Redirect & Callback (100% Free - TikTok Login Kit)
 Route::get('/auth/tiktok/redirect', function (Request $request) {
     $clientKey = env('TIKTOK_CLIENT_KEY') ?: 'aw19o3ok60albxxy';

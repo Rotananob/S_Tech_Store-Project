@@ -176,6 +176,7 @@ export default function CheckoutPage() {
   const [profileAutoFilled, setProfileAutoFilled] = useState(false);
 
   // GPS & Live Location states (1-Click Supreme Location)
+  const [activeLocationMode, setActiveLocationMode] = useState<"google" | "telegram">("google");
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsError, setGpsError] = useState("");
@@ -183,6 +184,12 @@ export default function CheckoutPage() {
   const [showManualPasteInput, setShowManualPasteInput] = useState(false);
   const [manualLinkInput, setManualLinkInput] = useState("");
   const [manualPasteLoading, setManualPasteLoading] = useState(false);
+  const [telegramLocLoading, setTelegramLocLoading] = useState(false);
+  const [showTelegramLocModal, setShowTelegramLocModal] = useState(false);
+  const [telegramLocSyncCode, setTelegramLocSyncCode] = useState("");
+  const [telegramLocBotUrl, setTelegramLocBotUrl] = useState("");
+  const telegramLocPollRef = useRef<NodeJS.Timeout | null>(null);
+  const gpsWatchdogRef = useRef<NodeJS.Timeout | null>(null);
 
   // Card payment form state
   const [cardNumber, setCardNumber] = useState("");
@@ -339,6 +346,8 @@ export default function CheckoutPage() {
       if (pollingRef.current) clearInterval(pollingRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
       if (phoneSyncPollRef.current) clearInterval(phoneSyncPollRef.current);
+      if (telegramLocPollRef.current) clearInterval(telegramLocPollRef.current);
+      if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
     };
   }, []);
 
@@ -546,15 +555,23 @@ export default function CheckoutPage() {
     lng: number,
     sourceLabel: string = "Auto-Location"
   ) => {
+    if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
     setGpsCoords({ lat, lng });
     const isPhnomPenh = lat >= 11.40 && lat <= 11.75 && lng >= 104.75 && lng <= 105.10;
     setDelivery(isPhnomPenh ? "pnompenh" : "province");
 
     try {
+      const ctrl = new AbortController();
+      const fetchTimer = setTimeout(() => ctrl.abort(), 3500);
+
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-        { headers: { "Accept-Language": "km,en" } }
+        { 
+          headers: { "Accept-Language": "km,en" },
+          signal: ctrl.signal
+        }
       );
+      clearTimeout(fetchTimer);
       const data = await res.json();
       if (data && data.display_name) {
         const addrObj = data.address || {};
@@ -567,81 +584,169 @@ export default function CheckoutPage() {
         const humanAddr = parts.length > 0 ? parts.join(", ") : data.display_name;
 
         setAddress(humanAddr);
-        setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងស្វ័យប្រវត្តជោគជ័យ (${sourceLabel}): ${isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : (city || "បណ្តាខេត្ត") + " ($3.00)"}`);
+        setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងជោគជ័យ (${sourceLabel}): ${isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : (city || "បណ្តាខេត្ត") + " ($3.00)"}`);
       } else {
         setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ GPS (${lat.toFixed(4)}, ${lng.toFixed(4)}) ជោគជ័យ`);
+        setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ (${lat.toFixed(4)}, ${lng.toFixed(4)}) ជោគជ័យ`);
       }
     } catch {
       setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
       setLocationSuccessMsg(`📍 បានកំណត់កូអរដោនេ GPS ជោគជ័យ`);
     } finally {
+      if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
       setGpsLoading(false);
       setManualPasteLoading(false);
+      setTelegramLocLoading(false);
     }
   };
 
-  // ─── Browser Native GPS Geolocation ───────────────────────────────────────────
+  // ─── Browser Native GPS Geolocation with Watchdog ──────────────────────────────
   const triggerBrowserGPS = () => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       setGpsLoading(false);
-      setGpsError("កម្មវិធីរុករក (Browser) មិនគាំទ្រប្រព័ន្ធ GPS ឡើយ");
+      setGpsError("កម្មវិធីរុករក (Browser) មិនគាំទ្រប្រព័ន្ធ GPS ឡើយ (សូមប្រើ Google Maps ឬ Telegram)");
       return;
     }
 
+    if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
+    gpsWatchdogRef.current = setTimeout(() => {
+      setGpsLoading(false);
+      setGpsError("ការចាប់យក GPS លើសពេលកំណត់! សូមចុចបើក Google Maps ដើម្បីជ្រើសរើស ឬយកពី Telegram");
+    }, 6500);
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        await applyCoordinatesAndReverseGeocode(pos.coords.latitude, pos.coords.longitude, "Browser GPS");
+        if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
+        await applyCoordinatesAndReverseGeocode(pos.coords.latitude, pos.coords.longitude, "Google Maps GPS");
       },
       (err) => {
+        if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
         setGpsLoading(false);
         let msg = "មិនអាចចាប់យកទីតាំង GPS បានទេ";
-        if (err.code === 1) msg = "សូមអនុញ្ញាតសិទ្ធិចូលប្រើទីតាំង (Location Permission) ក្នុង Browser";
-        else if (err.code === 2) msg = "សញ្ញា GPS មិនច្បាស់លាស់ សូមសាកល្បងម្ដងទៀត";
-        else if (err.code === 3) msg = "ការចាប់យកទីតាំងលើសពេលកំណត់ (GPS Timeout)";
+        if (err.code === 1) msg = "សូមអនុញ្ញាតសិទ្ធិចូលប្រើទីតាំង (Location Permission) ក្នុង Browser ឬជ្រើសរើស Google Maps Link / Telegram";
+        else if (err.code === 2) msg = "សញ្ញា GPS មិនច្បាស់លាស់ សូមសាកល្បងម្ដងទៀត ឬយកពី Telegram";
+        else if (err.code === 3) msg = "ការចាប់យកទីតាំងលើសពេលកំណត់ សូមជ្រើសរើស Google Maps Link ឬយកពី Telegram";
         setGpsError(msg);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
     );
   };
 
-  // ─── 1-Click Supreme Auto-Locate (Telegram Mini App 8.0 -> Clipboard -> GPS) ──
+  // ─── Telegram Location Sync (Mini App & Website) ───────────────────────────
+  const handleGetTelegramLocation = async () => {
+    setGpsError("");
+    setLocationSuccessMsg("");
+    setTelegramLocLoading(true);
+
+    const tg = typeof window !== "undefined" ? (window as any).Telegram?.WebApp : null;
+    const tgUser = tg?.initDataUnsafe?.user;
+    const effective = getEffectiveUser();
+    const tgId = tgUser?.id || (effective as any)?.telegram_id || (effective as any)?.telegram_chat_id;
+
+    // 1. In Telegram Mini App (Bot API 8.0 LocationManager)
+    const lm = tg?.LocationManager;
+    if (lm && typeof lm.init === "function") {
+      let lmFinished = false;
+      const lmTimer = setTimeout(() => {
+        if (!lmFinished) {
+          fallbackTelegramLocWebsite(tgId);
+        }
+      }, 3500);
+
+      try {
+        lm.init(() => {
+          if (lmFinished) return;
+          if (lm.isInited && lm.isLocationAvailable) {
+            lm.getLocation(async (loc: any) => {
+              lmFinished = true;
+              clearTimeout(lmTimer);
+              if (loc && loc.latitude && loc.longitude) {
+                await applyCoordinatesAndReverseGeocode(loc.latitude, loc.longitude, "Telegram Location");
+              } else {
+                fallbackTelegramLocWebsite(tgId);
+              }
+            });
+          } else {
+            lmFinished = true;
+            clearTimeout(lmTimer);
+            fallbackTelegramLocWebsite(tgId);
+          }
+        });
+        return;
+      } catch (_) {
+        lmFinished = true;
+        clearTimeout(lmTimer);
+        fallbackTelegramLocWebsite(tgId);
+        return;
+      }
+    }
+
+    // 2. On Website / Desktop Browser
+    await fallbackTelegramLocWebsite(tgId);
+  };
+
+  const fallbackTelegramLocWebsite = async (tgId?: string | number) => {
+    // A. Check if user already has location saved in profile or cache
+    try {
+      const resp = await api.get(`/auth/telegram/latest-location?telegram_id=${tgId || ""}`);
+      if (resp.data?.success && resp.data?.location) {
+        const l = resp.data.location;
+        if (l.lat && l.lng) {
+          await applyCoordinatesAndReverseGeocode(Number(l.lat), Number(l.lng), "Telegram Profile");
+        } else if (l.address) {
+          setAddress(l.address);
+          setLocationSuccessMsg("📍 បានទាញយកអាសយដ្ឋានពីគណនី Telegram របស់អ្នកជោគជ័យ!");
+          setTelegramLocLoading(false);
+        }
+        return;
+      }
+    } catch (_) {}
+
+    // B. Generate 1-click sync link to open the Customer Bot
+    try {
+      const genRes = await api.post("/auth/telegram/generate-location-sync");
+      if (genRes.data?.success && genRes.data?.sync_code) {
+        const syncCode = genRes.data.sync_code;
+        const botUrl = genRes.data.bot_url;
+        setTelegramLocSyncCode(syncCode);
+        setTelegramLocBotUrl(botUrl);
+        setShowTelegramLocModal(true);
+        setTelegramLocLoading(false);
+
+        // Start polling /auth/telegram/poll-location-sync every 1s
+        if (telegramLocPollRef.current) clearInterval(telegramLocPollRef.current);
+        telegramLocPollRef.current = setInterval(async () => {
+          try {
+            const pollRes = await api.get(`/auth/telegram/poll-location-sync?code=${syncCode}`);
+            if (pollRes.data?.success && pollRes.data?.location) {
+              if (telegramLocPollRef.current) clearInterval(telegramLocPollRef.current);
+              setShowTelegramLocModal(false);
+              const loc = pollRes.data.location;
+              if (loc.lat && loc.lng) {
+                await applyCoordinatesAndReverseGeocode(Number(loc.lat), Number(loc.lng), "Telegram Bot Pin");
+              } else if (loc.address) {
+                setAddress(loc.address);
+                setLocationSuccessMsg("📍 បានទទួលទីតាំងពី Telegram ជោគជ័យ!");
+                setTelegramLocLoading(false);
+              }
+            }
+          } catch (_) {}
+        }, 1000);
+      } else {
+        setTelegramLocLoading(false);
+      }
+    } catch (_) {
+      setTelegramLocLoading(false);
+    }
+  };
+
+  // ─── 1-Click Supreme Auto-Locate ──────────────────────────────────────────────
   const handle1ClickAutoLocate = async () => {
     setGpsLoading(true);
     setGpsError("");
     setLocationSuccessMsg("");
 
-    // 1. Check Telegram Mini App LocationManager (Bot API 8.0+)
-    const tg = typeof window !== "undefined" ? (window as any).Telegram?.WebApp : null;
-    const lm = tg?.LocationManager;
-
-    if (lm && typeof lm.init === "function") {
-      try {
-        lm.init(() => {
-          if (lm.isInited && lm.isLocationAvailable) {
-            lm.getLocation(async (loc: any) => {
-              if (loc && loc.latitude && loc.longitude) {
-                await applyCoordinatesAndReverseGeocode(loc.latitude, loc.longitude, "Telegram Location");
-                return;
-              }
-              proceedWithClipboardOrBrowser();
-            });
-            return;
-          }
-          proceedWithClipboardOrBrowser();
-        });
-        return;
-      } catch (_) {
-        proceedWithClipboardOrBrowser();
-        return;
-      }
-    }
-
-    proceedWithClipboardOrBrowser();
-  };
-
-  const proceedWithClipboardOrBrowser = async () => {
-    // 2. Check Clipboard for copied Google Maps or Telegram pin link
+    // Check Clipboard for copied Google Maps or Telegram pin link
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard && typeof navigator.clipboard.readText === "function") {
         const clipText = await navigator.clipboard.readText();
@@ -653,7 +758,7 @@ export default function CheckoutPage() {
       }
     } catch (_) {}
 
-    // 3. Fallback to Browser GPS
+    // Fallback to Browser GPS
     triggerBrowserGPS();
   };
 
@@ -1432,33 +1537,127 @@ export default function CheckoutPage() {
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
                       អាសយដ្ឋានដឹកជញ្ជូនលម្អិត (Delivery Address) *
                     </label>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Supreme 1-Click Auto Locate Button */}
+
+                    {/* ── 2 Options Selector: Google Maps vs Telegram Location ── */}
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200/80 dark:border-white/10">
                       <button
                         type="button"
-                        onClick={handle1ClickAutoLocate}
-                        disabled={gpsLoading}
-                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black border-none transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-sm shadow-emerald-600/30 disabled:opacity-60"
-                        title="ចាប់យកទីតាំងស្វ័យប្រវត្តក្នុង ១ ចុច (Telegram Mini App / Browser GPS)"
+                        onClick={() => {
+                          setActiveLocationMode("google");
+                          setGpsError("");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          activeLocationMode === "google"
+                            ? "bg-white dark:bg-[#181d28] text-emerald-600 dark:text-emerald-400 shadow-xs border border-emerald-500/30"
+                            : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
+                        }`}
                       >
-                        {gpsLoading ? (
-                          <Loader2 size={13} className="animate-spin text-white" />
-                        ) : (
-                          <LocateFixed size={13} className="text-white animate-pulse" />
-                        )}
-                        <span>{gpsLoading ? "កំពុងចាប់ទីតាំង..." : "📍 ចាប់យកទីតាំងស្វ័យប្រវត្ត (1-Click)"}</span>
+                        <Map size={13} className="text-emerald-500" />
+                        <span>Google Maps</span>
                       </button>
 
-                      {/* Subtle Manual Paste Toggle */}
                       <button
                         type="button"
-                        onClick={() => setShowManualPasteInput((prev) => !prev)}
-                        className="text-[11px] font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline cursor-pointer px-1 py-0.5"
+                        onClick={() => {
+                          setActiveLocationMode("telegram");
+                          setGpsError("");
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          activeLocationMode === "telegram"
+                            ? "bg-white dark:bg-[#181d28] text-sky-600 dark:text-sky-400 shadow-xs border border-sky-500/30"
+                            : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
+                        }`}
                       >
-                        {showManualPasteInput ? "បិទ" : "បិទភ្ជាប់ Link ទីតាំង"}
+                        <Send size={13} className="text-sky-500 rotate-[-20deg]" />
+                        <span>Telegram Location</span>
                       </button>
                     </div>
                   </div>
+
+                  {/* ── Option 1: Google Maps Sub-bar ── */}
+                  {activeLocationMode === "google" && (
+                    <div className="mb-2.5 p-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Browser GPS button with Watchdog */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGpsLoading(true);
+                            setGpsError("");
+                            setLocationSuccessMsg("");
+                            triggerBrowserGPS();
+                          }}
+                          disabled={gpsLoading}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
+                          title="ចាប់យកទីតាំងតាម Browser GPS"
+                        >
+                          {gpsLoading ? (
+                            <Loader2 size={13} className="animate-spin text-white" />
+                          ) : (
+                            <LocateFixed size={13} className="text-white animate-pulse" />
+                          )}
+                          <span>{gpsLoading ? "កំពុងចាប់ទីតាំង..." : "📍 ចាប់យកទីតាំង (GPS 1-Click)"}</span>
+                        </button>
+
+                        {/* Open Google Maps in new tab to pick pin */}
+                        <a
+                          href="https://www.google.com/maps"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#12151e] border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 text-emerald-800 dark:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer no-underline"
+                          title="បើកគេហទំព័រ Google Maps ដើម្បីរើស និងចម្លង Link ទីតាំង"
+                        >
+                          <Globe size={13} className="text-emerald-600 dark:text-emerald-400" />
+                          <span>បើក Google Maps រើសទីតាំង</span>
+                          <ExternalLink size={10} />
+                        </a>
+                      </div>
+
+                      {/* Paste toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowManualPasteInput((prev) => !prev)}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 underline cursor-pointer px-1 py-0.5"
+                      >
+                        {showManualPasteInput ? "បិទ" : "📋 បិទភ្ជាប់ Link Maps"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Option 2: Telegram Location Sub-bar ── */}
+                  {activeLocationMode === "telegram" && (
+                    <div className="mb-2.5 p-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40 flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Telegram Sync Button */}
+                        <button
+                          type="button"
+                          onClick={handleGetTelegramLocation}
+                          disabled={telegramLocLoading}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
+                          title="យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"
+                        >
+                          {telegramLocLoading ? (
+                            <Loader2 size={13} className="animate-spin text-white" />
+                          ) : (
+                            <Send size={13} className="text-white rotate-[-20deg]" />
+                          )}
+                          <span>{telegramLocLoading ? "កំពុងទាញ..." : "✈️ យកទីតាំងពី Telegram (1-Click)"}</span>
+                        </button>
+
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400 hidden sm:inline">
+                          (ទាញពី Profile ឬចែករំលែក Pin ក្នុង Bot)
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowManualPasteInput((prev) => !prev)}
+                        className="text-[11px] font-bold text-sky-700 hover:text-sky-900 dark:text-sky-300 underline cursor-pointer px-1 py-0.5"
+                      >
+                        {showManualPasteInput ? "បិទ" : "📋 បិទភ្ជាប់ Pin Link"}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Optional Inline Paste Input (Zero Intrusive Popup) */}
                   {showManualPasteInput && (
@@ -2388,6 +2587,76 @@ export default function CheckoutPage() {
                 <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
                 <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
                   កំពុងរង់ចាំការចែករំលែកលេខទូរស័ព្ទ...
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Telegram Location Sync Modal (For Website Users) ── */}
+      <AnimatePresence>
+        {showTelegramLocModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white dark:bg-[#151922] w-full max-w-sm rounded-3xl p-6 shadow-2xl relative border border-gray-100 dark:border-white/10 text-center"
+            >
+              <button
+                onClick={() => {
+                  setShowTelegramLocModal(false);
+                  if (telegramLocPollRef.current) clearInterval(telegramLocPollRef.current);
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <MapPin size={24} />
+              </div>
+
+              <h3 className="text-base font-black text-gray-900 dark:text-white mb-1">
+                ភ្ជាប់ទីតាំងពី Telegram
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                សូមចុចប៊ូតុងខាងក្រោមដើម្បីបើក Telegram Bot រួចចុច &ldquo;Share Location&rdquo; នោះប្រព័ន្ធនឹងបំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូល Checkout នេះភ្លាមៗ!
+              </p>
+
+              {/* 1-Tap Deep Link Button */}
+              {telegramLocBotUrl && (
+                <div className="space-y-3">
+                  <a
+                    href={telegramLocBotUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-600 via-blue-600 to-sky-600 hover:from-sky-700 hover:to-blue-700 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition-all flex items-center justify-center gap-2 no-underline active:scale-95"
+                  >
+                    <Send size={14} className="rotate-[-20deg]" />
+                    <span>បើក Telegram Bot ឥឡូវនេះ (1-Tap Open)</span>
+                  </a>
+
+                  {/* QR Code preview for desktop scanning */}
+                  <div className="p-3 bg-white dark:bg-black/30 rounded-2xl border border-gray-200 dark:border-white/10 inline-block shadow-inner">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(telegramLocBotUrl)}`}
+                      alt="Telegram Location QR"
+                      className="w-36 h-36 mx-auto object-contain"
+                    />
+                    <div className="text-[10px] text-gray-400 mt-1 font-mono">
+                      ស្កេនពីទូរស័ព្ទ (Scan to Share Location)
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Radar Polling Status Indicator */}
+              <div className="mt-4 py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
+                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                  កំពុងរង់ចាំការចែករំលែកទីតាំង...
                 </span>
               </div>
             </motion.div>

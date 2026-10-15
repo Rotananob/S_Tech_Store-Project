@@ -59,3 +59,4 @@ backend/storage/*.key
 cloudflared.exe
 *.sqlite
 *.sqlite3
+.agent_tasks/

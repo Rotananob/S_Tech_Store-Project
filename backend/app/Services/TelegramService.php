@@ -1493,6 +1493,68 @@ class TelegramService
             }
         }
 
+        // 3.2 Handle Location Sharing (Direct Customer Telegram Pin capture)
+        if (!empty($message['location'])) {
+            $location = $message['location'];
+            $lat = (float)($location['latitude'] ?? 0);
+            $lng = (float)($location['longitude'] ?? 0);
+            if ($lat != 0 && $lng != 0) {
+                $contactUserId = (string)($from['id'] ?? $chatId);
+                $isPhnomPenh = $lat >= 11.40 && $lat <= 11.75 && $lng >= 104.75 && $lng <= 105.10;
+                $humanAddr = "ទីតាំង GPS ({$lat}, {$lng})";
+
+                $locData = [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'address' => $humanAddr,
+                    'delivery_type' => $isPhnomPenh ? 'pnompenh' : 'province',
+                ];
+
+                // Cache location for instant 0ms real-time client retrieval
+                \Illuminate\Support\Facades\Cache::put("tg_latest_loc_{$contactUserId}", $locData, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_loc_{$chatId}", $locData, 600);
+
+                $webSyncCode = \Illuminate\Support\Facades\Cache::get("tg_loc_sync_user_{$contactUserId}") 
+                    ?: \Illuminate\Support\Facades\Cache::get("tg_loc_sync_user_{$chatId}");
+                if ($webSyncCode) {
+                    \Illuminate\Support\Facades\Cache::put("tg_loc_sync_result_{$webSyncCode}", $locData, 600);
+                }
+
+                $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $contactUserId)
+                    ->orWhere('telegram_chat_id', $contactUserId)
+                    ->first();
+                if ($user) {
+                    $user->latitude = $lat;
+                    $user->longitude = $lng;
+                    $user->save();
+                }
+
+                $mapsUrl = "https://www.google.com/maps?q={$lat},{$lng}";
+                $respMsg = "📍 <b>ទទួលបានទីតាំងដឹកជញ្ជូនជោគជ័យ!</b>\n\n"
+                    . "• 👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
+                    . "• 🌐 <b>កូអរដោនេ:</b> <code>{$lat}, {$lng}</code>\n"
+                    . "• 🚚 <b>តំបន់ដឹកជញ្ជូន:</b> <b>" . ($isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : "បណ្តាខេត្ត ($3.00)") . "</b>\n\n"
+                    . "✅ ព័ត៌មាននេះត្រូវបានបំពេញស្វ័យប្រវត្តិចូលក្នុងផ្ទាំង Checkout លើ Website រួចរាល់ហើយ!\n\n"
+                    . "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីត្រឡប់ទៅ Checkout បញ្ចប់ការកម្ម៉ង់ទិញ៖";
+
+                $directUrl = "https://www.s-tech-store.tech/checkout";
+                $sessionToken = $user ? self::generateCustomerSessionToken((string)$contactUserId, $fromName) : null;
+                if ($sessionToken) {
+                    $directUrl = "https://www.s-tech-store.tech/checkout?tg_token={$sessionToken}";
+                }
+
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ត្រឡប់ទៅ Checkout បញ្ចប់ការទិញ', 'web_app' => ['url' => $directUrl]]],
+                        [['text' => '🗺️ មើលទីតាំងលើ Google Maps', 'url' => $mapsUrl]],
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $respMsg, $replyMarkup, 'HTML', null, $activeToken);
+                return;
+            }
+        }
+
         // Check if bot was added as new chat member in group
         if (!empty($message['new_chat_members'])) {
             foreach ($message['new_chat_members'] as $newMember) {
@@ -2051,6 +2113,67 @@ class TelegramService
                 'resize_keyboard' => true,
                 'one_time_keyboard' => true,
             ];
+            self::sendMessageWithKeyboard($chatId, $msg, $replyMarkup, 'HTML', null, $activeToken);
+            return;
+        }
+
+        // 4.2.2 Handle Website 1-Click Location Sync (syncloc_...)
+        if ($extractedCode && (str_starts_with($extractedCode, 'syncloc_') || str_starts_with($extractedCode, 'SYNCLOC_'))) {
+            $syncCode = trim(substr($extractedCode, 8)); // e.g. LS_ABC12345
+            $tgId = (string)($from['id'] ?? $chatId);
+            $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
+
+            // Associate this user and chat with the sync code
+            \Illuminate\Support\Facades\Cache::put("tg_loc_sync_user_{$tgId}", $syncCode, 600);
+            \Illuminate\Support\Facades\Cache::put("tg_loc_sync_user_{$chatId}", $syncCode, 600);
+
+            // Check if we already have this user's location in cache or DB
+            $existingLoc = \Illuminate\Support\Facades\Cache::get("tg_latest_loc_{$tgId}");
+            if (!$existingLoc) {
+                $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
+                    ->orWhere('firebase_uid', 'tg_' . $tgId)
+                    ->first();
+                if ($user && (!empty($user->latitude) || !empty($user->address))) {
+                    $existingLoc = [
+                        'lat' => $user->latitude ?? null,
+                        'lng' => $user->longitude ?? null,
+                        'address' => $user->address ?? "ទីតាំងពី Profile Telegram",
+                    ];
+                }
+            }
+
+            if ($existingLoc) {
+                // Instantly fulfill the sync!
+                \Illuminate\Support\Facades\Cache::put("tg_loc_sync_result_{$syncCode}", $existingLoc, 600);
+
+                $msg = "⚡ <b>ភ្ជាប់ទីតាំងជោគជ័យ ១០០%!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! ទីតាំងរបស់អ្នកត្រូវបានបំពេញចូលផ្ទាំង Checkout លើគេហទំព័រដោយស្វ័យប្រវត្តិតែម្ដង។\n\n"
+                    . "👉 លោកអ្នកអាចត្រឡប់ទៅកាន់ផ្ទាំងគេហទំព័រវិញ ដើម្បីបន្តការកម្ម៉ង់ទិញបានភ្លាមៗ!";
+
+                $webUrl = "https://www.s-tech-store.tech/checkout";
+                $kb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ', 'url' => $webUrl]]
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $msg, $kb, 'HTML', null, $activeToken);
+                return;
+            }
+
+            // Prompt user with native Telegram location button
+            $msg = "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។";
+
+            $replyMarkup = [
+                'keyboard' => [
+                    [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
+                ],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true,
+            ];
+
             self::sendMessageWithKeyboard($chatId, $msg, $replyMarkup, 'HTML', null, $activeToken);
             return;
         }
