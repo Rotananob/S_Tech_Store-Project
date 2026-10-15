@@ -503,8 +503,8 @@ class TelegramService
                 }
             }
 
-            // ⚡ Instant Tactile Feedback: Immediately fire answerCallbackQuery with contextual toast (<20ms)
-            if ($callbackId) {
+            // ⚡ Instant Tactile Feedback: If not already answered in webhook HTTP response, answer it:
+            if ($callbackId && !app()->bound('tg_cb_answered_' . $callbackId)) {
                 $quickToast = self::getQuickToast($callbackData);
                 self::answerCallbackQuery($callbackId, $quickToast, $activeToken);
             }
@@ -1584,15 +1584,8 @@ class TelegramService
 
         // 4.1 Handle 1-Click Telegram App Customer Login Handshake (tgauth_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
-            // ⚡ Instant Local Reply Back (< 50ms): immediate acknowledgment so the user never experiences lag
-            $initAck = self::sendMessageWithKeyboard($chatId, 
-                "⚡ <b>ទទួលបានសំណើ Login! កំពុងផ្ទៀងផ្ទាត់...</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "⏳ <i>ប្រព័ន្ធ S Tech Store បានទទួលការបញ្ជា /start រួចហើយ កំពុងតភ្ជាប់ទិន្នន័យ...</i>\n\n"
-                . "[ ▰▱▱▱▱▱▱▱▱▱ ] <b>15%</b>",
-                ['inline_keyboard' => []], 'HTML', null, $activeToken
-            );
-            $msgId = $initAck['result']['message_id'] ?? null;
+            // ⚡ Instant Typing Indicator: Show active typing status in Telegram header immediately
+            self::sendChatAction($chatId, 'typing', $activeToken);
 
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
@@ -1626,11 +1619,7 @@ class TelegramService
                         [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
                     ]
                 ];
-                if ($msgId) {
-                    self::editMessageText($chatId, $msgId, $invalidMsg, $invalidKb, 'HTML', $activeToken);
-                } else {
-                    self::sendMessageWithKeyboard($chatId, $invalidMsg, $invalidKb, 'HTML', null, $activeToken);
-                }
+                self::sendMessageWithKeyboard($chatId, $invalidMsg, $invalidKb, 'HTML', null, $activeToken);
                 return;
             }
 
@@ -1726,34 +1715,7 @@ class TelegramService
                 );
             } catch (\Throwable $t) {}
 
-            // 2. LIVELY COUNTDOWN & ANIMATED PROGRESS BAR IN TELEGRAM BOT
-            $loadingMsg = "⚡ <b>កំពុងផ្ទៀងផ្ទាត់សុវត្ថិភាព Security Handshake (3s)...</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងតភ្ជាប់ជាមួយគេហទំព័រ S Tech Store...</b>\n"
-                . "• 👤 <b>ឈ្មោះ:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
-                . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n\n"
-                . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
-
-            if ($msgId) {
-                self::editMessageText($chatId, $msgId, $loadingMsg, null, 'HTML', $activeToken);
-            } else {
-                $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
-                $msgId = $sentResp['result']['message_id'] ?? null;
-            }
-
-            if ($msgId) {
-                usleep(350000); // 0.35s lively tick
-                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងទាញយក Real Data (1s)...</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔄 <b>កំពុងធ្វើសមកាលកម្មទិន្នន័យ Orders, ពិន្ទុ & Auto-Sign In...</b>\n"
-                    . "• 👤 <b>ឈ្មោះ:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
-                    . "• 📦 <b>ទិន្នន័យ Profile:</b> <b>Synced ✅</b>\n\n"
-                    . "[ ▰▰▰▰▰▰▰▰▱▱ ] <b>85%</b>";
-                self::editMessageText($chatId, $msgId, $loadingMsg1, null, 'HTML', $activeToken);
-                usleep(350000); // 0.35s lively tick
-            }
-
-            // 3. EDIT TO FINAL 100% VERIFIED SUCCESS MESSAGE
+            // 2. INSTANT 100% VERIFIED SUCCESS MESSAGE (ZERO DELAYS)
             $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
             $verifiedMsg = "🎉 <b>ការផ្ទៀងផ្ទាត់ចូលគណនីជោគជ័យ ១០០% (Verified & Active)!</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -1766,7 +1728,6 @@ class TelegramService
                 . "• 🪙 <b>ពិន្ទុ S-Coins:</b> <b>" . (int)($user->points ?? 0) . " Coins</b>\n"
                 . "• 🔐 <b>ស្ថានភាព (Status):</b> <b>✅ ចូលគណនីស្វ័យប្រវត្តិ (Auto-Sign In Active)</b>\n"
                 . "• ⏰ <b>កាលបរិច្ឆេទ:</b> " . date('d/m/Y H:i:s') . "\n\n"
-                . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100%</b>\n\n"
                 . "🚀 <b>គណនីរបស់អ្នកត្រូវបាន Auto-Sign In នៅក្នុងគេហទំព័រ S Tech Store រួចរាល់ហើយ!</b>\n"
                 . "<i>លោកអ្នកមិនបាច់វាយលេខសម្ងាត់ ឬចុច Connect ម្តងទៀតឡើយ។</i>\n\n"
                 . "👉 <b>សូមត្រឡប់ទៅកាន់ Browser (Safari / Chrome) ឬចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញភ្លាមៗ៖</b>";
@@ -1782,11 +1743,7 @@ class TelegramService
                 ],
             ];
 
-            if ($msgId) {
-                self::editMessageText($chatId, $msgId, $verifiedMsg, $doneKb, 'HTML', $activeToken);
-            } else {
-                self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
-            }
+            self::sendMessageWithKeyboard($chatId, $verifiedMsg, $doneKb, 'HTML', null, $activeToken);
 
             // 4. Send customer login alert (Non-blocking / executed after customer response)
             self::sendCustomerLoginAlert([
@@ -1802,15 +1759,9 @@ class TelegramService
 
         // 4.2 Handle Profile Setting Private Account Linkage Handshake (tglink_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tglink_') || str_starts_with($extractedCode, 'TGLINK_'))) {
-            // ⚡ Instant Local Reply Back (< 50ms): immediate acknowledgment so user never experiences lag
-            $initAck = self::sendMessageWithKeyboard($chatId, 
-                "⚡ <b>ទទួលបានសំណើភ្ជាប់គណនី! កំពុងដំណើរការ...</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "⏳ <i>ប្រព័ន្ធ S Tech Store បានទទួលការបញ្ជា /start រួចហើយ កំពុងតភ្ជាប់ Telegram Bot ជាមួយ Profile...</i>\n\n"
-                . "[ ▰▱▱▱▱▱▱▱▱▱ ] <b>15%</b>",
-                ['inline_keyboard' => []], 'HTML', null, $activeToken
-            );
-            $msgId = $initAck['result']['message_id'] ?? null;
+            // ⚡ Instant Typing Indicator: Show active typing status immediately (< 50ms)
+            self::sendChatAction($chatId, 'typing', $activeToken);
+            $msgId = null;
 
             $cleanToken = strtolower(trim($extractedCode));
             $linkKey = "tg_link_{$cleanToken}";
@@ -1986,33 +1937,7 @@ class TelegramService
                 );
             } catch (\Throwable $t) {}
 
-            // 2. LIVELY COUNTDOWN & ANIMATED PROGRESS BAR IN TELEGRAM BOT
-            $loadingMsg = "⚡ <b>កំពុងដំណើរការ Security Handshake (3s)...</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "🔄 <b>សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងភ្ជាប់គណនី Telegram ជាមួយ Profile...</b>\n"
-                . "<i>• ឈ្មោះគណនីហាង: <b>" . htmlspecialchars($user->display_name) . "</b></i>\n"
-                . "<i>• Telegram ID: <code>" . htmlspecialchars($tgId) . "</code></i>\n\n"
-                . "[ ▰▰▰▱▱▱▱▱▱▱ ] <b>35%</b>";
-
-            if ($msgId) {
-                self::editMessageText($chatId, $msgId, $loadingMsg, null, 'HTML', $activeToken);
-            } else {
-                $sentResp = self::sendMessageWithKeyboard($chatId, $loadingMsg, ['inline_keyboard' => []], 'HTML', null, $activeToken);
-                $msgId = $sentResp['result']['message_id'] ?? null;
-            }
-
-            if ($msgId) {
-                usleep(350000); // Snappy 0.35s
-                $loadingMsg1 = "⚡ <b>ស្ទើរតែរួចរាល់ហើយ! កំពុងធ្វើសមកាលកម្ម E-Invoices (1s)...</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔄 <b>កំពុងបើកដំណើរការ Private Invoices & Order Alert Bot ផ្ទាល់ខ្លួន...</b>\n"
-                    . "<i>• ឈ្មោះគណនី: <b>" . htmlspecialchars($user->display_name) . "</b></i>\n\n"
-                    . "[ ▰▰▰▰▰▰▰▰▱▱ ] <b>85%</b>";
-                self::editMessageText($chatId, $msgId, $loadingMsg1, null, 'HTML', $activeToken);
-                usleep(350000); // Snappy 0.35s
-            }
-
-            // 3. EDIT MESSAGE TO 100% LINKED
+            // 2. INSTANT DELIVERY OF LINKED ACCOUNT CONFIRMATION CARD (< 100ms)
             $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
             $miniAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
             $profileUrl = "https://www.s-tech-store.tech/account/profile?tg_token={$sessionToken}";
@@ -2042,11 +1967,7 @@ class TelegramService
                 ],
             ];
 
-            if ($msgId) {
-                self::editMessageText($chatId, $msgId, $linkedMsg, $linkedKb, 'HTML', $activeToken);
-            } else {
-                self::sendMessageWithKeyboard($chatId, $linkedMsg, $linkedKb, 'HTML', null, $activeToken);
-            }
+            self::sendMessageWithKeyboard($chatId, $linkedMsg, $linkedKb, 'HTML', null, $activeToken);
 
             self::sendCustomerLoginAlert([
                 'method' => '🔗 ភ្ជាប់គណនី Telegram ក្នុង Profile (Account Linked)',
@@ -4538,7 +4459,7 @@ class TelegramService
         }
 
         try {
-            Http::timeout(3)->post("https://api.telegram.org/bot{$token}/sendChatAction", [
+            Http::timeout(1.5)->post("https://api.telegram.org/bot{$token}/sendChatAction", [
                 'chat_id' => $chatId,
                 'action' => $action,
             ]);

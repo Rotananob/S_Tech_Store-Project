@@ -327,15 +327,27 @@ class TelegramController extends Controller
                 'text' => $quickToast,
                 'cache_time' => 1,
             ];
+            // Flag this callback as answered directly in webhook response to prevent duplicate HTTP calls
+            app()->instance('tg_cb_answered_' . $callbackId, true);
         }
 
-        // In FastCGI / PHP-FPM environments, flush HTTP response immediately to Telegram servers
-        // so client spinner dismisses instantly while background processing continues
+        // ⚡ INSTANT NON-BLOCKING RESPONSE TO TELEGRAM:
+        // Flush HTTP response directly to Telegram webhook servers so client spinners and
+        // top bar loading indicators dismiss in < 30ms, while background processing continues!
         if (function_exists('fastcgi_finish_request')) {
             response()->json($responsePayload)->send();
             fastcgi_finish_request();
-            TelegramService::processUpdate($update, $botParam);
-            return response()->json($responsePayload);
+        } elseif (!headers_sent()) {
+            ignore_user_abort(true);
+            $content = json_encode($responsePayload);
+            header('Connection: close');
+            header('Content-Type: application/json');
+            header('Content-Length: ' . strlen($content));
+            echo $content;
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+            flush();
         }
 
         TelegramService::processUpdate($update, $botParam);
