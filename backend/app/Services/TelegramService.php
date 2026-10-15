@@ -444,8 +444,32 @@ class TelegramService
      */
     public static function getQuickToast(?string $callbackData): string
     {
+        if ($callbackData) {
+            if ($callbackData === 'cust_orders_filter:today') {
+                return "📅 កំពុងទាញយក Orders ថ្ងៃនេះ...";
+            }
+            if ($callbackData === 'cust_orders_filter:week') {
+                return "🗓️ កំពុងទាញយក Orders សប្ដាហ៍នេះ...";
+            }
+            if ($callbackData === 'cust_orders_filter:month') {
+                return "📆 កំពុងទាញយក Orders ខែនេះ...";
+            }
+            if ($callbackData === 'cust_orders_filter:picker') {
+                return "📆 កំពុងបើកជម្រើសកាលបរិច្ឆេទ...";
+            }
+            if ($callbackData === 'cust_orders_filter:all') {
+                return "📦 កំពុងទាញយក Orders ទាំងអស់...";
+            }
+            if ($callbackData === 'cust_orders_filter:yesterday') {
+                return "📅 កំពុងទាញយក Orders ម្សិលមិញ...";
+            }
+            if (str_starts_with($callbackData, 'cust_orders_filter:date:')) {
+                return "📆 កំពុងស្វែងរក Orders តាមថ្ងៃ...";
+            }
+        }
+
         return match ($callbackData) {
-            'cust_my_orders', 'cust_track', 'btn_my_orders' => "📦 កំពុងទាញយកទិន្នន័យបញ្ជាទិញ...",
+            'cust_my_orders', 'cust_track', 'btn_my_orders', 'cust_orders_filter:menu' => "📦 កំពុងបើកជម្រើសបញ្ជាទិញ...",
             'cust_my_wallet', 'btn_my_wallet' => "💰 កំពុងពិនិត្យសមតុល្យកាបូបលុយ...",
             'cust_my_points', 'btn_my_points' => "🪙 កំពុងពិនិត្យពិន្ទុ S-Coins & VIP...",
             'cust_my_repairs', 'btn_my_repairs', 'cust_repair' => "🔧 កំពុងពិនិត្យសំបុត្រជួសជុល...",
@@ -667,98 +691,28 @@ class TelegramService
                 return;
             }
 
-            // Customer My Orders & Track Order (Local-First Snappy Response)
-            if (in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) && $chatId) {
-                // Local-First Cached Profile & Orders (< 1ms on repeat clicks)
-                $user = self::resolveActiveUser((string)$chatId);
-
-                // Clear cache on explicit button click so customer always sees fresh orders
+            // Customer My Orders & Filter (Local-First Snappy Response)
+            if ((in_array($callbackData, ['cust_my_orders', 'cust_track', 'btn_my_orders']) || str_starts_with($callbackData, 'cust_orders_filter:')) && $chatId) {
                 Cache::forget("tg_orders_{$chatId}");
+                Cache::forget("tg_order_counts_{$chatId}");
 
-                $orders = Cache::remember("tg_orders_{$chatId}", 5, function() use ($chatId, $user) {
-                    return self::getCustomerOrdersBuilder($chatId, $user)
-                        ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'delivery_type', 'created_at'])
-                        ->with(['items' => function ($q) {
-                            $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
-                        }])
-                        ->latest()
-                        ->take(5)
-                        ->get();
-                });
+                if ($callbackData === 'cust_orders_filter:picker') {
+                    self::sendCustomerOrdersDatePicker($chatId, $fromName, $messageId, $activeToken);
+                    return;
+                }
 
-                $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-                $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
-                $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
-
-                if ($orders->isEmpty()) {
-                    $ordersText = "📦 <b>ការបញ្ជាទិញរបស់អ្នក (My Orders):</b>\n\n"
-                        . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
-                        . "បច្ចុប្បន្ន លោកអ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅក្នុងប្រព័ន្ធនៅឡើយទេ។\n\n"
-                        . "👉 លោកអ្នកអាចចុចបើក <b>Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ និងទទួលបានការបញ្ចុះតម្លៃពិសេសភ្លាមៗ!";
-
-                    $ordersKb = [
-                        'inline_keyboard' => [
-                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
-                            [
-                                ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
-                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
-                            ],
-                        ],
-                    ];
-                } else {
-                    $ordersCount = $orders->count();
-                    $ordersText = "📦 <b>បញ្ជីការបញ្ជាទិញរបស់អ្នក ({$ordersCount} កញ្ចប់ចុងក្រោយ):</b>\n"
-                        . "━━━━━━━━━━━━━━━━━━━━\n\n";
-
-                    foreach ($orders as $ord) {
-                        $statusBadge = match(strtolower($ord->status ?? 'pending')) {
-                            'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
-                            'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
-                            'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
-                            'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
-                            'cancelled' => '❌ បានលុបចោល (Cancelled)',
-                            default => ucfirst($ord->status),
-                        };
-
-                        $itemsList = [];
-                        if ($ord->items) {
-                            foreach ($ord->items->take(2) as $it) {
-                                $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
-                            }
-                        }
-                        $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
-                        if ($ord->items && $ord->items->count() > 2) {
-                            $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
-                        }
-
-                        $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
-                            . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
-                            . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
-                            . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
-                            . "🚚 <b>សេវាដឹក:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
-                            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
-                            . "────────────────────\n\n";
+                if (str_starts_with($callbackData, 'cust_orders_filter:')) {
+                    $filter = substr($callbackData, strlen('cust_orders_filter:'));
+                    if ($filter === 'menu') {
+                        self::sendCustomerOrdersMenu($chatId, $fromName, $messageId, $activeToken);
+                    } else {
+                        self::sendCustomerOrdersFiltered($chatId, $filter, $fromName, $messageId, $activeToken);
                     }
-
-                    $ordersText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានការដឹកជញ្ជូនក្នុង Mini App!</i>";
-
-                    $ordersKb = [
-                        'inline_keyboard' => [
-                            [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
-                            [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App (Home)', 'web_app' => ['url' => $storeAppUrl]]],
-                            [
-                                ['text' => '🔄 ពិនិត្យឡើងវិញ (Refresh)', 'callback_data' => 'cust_my_orders'],
-                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
-                            ],
-                        ],
-                    ];
+                    return;
                 }
 
-                if ($messageId) {
-                    self::editMessageText($chatId, $messageId, $ordersText, $ordersKb, 'HTML', $activeToken);
-                } else {
-                    self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
-                }
+                // Default entry: Show Interactive Orders Filter Selection Menu
+                self::sendCustomerOrdersMenu($chatId, $fromName, $messageId, $activeToken);
                 return;
             }
 
@@ -2334,89 +2288,41 @@ class TelegramService
             return;
         }
 
-        // Customer /orders, /order, or /track (Real Orders Lookup)
-        if (preg_match('/^\/(?:orders|order|track)(?:@\w+)?(?:\s+([A-Za-z0-9_-]+))?/i', $text, $orderMatches)) {
-            $argOrderId = !empty($orderMatches[1]) ? trim($orderMatches[1]) : null;
+        // Customer /orders, /order, or /track (Real Orders Lookup & Date Filter)
+        if (preg_match('/^\/(?:orders|order|track)(?:@\w+)?(?:\s+(.+))?/i', $text, $orderMatches)) {
+            $arg = !empty($orderMatches[1]) ? trim($orderMatches[1]) : null;
 
-            if ($argOrderId) {
-                self::handleCustomerTextInquiry($chatId, $argOrderId, $from, $activeToken, $activeBotUsername);
-                return;
-            }
-
-            $user = self::resolveActiveUser((string)$chatId);
-            $orders = self::getCustomerOrdersBuilder((string)$chatId, $user)
-                ->with('items.product')
-                ->latest()
-                ->take(5)
-                ->get();
-
-            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-            $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
-
-            if ($orders->isEmpty()) {
-                $ordersText = "📦 <b>ការបញ្ជាទិញរបស់អ្នក (My Orders):</b>\n\n"
-                    . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
-                    . "បច្ចុប្បន្ន លោកអ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅក្នុងប្រព័ន្ធនៅឡើយទេ។\n\n"
-                    . "👉 លោកអ្នកអាចចុចបើក <b>Mini App</b> ខាងក្រោម ដើម្បីទិញទំនិញរាប់ពាន់មុខ និងទទួលបានការបញ្ចុះតម្លៃពិសេសភ្លាមៗ!";
-
-                $ordersKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $ordersAppUrl]]],
-                        [
-                            ['text' => '🔥 មើលប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
-                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
-                        ],
-                    ],
-                ];
-            } else {
-                $ordersCount = $orders->count();
-                $ordersText = "📦 <b>បញ្ជីការបញ្ជាទិញរបស់អ្នក ({$ordersCount} កញ្ចប់ចុងក្រោយ):</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n";
-
-                foreach ($orders as $ord) {
-                    $statusBadge = match(strtolower($ord->status ?? 'pending')) {
-                        'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
-                        'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
-                        'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
-                        'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
-                        'cancelled' => '❌ បានលុបចោល (Cancelled)',
-                        default => ucfirst($ord->status),
-                    };
-
-                    $itemsList = [];
-                    if ($ord->items) {
-                        foreach ($ord->items->take(2) as $it) {
-                            $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
-                        }
-                    }
-                    $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
-                    if ($ord->items && $ord->items->count() > 2) {
-                        $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
-                    }
-
-                    $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
-                        . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
-                        . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
-                        . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
-                        . "🚚 <b>សេវាដឹក:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
-                        . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
-                        . "────────────────────\n\n";
+            if ($arg) {
+                // If argument is a tracking ID like ST-10023
+                if (preg_match('/\b((?:ST|ORD)[-_]?[A-Za-z0-9]{3,12})\b/i', $arg)) {
+                    self::handleCustomerTextInquiry($chatId, $arg, $from, $activeToken, $activeBotUsername);
+                    return;
                 }
-
-                $ordersText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានការដឹកជញ្ជូនក្នុង Mini App!</i>";
-
-                $ordersKb = [
-                    'inline_keyboard' => [
-                        [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
-                        [
-                            ['text' => '🔄 ពិនិត្យឡើងវិញ (Refresh)', 'callback_data' => 'cust_my_orders'],
-                            ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
-                        ],
-                    ],
-                ];
+                $argLower = mb_strtolower($arg, 'UTF-8');
+                if (in_array($argLower, ['today', 'ថ្ងៃនេះ', 'ថ្ងៃហ្នឹង', 'ថ្ងៃនុង'])) {
+                    self::sendCustomerOrdersFiltered($chatId, 'today', $fromName, null, $activeToken);
+                    return;
+                }
+                if (in_array($argLower, ['week', 'សប្ដាហ៍នេះ', 'អាទិត្យនេះ'])) {
+                    self::sendCustomerOrdersFiltered($chatId, 'week', $fromName, null, $activeToken);
+                    return;
+                }
+                if (in_array($argLower, ['yesterday', 'ម្សិលមិញ'])) {
+                    self::sendCustomerOrdersFiltered($chatId, 'yesterday', $fromName, null, $activeToken);
+                    return;
+                }
+                if (in_array($argLower, ['all', 'ទាំងអស់'])) {
+                    self::sendCustomerOrdersFiltered($chatId, 'all', $fromName, null, $activeToken);
+                    return;
+                }
+                $parsedDate = self::extractDateFromString($arg);
+                if ($parsedDate) {
+                    self::sendCustomerOrdersFiltered($chatId, 'date:' . $parsedDate, $fromName, null, $activeToken);
+                    return;
+                }
             }
 
-            self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+            self::sendCustomerOrdersMenu($chatId, $fromName, null, $activeToken);
             return;
         }
 
@@ -2827,54 +2733,50 @@ class TelegramService
 
         // A.1 Natural Khmer Order Inquiries ("order របស់ខ្ញុំ", "ឥវ៉ាន់ខ្ញុំដល់ណា", "តាមដាន order", "my orders")
         if (preg_match('/(order|orders|កញ្ចប់|ឥវ៉ាន់|ការកុម្ម៉ង់|កុម្ម៉ង់|បញ្ជាទិញ|ទំនិញខ្ញុំ|អីវ៉ាន់)/u', $textLower)) {
-            $user = self::resolveActiveUser((string)$chatId);
-            $orders = self::getCustomerOrdersBuilder((string)$chatId, $user)->with('items.product')->latest()->take(3)->get();
-
-            $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-            $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
-
-            if ($orders->isNotEmpty()) {
-                $ordersText = "📦 <b>ស្ថានភាពការបញ្ជាទិញរបស់អ្នក (Recent Orders):</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n";
-
-                foreach ($orders as $ord) {
-                    $statusBadge = match(strtolower($ord->status ?? 'pending')) {
-                        'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
-                        'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
-                        'shipped', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
-                        'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
-                        'cancelled' => '❌ បានលុបចោល (Cancelled)',
-                        default => ucfirst($ord->status),
-                    };
-
-                    $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
-                        . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
-                        . "💵 <b>តម្លៃ:</b> <b>\${$ord->total_amount} USD</b> (" . strtoupper($ord->payment_method ?? 'COD') . ")\n"
-                        . "🚚 <b>ដឹកជញ្ជូន:</b> " . ($ord->delivery_type ?? 'Standard') . "\n"
-                        . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($ord->created_at ? $ord->created_at->format('d/m/Y H:i') : 'ថ្មីៗ') . "\n"
-                        . "────────────────────\n\n";
-                }
-
-                $ordersText .= "👉 <i>ចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យលម្អិត ឬតាមដានដំណើរការដឹកក្នុង Mini App!</i>";
-
-                $ordersKb = [
-                    'inline_keyboard' => [
-                        [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                    ],
-                ];
-                self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+            // Check timeframe keywords:
+            if (preg_match('/(ថ្ងៃនេះ|ថ្ងៃហ្នឹង|ថ្ងៃនុង|today)/u', $textLower)) {
+                self::sendCustomerOrdersFiltered($chatId, 'today', $fromName, null, $activeToken);
                 return;
-            } else {
-                $ordersText = "📦 <b>អ្នកមិនទាន់មានប្រវត្តិបញ្ជាទិញនៅឡើយទេ!</b>\n\n"
-                    . "សូមចូលទៅកាន់ <b>S Tech Store Mini App</b> ដើម្បីជ្រើសរើសទំនិញ Laptop, Gaming PC, ឬ Accessories ដែលពេញនិយមបំផុត៖";
-                $ordersKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => "https://www.s-tech-store.tech?tg_token={$sessionToken}"]]],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                    ],
-                ];
-                self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+            }
+            if (preg_match('/(សប្ដាហ៍នេះ|អាទិត្យនេះ|៧\s*ថ្ងៃ|7\s*days?|week)/u', $textLower)) {
+                self::sendCustomerOrdersFiltered($chatId, 'week', $fromName, null, $activeToken);
+                return;
+            }
+            if (preg_match('/(ម្សិលមិញ|yesterday)/u', $textLower)) {
+                self::sendCustomerOrdersFiltered($chatId, 'yesterday', $fromName, null, $activeToken);
+                return;
+            }
+            if (preg_match('/(ខែនេះ|៣០\s*ថ្ងៃ|30\s*days?|month)/u', $textLower)) {
+                self::sendCustomerOrdersFiltered($chatId, 'month', $fromName, null, $activeToken);
+                return;
+            }
+            if (preg_match('/(ទាំងអស់|all)/u', $textLower)) {
+                self::sendCustomerOrdersFiltered($chatId, 'all', $fromName, null, $activeToken);
+                return;
+            }
+
+            // Check if specific date included in text (e.g. "order 2026-10-15" or "15/10/2026")
+            $parsedDate = self::extractDateFromString($cleanText);
+            if ($parsedDate) {
+                self::sendCustomerOrdersFiltered($chatId, 'date:' . $parsedDate, $fromName, null, $activeToken);
+                return;
+            }
+
+            // Show Interactive Order Filter Menu with options:
+            // 1. «ការ Order ថ្ងៃនេះ»
+            // 2. «ការ Order សប្ដាហ៍នេះ»
+            // 3. «ការ Order ទាំងអស់»
+            // 4. «ជ្រើសរើសថ្ងៃជាក់លាក់»
+            self::sendCustomerOrdersMenu($chatId, $fromName, null, $activeToken);
+            return;
+        }
+
+        // A.1.b Direct date inquiry if user sent a date string (e.g. "2026-10-15" or "15/10/2026")
+        $directDate = self::extractDateFromString($cleanText);
+        if ($directDate) {
+            $cleanedDate = trim(preg_replace('/\b(?:order|orders|ថ្ងៃ|កាលបរិច្ឆេទ|date)\b/ui', '', $cleanText));
+            if (strlen($cleanedDate) <= 12) {
+                self::sendCustomerOrdersFiltered($chatId, 'date:' . $directDate, $fromName, null, $activeToken);
                 return;
             }
         }
@@ -4010,6 +3912,359 @@ class TelegramService
                 }
             }
         });
+    }
+
+    /**
+     * Extract and validate date string in YYYY-MM-DD or DD/MM/YYYY format (supports Khmer digits)
+     */
+    public static function extractDateFromString(string $text): ?string
+    {
+        // Convert Khmer digits to Arabic digits (0-9)
+        $khmerDigits = ['០','១','២','៣','៤','៥','៦','៧','៨','៩'];
+        $arabicDigits = ['0','1','2','3','4','5','6','7','8','9'];
+        $normalized = str_replace($khmerDigits, $arabicDigits, $text);
+
+        // 1. YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+        if (preg_match('/\b(20\d\d)[-\/\.](0?[1-9]|1[0-2])[-\/\.](0?[1-9]|[12]\d|3[01])\b/', $normalized, $m)) {
+            $y = (int)$m[1];
+            $mo = (int)$m[2];
+            $d = (int)$m[3];
+            if (checkdate($mo, $d, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            }
+        }
+
+        // 2. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+        if (preg_match('/\b(0?[1-9]|[12]\d|3[01])[-\/\.](0?[1-9]|1[0-2])[-\/\.](20\d\d)\b/', $normalized, $m)) {
+            $d = (int)$m[1];
+            $mo = (int)$m[2];
+            $y = (int)$m[3];
+            if (checkdate($mo, $d, $y)) {
+                return sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Interactive Customer Orders Hub & Filter Selection Menu
+     */
+    public static function sendCustomerOrdersMenu($chatId, ?string $fromName = null, ?int $messageId = null, ?string $activeToken = null): void
+    {
+        $user = self::resolveActiveUser((string)$chatId);
+        $fromName = $fromName ?: (trim(($user->display_name ?? '') ?: 'អតិថិជន'));
+        $tz = 'Asia/Phnom_Penh';
+
+        // Cache quick count summary for 5 seconds for sub-millisecond response
+        $counts = Cache::remember("tg_order_counts_{$chatId}", 5, function() use ($chatId, $user, $tz) {
+            $base = self::getCustomerOrdersBuilder((string)$chatId, $user);
+            $startToday = \Illuminate\Support\Carbon::today($tz)->startOfDay()->utc();
+            $endToday = \Illuminate\Support\Carbon::today($tz)->endOfDay()->utc();
+            $startWeek = \Illuminate\Support\Carbon::now($tz)->subDays(7)->startOfDay()->utc();
+
+            $today = (clone $base)->whereBetween('created_at', [$startToday, $endToday])->count();
+            $week = (clone $base)->where('created_at', '>=', $startWeek)->count();
+            $total = (clone $base)->count();
+            return compact('today', 'week', 'total');
+        });
+
+        $todayCount = (int)($counts['today'] ?? 0);
+        $weekCount = (int)($counts['week'] ?? 0);
+        $totalCount = (int)($counts['total'] ?? 0);
+
+        $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+        $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+        $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
+        $todayKh = \Illuminate\Support\Carbon::now($tz)->format('d/m/Y');
+
+        $menuText = "📦 <b>ការពិនិត្យមើលប្រវត្តិបញ្ជាទិញ (My Orders Hub):</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+            . "សូមជ្រើសរើសជម្រើសចន្លោះកាលបរិច្ឆេទដែលលោកអ្នកចង់ពិនិត្យមើល៖\n\n"
+            . "• 📅 <b>«ការ Order ថ្ងៃនេះ»</b>" . ($todayCount > 0 ? " — មាន <b>{$todayCount} កញ្ចប់</b> ({$todayKh})" : " — មិនទាន់មានថ្ងៃនេះ ({$todayKh})") . "\n"
+            . "• 🗓️ <b>«ការ Order សប្ដាហ៍នេះ»</b>" . ($weekCount > 0 ? " — មាន <b>{$weekCount} កញ្ចប់</b> (៧ ថ្ងៃចុងក្រោយ)" : " — មិនទាន់មាន") . "\n"
+            . "• 📦 <b>«ការ Order ទាំងអស់»</b> — សរុប <b>{$totalCount} កញ្ចប់</b>\n"
+            . "• 📆 <b>«ជ្រើសរើសថ្ងៃជាក់លាក់»</b> — ម្សិលមិញ ឬកាលបរិច្ឆេទណាមួយ\n\n"
+            . "👉 <i>សូមចុចប៊ូតុងជម្រើសខាងក្រោម៖</i>";
+
+        $menuKb = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📅 ការ Order ថ្ងៃនេះ' . ($todayCount > 0 ? " ({$todayCount})" : ''), 'callback_data' => 'cust_orders_filter:today'],
+                    ['text' => '🗓️ ការ Order សប្ដាហ៍នេះ' . ($weekCount > 0 ? " ({$weekCount})" : ''), 'callback_data' => 'cust_orders_filter:week'],
+                ],
+                [
+                    ['text' => '📦 ការ Order ទាំងអស់' . ($totalCount > 0 ? " ({$totalCount})" : ''), 'callback_data' => 'cust_orders_filter:all'],
+                    ['text' => '📆 ជ្រើសរើសថ្ងៃជាក់លាក់', 'callback_data' => 'cust_orders_filter:picker'],
+                ],
+                [
+                    ['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]],
+                ],
+                [
+                    ['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]],
+                    ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        if ($messageId) {
+            $res = self::editMessageText($chatId, $messageId, $menuText, $menuKb, 'HTML', $activeToken);
+            if (!($res['ok'] ?? false)) {
+                self::sendMessageWithKeyboard($chatId, $menuText, $menuKb, 'HTML', null, $activeToken);
+            }
+        } else {
+            self::sendMessageWithKeyboard($chatId, $menuText, $menuKb, 'HTML', null, $activeToken);
+        }
+    }
+
+    /**
+     * Interactive Specific Date Picker Menu for Customer Orders
+     */
+    public static function sendCustomerOrdersDatePicker($chatId, ?string $fromName = null, ?int $messageId = null, ?string $activeToken = null): void
+    {
+        $user = self::resolveActiveUser((string)$chatId);
+        $fromName = $fromName ?: (trim(($user->display_name ?? '') ?: 'អតិថិជន'));
+        $tz = 'Asia/Phnom_Penh';
+
+        $now = \Illuminate\Support\Carbon::now($tz);
+        $yesterday = \Illuminate\Support\Carbon::yesterday($tz);
+
+        $pickerText = "📆 <b>ជ្រើសរើសកាលបរិច្ឆេទបញ្ជាទិញ (Select Specific Date):</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+            . "សូមចុចជ្រើសរើសថ្ងៃជាក់លាក់ណាមួយខាងក្រោម ដើម្បីពិនិត្យមើល Orders របស់លោកអ្នក៖\n\n"
+            . "💡 <b>ឬលោកអ្នកអាចផ្ញើសារកាលបរិច្ឆេទផ្ទាល់ដូចជា៖</b>\n"
+            . "• <code>order " . $yesterday->format('Y-m-d') . "</code>\n"
+            . "• <code>order " . $yesterday->format('d/m/Y') . "</code>\n"
+            . "• ឬវាយត្រឹមតែ <code>" . $yesterday->format('Y-m-d') . "</code> មកកាន់ Bot ផ្ទាល់!";
+
+        $day1 = $now->copy()->subDays(1);
+        $day2 = $now->copy()->subDays(2);
+        $day3 = $now->copy()->subDays(3);
+        $day4 = $now->copy()->subDays(4);
+        $day5 = $now->copy()->subDays(5);
+        $day6 = $now->copy()->subDays(6);
+
+        $pickerKb = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📅 ម្សិលមិញ (' . $day1->format('d/m') . ')', 'callback_data' => 'cust_orders_filter:date:' . $day1->format('Y-m-d')],
+                    ['text' => '📅 ' . $day2->format('d/m/Y'), 'callback_data' => 'cust_orders_filter:date:' . $day2->format('Y-m-d')],
+                ],
+                [
+                    ['text' => '📅 ' . $day3->format('d/m/Y'), 'callback_data' => 'cust_orders_filter:date:' . $day3->format('Y-m-d')],
+                    ['text' => '📅 ' . $day4->format('d/m/Y'), 'callback_data' => 'cust_orders_filter:date:' . $day4->format('Y-m-d')],
+                ],
+                [
+                    ['text' => '📅 ' . $day5->format('d/m/Y'), 'callback_data' => 'cust_orders_filter:date:' . $day5->format('Y-m-d')],
+                    ['text' => '📅 ' . $day6->format('d/m/Y'), 'callback_data' => 'cust_orders_filter:date:' . $day6->format('Y-m-d')],
+                ],
+                [
+                    ['text' => '📅 ការ Order ថ្ងៃនេះ', 'callback_data' => 'cust_orders_filter:today'],
+                    ['text' => '🗓️ ការ Order សប្ដាហ៍នេះ', 'callback_data' => 'cust_orders_filter:week'],
+                ],
+                [
+                    ['text' => '🔙 ត្រឡប់ក្រោយ (Back)', 'callback_data' => 'cust_my_orders'],
+                    ['text' => '🏠 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        if ($messageId) {
+            $res = self::editMessageText($chatId, $messageId, $pickerText, $pickerKb, 'HTML', $activeToken);
+            if (!($res['ok'] ?? false)) {
+                self::sendMessageWithKeyboard($chatId, $pickerText, $pickerKb, 'HTML', null, $activeToken);
+            }
+        } else {
+            self::sendMessageWithKeyboard($chatId, $pickerText, $pickerKb, 'HTML', null, $activeToken);
+        }
+    }
+
+    /**
+     * Render filtered orders by timeframe (today, week, month, yesterday, all, date:YYYY-MM-DD)
+     */
+    public static function sendCustomerOrdersFiltered($chatId, string $filter = 'today', ?string $fromName = null, ?int $messageId = null, ?string $activeToken = null): void
+    {
+        $user = self::resolveActiveUser((string)$chatId);
+        $fromName = $fromName ?: (trim(($user->display_name ?? '') ?: 'អតិថិជន'));
+        $tz = 'Asia/Phnom_Penh';
+
+        $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+        $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+        $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+
+        $query = self::getCustomerOrdersBuilder((string)$chatId, $user)
+            ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'payment_status', 'delivery_type', 'created_at'])
+            ->with(['items' => function ($q) {
+                $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
+            }])
+            ->latest();
+
+        $todayStr = \Illuminate\Support\Carbon::today($tz)->format('d/m/Y');
+        $filterTitle = "";
+        $activeFilter = $filter;
+
+        switch ($filter) {
+            case 'today':
+                $startToday = \Illuminate\Support\Carbon::today($tz)->startOfDay()->utc();
+                $endToday = \Illuminate\Support\Carbon::today($tz)->endOfDay()->utc();
+                $query->whereBetween('created_at', [$startToday, $endToday]);
+                $filterTitle = "📅 <b>ការបញ្ជាទិញថ្ងៃនេះ ({$todayStr}):</b>";
+                break;
+            case 'week':
+                $startWeek = \Illuminate\Support\Carbon::now($tz)->subDays(7)->startOfDay()->utc();
+                $query->where('created_at', '>=', $startWeek);
+                $filterTitle = "🗓️ <b>ការបញ្ជាទិញក្នុងសប្ដាហ៍នេះ (៧ ថ្ងៃចុងក្រោយ):</b>";
+                break;
+            case 'yesterday':
+                $yDate = \Illuminate\Support\Carbon::yesterday($tz);
+                $startY = $yDate->copy()->startOfDay()->utc();
+                $endY = $yDate->copy()->endOfDay()->utc();
+                $query->whereBetween('created_at', [$startY, $endY]);
+                $filterTitle = "📅 <b>ការបញ្ជាទិញម្សិលមិញ (" . $yDate->format('d/m/Y') . "):</b>";
+                break;
+            case 'month':
+                $startMonth = \Illuminate\Support\Carbon::now($tz)->subDays(30)->startOfDay()->utc();
+                $query->where('created_at', '>=', $startMonth);
+                $filterTitle = "📆 <b>ការបញ្ជាទិញក្នុងខែនេះ (៣០ ថ្ងៃចុងក្រោយ):</b>";
+                break;
+            case 'all':
+                $filterTitle = "📦 <b>ការបញ្ជាទិញទាំងអស់ (Recent Orders):</b>";
+                break;
+            default:
+                if (str_starts_with($filter, 'date:')) {
+                    $rawDate = substr($filter, 5);
+                    try {
+                        $cDate = \Illuminate\Support\Carbon::parse($rawDate, $tz);
+                        $startD = $cDate->copy()->startOfDay()->utc();
+                        $endD = $cDate->copy()->endOfDay()->utc();
+                        $query->whereBetween('created_at', [$startD, $endD]);
+                        $filterTitle = "📆 <b>ការបញ្ជាទិញនៅថ្ងៃ " . $cDate->format('d/m/Y') . ":</b>";
+                    } catch (\Throwable $e) {
+                        $filterTitle = "📆 <b>ការបញ្ជាទិញនៅថ្ងៃ {$rawDate}:</b>";
+                    }
+                } else {
+                    $filterTitle = "📦 <b>ការបញ្ជាទិញរបស់អ្នក:</b>";
+                }
+                break;
+        }
+
+        $orders = $query->take(6)->get();
+
+        if ($orders->isEmpty()) {
+            $emptyText = "{$filterTitle}\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "ℹ️ <b>មិនមានទិន្នន័យបញ្ជាទិញទេ</b> សម្រាប់ចន្លោះពេលនេះ!\n\n"
+                . "👉 លោកអ្នកអាចចុចជ្រើសរើសចន្លោះកាលបរិច្ឆេទផ្សេងទៀត ឬចូលទិញទំនិញថ្មីៗក្នុង Mini App ដើម្បីទទួលបានការបញ្ចុះតម្លៃពិសេសភ្លាមៗ៖";
+
+            $emptyKb = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '📅 ការ Order ថ្ងៃនេះ', 'callback_data' => 'cust_orders_filter:today'],
+                        ['text' => '🗓️ ការ Order សប្ដាហ៍នេះ', 'callback_data' => 'cust_orders_filter:week'],
+                    ],
+                    [
+                        ['text' => '📦 ការ Order ទាំងអស់', 'callback_data' => 'cust_orders_filter:all'],
+                        ['text' => '📆 ជ្រើសរើសថ្ងៃជាក់លាក់', 'callback_data' => 'cust_orders_filter:picker'],
+                    ],
+                    [
+                        ['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]],
+                    ],
+                    [
+                        ['text' => '🔙 ជម្រើសកាលបរិច្ឆេទ', 'callback_data' => 'cust_my_orders'],
+                        ['text' => '🏠 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                    ],
+                ],
+            ];
+
+            if ($messageId) {
+                $res = self::editMessageText($chatId, $messageId, $emptyText, $emptyKb, 'HTML', $activeToken);
+                if (!($res['ok'] ?? false)) {
+                    self::sendMessageWithKeyboard($chatId, $emptyText, $emptyKb, 'HTML', null, $activeToken);
+                }
+            } else {
+                self::sendMessageWithKeyboard($chatId, $emptyText, $emptyKb, 'HTML', null, $activeToken);
+            }
+            return;
+        }
+
+        $ordersCount = $orders->count();
+        $ordersText = "{$filterTitle}\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "✨ រកឃើញចំនួន <b>{$ordersCount} កញ្ចប់</b>\n\n";
+
+        foreach ($orders as $ord) {
+            $statusBadge = match(strtolower($ord->status ?? 'pending')) {
+                'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+                'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
+                'shipped', 'delivering', 'shipping' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
+                'completed', 'delivered' => '✅ បានដឹកជញ្ជូនជោគជ័យ (Delivered)',
+                'cancelled' => '❌ បានលុបចោល (Cancelled)',
+                default => ucfirst($ord->status ?? 'pending'),
+            };
+
+            $itemsList = [];
+            if ($ord->items) {
+                foreach ($ord->items->take(2) as $it) {
+                    $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
+                }
+            }
+            $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
+            if ($ord->items && $ord->items->count() > 2) {
+                $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
+            }
+
+            $formattedDate = $ord->created_at ? $ord->created_at->timezone($tz)->format('d/m/Y H:i') : 'ថ្មីៗ';
+            $payMethod = strtoupper($ord->payment_method ?? 'COD');
+            $delivery = $ord->delivery_type ?? 'Standard';
+
+            $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
+                . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+                . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> ({$payMethod})\n"
+                . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
+                . "🚚 <b>សេវាដឹក:</b> {$delivery}\n"
+                . "⏰ <b>កាលបរិច្ឆេទ:</b> {$formattedDate}\n"
+                . "────────────────────\n\n";
+        }
+
+        $ordersText .= "👉 <i>លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីមើលលម្អិតក្នុង Mini App ឬផ្លាស់ប្តូរថ្ងៃផ្សេងទៀត៖</i>";
+
+        $filterRow = [];
+        if ($activeFilter !== 'today') {
+            $filterRow[] = ['text' => '📅 ថ្ងៃនេះ', 'callback_data' => 'cust_orders_filter:today'];
+        }
+        if ($activeFilter !== 'week') {
+            $filterRow[] = ['text' => '🗓️ សប្ដាហ៍នេះ', 'callback_data' => 'cust_orders_filter:week'];
+        }
+        if ($activeFilter !== 'all') {
+            $filterRow[] = ['text' => '📦 ទាំងអស់', 'callback_data' => 'cust_orders_filter:all'];
+        }
+
+        $ordersKb = [
+            'inline_keyboard' => [
+                [['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
+                $filterRow,
+                [
+                    ['text' => '📆 ជ្រើសរើសថ្ងៃជាក់លាក់', 'callback_data' => 'cust_orders_filter:picker'],
+                    ['text' => '🔙 ជម្រើសកាលបរិច្ឆេទ', 'callback_data' => 'cust_my_orders'],
+                ],
+                [
+                    ['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => $storeAppUrl]],
+                    ['text' => '🏠 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        if ($messageId) {
+            $res = self::editMessageText($chatId, $messageId, $ordersText, $ordersKb, 'HTML', $activeToken);
+            if (!($res['ok'] ?? false)) {
+                self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+            }
+        } else {
+            self::sendMessageWithKeyboard($chatId, $ordersText, $ordersKb, 'HTML', null, $activeToken);
+        }
     }
 
     /**
