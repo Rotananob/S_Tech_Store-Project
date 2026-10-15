@@ -70,6 +70,8 @@ function normalizeProduct(p: any): Product {
     sale_price: p.sale_price !== null && p.sale_price !== undefined ? Number(p.sale_price) : null,
     image_url: img,
     image: img,
+    pinned_to_top: Boolean(p.pinned_to_top),
+    bumped_at: p.bumped_at || null,
     in_stock: p.stock !== undefined ? p.stock > 0 : (p.in_stock ?? true),
   };
 }
@@ -269,4 +271,19 @@ export async function submitProductReview(id: string | number, reviewData: { rat
   const { data } = await api.post(`/products/${id}/reviews`, reviewData);
   return data;
 }
+
+export async function bumpProduct(id: string | number) {
+  const { default: api } = await import("@/lib/api");
+  const { data } = await api.post(`/products/${id}/bump`);
+  invalidateProductCache();
+  return data;
+}
+
+export async function togglePinProduct(id: string | number) {
+  const { default: api } = await import("@/lib/api");
+  const { data } = await api.post(`/products/${id}/pin`);
+  invalidateProductCache();
+  return data;
+}
+
 

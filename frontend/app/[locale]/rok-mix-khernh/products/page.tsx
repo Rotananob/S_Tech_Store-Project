@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop } from "lucide-react";
+import { bumpProduct, togglePinProduct } from "@/lib/services/product.service";
+import { Search, Plus, Filter, Edit2, Trash2, ChevronLeft, ChevronRight, AlertCircle, Laptop, Zap, Pin, Loader2 } from "lucide-react";
 
 type Category = {
   id: number;
@@ -19,6 +20,8 @@ type Product = {
   image_url: string | null;
   category: Category | null;
   category_id: number;
+  pinned_to_top?: boolean;
+  bumped_at?: string | null;
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -28,6 +31,8 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [bumpingId, setBumpingId] = useState<number | null>(null);
+  const [pinningId, setPinningId] = useState<number | null>(null);
   
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [stockFilter, setStockFilter] = useState("All Stock Status");
@@ -122,6 +127,41 @@ export default function AdminProductsPage() {
     } finally {
       setIsDeleting(false);
       setDeleteTarget(null);
+    }
+  };
+
+  const handleBump = async (prod: Product) => {
+    try {
+      setBumpingId(prod.id);
+      const res = await bumpProduct(prod.id);
+      if (res.success) {
+        showToast(`⚡ បានរុញទំនិញ "${prod.name}" ទៅលើគេបង្អស់ជោគជ័យ!`);
+        await fetchProducts(false);
+      } else {
+        showToast(res.message || "មិនអាចរុញទំនិញបានទេ", "error");
+      }
+    } catch (e: any) {
+      showToast(e?.message || "មានបញ្ហាក្នុងការរុញទំនិញ", "error");
+    } finally {
+      setBumpingId(null);
+    }
+  };
+
+  const handleTogglePin = async (prod: Product) => {
+    try {
+      setPinningId(prod.id);
+      const res = await togglePinProduct(prod.id);
+      if (res.success) {
+        const isPinned = res.data?.pinned_to_top ?? !prod.pinned_to_top;
+        showToast(isPinned ? `📌 បានខ្ទាស់ទំនិញ "${prod.name}" នៅលើគេបង្អស់ជានិច្ច!` : `បានដោះខ្ទាស់ "${prod.name}" រួចរាល់`);
+        await fetchProducts(false);
+      } else {
+        showToast(res.message || "មិនអាចខ្ទាស់ទំនិញបានទេ", "error");
+      }
+    } catch (e: any) {
+      showToast(e?.message || "មានបញ្ហាក្នុងការខ្ទាស់ទំនិញ", "error");
+    } finally {
+      setPinningId(null);
     }
   };
 
@@ -310,7 +350,15 @@ export default function AdminProductsPage() {
                             )}
                         </div>
                         <div>
-                          <div className="text-sm font-bold text-gray-900 mb-0.5">{prod.name}</div>
+                          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                            <span className="text-sm font-bold text-gray-900">{prod.name}</span>
+                            {prod.pinned_to_top && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                                <Pin size={10} className="fill-amber-600 text-amber-600" />
+                                <span>ខ្ទាស់លើគេ</span>
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-gray-500">{prod.slug}</div>
                         </div>
                       </div>
@@ -327,17 +375,51 @@ export default function AdminProductsPage() {
                       </span>
                     </td>
                     <td className="p-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end items-center gap-1.5">
+                        {/* 1-Click Bump to Top */}
+                        <button 
+                          type="button"
+                          onClick={() => handleBump(prod)} 
+                          disabled={bumpingId === prod.id}
+                          className="p-2 text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center cursor-pointer" 
+                          title="⚡ រុញទៅលើគេបង្អស់ (Bump to Top)"
+                        >
+                          {bumpingId === prod.id ? (
+                            <Loader2 size={16} className="animate-spin text-amber-600" />
+                          ) : (
+                            <Zap size={16} className="hover:scale-110 transition-transform" />
+                          )}
+                        </button>
+
+                        {/* Toggle Pin to Top */}
+                        <button 
+                          type="button"
+                          onClick={() => handleTogglePin(prod)} 
+                          disabled={pinningId === prod.id}
+                          className={`p-2 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center cursor-pointer ${
+                            prod.pinned_to_top 
+                              ? 'text-amber-700 bg-amber-100 hover:bg-amber-200' 
+                              : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'
+                          }`}
+                          title={prod.pinned_to_top ? "📌 ដោះខ្ទាស់ពីលើគេ (Unpin)" : "📌 ខ្ទាស់នៅខាងលើគេបង្អស់ជានិច្ច (Pin to Top)"}
+                        >
+                          {pinningId === prod.id ? (
+                            <Loader2 size={16} className="animate-spin text-amber-600" />
+                          ) : (
+                            <Pin size={16} className={prod.pinned_to_top ? "fill-amber-600 text-amber-600" : ""} />
+                          )}
+                        </button>
+
                         <button 
                           onClick={() => router.push(`/rok-mix-khernh/products/${prod.id}/edit`)} 
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer" 
                           title="Edit"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => setDeleteTarget(prod)} 
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" 
                           title="Delete"
                         >
                           <Trash2 size={16} />

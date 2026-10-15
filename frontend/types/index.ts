@@ -43,6 +43,8 @@ export interface Product {
   images?: ProductImage[] | string[];
   specs?: ProductSpec[] | any;
   is_featured?: boolean;
+  pinned_to_top?: boolean;
+  bumped_at?: string | null;
   in_stock?: boolean;
   status?: "active" | "inactive" | "out_of_stock";
 }

@@ -47,7 +47,11 @@ class ProductController extends Controller
                 $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
             }
 
-            return $query->orderBy('id', 'desc')->get();
+            return $query
+                ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
+                ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
+                ->orderBy('id', 'desc')
+                ->get();
         });
 
         return response()->json($products);
@@ -72,6 +76,8 @@ class ProductController extends Controller
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
             'image_urls' => 'nullable',
             'is_featured' => 'nullable',
+            'pinned_to_top' => 'nullable',
+            'bump_to_top' => 'nullable',
             'condition' => 'nullable|string|max:100'
         ]);
 
@@ -80,6 +86,16 @@ class ProductController extends Controller
         } else {
             $validated['is_featured'] = false;
         }
+
+        if (isset($validated['pinned_to_top'])) {
+            $validated['pinned_to_top'] = filter_var($validated['pinned_to_top'], FILTER_VALIDATE_BOOLEAN);
+        } else {
+            $validated['pinned_to_top'] = false;
+        }
+
+        // New products automatically get bumped_at = now() so they start at the top
+        $validated['bumped_at'] = now();
+        unset($validated['bump_to_top']);
 
         // Generate unique slug
         $validated['slug'] = Str::slug($validated['name']) . '-' . time();
@@ -192,12 +208,23 @@ class ProductController extends Controller
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:10240',
             'image_urls' => 'nullable',
             'is_featured' => 'nullable',
+            'pinned_to_top' => 'nullable',
+            'bump_to_top' => 'nullable',
             'condition' => 'nullable|string|max:100'
         ]);
 
         if (isset($validated['is_featured'])) {
             $validated['is_featured'] = filter_var($validated['is_featured'], FILTER_VALIDATE_BOOLEAN);
         }
+
+        if (isset($validated['pinned_to_top'])) {
+            $validated['pinned_to_top'] = filter_var($validated['pinned_to_top'], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if ($request->boolean('bump_to_top') || $request->input('bump_to_top') === '1' || $request->input('bump_to_top') === true) {
+            $validated['bumped_at'] = now();
+        }
+        unset($validated['bump_to_top']);
 
         if (isset($validated['name']) && $validated['name'] !== $product->name) {
             $validated['slug'] = Str::slug($validated['name']) . '-' . time();
@@ -233,6 +260,55 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Product updated successfully',
+            'data' => $product
+        ]);
+    }
+
+    /**
+     * Bump an old or existing product to the very top (make it fresh).
+     */
+    public function bump($id)
+    {
+        $product = is_numeric($id) ? Product::findOrFail($id) : Product::where('slug', $id)->firstOrFail();
+        $product->bumped_at = now();
+        $product->touch();
+        $product->save();
+        $product->load('category');
+
+        Cache::increment('products_cache_version');
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានរុញទំនិញ \"{$product->name}\" មកលើគេបង្អស់ (ធ្វើឱ្យថ្មីជានិច្ច) ជោគជ័យ!",
+            'data' => $product
+        ]);
+    }
+
+    /**
+     * Toggle pinned status for a product (Pin/Unpin to Top).
+     */
+    public function togglePin($id)
+    {
+        $product = is_numeric($id) ? Product::findOrFail($id) : Product::where('slug', $id)->firstOrFail();
+        $newStatus = !$product->pinned_to_top;
+        $product->pinned_to_top = $newStatus;
+        if ($newStatus) {
+            $product->bumped_at = now();
+        }
+        $product->touch();
+        $product->save();
+        $product->load('category');
+
+        Cache::increment('products_cache_version');
+
+        $msg = $newStatus
+            ? "បានខ្ទាស់ទំនិញ \"{$product->name}\" នៅលើគេបង្អស់ជោគជ័យ (Pinned to Top)!"
+            : "បានដោះការខ្ទាស់ទំនិញ \"{$product->name}\" (Unpinned)!";
+
+        return response()->json([
+            'success' => true,
+            'message' => $msg,
+            'pinned_to_top' => $newStatus,
             'data' => $product
         ]);
     }

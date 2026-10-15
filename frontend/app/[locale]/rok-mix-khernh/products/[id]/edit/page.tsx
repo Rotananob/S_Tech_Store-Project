@@ -3,11 +3,11 @@ import React, { useState, useEffect, use } from "react";
 import { useParams } from "next/navigation";
 import { Link, useRouter } from "@/i18n/routing";
 import api from "@/lib/api";
-import { invalidateProductCache } from "@/lib/services/product.service";
+import { invalidateProductCache, bumpProduct } from "@/lib/services/product.service";
 import { 
   Package, DollarSign, Image as ImageIcon, Link as LinkIcon, Star, X, Check, Globe, 
   ArrowLeft, CheckCircle2, Sparkles, LayoutDashboard, Tag, UploadCloud, RefreshCw, AlertCircle,
-  ChevronDown
+  ChevronDown, Pin, Zap, Loader2
 } from "lucide-react";
 
 type Category = {
@@ -75,6 +75,8 @@ export default function EditProductPage(props: {
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [featured, setFeatured] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [isBumping, setIsBumping] = useState(false);
   const [brand, setBrand] = useState("");
   const [condition, setCondition] = useState("Brand New");
   const [badge, setBadge] = useState("");
@@ -151,6 +153,7 @@ export default function EditProductPage(props: {
       setStock(p.stock !== undefined && p.stock !== null ? String(p.stock) : "0");
       setDescription(p.description || "");
       setFeatured(Boolean(p.is_featured));
+      setPinned(Boolean(p.pinned_to_top));
       setBrand(p.brand || "");
       setCondition(p.condition || "Brand New");
       setBadge(p.badge || "");
@@ -232,6 +235,7 @@ export default function EditProductPage(props: {
 
       formData.append("description", description);
       formData.append("is_featured", featured ? "1" : "0");
+      formData.append("pinned_to_top", pinned ? "1" : "0");
       formData.append("brand", brand.trim());
       formData.append("condition", condition.trim());
       formData.append("badge", badge.trim());
@@ -269,6 +273,24 @@ export default function EditProductPage(props: {
       setModalError(errorMsg);
       setModalState("error");
       showToast(errorMsg, "error");
+    }
+  };
+
+  const handleBumpNow = async () => {
+    const targetId = productId || originalProduct?.id;
+    if (!targetId) return;
+    try {
+      setIsBumping(true);
+      const res = await bumpProduct(Number(targetId));
+      if (res.success) {
+        showToast("⚡ បានរុញទំនិញនេះទៅលើគេបង្អស់ជោគជ័យ!");
+      } else {
+        showToast(res.message || "មិនអាចរុញទំនិញបានទេ", "error");
+      }
+    } catch (e: any) {
+      showToast(e?.message || "មានបញ្ហាក្នុងការរុញទំនិញ", "error");
+    } finally {
+      setIsBumping(false);
     }
   };
 
@@ -986,10 +1008,11 @@ export default function EditProductPage(props: {
               ))}
             </div>
 
-            {/* Visibility */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h2 className="text-base font-bold text-gray-900 mb-4">Visibility & Promotion</h2>
+            {/* Visibility & Pin/Bump */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4">
+              <h2 className="text-base font-bold text-gray-900">Visibility & Promotion</h2>
               
+              {/* Featured Product */}
               <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-200">
                 <div className="flex gap-3 items-center">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${featured ? 'bg-amber-100 text-amber-600' : 'bg-gray-200 text-gray-500'}`}>
@@ -1009,6 +1032,58 @@ export default function EditProductPage(props: {
                   <div 
                     className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${featured ? 'left-6' : 'left-1'}`}
                   />
+                </button>
+              </div>
+
+              {/* Pin to Top */}
+              <div className="flex justify-between items-center p-4 bg-amber-50/50 rounded-xl border border-amber-200/80">
+                <div className="flex gap-3 items-center">
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${pinned ? 'bg-amber-200 text-amber-800' : 'bg-gray-200 text-gray-500'}`}>
+                    <Pin size={17} className={pinned ? 'fill-amber-700 text-amber-700' : ''} />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-gray-900 mb-0.5">Pin to Top (ខ្ទាស់លើគេបង្អស់)</div>
+                    <div className="text-[11px] text-gray-600">ស្ថិតនៅលើគេបង្អស់ជានិច្ចក្នុងបញ្ជីទំនិញ</div>
+                  </div>
+                </div>
+                
+                <button 
+                  type="button" 
+                  onClick={() => setPinned(!pinned)} 
+                  className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer ${pinned ? 'bg-amber-600' : 'bg-gray-300'}`}
+                >
+                  <div 
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${pinned ? 'left-6' : 'left-1'}`}
+                  />
+                </button>
+              </div>
+
+              {/* 1-Click Instant Bump Button */}
+              <div className="p-4 bg-rose-50/50 rounded-xl border border-rose-100 flex flex-col gap-2.5">
+                <div className="flex items-center gap-2">
+                  <Zap size={16} className="text-[#8B1A1A]" />
+                  <span className="text-xs font-bold text-gray-900">រុញទំនិញឡើងលើភ្លាមៗ (Bump Now)</span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed">
+                  ធ្វើឱ្យទំនិញចាស់នេះលោតទៅលើគេបង្អស់នៃ Catalog ហាងភ្លាមៗ ដូចទើបនឹងបញ្ចូលថ្មី ដោយមិនចាំបាច់រក្សាទុកឡើងវិញឡើយ។
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBumpNow}
+                  disabled={isBumping || !productId}
+                  className="w-full py-2.5 px-4 bg-white hover:bg-red-50 text-[#8B1A1A] border border-red-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:border-red-300 disabled:opacity-50"
+                >
+                  {isBumping ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin text-[#8B1A1A]" />
+                      <span>កំពុងរុញទំនិញទៅលើគេ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={14} className="text-[#8B1A1A]" />
+                      <span>⚡ រុញទំនិញនេះទៅលើគេបង្អស់ឥឡូវនេះ</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

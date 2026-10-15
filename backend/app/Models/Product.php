@@ -9,12 +9,14 @@ class Product extends Model
     protected $fillable = [
         'category_id', 'name', 'slug', 'description', 
         'price', 'sale_price', 'stock', 'image_url', 'images',
-        'is_featured', 'brand', 'badge', 'rating', 'reviews_count', 'condition'
+        'is_featured', 'pinned_to_top', 'bumped_at', 'brand', 'badge', 'rating', 'reviews_count', 'condition'
     ];
 
     protected $casts = [
         'images' => 'array',
         'is_featured' => 'boolean',
+        'pinned_to_top' => 'boolean',
+        'bumped_at' => 'datetime',
         'sale_price' => 'float',
         'rating' => 'float',
         'reviews_count' => 'integer',

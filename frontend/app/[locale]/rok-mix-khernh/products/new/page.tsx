@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Clock,
   Trash2,
+  Pin,
 } from "lucide-react";
 
 type Category = {
@@ -80,6 +81,7 @@ export default function AddNewProductPage() {
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [featured, setFeatured] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [brand, setBrand] = useState("");
   const [condition, setCondition] = useState("Brand New");
 
@@ -140,6 +142,7 @@ export default function AddNewProductPage() {
     setStock("");
     setDescription("");
     setFeatured(false);
+    setPinned(false);
     setBrand("");
     setCondition("Brand New");
     setPrimaryImageUrl("");
@@ -205,6 +208,7 @@ export default function AddNewProductPage() {
       formData.append("stock", stock);
       formData.append("description", description);
       formData.append("is_featured", featured ? "1" : "0");
+      formData.append("pinned_to_top", pinned ? "1" : "0");
       if (brand.trim()) formData.append("brand", brand.trim());
       if (condition.trim()) formData.append("condition", condition.trim());
 
@@ -1136,17 +1140,18 @@ export default function AddNewProductPage() {
           </div>
 
           {/* 5. Visibility & Highlights */}
-          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs">
-            <div className="flex items-center gap-2.5 mb-4 pb-3 border-b border-gray-100">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200/80 shadow-xs flex flex-col gap-3.5">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-gray-100">
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
                 <Star size={17} />
               </div>
               <div>
                 <h2 className="text-base font-bold text-gray-900">ការបង្ហាញ (Visibility)</h2>
-                <p className="text-[11px] text-gray-400">កំណត់ការបង្ហាញលើទំព័រដើម</p>
+                <p className="text-[11px] text-gray-400">កំណត់ការបង្ហាញលើទំព័រដើម និងចំណាត់ថ្នាក់លើគេ</p>
               </div>
             </div>
 
+            {/* Featured Product */}
             <div className="flex justify-between items-center p-3.5 bg-gray-50/80 rounded-xl border border-gray-200">
               <div className="flex gap-3 items-center">
                 <div
@@ -1172,6 +1177,37 @@ export default function AddNewProductPage() {
                 <div
                   className={`absolute top-1 w-4.5 h-4.5 bg-white rounded-full transition-all shadow-sm ${
                     featured ? "left-6.5" : "left-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Pin to Top */}
+            <div className="flex justify-between items-center p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/80">
+              <div className="flex gap-3 items-center">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                    pinned ? "bg-amber-200 text-amber-800" : "bg-gray-200 text-gray-500"
+                  }`}
+                >
+                  <Pin size={18} className={pinned ? "fill-amber-700 text-amber-700" : ""} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900">Pin to Top (ខ្ទាស់លើគេ)</div>
+                  <div className="text-[11px] text-gray-600">ស្ថិតនៅលើគេបង្អស់នៃ Catalog ហាងជានិច្ច</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPinned(!pinned)}
+                className={`relative w-12 h-6.5 rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+                  pinned ? "bg-amber-600" : "bg-gray-300"
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-4.5 h-4.5 bg-white rounded-full transition-all shadow-sm ${
+                    pinned ? "left-6.5" : "left-1"
                   }`}
                 />
               </button>

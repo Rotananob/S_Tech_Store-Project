@@ -1497,6 +1497,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::match(['put', 'post'], '/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+    Route::post('/products/{id}/bump', [ProductController::class, 'bump']);
+    Route::post('/products/{id}/pin', [ProductController::class, 'togglePin']);
 
     // Order Fulfillment & Status Management
     Route::get('/admin/orders', [OrderController::class, 'index']);
