@@ -422,8 +422,16 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
     }
 
     $data = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
-    // If cache is missing OR still in 'pending' status, do a rapid check in database to catch any cross-process updates
-    if (!$data || ($data['status'] ?? '') === 'pending') {
+    $needsDbCheck = !$data;
+    if ($data && ($data['status'] ?? '') === 'pending') {
+        $lastDbCheckKey = "tg_hs_dbcheck_{$token}";
+        if (!\Illuminate\Support\Facades\Cache::has($lastDbCheckKey)) {
+            $needsDbCheck = true;
+            \Illuminate\Support\Facades\Cache::put($lastDbCheckKey, 1, 3); // Max 1 DB query every 3s per token
+        }
+    }
+
+    if ($needsDbCheck) {
         try {
             $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
             if ($row && !empty($row->value)) {

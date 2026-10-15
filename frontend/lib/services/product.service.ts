@@ -74,105 +74,152 @@ function normalizeProduct(p: any): Product {
   };
 }
 
-export async function getCategories(): Promise<Category[] | ApiResponse<Category[]>> {
-  try {
-    const controller = new AbortController();
-    // Allow up to 12s for Render cold start or Neon SSL handshake
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    
-    const res = await fetch(`${getBaseUrl()}/categories`, {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-      next: { revalidate: 30 },
-    });
-    clearTimeout(timeout);
+let lastCategoryFetchTime = 0;
+const CATEGORY_CLIENT_CACHE_TTL = 60 * 1000; // 60 seconds instant client cache
+let inFlightCategoriesPromise: Promise<Category[] | ApiResponse<Category[]>> | null = null;
 
-    if (res.ok) {
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data?.data || []);
-      if (list && list.length > 0) {
-        cachedCategories = list;
-        return list;
-      }
-    }
-  } catch (error) {
-    console.warn("getCategories network notice (using fallback):", (error as Error)?.message || error);
+export async function getCategories(): Promise<Category[] | ApiResponse<Category[]>> {
+  // Fast memory return for rapid navigation without network roundtrip
+  if (typeof window !== "undefined" && cachedCategories.length > 0 && (Date.now() - lastCategoryFetchTime < CATEGORY_CLIENT_CACHE_TTL)) {
+    return cachedCategories;
   }
 
-  // Resilient fallback — never return empty
-  return cachedCategories;
+  // Deduplicate concurrent in-flight requests from multiple mounting components
+  if (inFlightCategoriesPromise) {
+    return inFlightCategoriesPromise;
+  }
+
+  inFlightCategoriesPromise = (async () => {
+    try {
+      const controller = new AbortController();
+      // Allow up to 12s for Render cold start or Neon SSL handshake
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      
+      const res = await fetch(`${getBaseUrl()}/categories`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+        next: { revalidate: 30 },
+      });
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        if (list && list.length > 0) {
+          cachedCategories = list;
+          lastCategoryFetchTime = Date.now();
+          return list;
+        }
+      }
+    } catch (error) {
+      console.warn("getCategories network notice (using fallback):", (error as Error)?.message || error);
+    } finally {
+      inFlightCategoriesPromise = null;
+    }
+
+    return cachedCategories;
+  })();
+
+  return inFlightCategoriesPromise;
 }
 
 let lastProductFetchTime = 0;
-const CLIENT_CACHE_TTL = 30 * 1000; // 30 seconds instant client cache
+const CLIENT_CACHE_TTL = 45 * 1000; // 45 seconds instant client cache
+let inFlightProductsPromise: Promise<Product[] | ApiResponse<Product[]>> | null = null;
 
 export function invalidateProductCache(): void {
   lastProductFetchTime = 0;
+  lastCategoryFetchTime = 0;
 }
 
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
+  const isGlobalCatalog = !params || Object.keys(params).length === 0;
+
   // Instant client cache return for fast navigation without redundant DB roundtrips
-  if (typeof window !== "undefined" && !params && cachedProducts.length >= 50 && (Date.now() - lastProductFetchTime < CLIENT_CACHE_TTL)) {
+  if (typeof window !== "undefined" && isGlobalCatalog && cachedProducts.length > 0 && (Date.now() - lastProductFetchTime < CLIENT_CACHE_TTL)) {
     return cachedProducts;
   }
 
-  try {
-    const query = params ? "?" + new URLSearchParams(params).toString() : "";
-    const controller = new AbortController();
-    // Allow up to 12s for Render cold start or Neon database query
-    const timeout = setTimeout(() => controller.abort(), 12000);
+  // Deduplicate concurrent global catalog fetches across multiple components
+  if (isGlobalCatalog && inFlightProductsPromise) {
+    return inFlightProductsPromise;
+  }
 
-    const res = await fetch(`${getBaseUrl()}/products${query}`, {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-      next: { revalidate: 15 },
-    });
-    clearTimeout(timeout);
+  const fetchPromise = (async () => {
+    try {
+      const query = params ? "?" + new URLSearchParams(params).toString() : "";
+      const controller = new AbortController();
+      // Allow up to 12s for Render cold start or Neon database query
+      const timeout = setTimeout(() => controller.abort(), 12000);
 
-    if (res.ok) {
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : (data?.data || []);
-      const normalized = list.map(normalizeProduct);
+      const res = await fetch(`${getBaseUrl()}/products${query}`, {
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+        next: { revalidate: 15 },
+      });
+      clearTimeout(timeout);
 
-      // Only update global catalog cache when fetching all products without search params
-      if (!params || Object.keys(params).length === 0) {
-        if (normalized.length > 0) {
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        const normalized = list.map(normalizeProduct);
+
+        // Only update global catalog cache when fetching all products without search params
+        if (isGlobalCatalog && normalized.length > 0) {
           cachedProducts = normalized;
           lastProductFetchTime = Date.now();
         }
+        return normalized;
       }
-      return normalized;
+    } catch (error) {
+      console.warn("getProducts network notice (using resilient cache):", (error as Error)?.message || error);
+    } finally {
+      if (isGlobalCatalog) {
+        inFlightProductsPromise = null;
+      }
     }
-  } catch (error) {
-    console.warn("getProducts network notice (using resilient cache):", (error as Error)?.message || error);
+
+    // Resilient fallback — only reached when network/fetch throws an error
+    if (isGlobalCatalog) {
+      return cachedProducts;
+    }
+
+    let filtered = [...cachedProducts];
+    if (params.category) {
+      const cat = String(params.category).toLowerCase();
+      filtered = filtered.filter((p) => {
+        const c = typeof p.category === "object" ? p.category?.slug : p.category;
+        return String(c || "").toLowerCase().includes(cat);
+      });
+    }
+    if (params.search) {
+      const s = String(params.search).toLowerCase().trim();
+      filtered = filtered.filter((p) =>
+        p.name.toLowerCase().includes(s) ||
+        (p.description || "").toLowerCase().includes(s) ||
+        (p.brand || "").toLowerCase().includes(s)
+      );
+    }
+
+    return filtered;
+  })();
+
+  if (isGlobalCatalog) {
+    inFlightProductsPromise = fetchPromise;
   }
 
-  // Resilient fallback — only reached when network/fetch throws an error
-  if (!params || Object.keys(params).length === 0) {
-    return cachedProducts;
-  }
-
-  let filtered = [...cachedProducts];
-  if (params.category) {
-    const cat = String(params.category).toLowerCase();
-    filtered = filtered.filter((p) => {
-      const c = typeof p.category === "object" ? p.category?.slug : p.category;
-      return String(c || "").toLowerCase().includes(cat);
-    });
-  }
-  if (params.search) {
-    const s = String(params.search).toLowerCase().trim();
-    filtered = filtered.filter((p) =>
-      p.name.toLowerCase().includes(s) ||
-      (p.description || "").toLowerCase().includes(s) ||
-      (p.brand || "").toLowerCase().includes(s)
-    );
-  }
-
-  return filtered;
+  return fetchPromise;
 }
 
+const singleProductCache = new Map<string, { product: Product; time: number }>();
+
 export async function getProduct(id: string | number): Promise<Product | ApiResponse<Product> | null> {
+  const cacheKey = String(id);
+  const cached = singleProductCache.get(cacheKey);
+  if (cached && (Date.now() - cached.time < 60 * 1000)) {
+    return cached.product;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12000);
@@ -187,7 +234,9 @@ export async function getProduct(id: string | number): Promise<Product | ApiResp
       const data = await res.json();
       const item = data?.data || data;
       if (item && item.id) {
-        return normalizeProduct(item);
+        const normalized = normalizeProduct(item);
+        singleProductCache.set(cacheKey, { product: normalized, time: Date.now() });
+        return normalized;
       }
     }
   } catch (error) {

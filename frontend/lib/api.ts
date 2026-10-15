@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosResponse, AxiosRequestConfig } from "axios";
 import { getAuth } from "firebase/auth";
 
 function getApiBaseUrl(): string {
@@ -152,5 +152,28 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// In-flight GET request deduplication map to avoid firing multiple identical concurrent requests across components
+const inFlightGetRequests = new Map<string, Promise<any>>();
+
+const originalGet = api.get.bind(api);
+api.get = function <T = any, R = AxiosResponse<T>, D = any>(
+  url: string,
+  config?: any
+): Promise<R> {
+  if (typeof window !== "undefined" && !url.includes("handshake-check") && !url.includes("poll-")) {
+    const key = `${url}:${JSON.stringify(config?.params || {})}`;
+    const existing = inFlightGetRequests.get(key);
+    if (existing) {
+      return existing as Promise<R>;
+    }
+    const promise = originalGet<T, R, D>(url, config).finally(() => {
+      setTimeout(() => inFlightGetRequests.delete(key), 300);
+    });
+    inFlightGetRequests.set(key, promise);
+    return promise;
+  }
+  return originalGet<T, R, D>(url, config);
+};
 
 export default api;

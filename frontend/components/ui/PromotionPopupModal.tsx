@@ -118,15 +118,27 @@ export default function PromotionPopupModal() {
       try {
         const dismissed = sessionStorage.getItem("stech_promo_popup_dismissed");
         if (dismissed) return;
+
+        const cachedStr = sessionStorage.getItem("stech_cached_active_promo");
+        if (cachedStr) {
+          const parsed = JSON.parse(cachedStr);
+          if (parsed && (Date.now() - (parsed.time || 0)) < 10 * 60 * 1000 && parsed.promo) {
+            setPromo(parsed.promo);
+            initialTimer = setTimeout(() => {
+              setIsOpen(true);
+            }, 2500);
+            return;
+          }
+        }
       } catch {}
 
       try {
         const res = await api.get("/promotions/active-popup");
-        if (res.data?.success && res.data?.promo) {
-          setPromo(res.data.promo);
-        } else {
-          setPromo(DEFAULT_PCHUM_BEN_PROMO);
-        }
+        const activePromo = (res.data?.success && res.data?.promo) ? res.data.promo : DEFAULT_PCHUM_BEN_PROMO;
+        setPromo(activePromo);
+        try {
+          sessionStorage.setItem("stech_cached_active_promo", JSON.stringify({ promo: activePromo, time: Date.now() }));
+        } catch (_) {}
       } catch {
         setPromo(DEFAULT_PCHUM_BEN_PROMO);
       }

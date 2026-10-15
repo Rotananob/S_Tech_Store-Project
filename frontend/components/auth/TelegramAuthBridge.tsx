@@ -138,53 +138,67 @@ export default function TelegramAuthBridge() {
         const existingTgId = existing?.telegram_id || (typeof existing?.uid === "string" && existing.uid.startsWith("tg_") ? existing.uid.replace("tg_", "") : null);
         if (existingTgId && String(existingTgId) !== String(tgUser.id)) {
           purgeUserSession();
+          try { sessionStorage.removeItem("stech_tg_synced_" + tgUser.id); } catch (_) {}
         }
 
-        // Sync with backend to check if actively connected or disconnected
-        api.post("/auth/telegram/miniapp-sync", {
-          telegram_user: tgUser,
-          init_data: tg.initData,
-        })
-          .then((res) => {
-            if (res.data?.success) {
-              if (res.data.linked === false || !res.data.user) {
-                // AUTO-LOGOUT IN MINI APP! User disconnected Telegram or has no active link
-                purgeUserSession();
-              } else if (res.data.user) {
-                // AUTO-LOGIN TO ACTIVE NEW ACCOUNT!
-                applyUserSession(res.data.user, res.data.token);
+        // Sync with backend to check if actively connected or disconnected (Cached for 5 minutes to avoid spamming every page transition)
+        const lastSyncTimeStr = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("stech_tg_synced_" + tgUser.id) : null;
+        const isFresh = lastSyncTimeStr && (Date.now() - Number(lastSyncTimeStr) < 5 * 60 * 1000);
 
-                if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-                  const redirectTarget = getResolvedTarget();
-                  sessionStorage.removeItem("stech_auth_redirect");
-                  window.location.href = redirectTarget;
+        if (!isFresh) {
+          api.post("/auth/telegram/miniapp-sync", {
+            telegram_user: tgUser,
+            init_data: tg.initData,
+          })
+            .then((res) => {
+              if (res.data?.success) {
+                try { sessionStorage.setItem("stech_tg_synced_" + tgUser.id, String(Date.now())); } catch (_) {}
+                if (res.data.linked === false || !res.data.user) {
+                  // AUTO-LOGOUT IN MINI APP! User disconnected Telegram or has no active link
+                  purgeUserSession();
+                } else if (res.data.user) {
+                  // AUTO-LOGIN TO ACTIVE NEW ACCOUNT!
+                  applyUserSession(res.data.user, res.data.token);
+
+                  if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
+                    const redirectTarget = getResolvedTarget();
+                    sessionStorage.removeItem("stech_auth_redirect");
+                    window.location.href = redirectTarget;
+                  }
                 }
               }
-            }
-          })
-          .catch((err) => {
-            if (err?.response?.status === 403) {
-              // Account has been suspended by Admin
-              purgeUserSession();
-              alert(err?.response?.data?.error || "គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account disabled)។");
-            }
-          });
+            })
+            .catch((err) => {
+              if (err?.response?.status === 403) {
+                // Account has been suspended by Admin
+                purgeUserSession();
+                alert(err?.response?.data?.error || "គណនីរបស់អ្នកត្រូវបានផ្អាកដំណើរការ (Account disabled)។");
+              }
+            });
+        }
       }
     }
 
     // C. Lock & Resume: Auto-detect pending handshake when user returns from Telegram app
+    // Note: If user is on /login or /register, the dedicated page controllers handle their own polling & UI!
+    const isAuthPage = typeof window !== "undefined" && (
+      window.location.pathname.includes("/login") || 
+      window.location.pathname.includes("/register")
+    );
+    if (isAuthPage) {
+      return;
+    }
+
+    let lastHandshakeCheck = 0;
     const checkPendingHandshake = () => {
+      if (Date.now() - lastHandshakeCheck < 3500) return;
+      lastHandshakeCheck = Date.now();
+
       try {
         const existing = localStorage.getItem("user_session") || localStorage.getItem("stech_user_session");
         if (existing) {
           localStorage.removeItem("stech_pending_tg_handshake");
           sessionStorage.removeItem("stech_pending_tg_handshake");
-          // If user returns to login or register page and is already authenticated, seamlessly redirect them!
-          if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-            const dest = getResolvedTarget();
-            sessionStorage.removeItem("stech_auth_redirect");
-            window.location.href = dest;
-          }
           return;
         }
 
@@ -216,11 +230,6 @@ export default function TelegramAuthBridge() {
               localStorage.removeItem("stech_pending_tg_handshake");
               sessionStorage.removeItem("stech_pending_tg_handshake");
               window.dispatchEvent(new Event("user_session_updated"));
-              if (window.location.pathname.includes("/login") || window.location.pathname.includes("/register")) {
-                const dest = getResolvedTarget();
-                sessionStorage.removeItem("stech_auth_redirect");
-                window.location.href = dest;
-              }
             }
           })
           .catch(() => {});

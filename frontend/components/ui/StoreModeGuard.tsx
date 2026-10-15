@@ -116,8 +116,8 @@ export default function StoreModeGuard() {
 
   // ─── Instant Multi-Tab Sync & Event Listener (Zero HTTP Loop Polling) ───
   useEffect(() => {
-    // 1. Initial on-demand check on mount
-    checkStatus(true);
+    // 1. Initial on-demand check on mount (uses 20s fast cache to eliminate redundant requests)
+    checkStatus(false);
 
     // 2. Multi-tab instant sync (< 1ms across tabs on this browser)
     let channel: BroadcastChannel | null = null;

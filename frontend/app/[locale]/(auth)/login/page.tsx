@@ -470,18 +470,28 @@ export default function LoginPage() {
     // Immediate check on trigger (0ms delay)
     checkStatus();
 
-    // Smart Adaptive Polling loop:
-    // 1000ms while user is looking at the tab (foreground)
-    // 2500ms while tab is hidden (user is in Telegram app)
+    // Smart Adaptive Progressive Polling:
+    // When tab is hidden (user switched to Telegram): 6000ms gentle check
+    // When tab is foreground: 1.5s -> 2.5s -> 4s
+    // When user switches back to browser tab: resumeIfPending checks IMMEDIATELY in 0ms!
     let attempts = 0;
-    const scheduleNext = (delay = 1000) => {
+    const scheduleNext = () => {
       if (isPollingCompletedRef.current) return;
       stopTelegramPolling();
+
+      const isHidden = typeof document !== "undefined" && document.hidden;
+      const delay = isHidden 
+        ? 6000 
+        : attempts < 2 
+          ? 1500 
+          : attempts < 8 
+            ? 2500 
+            : 4000;
 
       telegramPollTimeoutRef.current = setTimeout(async () => {
         if (isPollingCompletedRef.current) return;
         attempts++;
-        if (attempts > 70) {
+        if (attempts > 35) { // 35 smart intervals (~2.5 minutes)
           stopTelegramPolling();
           setAuthOverlay((prev) => ({
             ...prev,
@@ -494,19 +504,21 @@ export default function LoginPage() {
 
         const completed = await checkStatus();
         if (!completed && !isPollingCompletedRef.current) {
-          const isHidden = typeof document !== "undefined" && document.hidden;
-          scheduleNext(isHidden ? 2500 : 1000);
+          scheduleNext();
         }
       }, delay);
     };
 
-    scheduleNext(1000);
+    scheduleNext();
   };
 
-  // Mount & Visibility listener: When user returns to tab, INSTANTLY check in 0ms!
+  // Mount & Visibility listener: When user returns to tab, INSTANTLY check in 0ms (Throttled against duplicate bursts)
+  const lastResumeTimeRef = useRef<number>(0);
   useEffect(() => {
     const resumeIfPending = (isReturning = true) => {
       if (isPollingCompletedRef.current) return;
+      if (Date.now() - lastResumeTimeRef.current < 1500) return; // Prevent focus + visibility double bursts
+      lastResumeTimeRef.current = Date.now();
 
       try {
         const saved = localStorage.getItem("stech_pending_tg_handshake") || sessionStorage.getItem("stech_pending_tg_handshake");
