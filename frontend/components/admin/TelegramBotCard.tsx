@@ -680,10 +680,6 @@ export default function TelegramBotCard() {
                       title: "ការបញ្ជាទិញថ្មី (Orders)",
                       desc: "វិក្កយបត្រ និងព័ត៌មានដឹកជញ្ជូន",
                       created: Boolean(status?.topics?.orders),
-                      border: "border-amber-200/90 hover:border-amber-400",
-                      bg: "bg-gradient-to-br from-amber-50/70 via-white to-orange-50/30",
-                      iconBg: "bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/25",
-                      badgeBg: "bg-amber-100 text-amber-900 border-amber-300",
                     },
                     {
                       key: "repairs",
@@ -691,10 +687,6 @@ export default function TelegramBotCard() {
                       title: "សេវាជួសជុល (Repairs)",
                       desc: "ប័ណ្ណទទួលឧបករណ៍ និងស្ថានភាព",
                       created: Boolean(status?.topics?.repairs),
-                      border: "border-sky-200/90 hover:border-sky-400",
-                      bg: "bg-gradient-to-br from-sky-50/70 via-white to-blue-50/30",
-                      iconBg: "bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sky-500/25",
-                      badgeBg: "bg-sky-100 text-sky-900 border-sky-300",
                     },
                     {
                       key: "stock",
@@ -702,10 +694,6 @@ export default function TelegramBotCard() {
                       title: "ការជូនដំណឹងស្តុក (Stock)",
                       desc: "ប្រកាសអាសន្នពេលទំនិញជិតអស់",
                       created: Boolean(status?.topics?.stock),
-                      border: "border-rose-200/90 hover:border-rose-400",
-                      bg: "bg-gradient-to-br from-rose-50/70 via-white to-red-50/30",
-                      iconBg: "bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-rose-500/25",
-                      badgeBg: "bg-rose-100 text-rose-900 border-rose-300",
                     },
                     {
                       key: "chat",
@@ -713,27 +701,25 @@ export default function TelegramBotCard() {
                       title: "សេវាអតិថិជន (Support)",
                       desc: "សម្រាប់សន្ទនាទូទៅក្នុងក្រុម",
                       created: Boolean(status?.topics?.chat),
-                      border: "border-emerald-200/90 hover:border-emerald-400",
-                      bg: "bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/30",
-                      iconBg: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/25",
-                      badgeBg: "bg-emerald-100 text-emerald-900 border-emerald-300",
                     },
                   ].map((top) => {
                     const TopIcon = top.icon;
                     return (
-                      <div key={top.key} className={`p-4 rounded-2xl border-2 ${top.border} ${top.bg} flex flex-col justify-between gap-3 shadow-xs transition-all`}>
+                      <div key={top.key} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-slate-400 flex flex-col justify-between gap-3 shadow-2xs transition-all">
                         <div className="flex items-center justify-between">
-                          <div className={`w-10 h-10 rounded-xl ${top.iconBg} flex items-center justify-center shadow-md`}>
-                            <TopIcon size={18} />
+                          <div className="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center shadow-xs">
+                            <TopIcon size={17} />
                           </div>
-                          <span className={`text-[10px] font-mono font-black px-2.5 py-1 rounded-md border ${
-                            top.created ? top.badgeBg : 'bg-slate-100 text-slate-500 border-slate-200'
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            top.created 
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
                           }`}>
-                            {top.created ? "Ready • សកម្ម" : "Pending"}
+                            {top.created ? "Ready" : "Pending"}
                           </span>
                         </div>
                         <div>
-                          <div className="text-xs sm:text-sm font-black text-slate-900">{top.title}</div>
+                          <div className="text-xs sm:text-sm font-bold text-slate-900">{top.title}</div>
                           <div className="text-[11px] text-slate-500 font-medium mt-0.5">{top.desc}</div>
                         </div>
                       </div>

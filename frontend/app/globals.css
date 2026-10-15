@@ -81,8 +81,9 @@
   font-style: normal;
 }
 
+html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"],
 html[data-font="kantumruy"], body[data-font="kantumruy"], [data-font="kantumruy"] {
-  font-family: var(--font-khmer), 'Kantumruy Pro', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
+  font-family: var(--font-khmer), 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif !important;
 }
 
 html[data-font="koh-santepheap"], body[data-font="koh-santepheap"], [data-font="koh-santepheap"] {
@@ -93,16 +94,12 @@ html[data-font="battambang"], body[data-font="battambang"], [data-font="battamba
   font-family: 'Battambang', var(--font-latin), 'Plus Jakarta Sans', sans-serif !important;
 }
 
-html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"] {
-  font-family: 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', sans-serif !important;
-}
-
 html[data-font="outfit"], body[data-font="outfit"], [data-font="outfit"] {
-  font-family: 'Outfit', var(--font-khmer), 'Kantumruy Pro', sans-serif !important;
+  font-family: 'Outfit', var(--font-khmer), 'Noto Sans Khmer', sans-serif !important;
 }
 
 html[data-font="inter"], body[data-font="inter"], [data-font="inter"] {
-  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Noto Sans Khmer', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 @keyframes marquee {
@@ -121,7 +118,7 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 body {
-  font-family: var(--font-khmer), 'Kantumruy Pro', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, Roboto, sans-serif;
+  font-family: var(--font-khmer), 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, Roboto, sans-serif;
   background: var(--bg-white);
   color: var(--text-dark);
   line-height: 1.6;
@@ -236,7 +233,7 @@ html, body {
 .admin-theme table,
 [data-admin-portal],
 [data-admin-portal] * {
-  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif !important;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Noto Sans Khmer', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -244,7 +241,7 @@ html, body {
 
 .admin-theme h1, .admin-theme h2, .admin-theme h3, .admin-theme h4, .admin-theme h5, .admin-theme h6,
 [data-admin-portal] h1, [data-admin-portal] h2, [data-admin-portal] h3, [data-admin-portal] h4, [data-admin-portal] h5, [data-admin-portal] h6 {
-  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Noto Sans Khmer', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
   letter-spacing: -0.02em;
   font-weight: 800 !important;
 }

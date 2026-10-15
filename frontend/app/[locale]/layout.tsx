@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import { Kantumruy_Pro, Plus_Jakarta_Sans } from "next/font/google";
+import { Noto_Sans_Khmer, Plus_Jakarta_Sans } from "next/font/google";
 import "@/app/globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
 import { NextIntlClientProvider } from "next-intl";
@@ -14,8 +14,8 @@ import TrafficTracker from "@/components/ui/TrafficTracker";
 import TelegramAuthBridge from "@/components/auth/TelegramAuthBridge";
 import WelcomeGiftModal from "@/components/promotions/WelcomeGiftModal";
 
-const kantumruy = Kantumruy_Pro({
-  weight: ["300", "400", "500", "600", "700"],
+const notoSansKhmer = Noto_Sans_Khmer({
+  weight: ["400", "500", "600", "700", "800", "900"],
   subsets: ["khmer"],
   display: "swap",
   variable: "--font-khmer",
@@ -242,9 +242,9 @@ export default async function RootLayout({
             __html: `
               try {
                 var f = localStorage.getItem('stech_font_system');
-                if (!f || f === 'inter' || f === 'battambang') {
-                  f = 'kantumruy';
-                  localStorage.setItem('stech_font_system', 'kantumruy');
+                if (!f || f === 'inter' || f === 'battambang' || f === 'kantumruy') {
+                  f = 'noto-sans';
+                  localStorage.setItem('stech_font_system', 'noto-sans');
                 }
                 document.documentElement.setAttribute('data-font', f);
               } catch(e) {}
@@ -253,7 +253,7 @@ export default async function RootLayout({
         />
         <script src="https://telegram.org/js/telegram-web-app.js" async />
       </head>
-      <body suppressHydrationWarning className={`${kantumruy.variable} ${plusJakarta.variable}`}>
+      <body suppressHydrationWarning className={`${notoSansKhmer.variable} ${plusJakarta.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider messages={messages}>
             <SplashScreen />

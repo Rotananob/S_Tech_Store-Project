@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, usePathname, useRouter } from '@/i18n/routing';
-import { Home, Layers, Camera, MessageSquare, User, LogIn, X, Sparkles } from 'lucide-react';
+import { Home, Layers, Camera, MessageSquare, User, LogIn, X } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useCartStore } from '@/store/cartStore';
@@ -168,48 +168,46 @@ export default function BottomNav() {
           const Icon = tab.icon;
           const active = isActive(tab.path);
 
-          // Center Camera Visual Search Button - Floating Luminous Gem Style
+          // Center Camera Visual Search Button - Elevated Luminous Floating Lens
           if (tab.isCenter) {
             return (
               <button
                 key={tab.path}
                 type="button"
                 onClick={openVisualSearch}
-                className="relative flex flex-col items-center justify-center w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group -mt-5.5 focus:outline-none"
+                className="relative flex flex-col items-center justify-center w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group -mt-6 sm:-mt-7 focus:outline-none select-none"
                 aria-label="Scan products with Camera (S Tech Visual Search)"
               >
-                {/* Ambient Breathing Glow Aura */}
-                <div className="absolute top-0 w-14 h-14 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-500 to-rose-400 blur-lg opacity-75 group-hover:opacity-100 transition-opacity animate-pulse pointer-events-none" />
+                {/* Layer 1: Deep Soft Diffuse Backlight Blur */}
+                <div className="absolute -top-1 w-20 h-20 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-rose-600 to-red-500 blur-2xl opacity-65 group-hover:opacity-95 transition-opacity pointer-events-none" />
 
-                {/* Secondary Soft Ambient Radiance */}
-                <div className="absolute -top-1 w-16 h-16 rounded-full bg-red-600/30 blur-xl pointer-events-none" />
+                {/* Layer 2: Radiant Inner Ambient Ring */}
+                <div className="absolute top-0 w-16 h-16 rounded-full bg-rose-500/40 blur-lg animate-pulse pointer-events-none" />
 
-                {/* Outer Ring with Cyber Shimmer Bezel */}
+                {/* Elevated Floating Button Shell */}
                 <motion.div
-                  whileHover={{ scale: 1.1, y: -2 }}
+                  whileHover={{ scale: 1.08, y: -3 }}
                   whileTap={{ scale: 0.92 }}
-                  className="relative w-[52px] h-[52px] sm:w-[56px] sm:h-[56px] rounded-full p-[2.5px] bg-gradient-to-tr from-amber-300 via-rose-500 to-[#8B1A1A] shadow-[0_12px_28px_-4px_rgba(225,29,72,0.6),0_0_22px_rgba(251,113,133,0.45)] flex items-center justify-center"
+                  className="relative w-[54px] h-[54px] sm:w-[58px] sm:h-[58px] rounded-full p-[2.5px] bg-gradient-to-tr from-rose-500 via-red-600 to-[#8B1A1A] shadow-[0_14px_34px_-2px_rgba(225,29,72,0.55),0_0_24px_rgba(244,63,94,0.35)] flex items-center justify-center transition-shadow"
                 >
-                  {/* Inner Lens Body */}
-                  <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#8B1A1A] via-[#b91c1c] to-[#4c0505] border-[2.5px] border-white dark:border-[#0c0e14] flex items-center justify-center overflow-hidden">
-                    {/* Glass Sheen Specular Highlight */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/10 to-transparent pointer-events-none" />
+                  {/* Camera Optical Lens Core */}
+                  <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#8B1A1A] via-[#b91c1c] to-[#450505] border-[2.5px] border-white dark:border-[#0c0e14] flex items-center justify-center overflow-hidden shadow-inner">
+                    {/* Lens Specular Reflection */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/35 via-white/5 to-transparent pointer-events-none" />
                     
-                    {/* Visual Scan Radar Sweeping Effect */}
-                    <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-45 animate-[spin_4s_linear_infinite] pointer-events-none" />
+                    {/* Subtle Lens Radial Sweep */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-white/20 to-transparent rotate-45 animate-[spin_5s_linear_infinite] pointer-events-none" />
 
-                    {/* Camera Icon & Sparkle */}
-                    <div className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-                      <Camera size={23} strokeWidth={2.4} />
-                      <Sparkles size={11} className="absolute -top-1 -right-1 text-amber-300 fill-amber-300 animate-pulse drop-shadow-[0_0_8px_rgba(252,211,77,0.95)]" />
+                    {/* Camera Icon (Clean, Bold, Zero Stars) */}
+                    <div className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] group-hover:scale-105 transition-transform">
+                      <Camera size={25} strokeWidth={2.4} />
                     </div>
                   </div>
                 </motion.div>
 
-                {/* Label with shimmering gradient text */}
-                <span className="text-[10px] font-black tracking-tight mt-1 bg-gradient-to-r from-[#8B1A1A] via-red-600 to-rose-500 dark:from-red-400 dark:to-rose-300 bg-clip-text text-transparent flex items-center gap-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block mr-0.5" />
-                  <span>Visual Scan</span>
+                {/* Clean Mature Label */}
+                <span className="text-[10px] font-black tracking-tight mt-1 text-slate-800 dark:text-slate-200 group-hover:text-[#8B1A1A] dark:group-hover:text-rose-400 transition-colors">
+                  Visual Scan
                 </span>
               </button>
             );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Camera, RefreshCw, Upload, Sparkles, ShoppingCart, Check, Zap, AlertCircle, ArrowRight, Image as ImageIcon } from "lucide-react";
+import { X, Camera, RefreshCw, Upload, ShoppingCart, Check, Zap, AlertCircle, ArrowRight, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVisualSearchStore } from "@/store/visualSearchStore";
 import { useCartStore } from "@/store/cartStore";
@@ -517,8 +517,8 @@ export default function VisualSearchModal() {
             {/* Analysis Loading Overlay */}
             {isAnalyzing && (
               <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-20">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-[#e74c3c] flex items-center justify-center shadow-xl animate-bounce mb-3">
-                  <Sparkles size={32} className="text-white animate-spin" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-[#e74c3c] flex items-center justify-center shadow-xl animate-pulse mb-3">
+                  <Camera size={30} className="text-white" />
                 </div>
                 <h4 className="text-sm sm:text-base font-extrabold text-white">
                   Scanning S Tech Inventory...
@@ -550,7 +550,7 @@ export default function VisualSearchModal() {
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm sm:text-base font-black text-amber-300">
-                          🔍 មិនទាន់រកឃើញទំនិញដូចគ្នាបេះបិទនេះទេ (Item Not Found Yet)
+                          មិនទាន់រកឃើញទំនិញដូចគ្នាបេះបិទនេះទេ (Item Not Found Yet)
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-extrabold border border-amber-500/40">
                           ជម្រើសជំនួស (Alternatives)
@@ -772,7 +772,6 @@ export default function VisualSearchModal() {
                     <div className="relative w-full h-full rounded-full border-2 border-white/40 bg-gradient-to-br from-[#8B1A1A] via-[#b91c1c] to-[#4c0505] flex items-center justify-center shadow-inner overflow-hidden">
                       <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-white/25 to-transparent rotate-45 animate-[spin_5s_linear_infinite] pointer-events-none" />
                       <Camera size={26} className="text-white drop-shadow relative z-10" />
-                      <Sparkles size={11} className="absolute top-2 right-2 text-amber-300 fill-amber-300 animate-pulse drop-shadow-[0_0_6px_rgba(252,211,77,0.9)] z-10" />
                     </div>
                   </button>
                 ) : (

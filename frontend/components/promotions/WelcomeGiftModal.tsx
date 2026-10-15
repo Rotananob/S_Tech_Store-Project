@@ -45,11 +45,13 @@ export default function WelcomeGiftModal() {
   );
 
   // Strictly DO NOT render gift modal or floating button inside the Admin portal
-  if (!mounted || isAdminRoute || (isAdminDom && hasAdminSession)) {
-    // Only return null if in admin or unmounted; regular visitors on the public website continue!
-    if (!mounted || isAdminRoute || isAdminDom) {
-      return null;
-    }
+  if (
+    !mounted || 
+    isAdminRoute || 
+    isAdminDom || 
+    (isClient && (window.location.href.includes("rok-mix-khernh") || window.location.pathname.includes("rok-mix-khernh") || window.location.href.includes("master-control")))
+  ) {
+    return null;
   }
 
   const [currentUser, setCurrentUser] = useState<any>(null);

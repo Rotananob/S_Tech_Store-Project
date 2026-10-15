@@ -9,7 +9,7 @@ import { auth } from "../../lib/firebase";
 import {
   Search, ShoppingCart, User, Phone,
   Menu, X, ChevronDown, Heart, Bell,
-  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera, Sparkles, ExternalLink, Wallet
+  Gift, Shield, Zap, CheckCheck, Trash2, Clock, Info, LogOut, Camera, ExternalLink, Wallet
 } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useLangStore } from "@/store/langStore";
@@ -364,11 +364,10 @@ export default function Navbar() {
                   type="button"
                   onClick={openVisualSearch}
                   title="Visual Camera Search / ស្កេនស្វែងរកតាមរូបភាព"
-                  className="relative group/cam w-7 h-7 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-[0_2px_10px_rgba(225,29,72,0.4)] border border-rose-300/40"
+                  className="relative group/cam w-7 h-7 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-[0_4px_14px_rgba(225,29,72,0.45),0_0_8px_rgba(244,63,94,0.3)] border border-rose-300/40"
                   aria-label="Scan image with Camera"
                 >
                   <Camera size={13} strokeWidth={2.4} />
-                  <Sparkles size={8} className="absolute -top-0.5 -right-0.5 text-amber-300 fill-amber-300 animate-pulse pointer-events-none drop-shadow-[0_0_4px_rgba(252,211,77,0.9)]" />
                 </button>
                 <button
                   type="submit"
@@ -645,11 +644,10 @@ export default function Navbar() {
               type="button"
               onClick={openVisualSearch}
               title="Visual Camera Search / ស្កេនស្វែងរកតាមរូបភាព"
-              className="relative group/cam w-8 h-8 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-[0_2px_12px_rgba(225,29,72,0.45)] border border-rose-300/40"
+              className="relative group/cam w-8 h-8 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-[0_4px_16px_rgba(225,29,72,0.5),0_0_10px_rgba(244,63,94,0.35)] border border-rose-300/40"
               aria-label="Scan image with Camera"
             >
               <Camera size={15} strokeWidth={2.4} />
-              <Sparkles size={9} className="absolute -top-0.5 -right-0.5 text-amber-300 fill-amber-300 animate-pulse pointer-events-none drop-shadow-[0_0_4px_rgba(252,211,77,0.9)]" />
             </button>
 
             {/* Search Submit Button */}
