@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { routing } from "@/i18n/routing";
 import { Inter, Battambang } from "next/font/google";
 import "@/app/globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
@@ -111,6 +113,7 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'S Tech Store',
   },
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: '/logo.jpg',
     shortcut: '/logo.jpg',
@@ -191,6 +194,9 @@ export default async function RootLayout({
   params: Promise<{ locale: string }>;
 }>) {
   const { locale } = await params;
+  if (!routing.locales.includes(locale as any)) {
+    notFound();
+  }
   const messages = await getMessages();
 
   return (
@@ -201,10 +207,11 @@ export default async function RootLayout({
         <link rel="icon" href="/logo.jpg" />
         <link rel="shortcut icon" href="/logo.jpg" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Koh+Santepheap:wght@300;400;700;900&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Battambang:wght@400;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Koh+Santepheap:wght@300;400;700;900&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Battambang:wght@400;700&display=swap"
           rel="stylesheet"
         />
         <script

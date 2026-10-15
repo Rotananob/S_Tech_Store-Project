@@ -5,15 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "@/i18n/routing";
 
 export default function SplashScreen() {
-  const [show, setShow] = useState(true);
+  const [show, setShow] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     // Only show splash screen once per session
     const hasSeenSplash = sessionStorage.getItem("hasSeenSplash");
-    if (hasSeenSplash) {
-      setShow(false);
-    } else {
+    if (!hasSeenSplash) {
+      setShow(true);
       const timer = setTimeout(() => {
         setShow(false);
         sessionStorage.setItem("hasSeenSplash", "true");

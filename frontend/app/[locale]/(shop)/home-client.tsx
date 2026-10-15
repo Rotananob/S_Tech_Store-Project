@@ -40,30 +40,29 @@ import api from "@/lib/api";
 
 // ─── Luxury High-Tech Motion Variants (Apple Keynote & Studio Product Drop) ──
 const dropContainerVariants: Variants = {
-  hidden: { opacity: 0 },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
+      staggerChildren: 0.04,
     },
   },
 };
 
 const dropCardVariants: Variants = {
   hidden: { 
-    opacity: 0, 
-    y: -30, 
-    scale: 0.96,
-    filter: "blur(4px)"
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    filter: "none"
   },
   visible: { 
     opacity: 1, 
     y: 0, 
     scale: 1,
-    filter: "blur(0px)",
+    filter: "none",
     transition: { 
-      duration: 0.65, 
+      duration: 0.4, 
       ease: [0.16, 1, 0.3, 1] as [number, number, number, number]
     } 
   },
@@ -226,9 +225,9 @@ export function HeroSection() {
     <section className="bg-white dark:bg-[#0c0e12] px-4 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5 w-full overflow-hidden transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: -24, scale: 0.98 }}
+          initial={false}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
           className="group relative w-full h-[210px] sm:h-[260px] md:h-[300px] lg:h-[360px] xl:h-[410px] 2xl:h-[440px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm bg-gradient-to-r from-gray-50 via-gray-100 to-gray-200 dark:from-[#141722] dark:via-[#1a1f2c] dark:to-[#12151f] border border-gray-200/80 dark:border-white/10"

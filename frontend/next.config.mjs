@@ -8,6 +8,7 @@ const withNextIntl = createNextIntlPlugin(
 const withSerwist = withSerwistInit({
   swSrc: 'app/sw.ts',
   swDest: 'public/sw.js',
+  disable: true,
 });
 
 /** @type {import('next').NextConfig} */

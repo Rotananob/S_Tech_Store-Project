@@ -45,8 +45,18 @@ export default function middleware(request: NextRequest) {
     return new NextResponse('404 Not Found', { status: 404 });
   }
 
-  // Firebase Auth handler and system reverse-proxy bypass
-  if (pathname.startsWith('/__')) {
+  // Firebase Auth handler, system reverse-proxy, and root PWA / SEO asset bypass
+  if (
+    pathname.startsWith('/__') ||
+    pathname === '/sw.js' ||
+    pathname === '/manifest.json' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/version.json' ||
+    pathname === '/favicon.ico' ||
+    pathname === '/logo.jpg'
+  ) {
     return NextResponse.next();
   }
 
@@ -55,5 +65,5 @@ export default function middleware(request: NextRequest) {
 
 export const config = {
   // Intercept all routes except Next.js internals, API, static files, and Firebase internal paths
-  matcher: ['/((?!api|_next|_vercel|__|.*\\..*).*)']
+  matcher: ['/((?!api|_next|_vercel|__|sw\\.js|manifest\\.json|manifest\\.webmanifest|robots\\.txt|sitemap\\.xml|version\\.json|favicon\\.ico|logo\\.jpg|.*\\..*).*)']
 };

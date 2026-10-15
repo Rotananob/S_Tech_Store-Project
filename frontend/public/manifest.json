@@ -1,0 +1,48 @@
+{
+  "id": "/",
+  "name": "S Tech Store",
+  "short_name": "S Tech",
+  "description": "ហាងបច្ចេកវិទ្យាលំដាប់ខ្ពស់ នៅក្នុងប្រទេសកម្ពុជា",
+  "start_url": "/km",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8B1A1A",
+  "orientation": "portrait",
+  "categories": ["shopping", "business"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Admin Dashboard",
+      "short_name": "Admin",
+      "description": "S Tech Store Management Dashboard",
+      "url": "/km/rok-mix-khernh?source=admin_pwa",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Orders Management",
+      "short_name": "Orders",
+      "description": "គ្រប់គ្រងការបញ្ជាទិញ",
+      "url": "/km/rok-mix-khernh/orders?source=admin_pwa",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
