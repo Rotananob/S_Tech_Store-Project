@@ -8,7 +8,8 @@ import {
   Key, RefreshCw, MapPin, Phone, Mail, Send, Calendar, 
   ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X,
   Copy, ExternalLink, MessageCircle, Check, Link2, Coins, MessageSquare, ChevronRight,
-  UserPlus, Edit, AlertTriangle, ShieldAlert, Crown, Briefcase, Globe
+  UserPlus, Edit, AlertTriangle, ShieldAlert, Crown, Briefcase, Globe,
+  ChevronLeft, Layers, Smartphone
 } from "lucide-react";
 
 export interface AdminCustomerUser {
@@ -32,6 +33,8 @@ export interface AdminCustomerUser {
   birthday: string | null;
   role?: "customer" | "staff" | "admin" | "super_admin";
   role_label?: string;
+  auth_channel?: "firebase" | "telegram" | "linked";
+  auth_channel_label?: string;
   is_system_owner?: boolean;
   is_staff?: boolean;
   is_customer?: boolean;
@@ -39,10 +42,40 @@ export interface AdminCustomerUser {
   is_active: boolean;
   status: string;
   points: number;
+  wallet_balance?: number;
   total_orders: number;
   total_spent: number;
   created_at: string | null;
   last_password_reset_at: string | null;
+}
+
+export interface UserCounts {
+  customers: number;
+  staff: number;
+  admins: number;
+  all: number;
+  active_customers: number;
+  active_staff: number;
+  active_admins: number;
+  active_total: number;
+  disabled_total: number;
+  total_orders: number;
+  channel_firebase: number;
+  channel_telegram: number;
+  channel_linked: number;
+}
+
+function getPageNumbers(current: number, total: number): (number | string)[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 3) {
+    return [1, 2, 3, 4, "...", total];
+  }
+  if (current >= total - 2) {
+    return [1, "...", total - 3, total - 2, total - 1, total];
+  }
+  return [1, "...", current - 1, current, current + 1, "...", total];
 }
 
 const CACHE_KEY = "admin_cached_customer_users";
@@ -64,9 +97,31 @@ const isUserCustomer = (u: AdminCustomerUser) => {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminCustomerUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
   const [roleTab, setRoleTab] = useState<"customers" | "staff" | "admins" | "all">("customers");
+
+  // Database Pagination & Counts
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalMatching, setTotalMatching] = useState(0);
+  const [perPage] = useState(20);
+  const [counts, setCounts] = useState<UserCounts>({
+    customers: 0,
+    staff: 0,
+    admins: 0,
+    all: 0,
+    active_customers: 0,
+    active_staff: 0,
+    active_admins: 0,
+    active_total: 0,
+    disabled_total: 0,
+    total_orders: 0,
+    channel_firebase: 0,
+    channel_telegram: 0,
+    channel_linked: 0,
+  });
 
   // Current Admin user & Role
   const [currentAdminRole, setCurrentAdminRole] = useState<string>("admin");
@@ -178,35 +233,51 @@ export default function AdminUsersPage() {
     return result;
   };
 
-  // Database Caching with Stale-While-Revalidate: Show instant cache then always refresh clean data from DB
-  const fetchUsers = async (forceRefresh: boolean = false) => {
+  // Server-side paginated database query (20 accounts per page)
+  const fetchUsers = async (
+    targetPage: number = 1,
+    append: boolean = false,
+    forceRefresh: boolean = false
+  ) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      if (typeof window !== "undefined") {
-        const cached = sessionStorage.getItem(CACHE_KEY);
-        if (cached) {
-          try {
-            const list = JSON.parse(cached);
-            if (Array.isArray(list) && list.length > 0) {
-              setUsers(deduplicateUsersList(list));
-              if (!forceRefresh) {
-                setLoading(false);
-              }
-            }
-          } catch (e) {}
-        }
+      const res = await api.get("/admin/users", {
+        params: {
+          page: targetPage,
+          per_page: perPage,
+          search: searchQuery.trim() || undefined,
+          role: roleTab,
+          status: statusFilter,
+        },
+      });
+
+      const resData = res.data;
+      const rawList: AdminCustomerUser[] = Array.isArray(resData?.data)
+        ? resData.data
+        : Array.isArray(resData)
+        ? resData
+        : [];
+      const cleanList = deduplicateUsersList(rawList);
+
+      if (append) {
+        setUsers((prev) => deduplicateUsersList([...prev, ...cleanList]));
+      } else {
+        setUsers(cleanList);
       }
 
-      if (forceRefresh) {
-        setLoading(true);
+      if (resData?.current_page) setCurrentPage(resData.current_page);
+      if (resData?.last_page) setTotalPages(resData.last_page);
+      if (typeof resData?.total === "number") setTotalMatching(resData.total);
+
+      if (resData?.counts) {
+        setCounts(resData.counts);
       }
 
-      const res = await api.get("/admin/users");
-      const list = Array.isArray(res.data) ? res.data : [];
-      const cleanList = deduplicateUsersList(list);
-      setUsers(cleanList);
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cleanList));
-      }
       if (forceRefresh) {
         showToast("បានទាញយក និងសម្អាតទិន្នន័យថ្មីពី Database ជោគជ័យ!");
       }
@@ -214,12 +285,31 @@ export default function AdminUsersPage() {
       showToast("បរាជ័យក្នុងការទាញយកបញ្ជីអតិថិជន", "error");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
+  // Debounced search & filter effect (triggers fetch from DB whenever search query, role tab, or status filter changes)
   useEffect(() => {
-    fetchUsers(false);
-  }, []);
+    const handler = setTimeout(() => {
+      fetchUsers(1, false, false);
+    }, 350);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, roleTab, statusFilter]);
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages || page === currentPage || loading) return;
+    setCurrentPage(page);
+    fetchUsers(page, false, false);
+  };
+
+  const handleLoadMore = () => {
+    if (currentPage >= totalPages || loadingMore) return;
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchUsers(nextPage, true, false);
+  };
 
   const handleToggleStatus = async (user: AdminCustomerUser) => {
     if (isSystemOwner(user.email)) {
@@ -241,6 +331,16 @@ export default function AdminUsersPage() {
         }
         return updated;
       });
+
+      const diff = newActive ? 1 : -1;
+      setCounts((prev) => ({
+        ...prev,
+        active_total: Math.max(0, prev.active_total + diff),
+        disabled_total: Math.max(0, prev.disabled_total - diff),
+        active_customers: isUserCustomer(user) ? Math.max(0, prev.active_customers + diff) : prev.active_customers,
+        active_staff: isUserStaff(user) ? Math.max(0, prev.active_staff + diff) : prev.active_staff,
+        active_admins: isUserAdminOrOwner(user) ? Math.max(0, prev.active_admins + diff) : prev.active_admins,
+      }));
 
       if (selectedUser?.id === user.id) {
         setSelectedUser((prev) => (prev ? { ...prev, is_active: newActive, status: newStatus } : null));
@@ -423,6 +523,27 @@ export default function AdminUsersPage() {
         }
         return updated;
       });
+
+      setTotalMatching((prev) => Math.max(0, prev - 1));
+      setCounts((prev) => {
+        const isCust = isUserCustomer(deleteModalUser);
+        const isSt = isUserStaff(deleteModalUser);
+        const isAdm = isUserAdminOrOwner(deleteModalUser);
+        const wasActive = deleteModalUser.is_active;
+        return {
+          ...prev,
+          all: Math.max(0, prev.all - 1),
+          customers: isCust ? Math.max(0, prev.customers - 1) : prev.customers,
+          staff: isSt ? Math.max(0, prev.staff - 1) : prev.staff,
+          admins: isAdm ? Math.max(0, prev.admins - 1) : prev.admins,
+          active_total: wasActive ? Math.max(0, prev.active_total - 1) : prev.active_total,
+          disabled_total: !wasActive ? Math.max(0, prev.disabled_total - 1) : prev.disabled_total,
+          active_customers: (wasActive && isCust) ? Math.max(0, prev.active_customers - 1) : prev.active_customers,
+          active_staff: (wasActive && isSt) ? Math.max(0, prev.active_staff - 1) : prev.active_staff,
+          active_admins: (wasActive && isAdm) ? Math.max(0, prev.active_admins - 1) : prev.active_admins,
+        };
+      });
+
       showToast(res.data?.message || `បានលុបគណនី "${deleteModalUser.display_name}" ដោយជោគជ័យ`);
       if (selectedUser?.id === deleteModalUser.id) setSelectedUser(null);
       setDeleteModalUser(null);
@@ -452,6 +573,17 @@ export default function AdminUsersPage() {
           }
           return updated;
         });
+
+        setTotalMatching((prev) => prev + 1);
+        setCounts((prev) => ({
+          ...prev,
+          all: prev.all + 1,
+          customers: prev.customers + 1,
+          active_total: prev.active_total + 1,
+          active_customers: prev.active_customers + 1,
+          channel_firebase: prev.channel_firebase + 1,
+        }));
+
         showToast(res.data.message || "បានបង្កើតគណនីអតិថិជនថ្មីដោយជោគជ័យ");
         setIsAddUserOpen(false);
         setAddFormData({
@@ -528,48 +660,24 @@ export default function AdminUsersPage() {
     }
   };
 
-  const roleCounts = useMemo(() => {
-    const customers = users.filter(isUserCustomer).length;
-    const staff = users.filter(isUserStaff).length;
-    const admins = users.filter(isUserAdminOrOwner).length;
-    const all = users.length;
-    return { customers, staff, admins, all };
-  }, [users]);
+  const currentRoleTotal = useMemo(() => {
+    if (roleTab === "customers") return counts.customers;
+    if (roleTab === "staff") return counts.staff;
+    if (roleTab === "admins") return counts.admins;
+    return counts.all;
+  }, [counts, roleTab]);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
-      // 1. Role classification filter
-      if (roleTab === "customers" && !isUserCustomer(u)) return false;
-      if (roleTab === "staff" && !isUserStaff(u)) return false;
-      if (roleTab === "admins" && !isUserAdminOrOwner(u)) return false;
+  const currentRoleActive = useMemo(() => {
+    if (roleTab === "customers") return counts.active_customers;
+    if (roleTab === "staff") return counts.active_staff;
+    if (roleTab === "admins") return counts.active_admins;
+    return counts.active_total;
+  }, [counts, roleTab]);
 
-      // 2. Search query filter
-      const q = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        !q ||
-        (u.display_name && u.display_name.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q)) ||
-        (u.phone && u.phone.toLowerCase().includes(q)) ||
-        (u.city && u.city.toLowerCase().includes(q)) ||
-        (u.telegram && u.telegram.toLowerCase().includes(q));
+  const currentRoleDisabled = Math.max(0, currentRoleTotal - currentRoleActive);
 
-      // 3. Status filter
-      const matchStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" && u.is_active) ||
-        (statusFilter === "disabled" && !u.is_active);
-
-      return matchSearch && matchStatus;
-    });
-  }, [users, roleTab, searchQuery, statusFilter]);
-
-  const stats = useMemo(() => {
-    const total = users.length;
-    const active = users.filter((u) => u.is_active).length;
-    const disabled = users.filter((u) => !u.is_active).length;
-    const totalOrders = users.reduce((acc, u) => acc + (u.total_orders || 0), 0);
-    return { total, active, disabled, totalOrders };
-  }, [users]);
+  // Directly display users returned from database query (server paginated & searched)
+  const displayedUsers = users;
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "មិនទាន់កំណត់";
@@ -618,7 +726,7 @@ export default function AdminUsersPage() {
 
           <button
             type="button"
-            onClick={() => fetchUsers(true)}
+            onClick={() => fetchUsers(1, false, true)}
             disabled={loading}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50"
           >
@@ -632,29 +740,63 @@ export default function AdminUsersPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">អតិថិជនសរុប</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              {roleTab === "customers"
+                ? "អតិថិជនសរុប"
+                : roleTab === "staff"
+                ? "បុគ្គលិកសរុប"
+                : roleTab === "admins"
+                ? "ADMIN & OWNER សរុប"
+                : "គណនីសរុបទាំងអស់"}
+            </span>
             <Users size={18} className="text-[#8B1A1A]" />
           </div>
-          <div className="text-2xl font-black text-gray-900">{roleCounts.customers}</div>
-          <div className="text-[11px] text-gray-400 mt-1">អតិថិជនពិតប្រាកដក្នុងប្រព័ន្ធ</div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-teal-700">បុគ្គលិក & ADMIN</span>
-            <Briefcase size={18} className="text-teal-600" />
+          <div className="text-2xl font-black text-gray-900 font-mono">{currentRoleTotal}</div>
+          <div className="text-[11px] text-gray-400 mt-1">
+            {roleTab === "customers"
+              ? "អតិថិជនពិតប្រាកដក្នុងប្រព័ន្ធ"
+              : roleTab === "staff"
+              ? "បុគ្គលិកគ្រប់គ្រងហាង"
+              : roleTab === "admins"
+              ? "Admin & System Owner"
+              : "សរុបគ្រប់តួនាទីទាំងអស់"}
           </div>
-          <div className="text-2xl font-black text-teal-700">{roleCounts.staff + roleCounts.admins}</div>
-          <div className="text-[11px] text-gray-400 mt-1">បុគ្គលិក ({roleCounts.staff}) • អ្នកគ្រប់គ្រង ({roleCounts.admins})</div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">គណនីសកម្ម</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">ប្រភពផ្ទៀងផ្ទាត់ (AUTH)</span>
+            <Globe size={18} className="text-purple-600" />
+          </div>
+          <div className="text-2xl font-black text-purple-700 font-mono">{counts.all}</div>
+          <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-amber-700">Google ({counts.channel_firebase})</span>
+            <span>•</span>
+            <span className="font-bold text-sky-700">TG ({counts.channel_telegram})</span>
+            <span>•</span>
+            <span className="font-bold text-purple-700">Linked ({counts.channel_linked})</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
+          <div className="flex items-center justify-between text-gray-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+              {roleTab === "customers"
+                ? "អតិថិជនសកម្ម"
+                : roleTab === "staff"
+                ? "បុគ្គលិកសកម្ម"
+                : roleTab === "admins"
+                ? "ADMIN សកម្ម"
+                : "គណនីសកម្មសរុប"}
+            </span>
             <UserCheck size={18} className="text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-emerald-600">{stats.active}</div>
-          <div className="text-[11px] text-gray-400 mt-1">អាចកុម្ម៉ង់ និងចូលប្រើបាន</div>
+          <div className="text-2xl font-black text-emerald-600 font-mono">
+            {currentRoleActive} <span className="text-sm font-semibold text-gray-400">/ {currentRoleTotal}</span>
+          </div>
+          <div className="text-[11px] text-gray-400 mt-1">
+            សកម្ម {currentRoleTotal > 0 ? Math.round((currentRoleActive / currentRoleTotal) * 100) : 100}% • ផ្អាក ({currentRoleDisabled})
+          </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs">
@@ -662,7 +804,7 @@ export default function AdminUsersPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-sky-700">ការកុម្ម៉ង់សរុប</span>
             <ShoppingBag size={18} className="text-sky-600" />
           </div>
-          <div className="text-2xl font-black text-gray-900">{stats.totalOrders}</div>
+          <div className="text-2xl font-black text-gray-900 font-mono">{counts.total_orders}</div>
           <div className="text-[11px] text-gray-400 mt-1">Orders ពីអតិថិជនទាំងអស់</div>
         </div>
       </div>
@@ -680,10 +822,10 @@ export default function AdminUsersPage() {
         >
           <Users size={16} />
           <span>អតិថិជន (Customers)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black font-mono ${
             roleTab === "customers" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
-            {roleCounts.customers}
+            {counts.customers}
           </span>
         </button>
 
@@ -698,10 +840,10 @@ export default function AdminUsersPage() {
         >
           <Briefcase size={16} />
           <span>បុគ្គលិក (Staff)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black font-mono ${
             roleTab === "staff" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
-            {roleCounts.staff}
+            {counts.staff}
           </span>
         </button>
 
@@ -716,10 +858,10 @@ export default function AdminUsersPage() {
         >
           <ShieldCheck size={16} />
           <span>អ្នកគ្រប់គ្រង & ម្ចាស់ប្រព័ន្ធ (Admins & System Owner)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black font-mono ${
             roleTab === "admins" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
-            {roleCounts.admins}
+            {counts.admins}
           </span>
         </button>
 
@@ -734,16 +876,16 @@ export default function AdminUsersPage() {
         >
           <Globe size={16} />
           <span>ទាំងអស់ (All Accounts)</span>
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black font-mono ${
             roleTab === "all" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"
           }`}>
-            {roleCounts.all}
+            {counts.all}
           </span>
         </button>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -764,7 +906,7 @@ export default function AdminUsersPage() {
                 statusFilter === "all" ? "bg-white text-gray-900 shadow-xs" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              ទាំងអស់ ({stats.total})
+              ទាំងអស់ ({currentRoleTotal})
             </button>
             <button
               onClick={() => setStatusFilter("active")}
@@ -772,7 +914,7 @@ export default function AdminUsersPage() {
                 statusFilter === "active" ? "bg-white text-emerald-700 shadow-xs" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              សកម្ម ({stats.active})
+              សកម្ម ({currentRoleActive})
             </button>
             <button
               onClick={() => setStatusFilter("disabled")}
@@ -780,9 +922,40 @@ export default function AdminUsersPage() {
                 statusFilter === "disabled" ? "bg-white text-red-600 shadow-xs" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              បានផ្អាក ({stats.disabled})
+              បានផ្អាក ({currentRoleDisabled})
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Auth Channels Banner: Firebase vs Telegram dual authentication explanation */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-amber-50/70 via-sky-50/70 to-purple-50/70 rounded-2xl border border-gray-200/80 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 via-sky-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Globe size={18} />
+          </div>
+          <div>
+            <div className="font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+              <span>ប្រព័ន្ធបញ្ជាក់អត្តសញ្ញាណ ២ ប្រភព (Dual Authentication System)</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                DB Dynamic Pagination (20 / Page)
+              </span>
+            </div>
+            <div className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
+              ទិន្នន័យទាញផ្ទាល់ពី Database ដោយបែងចែកជា <b>Firebase Google ({counts.channel_firebase})</b> សម្រាប់ Web, <b>Telegram Bot ({counts.channel_telegram})</b> សម្រាប់ Mini App, និង <b>Linked ({counts.channel_linked})</b> ដែលភ្ជាប់ទាំងពីរ។
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 text-[11px] flex-wrap">
+          <span className="px-2.5 py-1 rounded-xl bg-amber-100/90 text-amber-900 font-bold border border-amber-300 flex items-center gap-1">
+            <span>🔥</span> Google: {counts.channel_firebase}
+          </span>
+          <span className="px-2.5 py-1 rounded-xl bg-sky-100/90 text-sky-900 font-bold border border-sky-300 flex items-center gap-1">
+            <Send size={11} /> Telegram: {counts.channel_telegram}
+          </span>
+          <span className="px-2.5 py-1 rounded-xl bg-purple-100/90 text-purple-900 font-bold border border-purple-300 flex items-center gap-1">
+            <span>🔗</span> Linked: {counts.channel_linked}
+          </span>
         </div>
       </div>
 
@@ -792,7 +965,7 @@ export default function AdminUsersPage() {
           <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs font-black uppercase tracking-wider">
-                <th className="py-4 px-5">គណនីអតិថិជន</th>
+                <th className="py-4 px-5">គណនីអតិថិជន & ប្រភព AUTH</th>
                 <th className="py-4 px-4">ទំនាក់ទំនង</th>
                 <th className="py-4 px-4">ថ្ងៃចុះឈ្មោះ</th>
                 <th className="py-4 px-4">ការកុម្ម៉ង់ & ចំណាយ</th>
@@ -806,18 +979,18 @@ export default function AdminUsersPage() {
                   <td colSpan={6} className="py-12 text-center text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <RefreshCw size={18} className="animate-spin text-[#8B1A1A]" />
-                      <span>កំពុងផ្ទុកបញ្ជីទិន្នន័យអតិថិជន...</span>
+                      <span>កំពុងទាញយកបញ្ជីទិន្នន័យពី Database...</span>
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : displayedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-400">
                     មិនមានទិន្នន័យអតិថិជនដែលត្រូវនឹងលក្ខខណ្ឌស្វែងរកឡើយ
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
+                displayedUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-gray-50/70 transition-colors">
                     {/* User Profile */}
                     <td className="py-3.5 px-5">
@@ -859,6 +1032,24 @@ export default function AdminUsersPage() {
                             {u.email && !u.email.endsWith("@s-tech-store.tech") && !u.email.endsWith("@telegram.s-tech-store.tech") && !u.email.startsWith("tg_") && u.email.includes("@") && (
                               <span className="px-1 py-0.2 rounded bg-emerald-50 text-emerald-700 font-sans text-[9px] font-bold border border-emerald-200">
                                 Real
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {u.auth_channel === "linked" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-sans text-[9px] font-bold border border-purple-200 inline-flex items-center gap-1">
+                                <span>🔗</span>
+                                <span>Linked (Web + Bot)</span>
+                              </span>
+                            ) : u.auth_channel === "telegram" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-sans text-[9px] font-bold border border-sky-200 inline-flex items-center gap-1">
+                                <Send size={9} />
+                                <span>Telegram Bot</span>
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-sans text-[9px] font-bold border border-amber-200 inline-flex items-center gap-1">
+                                <span>🔥</span>
+                                <span>Google Auth</span>
                               </span>
                             )}
                           </div>
@@ -1002,6 +1193,77 @@ export default function AdminUsersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination & Load More Controls */}
+        <div className="p-4 bg-gray-50/80 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-gray-500 font-medium text-center sm:text-left">
+            បង្ហាញ <b className="text-gray-900 font-mono">{displayedUsers.length > 0 ? 1 : 0} - {displayedUsers.length}</b> នៃគណនីផ្គូផ្គងសរុប <b className="text-gray-900 font-mono">{totalMatching}</b> {totalPages > 1 && <span className="font-mono text-gray-400">(ទំព័រ {currentPage} នៃ {totalPages})</span>}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap justify-center sm:justify-end">
+            {/* Load More (+20) button */}
+            {currentPage < totalPages && (
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-3.5 py-1.5 rounded-xl bg-[#8B1A1A] hover:bg-[#6e1414] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <RefreshCw size={13} className="animate-spin" />
+                ) : (
+                  <Layers size={13} />
+                )}
+                <span>{loadingMore ? "កំពុងទាញយក..." : "មើលបន្ថែម (+២០ ទៀត)"}</span>
+              </button>
+            )}
+
+            {/* Numbered Pagination (1, 2, 3...) */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-gray-200 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  title="ទំព័រមុន"
+                >
+                  <ChevronLeft size={15} />
+                </button>
+
+                {getPageNumbers(currentPage, totalPages).map((p, idx) => (
+                  p === "..." ? (
+                    <span key={`dots-${idx}`} className="px-2 text-gray-400 text-xs font-mono">...</span>
+                  ) : (
+                    <button
+                      key={`page-${p}`}
+                      type="button"
+                      onClick={() => handlePageChange(Number(p))}
+                      disabled={loading}
+                      className={`min-w-[30px] h-7 px-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        currentPage === p
+                          ? "bg-gray-900 text-white shadow-xs"
+                          : "hover:bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || loading}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  title="ទំព័របន្ទាប់"
+                >
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

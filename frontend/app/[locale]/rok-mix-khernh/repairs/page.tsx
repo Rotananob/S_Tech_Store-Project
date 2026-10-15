@@ -239,8 +239,8 @@ export default function RepairManagementPage() {
       }
 
       setLoadingUsers(true);
-      const res = await api.get("/admin/users");
-      const list = Array.isArray(res.data) ? res.data : [];
+      const res = await api.get("/admin/users?all=true");
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
       setDbUsers(list);
       if (typeof window !== "undefined") {
         sessionStorage.setItem("admin_cached_customer_users", JSON.stringify(list));

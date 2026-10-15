@@ -80,8 +80,14 @@ class UserController extends Controller
         return null;
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $search = trim((string)$request->input('search', ''));
+        $roleFilter = trim((string)$request->input('role', 'all'));
+        $statusFilter = trim((string)$request->input('status', 'all'));
+        $page = max(1, (int)$request->input('page', 1));
+        $perPage = max(1, (int)$request->input('per_page', 20));
+
         $rawProfiles = UserProfile::orderBy('created_at', 'desc')->get();
 
         // Safely deduplicate: prioritize real Gmail over tg_ dummy emails, and merge accounts sharing the same telegram_chat_id or identical email
@@ -116,8 +122,13 @@ class UserController extends Controller
         $internalUsers = \App\Models\User::all()->keyBy(function($u) {
             return strtolower(trim($u->email));
         });
-        
-        $result = $profiles->map(function ($u) use ($internalUsers) {
+
+        // Preload orders count & spent
+        $allOrders = Order::where('status', '!=', 'cancelled')->get();
+        $ordersByUid = $allOrders->groupBy('user_id');
+        $ordersByPhone = $allOrders->groupBy('customer_phone');
+
+        $allAccounts = $profiles->map(function ($u) use ($internalUsers, $ordersByUid, $ordersByPhone) {
             $email = strtolower(trim((string)$u->email));
             $internal = $internalUsers->get($email);
 
@@ -143,16 +154,31 @@ class UserController extends Controller
                 default => 'អតិថិជន (Customer)',
             };
 
-            $orders = Order::where(function ($q) use ($u) {
-                if (!empty($u->firebase_uid)) {
-                    $q->where('user_id', $u->firebase_uid);
-                }
-                if (!empty($u->phone)) {
-                    $q->orWhere('customer_phone', $u->phone);
-                }
-            })
-            ->where('status', '!=', 'cancelled')
-            ->get();
+            // Orders matching
+            $matchedOrders = collect();
+            if (!empty($u->firebase_uid) && $ordersByUid->has($u->firebase_uid)) {
+                $matchedOrders = $matchedOrders->merge($ordersByUid->get($u->firebase_uid));
+            }
+            if (!empty($u->phone) && $ordersByPhone->has($u->phone)) {
+                $matchedOrders = $matchedOrders->merge($ordersByPhone->get($u->phone));
+            }
+            $uniqueOrders = $matchedOrders->unique('id');
+
+            // Authentication Channel Determination (Firebase Google vs Telegram Bot vs Linked)
+            $hasRealEmail = !empty($u->email) && !str_starts_with($u->email, 'tg_') && str_contains($u->email, '@');
+            $hasTelegramId = !empty($u->telegram_chat_id) || str_starts_with($u->firebase_uid ?? '', 'tg_') || (!empty($u->telegram) && $u->telegram !== 'N/A');
+
+            $authChannel = 'firebase';
+            $authChannelLabel = 'Firebase Google';
+            if ($hasRealEmail && $hasTelegramId) {
+                $authChannel = 'linked';
+                $authChannelLabel = 'Linked (Web + Telegram)';
+            } elseif ($hasTelegramId && !$hasRealEmail) {
+                $authChannel = 'telegram';
+                $authChannelLabel = 'Telegram Bot';
+            }
+
+            $isActive = (bool)($u->is_active ?? true);
 
             return [
                 'id' => $u->id,
@@ -169,28 +195,114 @@ class UserController extends Controller
                 'telegram' => $u->telegram,
                 'username' => $u->username ?: (!empty($u->telegram) ? $u->telegram : null),
                 'telegram_chat_id' => $u->telegram_chat_id ?: (str_starts_with($u->firebase_uid ?? '', 'tg_') ? str_replace('tg_', '', $u->firebase_uid) : null),
-                'has_telegram' => !empty($u->telegram_chat_id) || str_starts_with($u->firebase_uid ?? '', 'tg_') || (!empty($u->telegram) && $u->telegram !== 'N/A'),
+                'has_telegram' => $hasTelegramId,
                 'profession' => $u->profession,
                 'gender' => $u->gender,
                 'birthday' => $u->birthday,
                 'role' => $role,
                 'role_label' => $roleLabel,
+                'auth_channel' => $authChannel,
+                'auth_channel_label' => $authChannelLabel,
                 'is_system_owner' => $isSystemOwner,
                 'is_staff' => ($role === 'staff'),
                 'is_admin' => ($role === 'admin' || $role === 'super_admin'),
                 'is_customer' => ($role === 'customer'),
-                'is_active' => (bool)($u->is_active ?? true),
-                'status' => $u->status ?? 'active',
+                'is_active' => $isActive,
+                'status' => $isActive ? 'active' : 'disabled',
                 'points' => (int)($u->points ?? 0),
                 'wallet_balance' => (float)($u->wallet_balance ?? 0.00),
-                'total_orders' => $orders->count(),
-                'total_spent' => (float)$orders->sum('total_amount'),
+                'total_orders' => $uniqueOrders->count(),
+                'total_spent' => (float)$uniqueOrders->sum('total_amount'),
                 'created_at' => $u->created_at ? $u->created_at->toIso8601String() : null,
                 'last_password_reset_at' => $u->last_password_reset_at ? $u->last_password_reset_at->toIso8601String() : null,
             ];
         });
 
-        return response()->json($result);
+        // ── 1. Calculate Exact Global Counts ──
+        $customersList = $allAccounts->filter(fn($u) => $u['is_customer']);
+        $staffList = $allAccounts->filter(fn($u) => $u['is_staff']);
+        $adminsList = $allAccounts->filter(fn($u) => $u['is_admin']);
+
+        $totalCustomers = $customersList->count();
+        $totalStaff = $staffList->count();
+        $totalAdmins = $adminsList->count();
+        $totalAll = $allAccounts->count();
+
+        $activeCustomers = $customersList->filter(fn($u) => $u['is_active'])->count();
+        $activeStaff = $staffList->filter(fn($u) => $u['is_active'])->count();
+        $activeAdmins = $adminsList->filter(fn($u) => $u['is_active'])->count();
+        $activeTotal = $allAccounts->filter(fn($u) => $u['is_active'])->count();
+        $disabledTotal = $totalAll - $activeTotal;
+
+        $totalOrdersSum = $allAccounts->sum('total_orders');
+
+        $channelFirebase = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'firebase')->count();
+        $channelTelegram = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'telegram')->count();
+        $channelLinked = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'linked')->count();
+
+        // If caller requested raw array without pagination (e.g. all=true or paginate=false)
+        if ($request->query('all') === 'true' || $request->query('paginate') === 'false') {
+            return response()->json($allAccounts->values());
+        }
+
+        // ── 2. Filter by Role Tab ──
+        $filtered = $allAccounts;
+        if ($roleFilter === 'customers') {
+            $filtered = $filtered->filter(fn($u) => $u['is_customer']);
+        } elseif ($roleFilter === 'staff') {
+            $filtered = $filtered->filter(fn($u) => $u['is_staff']);
+        } elseif ($roleFilter === 'admins') {
+            $filtered = $filtered->filter(fn($u) => $u['is_admin']);
+        }
+
+        // ── 3. Filter by Status ──
+        if ($statusFilter === 'active') {
+            $filtered = $filtered->filter(fn($u) => $u['is_active']);
+        } elseif ($statusFilter === 'disabled') {
+            $filtered = $filtered->filter(fn($u) => !$u['is_active']);
+        }
+
+        // ── 4. Filter by Search Query (Name, Email, Phone, Telegram, City, ID) ──
+        if (!empty($search)) {
+            $q = strtolower($search);
+            $filtered = $filtered->filter(function($u) use ($q) {
+                return str_contains(strtolower($u['display_name'] ?? ''), $q)
+                    || str_contains(strtolower($u['email'] ?? ''), $q)
+                    || str_contains(strtolower($u['phone'] ?? ''), $q)
+                    || str_contains(strtolower($u['telegram'] ?? ''), $q)
+                    || str_contains(strtolower($u['username'] ?? ''), $q)
+                    || str_contains(strtolower($u['city'] ?? ''), $q)
+                    || str_contains((string)$u['id'], $q);
+            });
+        }
+
+        $totalMatching = $filtered->count();
+        $paginated = $filtered->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+            'data' => $paginated,
+            'total' => $totalMatching,
+            'current_page' => $page,
+            'per_page' => $perPage,
+            'last_page' => max(1, (int)ceil($totalMatching / $perPage)),
+            'counts' => [
+                'customers' => $totalCustomers,
+                'staff' => $totalStaff,
+                'admins' => $totalAdmins,
+                'all' => $totalAll,
+                'active_customers' => $activeCustomers,
+                'active_staff' => $activeStaff,
+                'active_admins' => $activeAdmins,
+                'active_total' => $activeTotal,
+                'disabled_total' => $disabledTotal,
+                'total_orders' => $totalOrdersSum,
+                'channel_firebase' => $channelFirebase,
+                'channel_telegram' => $channelTelegram,
+                'channel_linked' => $channelLinked,
+            ],
+            // For backward compatibility:
+            'users' => $paginated,
+        ]);
     }
 
     public function toggleStatus(Request $request, $id)
