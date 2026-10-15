@@ -20,15 +20,23 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
     };
   }
 
-  const title = `${product.name} | S Tech Store Cambodia`;
+  const priceFormatted = product.sale_price ? `$${product.sale_price}` : (product.price ? `$${product.price}` : "");
+  const title = priceFormatted ? `${product.name} (${priceFormatted}) | S Tech Store` : `${product.name} | S Tech Store Cambodia`;
   const description = product.description 
-    ? `${product.description.slice(0, 160)}... តម្លៃត្រឹមតែ $${product.price} មានធានាផ្លូវការនៅ S Tech Store`
-    : `ទិញ ${product.name} តម្លៃពិសេស $${product.price} ជាមួយការធានាផ្លូវការ និងសេវាដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia។`;
+    ? `${product.name} ${priceFormatted ? `តម្លៃត្រឹមតែ ${priceFormatted}` : ""} — ${product.description.replace(/\r?\n|\r/g, " ").slice(0, 150)}... មានធានាត្រឹមត្រូវ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia`
+    : `ទិញ ${product.name} ${priceFormatted ? `តម្លៃពិសេស ${priceFormatted}` : ""} ជាមួយការធានាផ្លូវការ និងសេវាដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia។`;
     
-  const rawImage = product.images?.[0] || product.image || "/og-image.png";
-  const imageUrl = rawImage.startsWith("http") 
-    ? rawImage 
-    : `https://www.s-tech-store.tech${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
+  const extractedImg = 
+    product.image_url || 
+    product.image || 
+    (Array.isArray(product.images) && product.images[0] 
+      ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0].image_url || product.images[0].url || product.images[0].image)) 
+      : '') || 
+    "/og-image.png";
+
+  const imageUrl = extractedImg.startsWith("http") 
+    ? extractedImg 
+    : `https://www.s-tech-store.tech${extractedImg.startsWith("/") ? "" : "/"}${extractedImg}`;
 
   const canonicalUrl = `https://www.s-tech-store.tech/${locale}/products/${slug}`;
 
@@ -52,9 +60,11 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
       images: [
         {
           url: imageUrl,
+          secureUrl: imageUrl,
           width: 1200,
           height: 630,
           alt: product.name,
+          type: imageUrl.endsWith(".png") ? "image/png" : "image/jpeg",
         },
       ],
     },
@@ -63,11 +73,14 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
       title,
       description,
       images: [imageUrl],
+      creator: "@STechStore",
+      site: "@STechStore",
     },
     other: {
-      "product:price:amount": String(product.price || 0),
+      "product:price:amount": String(product.sale_price || product.price || 0),
       "product:price:currency": "USD",
       "product:availability": (product.stock ?? 1) > 0 ? "in stock" : "out of stock",
+      "og:image:secure_url": imageUrl,
     },
   };
 }

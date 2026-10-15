@@ -72,6 +72,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://www.s-tech-store.tech/og-image.png",
+        secureUrl: "https://www.s-tech-store.tech/og-image.png",
         width: 1200,
         height: 630,
         alt: "S Tech Store Cambodia - Official Tech Hub",
@@ -89,6 +90,13 @@ export const metadata: Metadata = {
     images: ["https://www.s-tech-store.tech/og-image.png"],
     creator: "@STechStore",
     site: "@STechStore",
+  },
+  other: {
+    "og:image:secure_url": "https://www.s-tech-store.tech/og-image.png",
+    "og:image:width": "1200",
+    "og:image:height": "630",
+    "og:image:type": "image/png",
+    "twitter:image:alt": "S Tech Store Cambodia - Official Tech Hub",
   },
   robots: {
     index: true,

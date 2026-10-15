@@ -12,6 +12,7 @@ import { triggerFlyToCart } from "@/lib/flyToCart";
 import { auth } from "@/lib/firebase";
 import { submitProductReview } from "@/lib/services/product.service";
 import PublicProfileModal from "@/components/ui/PublicProfileModal";
+import SocialShareModal from "@/components/ui/SocialShareModal";
 
 export function ProductDetailClient({ product }: { product: any }) {
   const [activeImage, setActiveImage] = useState(0);
@@ -988,54 +989,15 @@ export function ProductDetailClient({ product }: { product: any }) {
         )}
       </AnimatePresence>
 
-      {/* Share Modal */}
-      <AnimatePresence>
-        {showShare && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4">
-            <motion.div 
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 relative"
-            >
-              <button onClick={() => setShowShare(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                <X size={24} />
-              </button>
-              <h3 className="text-lg font-bold text-gray-900 mb-6 text-center">Share Product</h3>
-              
-              <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => handleShare('copy')} className="flex flex-col items-center gap-2 group">
-                  <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-gray-200 transition-colors">
-                    <Copy size={24} />
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">Copy Link</span>
-                </button>
-                <button onClick={() => handleShare('fb')} className="flex flex-col items-center gap-2 group">
-                  <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-100 transition-colors">
-                    
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">Facebook</span>
-                </button>
-                <button onClick={() => handleShare('telegram')} className="flex flex-col items-center gap-2 group">
-                  <div className="w-14 h-14 rounded-full bg-sky-50 flex items-center justify-center text-sky-500 group-hover:bg-sky-100 transition-colors">
-                    <Send size={24} />
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">Telegram</span>
-                </button>
-                <button onClick={() => handleShare('image')} className="flex flex-col items-center gap-2 group">
-                  <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors">
-                    <ImageIcon size={24} />
-                  </div>
-                  <span className="text-[11px] font-medium text-gray-600">Save Image</span>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Universal Direct-to-Post Social Share Modal with Live Preview */}
+      <SocialShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title={`${product.name} ${product.sale_price ? `($${product.sale_price})` : (product.price ? `($${product.price})` : "")}`}
+        text={`ស្វែងរកទិញ ${product.name} ${product.sale_price ? `តម្លៃត្រឹមតែ $${product.sale_price}` : (product.price ? `តម្លៃត្រឹមតែ $${product.price}` : "")} ជាមួយការធានាផ្លូវការនៅ S Tech Store Cambodia! ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង`}
+        url={typeof window !== "undefined" ? window.location.href : `https://www.s-tech-store.tech/products/${product.slug}`}
+        imageUrl={images[activeImage] || images[0] || product.image_url}
+      />
 
       {/* Public Profile View Modal */}
       <PublicProfileModal

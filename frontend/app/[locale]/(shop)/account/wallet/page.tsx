@@ -24,6 +24,7 @@ import WalletTopupModal from "@/components/wallet/WalletTopupModal";
 import ConvertCoinsModal from "@/components/wallet/ConvertCoinsModal";
 import ConfettiShower from "@/components/promotions/ConfettiShower";
 import { playCelebrationFanfare } from "@/lib/celebration-audio";
+import SocialShareModal from "@/components/ui/SocialShareModal";
 
 const USD_TO_KHR = 4060;
 
@@ -37,6 +38,7 @@ export default function WalletAndCoinsPage() {
   const [claimingActivity, setClaimingActivity] = useState<string | null>(null);
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ title: string; desc: string } | null>(null);
   const [txFilter, setTxFilter] = useState<"all" | "deposit" | "reward" | "purchase">("all");
@@ -606,16 +608,7 @@ export default function WalletAndCoinsPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({
-                        title: "S Tech Store Cambodia",
-                        text: "ចូលមកមើលទំនិញកុំព្យូទ័រ Laptop & PC Build គុណភាពខ្ពស់នៅ S Tech Store!",
-                        url: window.location.origin,
-                      }).catch(() => {});
-                    }
-                    handleClaimActivity("share_store", "ចែករំលែកហាង");
-                  }}
+                  onClick={() => setShowShareModal(true)}
                   disabled={claimingActivity === "share_store"}
                   className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-bold transition-all border-none cursor-pointer shrink-0"
                 >
@@ -972,6 +965,19 @@ export default function WalletAndCoinsPage() {
           setWallet((prev) => prev ? { ...prev, balance: newBal, coins: remCoins, coins_usd_value: roundTwoDecimals(remCoins / 100) } : prev);
           triggerToast("🔄 ប្តូរកាក់ជោគជ័យ!", `លោកអ្នកទទួលបានសាច់ប្រាក់បញ្ចូលទៅក្នុងកាបូបដោយជោគជ័យ`);
           loadData(true);
+        }}
+      />
+
+      {/* Universal Direct-to-Post Social Share Modal with Live Preview */}
+      <SocialShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title="S Tech Store — ហាងលក់ និងជួសជុលកុំព្យូទ័រ Laptops & Gaming PC នៅកម្ពុជា"
+        text="ចូលមកមើលទំនិញបច្ចេកវិទ្យា Laptops, Custom Gaming PC & គ្រឿងបន្លាស់គុណភាពខ្ពស់នៅ S Tech Store! ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង"
+        url="https://www.s-tech-store.tech"
+        imageUrl="https://www.s-tech-store.tech/og-image.png"
+        onShareSuccess={() => {
+          handleClaimActivity("share_store", "ចែករំលែកហាង");
         }}
       />
     </>
