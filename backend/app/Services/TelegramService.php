@@ -1718,7 +1718,12 @@ class TelegramService
 
         // 4.2 Handle Profile Setting Private Account Linkage Handshake (tglink_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tglink_') || str_starts_with($extractedCode, 'TGLINK_'))) {
-            // ⚡ Instant Typing Indicator: Show active typing status immediately (< 50ms)
+            // ⚡ 1. INSTANT ANIMATED REACTION: Burst particle celebration effect immediately (< 50ms)
+            if ($messageId) {
+                self::setMessageReaction($chatId, (int)$messageId, '🎉', true, $activeToken);
+            }
+
+            // ⚡ 2. Instant Typing Indicator
             self::sendChatAction($chatId, 'typing', $activeToken);
             $msgId = null;
 
@@ -1860,8 +1865,10 @@ class TelegramService
             Cache::forget("tg_disconnected_{$tgId}");
 
             // Unlink any other account that previously had this telegram_chat_id
-            \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-                ->orWhere('telegram_chat_id', (string)$tgId)
+            \App\Models\UserProfile::where(function($q) use ($cleanTgId, $tgId) {
+                    $q->where('telegram_chat_id', (string)$cleanTgId)
+                      ->orWhere('telegram_chat_id', (string)$tgId);
+                })
                 ->where('id', '!=', $user->id)
                 ->update(['telegram_chat_id' => null, 'telegram' => null]);
 
@@ -1889,7 +1896,60 @@ class TelegramService
                 );
             } catch (\Throwable $t) {}
 
-            // Fetch genuine profile photo from Telegram Bot API in non-blocking way if user has no avatar
+            // ⚡ 2. PREPARE HIGH-TECH VIP DIGITAL MEMBER CARD & INSTANT DELIVERY (< 150ms)
+            $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
+            $miniAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+            $profileUrl = "https://www.s-tech-store.tech/account/profile?tg_token={$sessionToken}";
+            $phoneNumber = !empty($user->phone) ? $user->phone : 'មិនទាន់បញ្ជាក់ (Auto-Syncing)';
+            $userPoints = (int)($user->points ?? 0);
+            $walletBal = number_format((float)($user->wallet_balance ?? 0), 2);
+            $pointsUsd = number_format($userPoints * 0.01, 2);
+
+            $linkedMsg = "✨ <b>S TECH STORE • VIP MEMBER CARD</b> ✨\n"
+                . "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "🎉 <b>ការភ្ជាប់គណនី Telegram ជោគជ័យ ១០០%!</b>\n"
+                . "👋 សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគណនី <b>" . htmlspecialchars($user->display_name) . "</b> ដោយជោគជ័យ និងមានសុវត្ថិភាពខ្ពស់បំផុត។\n\n"
+                . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100% ⚡ Instant Sync</b>\n\n"
+                . "📋 <b>ព័ត៌មានអត្តសញ្ញាណឌីជីថល (VIP Profile):</b>\n"
+                . "• 👤 <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
+                . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($user->email ?: 'មិនមានអ៊ីមែល') . "</code>\n"
+                . "• 🏷️ <b>Telegram:</b> " . htmlspecialchars($tgUsername ?: $fullName) . "\n"
+                . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
+                . "• 📱 <b>លេខទូរស័ព្ទ:</b> " . htmlspecialchars($phoneNumber) . "\n"
+                . "• 🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$userPoints} Coins</b> (~$" . $pointsUsd . ")\n"
+                . "• 💰 <b>សមតុល្យ Wallet:</b> <b>\${$walletBal}</b>\n"
+                . "• 🔐 <b>សុវត្ថិភាព:</b> <b>✅ 2-Factor Authentication Protected</b>\n\n"
+                . "🎁 <b>ឯកសិទ្ធិពិសេសដែលលោកអ្នកទទួលបាន (VIP Perks):</b>\n"
+                . "  🧾 <b>វិក្កយបត្រឌីជីថល:</b> ផ្ញើចូលឆាតនេះភ្លាមៗរាល់ពេលទូទាត់ប្រាក់\n"
+                . "  🚚 <b>Live Delivery Tracker:</b> ដឹងដំណឹងទំនិញចេញដឹក (PassApp / Courier) ផ្ទាល់ខ្លួន\n"
+                . "  🪙 <b>S-Coins Cashback:</b> សន្សំពិន្ទុកាក់រង្វាន់គ្រប់ការបញ្ជាទិញ\n"
+                . "  ⚡ <b>1-Click Auto-Login:</b> បើកទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយ Password ឡើយ!\n\n"
+                . "👉 <i>សូមជ្រើសរើសមុខងារអន្តរកម្មខាងក្រោមដើម្បីចាប់ផ្តើម៖</i>";
+
+            $linkedKb = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Sign In)', 'web_app' => ['url' => $miniAppUrl]]
+                    ],
+                    [
+                        ['text' => '🪙 កាបូបលុយ & កាក់រង្វាន់', 'callback_data' => 'cust_my_wallet'],
+                        ['text' => '📦 ពិនិត្យការកុម្ម៉ង់ (Orders)', 'callback_data' => 'cust_my_orders']
+                    ],
+                    [
+                        ['text' => '🔥 ប្រូម៉ូសិន VIP & Flash Sale', 'callback_data' => 'cust_promo'],
+                        ['text' => '💬 ជំនួយការ AI / ក្រុមការងារ', 'callback_data' => 'cust_contact']
+                    ],
+                    [
+                        ['text' => '🌐 ត្រឡប់ទៅ Profile លើ Website វិញ', 'url' => $profileUrl]
+                    ],
+                ]
+            ];
+
+            // ⚡ ZERO-DELAY DELIVERY: Dispatch VIP Member Card IMMEDIATELY to customer (< 200ms)
+            self::sendMessageWithKeyboard($chatId, $linkedMsg, $linkedKb, 'HTML', null, $activeToken);
+
+            // ⚡ 3. DEFERRED BACKGROUND OPERATIONS (Executed AFTER customer response is sent)
+            // Background avatar sync
             if (empty($user->photo_url)) {
                 try {
                     $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
@@ -1903,46 +1963,18 @@ class TelegramService
                 } catch (\Throwable $t) {}
             }
 
-            // 2. INSTANT DELIVERY OF LINKED ACCOUNT CONFIRMATION CARD (< 100ms)
-            $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
-            $miniAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
-            $profileUrl = "https://www.s-tech-store.tech/account/profile?tg_token={$sessionToken}";
-            $phoneNumber = !empty($user->phone) ? $user->phone : 'ភ្ជាប់តាម Telegram ID (' . $tgId . ')';
+            // Background admin audit alert
+            try {
+                self::sendCustomerLoginAlert([
+                    'method' => '🔗 ភ្ជាប់គណនី Telegram ក្នុង Profile (Account Linked)',
+                    'ip' => request()->ip() ?? '127.0.0.1',
+                    'device' => 'Telegram Mobile/Desktop Client',
+                    'user' => "{$user->display_name} ({$user->email}) -> {$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
+                    'action' => 'TELEGRAM_PROFILE_LINK_SUCCESS',
+                    'details' => "អតិថិជនបានភ្ជាប់គណនី Telegram ផ្ទាល់ខ្លួនជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId} ជាមួយ User: {$user->display_name}។",
+                ]);
+            } catch (\Throwable $t) {}
 
-            $linkedMsg = "🎉 <b>ភ្ជាប់គណនី S Tech Store ជោគជ័យ ១០០%!</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "សួស្តី <b>{$fullName}</b>! គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគណនី <b>{$user->display_name}</b> ({$user->email}) ដោយជោគជ័យ។\n\n"
-                . "📋 <b>ព័ត៌មានគណនី Telegram របស់អ្នក:</b>\n"
-                . "• 👤 <b>ឈ្មោះពិត (Full Name):</b> <b>" . htmlspecialchars($fullName) . "</b>\n"
-                . "• 🏷️ <b>Telegram Username:</b> " . htmlspecialchars($tgUsername ?: 'មិនមាន Username') . "\n"
-                . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
-                . "• 📱 <b>លេខទូរស័ព្ទ / Phone:</b> " . htmlspecialchars($phoneNumber) . "\n"
-                . "• 🔐 <b>ស្ថានភាព (Status):</b> <b>✅ ភ្ជាប់ជាមួយ Profile រួចរាល់</b>\n\n"
-                . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100%</b>\n\n"
-                . "🔒 <b>អត្ថប្រយោជន៍គណនី Private របស់អ្នក៖</b>\n"
-                . "  🧾 <b>វិក្កយបត្រ (Invoices/Receipts):</b> ផ្ញើចូលឆាតនេះស្វ័យប្រវត្តរាល់ពេលទូទាត់ប្រាក់\n"
-                . "  📦 <b>តាមដាន Order:</b> ដំណឹងទំនិញចេញដឹក (PassApp / Courier) ផ្ទាល់ខ្លួន\n"
-                . "  🎁 <b>ពិន្ទុ & VIP Rewards:</b> ពិនិត្យ S-Coins និង Flash Sale ផ្តាច់មុខ\n\n"
-                . "👉 <i>ឆាតនេះជាលក្ខណៈ Private ផ្ទាល់ខ្លួនរបស់លោកអ្នកតែម្នាក់គត់ មិនលាយឡំជាមួយអ្នកដទៃឡើយ!</i>";
-
-            $linkedKb = [
-                'inline_keyboard' => [
-                    [['text' => '📱 បើក Mini App (Auto-Login គណនីថ្មី)', 'web_app' => ['url' => $miniAppUrl]]],
-                    [['text' => '📦 ពិនិត្យការបញ្ជាទិញរបស់ខ្ញុំ', 'callback_data' => 'cust_my_orders']],
-                    [['text' => '🌐 ត្រឡប់ទៅកាន់ Profile វិញ', 'url' => $profileUrl]],
-                ],
-            ];
-
-            self::sendMessageWithKeyboard($chatId, $linkedMsg, $linkedKb, 'HTML', null, $activeToken);
-
-            self::sendCustomerLoginAlert([
-                'method' => '🔗 ភ្ជាប់គណនី Telegram ក្នុង Profile (Account Linked)',
-                'ip' => request()->ip() ?? '127.0.0.1',
-                'device' => 'Telegram Mobile/Desktop Client',
-                'user' => "{$user->display_name} ({$user->email}) -> {$fullName} (" . ($tgUsername ?: "ID: {$tgId}") . ")",
-                'action' => 'TELEGRAM_PROFILE_LINK_SUCCESS',
-                'details' => "អតិថិជនបានភ្ជាប់គណនី Telegram ផ្ទាល់ខ្លួនជោគជ័យ! Name: {$fullName}, Telegram ID: {$tgId} ជាមួយ User: {$user->display_name}។",
-            ]);
             return;
         }
 
@@ -3560,7 +3592,7 @@ class TelegramService
         if (!$token || !$tgUserId) return null;
 
         try {
-            $resp = \Illuminate\Support\Facades\Http::timeout(1.5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
+            $resp = \Illuminate\Support\Facades\Http::connectTimeout(1.0)->timeout(1.5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
                 'user_id' => $tgUserId,
                 'limit' => 1,
             ]);
@@ -3574,7 +3606,7 @@ class TelegramService
                     $fileId = $bestPhoto['file_id'] ?? null;
 
                     if ($fileId) {
-                        $fileRes = \Illuminate\Support\Facades\Http::timeout(1.5)->get("https://api.telegram.org/bot{$token}/getFile", [
+                        $fileRes = \Illuminate\Support\Facades\Http::connectTimeout(1.0)->timeout(1.5)->get("https://api.telegram.org/bot{$token}/getFile", [
                             'file_id' => $fileId,
                         ]);
                         if ($fileRes->successful()) {

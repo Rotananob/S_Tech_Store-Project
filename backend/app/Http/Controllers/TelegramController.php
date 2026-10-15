@@ -393,7 +393,7 @@ class TelegramController extends Controller
                             'one_time_keyboard' => true,
                         ],
                     ];
-                } elseif (!str_starts_with(strtolower($startParam), 'st') && !str_starts_with(strtolower($startParam), 'tgauth_')) {
+                } elseif (empty($startParam)) {
                     $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
                         . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
                         . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
@@ -433,17 +433,8 @@ class TelegramController extends Controller
         if (function_exists('fastcgi_finish_request')) {
             response()->json($responsePayload)->send();
             fastcgi_finish_request();
-        } elseif (!headers_sent()) {
-            ignore_user_abort(true);
-            $content = json_encode($responsePayload);
-            header('Connection: close');
-            header('Content-Type: application/json');
-            header('Content-Length: ' . strlen($content));
-            echo $content;
-            while (ob_get_level() > 0) {
-                ob_end_flush();
-            }
-            flush();
+            TelegramService::processUpdate($update, $botParam);
+            return response()->json($responsePayload);
         }
 
         TelegramService::processUpdate($update, $botParam);
