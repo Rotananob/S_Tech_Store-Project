@@ -91,17 +91,35 @@ api.interceptors.request.use(
             }
           }
           // 3. Fallback: Direct Telegram Mini App WebApp context (Zero latency)
-          if (!config.headers["X-Firebase-UID"] && (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+          if ((window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
             const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
-            config.headers["X-Firebase-UID"] = `tg_${tgUser.id}`;
-            config.headers["X-Firebase-Name"] = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || `tg_${tgUser.id}`;
-            if (tgUser.photo_url) config.headers["X-Firebase-Photo"] = tgUser.photo_url;
+            config.headers["X-Telegram-Chat-ID"] = String(tgUser.id);
+            if (!config.headers["X-Firebase-UID"]) {
+              config.headers["X-Firebase-UID"] = `tg_${tgUser.id}`;
+            }
+            if (!config.headers["X-Firebase-Name"]) {
+              config.headers["X-Firebase-Name"] = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || `tg_${tgUser.id}`;
+            }
+            if (tgUser.photo_url && !config.headers["X-Firebase-Photo"]) {
+              config.headers["X-Firebase-Photo"] = tgUser.photo_url;
+            }
           }
         }
 
-        const customerToken = localStorage.getItem("stech_user_token") || localStorage.getItem("customer_token");
+        // 4. Attach Customer Token (from localStorage, cookie, or URL ?tg_token / ?token parameter)
+        let customerToken = localStorage.getItem("stech_user_token") || localStorage.getItem("customer_token");
+        if (!customerToken && typeof window !== "undefined") {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            customerToken = urlParams.get("tg_token") || urlParams.get("token");
+          } catch (e) {}
+        }
         if (customerToken) {
           config.headers["X-Customer-Token"] = customerToken;
+          if (!config.params) config.params = {};
+          if (!config.params.tg_token) {
+            config.params.tg_token = customerToken;
+          }
         }
       } catch (e) {
         // Auth not initialized yet — skip

@@ -2242,6 +2242,7 @@ class TelegramService
 
         // Customer /shop or /products
         if (preg_match('/^\/(?:shop|products)(?:@\w+)?/i', $text)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🔥', true, $activeToken);
             $shopText = "💻 <b>ប្រភេទផលិតផល និងឧបករណ៍បច្ចេកវិទ្យានៅ S Tech Store:</b>\n\n"
                 . "🌟 <b>ទំនិញពេញនិយម និងមានក្នុងស្តុកស្រាប់៖</b>\n"
                 . "• 💻 <b>Laptops ម៉ាកល្បីៗ:</b> ASUS ROG/TUF, Apple MacBook M2/M3, Dell XPS/Latitude, Lenovo Legion/ThinkPad, Acer Nitro, MSI Gaming\n"
@@ -2265,6 +2266,7 @@ class TelegramService
 
         // Customer /promo or /promotions
         if (preg_match('/^\/(?:promo|promotions)(?:@\w+)?/i', $text)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🎉', true, $activeToken);
             $promoText = "🔥 <b>កម្មវិធីប្រូម៉ូសិនពិសេសនៅ S Tech Store!</b>\n\n"
                 . "🎉 <b>មហាប្រូម៉ូសិន និងការបញ្ចុះតម្លៃពិសេស៖</b>\n"
                 . "• 💥 បញ្ចុះតម្លៃពិសេសរហូតដល់ <b>30%</b> លើម៉ូឌែល Laptops & Accessories\n"
@@ -2290,12 +2292,13 @@ class TelegramService
 
         // Customer /orders, /order, or /track (Real Orders Lookup & Date Filter)
         if (preg_match('/^\/(?:orders|order|track)(?:@\w+)?(?:\s+(.+))?/i', $text, $orderMatches)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '📦', true, $activeToken);
             $arg = !empty($orderMatches[1]) ? trim($orderMatches[1]) : null;
 
             if ($arg) {
                 // If argument is a tracking ID like ST-10023
                 if (preg_match('/\b((?:ST|ORD)[-_]?[A-Za-z0-9]{3,12})\b/i', $arg)) {
-                    self::handleCustomerTextInquiry($chatId, $arg, $from, $activeToken, $activeBotUsername);
+                    self::handleCustomerTextInquiry($chatId, $arg, $from, $activeToken, $activeBotUsername, $messageId);
                     return;
                 }
                 $argLower = mb_strtolower($arg, 'UTF-8');
@@ -2328,6 +2331,7 @@ class TelegramService
 
         // Customer /points or /coins
         if (preg_match('/^\/(?:points|coins|rewards)(?:@\w+)?/i', $text)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🪙', true, $activeToken);
             $user = self::resolveActiveUser((string)$chatId);
             $points = (int)($user->points ?? 0);
             $dollarVal = number_format($points * 0.01, 2);
@@ -2374,6 +2378,7 @@ class TelegramService
 
         // Customer /wallet, /balance, /money, /funds, /topup (Local-First Real Wallet Lookup)
         if (preg_match('/^\/(?:wallet|balance|money|funds|topup)(?:@\w+)?/i', $text)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '💰', true, $activeToken);
             $user = self::resolveActiveUser((string)$chatId);
 
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
@@ -2621,13 +2626,13 @@ class TelegramService
         }
 
         // 7. Handle Natural Customer Inquiries & Smart FAQ in Chat
-        self::handleCustomerTextInquiry($chatId, $text, $from, $activeToken, $activeBotUsername);
+        self::handleCustomerTextInquiry($chatId, $text, $from, $activeToken, $activeBotUsername, $messageId);
     }
 
     /**
      * Smart Natural Language Customer FAQ & Assistant in Telegram Bot
      */
-    public static function handleCustomerTextInquiry($chatId, string $text, array $from, string $activeToken, string $activeBotUsername): void
+    public static function handleCustomerTextInquiry($chatId, string $text, array $from, string $activeToken, string $activeBotUsername, ?int $messageId = null): void
     {
         $cleanText = trim($text);
         if ($cleanText === '') return;
@@ -2651,7 +2656,9 @@ class TelegramService
             } catch (\Throwable $e) {}
 
             if ($order) {
-                $statusKh = match(strtolower($order->status ?? 'pending')) {
+                if ($messageId) self::setMessageReaction($chatId, $messageId, '📦', true, $activeToken);
+                $statusRaw = strtolower($order->status ?? 'pending');
+                $statusKh = match($statusRaw) {
                     'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
                     'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
                     'shipping', 'delivering' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipping)',
@@ -2660,26 +2667,44 @@ class TelegramService
                     default => ucfirst($order->status),
                 };
 
+                $progressBar = match($statusRaw) {
+                    'pending' => "▰▰▱▱▱▱▱▱▱▱ 25% (ទទួលការកុម្ម៉ង់)",
+                    'processing' => "▰▰▰▰▰▱▱▱▱▱ 50% (វេចខ្ចប់ទំនិញ)",
+                    'shipping', 'delivering' => "▰▰▰▰▰▰▰▰▱▱ 80% (កំពុងដឹកជញ្ជូន)",
+                    'completed', 'delivered' => "▰▰▰▰▰▰▰▰▰▰ 100% (ជោគជ័យ)",
+                    'cancelled' => "▰▰▱▱▱▱▱▱▱▱ ❌ [បានលុបចោល]",
+                    default => "▰▰▱▱▱▱▱▱▱▱ 25%",
+                };
+
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
                 $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
 
                 $itemsList = [];
                 if ($order->items) {
-                    foreach ($order->items as $it) {
-                        $itemsList[] = "  • " . ($it->product ? $it->product->name : 'ទំនិញ') . " x{$it->quantity} (\${$it->unit_price})";
+                    foreach ($order->items as $idx => $it) {
+                        $pName = htmlspecialchars($it->product ? $it->product->name : 'ទំនិញ');
+                        $priceStr = $it->unit_price ? ' ($' . number_format((float)$it->unit_price, 2) . ')' : '';
+                        $itemsList[] = "  " . ($idx + 1) . ". {$pName} × {$it->quantity}{$priceStr}";
                     }
                 }
                 $itemsText = !empty($itemsList) ? implode("\n", $itemsList) : "  • ព័ត៌មានទំនិញក្នុង Admin";
 
+                $deliveryStr = $order->delivery_type === 'pnompenh' ? 'ភ្នំពេញ (Phnom Penh)' : ($order->delivery_type === 'province' ? 'តាមខេត្ត (Province)' : ($order->delivery_type ?? 'Standard'));
+                $shippingAddress = htmlspecialchars($order->shipping_address ?? 'ទីតាំងបានបញ្ជាក់');
+                $payMethod = strtoupper($order->payment_method ?? 'Bakong KHQR');
+                $payStatus = strtoupper($order->payment_status ?: 'unpaid');
+
                 $orderMsg = "📦 <b>ព័ត៌មានការបញ្ជាទិញ #{$order->order_id}:</b>\n\n"
                     . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name ?? 'N/A') . "\n"
                     . "⚡ <b>ស្ថានភាព:</b> <b>{$statusKh}</b>\n"
-                    . "💰 <b>តម្លៃសរុប:</b> <b>\${$order->total_amount} USD</b>\n"
-                    . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> " . htmlspecialchars($order->payment_method ?? 'Bakong KHQR') . " (" . ($order->payment_status ?: 'unpaid') . ")\n"
-                    . "🚚 <b>សេវាដឹក:</b> " . htmlspecialchars($order->delivery_type ?? 'Standard') . "\n"
-                    . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($order->shipping_address ?? 'N/A') . "\n\n"
-                    . "🛍️ <b>មុខទំនិញ:</b>\n{$itemsText}\n\n"
-                    . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($order->created_at ? $order->created_at->format('d-m-Y H:i') : date('d-m-Y')) . "\n\n"
+                    . "📊 <b>ដំណើរការ:</b> <code>{$progressBar}</code>\n"
+                    . "💵 <b>តម្លៃសរុប:</b> <b>\${$order->total_amount} USD</b> ({$payMethod} - {$payStatus})\n\n"
+                    . "<blockquote expandable>\n"
+                    . "🛍️ <b>មុខទំនិញក្នុងកញ្ចប់:</b>\n{$itemsText}\n\n"
+                    . "📍 <b>អាសយដ្ឋានដឹក:</b> {$shippingAddress}\n"
+                    . "🚚 <b>សេវាដឹក:</b> {$deliveryStr}\n"
+                    . "⏰ <b>កាលបរិច្ឆេទ:</b> " . ($order->created_at ? $order->created_at->format('d-m-Y H:i') : date('d-m-Y')) . "\n"
+                    . "</blockquote>\n\n"
                     . "👉 លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមនៅក្នុង Mini App!";
 
                 $orderKb = [
@@ -2733,6 +2758,7 @@ class TelegramService
 
         // A.1 Natural Khmer Order Inquiries ("order របស់ខ្ញុំ", "ឥវ៉ាន់ខ្ញុំដល់ណា", "តាមដាន order", "my orders")
         if (preg_match('/(order|orders|កញ្ចប់|ឥវ៉ាន់|ការកុម្ម៉ង់|កុម្ម៉ង់|បញ្ជាទិញ|ទំនិញខ្ញុំ|អីវ៉ាន់)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '📦', true, $activeToken);
             // Check timeframe keywords:
             if (preg_match('/(ថ្ងៃនេះ|ថ្ងៃហ្នឹង|ថ្ងៃនុង|today)/u', $textLower)) {
                 self::sendCustomerOrdersFiltered($chatId, 'today', $fromName, null, $activeToken);
@@ -2776,6 +2802,7 @@ class TelegramService
         if ($directDate) {
             $cleanedDate = trim(preg_replace('/\b(?:order|orders|ថ្ងៃ|កាលបរិច្ឆេទ|date)\b/ui', '', $cleanText));
             if (strlen($cleanedDate) <= 12) {
+                if ($messageId) self::setMessageReaction($chatId, $messageId, '📦', true, $activeToken);
                 self::sendCustomerOrdersFiltered($chatId, 'date:' . $directDate, $fromName, null, $activeToken);
                 return;
             }
@@ -2783,6 +2810,7 @@ class TelegramService
 
         // A.2 Inquiries about Money, Wallet Balance, Funds & Coins ("លុយខ្ញុំសល់ប៉ុន្មាន", "check balance", "ទឹកប្រាក់", "កាបូបលុយ", "wallet balance", "សមតុល្យ")
         if (preg_match('/(លុយ(?:ខ្ញុំ)?(?:សល់|មាន)?|ទឹកប្រាក់|កាបូប(?:លុយ)?|សមតុល្យ|wallet|balance|money|funds|cash\s*balance|check\s*balance|កាក់|សល់លុយ|កុងលុយ|ចំនួនទឹកប្រាក់|បញ្ចូលលុយ|topup)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '💰', true, $activeToken);
             $user = self::resolveActiveUser((string)$chatId);
 
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
@@ -2823,6 +2851,7 @@ class TelegramService
 
         // A.3 Promotions, Vouchers & Promo Code Inquiries ("voucher", "coupon", "code", "បញ្ចុះតម្លៃ", "stech10")
         if (preg_match('/(voucher|coupon|code|កូដ|បញ្ចុះតម្លៃ|discount|កូដបញ្ចុះតម្លៃ|stech10|pchumben)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🎉', true, $activeToken);
             $promoText = "🔥 <b>កូដបញ្ចុះតម្លៃ & ប្រូម៉ូសិនពិសេស (Vouchers & Deals):</b>\n\n"
                 . "🎉 <b>កូដបញ្ចុះតម្លៃសកម្មបច្ចុប្បន្ន (Active Promo Codes):</b>\n"
                 . "• 🎟️ <code>STECH10</code> — បញ្ចុះ <b>10% ភ្លាមៗ</b> លើរាល់ការបញ្ជាទិញ\n"
@@ -2846,6 +2875,7 @@ class TelegramService
 
         // B. Laptop & PC Pricing inquiries
         if (preg_match('/(laptop|pc|កុំព្យូទ័រ|តម្លៃ|price|cost|ថ្លៃ|macbook|dell|asus|lenovo|acer|msi|gaming|screen|ram|ssd|vga|rtx|monitor|គ្រឿង)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '⚡', true, $activeToken);
             $reply = "💻 <b>ព័ត៌មានតម្លៃ Laptops & PC នៅ S Tech Store:</b>\n\n"
                 . "យើងខ្ញុំមានលក់ Laptops, Desktop PC និងគ្រឿងបន្លាស់ Original ១០០% ជាមួយនឹងតម្លៃពិសេស៖\n\n"
                 . "• 💻 <b>Laptops ការិយាល័យ & សិក្សា:</b> ចាប់ពី <b>\$299 - \$699</b> (Dell, Lenovo, Acer, ASUS)\n"
@@ -2870,12 +2900,13 @@ class TelegramService
 
         // C. Delivery / Shipping inquiries
         if (preg_match('/(ដឹក|delivery|ship|shipping|ថ្លៃដឹក|ផ្ញើ|ខេត្ត|ភ្នំពេញ|ផ្ញើរ)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🚚', true, $activeToken);
             $reply = "🚚 <b>សេវាកម្មដឹកជញ្ជូន S Tech Store:</b>\n\n"
                 . "យើងខ្ញុំមានសេវាដឹកជញ្ជូនរហ័សទាន់ចិត្ត និងធានាសុវត្ថិភាពទំនិញ ១០០%៖\n\n"
                 . "📍 <b>ក្នុងរាជធានីភ្នំពេញ:</b>\n"
                 . "• រយៈពេលដឹក: <b>1 ទៅ 3 ម៉ោង</b> ទទួលបានទំនិញ\n"
                 . "• តម្លៃដឹក: <b>\$1.50 - \$2.00</b> (ដឹកជញ្ជូន <b>ឥតគិតថ្លៃ FREE</b> សម្រាប់ការកុម្ម៉ង់ចាប់ពី \$50 ឡើងទៅ!)\n\n"
-                . "🌍 <b>បណ្តា ២酸 ខេត្ត-ក្រុង:</b>\n"
+                . "🌍 <b>បណ្តា ២៥ ខេត្ត-ក្រុង:</b>\n"
                 . "• ផ្ញើតាម: វីរៈប៊ុនថាំ (VET), J&T Express ឬ Kerry Express\n"
                 . "• រយៈពេល: <b>1 ទៅ 2 ថ្ងៃ</b> ទទួលបានទំនិញ\n"
                 . "• តម្លៃសេវា: <b>\$2.50 - \$3.00</b> (ខ្ចប់ទំនិញការពារប៉ះទង្គិចយ៉ាងម៉ត់ចត់)\n\n"
@@ -2893,6 +2924,7 @@ class TelegramService
 
         // D. Warranty / Guarantees inquiries
         if (preg_match('/(ធានា|warranty|guarantee|ខូច|ដូរ|ប្តូរ|policy)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🛡️', true, $activeToken);
             $reply = "🛡️ <b>គោលការណ៍ធានា (Warranty Policy) នៅ S Tech Store:</b>\n\n"
                 . "រាល់ផលិតផលដែលជាវពីហាង S Tech Store សុទ្ធតែទទួលបានការធានាផ្លូវការយ៉ាងច្បាស់លាស់៖\n\n"
                 . "• 🌟 <b>ទំនិញថ្មីប្រអប់ (Brand New 100%):</b> ធានាផ្លូវការពីរោងចក្រ <b>6 ខែ ទៅ 1 ឆ្នាំពេញ / 2 ឆ្នាំ</b> លើ Hardware\n"
@@ -2913,6 +2945,7 @@ class TelegramService
 
         // E. Payment methods inquiries (Bakong KHQR, ABA, Cards)
         if (preg_match('/(បង់ប្រាក់|payment|pay|khqr|bakong|aba|acleda|wing|visa|mastercard|cash\b|cod|កុងធនាគារ|វេរប្រាក់|ផ្ទេរប្រាក់)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '💳', true, $activeToken);
             $reply = "💳 <b>វិធីសាស្ត្រទូទាត់ប្រាក់នៅ S Tech Store:</b>\n\n"
                 . "យើងខ្ញុំផ្តល់ជូននូវជម្រើសទូទាត់ប្រាក់ដែលងាយស្រួល រហ័ស និងមានសុវត្ថិភាពខ្ពស់៖\n\n"
                 . "• 🇰🇭 <b>Bakong KHQR (គ្រប់ធនាគារទាំងអស់):</b> ស្កេនទូទាត់បានភ្លាមៗជាមួយ ABA, ACLEDA, Wing, Canadia, TrueMoney, Sathapana, etc.\n"
@@ -2936,6 +2969,7 @@ class TelegramService
 
         // F. Location, Address & Hours inquiries
         if (preg_match('/(ទីតាំង|location|address|ហាងនៅណា|កន្លែង|map|ម៉ោង|ពេលណា|បើក|hours)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '📍', true, $activeToken);
             $reply = "📍 <b>ទីតាំងហាង & ម៉ោងបម្រើការងារ:</b>\n\n"
                 . "🏪 <b>S Tech Store Cambodia:</b>\n"
                 . "• 📍 <b>អាសយដ្ឋាន:</b> រាជធានីភ្នំពេញ, ប្រទេសកម្ពុជា\n"
@@ -2956,6 +2990,7 @@ class TelegramService
 
         // G. Repair & Maintenance inquiries
         if (preg_match('/(ជួសជុល|repair|fix|upgrade|ដំឡើង|windows|លាង|ប្តូរអេក្រង់|ប្តូរថ្ម|សាកមិនចូល)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🔧', true, $activeToken);
             $reply = "🔧 <b>សេវាកម្មជួសជុល & Upgrade កុំព្យូទ័រ:</b>\n\n"
                 . "កុំព្យូទ័ររបស់អ្នកមានបញ្ហា ឬដំណើរការយឺតមែនទេ? ជាងជំនាញ S Tech Store អាចជួយបាន៖\n\n"
                 . "• ⚡ Upgrade RAM & SSD NVMe ល្បឿនលឿន (ដំណើរការលឿនជាងមុន 5x ដង)\n"
@@ -2980,6 +3015,7 @@ class TelegramService
 
         // H. Live Agent / Staff request
         if (preg_match('/(មនុស្ស|admin|staff|បុគ្គលិក|agent|ឆាត|call|ទូរស័ព្ទ|ជួប|ជួយ)/u', $textLower)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '👨‍💻', true, $activeToken);
             try {
                 self::sendCustomerChatAlert([
                     'name' => $fromName,
@@ -4096,9 +4132,9 @@ class TelegramService
         $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
         $query = self::getCustomerOrdersBuilder((string)$chatId, $user)
-            ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'payment_status', 'delivery_type', 'created_at'])
+            ->select(['id', 'order_id', 'user_id', 'status', 'total_amount', 'payment_method', 'payment_status', 'delivery_type', 'shipping_address', 'created_at'])
             ->with(['items' => function ($q) {
-                $q->select(['id', 'order_id', 'product_id', 'quantity'])->with(['product:id,name']);
+                $q->select(['id', 'order_id', 'product_id', 'quantity', 'unit_price', 'subtotal'])->with(['product:id,name']);
             }])
             ->latest();
 
@@ -4196,7 +4232,8 @@ class TelegramService
             . "✨ រកឃើញចំនួន <b>{$ordersCount} កញ្ចប់</b>\n\n";
 
         foreach ($orders as $ord) {
-            $statusBadge = match(strtolower($ord->status ?? 'pending')) {
+            $statusRaw = strtolower($ord->status ?? 'pending');
+            $statusBadge = match($statusRaw) {
                 'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
                 'processing' => '🔄 កំពុងរៀបចំកញ្ចប់ទំនិញ (Processing)',
                 'shipped', 'delivering', 'shipping' => '🚚 កំពុងដឹកជញ្ជូនលើផ្លូវ (Shipped)',
@@ -4205,27 +4242,44 @@ class TelegramService
                 default => ucfirst($ord->status ?? 'pending'),
             };
 
-            $itemsList = [];
-            if ($ord->items) {
-                foreach ($ord->items->take(2) as $it) {
-                    $itemsList[] = ($it->product ? $it->product->name : 'ទំនិញ') . " (x{$it->quantity})";
+            $progressBar = match($statusRaw) {
+                'pending' => "▰▰▱▱▱▱▱▱▱▱ 25% (ទទួលការកុម្ម៉ង់)",
+                'processing' => "▰▰▰▰▰▱▱▱▱▱ 50% (វេចខ្ចប់ទំនិញ)",
+                'shipped', 'delivering', 'shipping' => "▰▰▰▰▰▰▰▰▱▱ 80% (កំពុងដឹកជញ្ជូន)",
+                'completed', 'delivered' => "▰▰▰▰▰▰▰▰▰▰ 100% (ជោគជ័យ)",
+                'cancelled' => "▰▰▱▱▱▱▱▱▱▱ ❌ [បានលុបចោល]",
+                default => "▰▰▱▱▱▱▱▱▱▱ 25%",
+            };
+
+            $itemsDetailed = [];
+            if ($ord->items && $ord->items->isNotEmpty()) {
+                foreach ($ord->items as $idx => $it) {
+                    $pName = htmlspecialchars($it->product ? $it->product->name : 'ទំនិញ');
+                    $qty = $it->quantity;
+                    $priceStr = $it->unit_price ? ' ($' . number_format((float)$it->unit_price, 2) . ')' : '';
+                    $itemsDetailed[] = "  " . ($idx + 1) . ". {$pName} × {$qty}{$priceStr}";
                 }
+            } else {
+                $itemsDetailed[] = "  • ព័ត៌មានទំនិញ S Tech Store";
             }
-            $itemsSummary = !empty($itemsList) ? implode(', ', $itemsList) : 'ទំនិញ S Tech Store';
-            if ($ord->items && $ord->items->count() > 2) {
-                $itemsSummary .= ' + ' . ($ord->items->count() - 2) . ' មុខទៀត';
-            }
+            $itemsBlock = implode("\n", $itemsDetailed);
 
             $formattedDate = $ord->created_at ? $ord->created_at->timezone($tz)->format('d/m/Y H:i') : 'ថ្មីៗ';
             $payMethod = strtoupper($ord->payment_method ?? 'COD');
-            $delivery = $ord->delivery_type ?? 'Standard';
+            $delivery = $ord->delivery_type === 'pnompenh' ? 'ភ្នំពេញ (Phnom Penh)' : ($ord->delivery_type === 'province' ? 'តាមខេត្ត (Province)' : ($ord->delivery_type ?? 'Standard'));
+            $addr = htmlspecialchars($ord->shipping_address ?: 'ទីតាំងបានបញ្ជាក់');
 
             $ordersText .= "🧾 <b>Order #{$ord->order_id}</b>\n"
                 . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+                . "📊 <b>ដំណើរការ:</b> <code>{$progressBar}</code>\n"
                 . "💵 <b>តម្លៃសរុប:</b> <b>\${$ord->total_amount} USD</b> ({$payMethod})\n"
-                . "📦 <b>ទំនិញ:</b> {$itemsSummary}\n"
+                . "<blockquote expandable>\n"
+                . "🛍️ <b>មុខទំនិញក្នុងកញ្ចប់ (" . ($ord->items ? $ord->items->count() : 0) . " មុខ):</b>\n"
+                . "{$itemsBlock}\n"
+                . "📍 <b>អាសយដ្ឋានដឹក:</b> {$addr}\n"
                 . "🚚 <b>សេវាដឹក:</b> {$delivery}\n"
                 . "⏰ <b>កាលបរិច្ឆេទ:</b> {$formattedDate}\n"
+                . "</blockquote>\n"
                 . "────────────────────\n\n";
         }
 
@@ -4729,6 +4783,41 @@ class TelegramService
             Http::timeout(1.5)->post("https://api.telegram.org/bot{$token}/sendChatAction", [
                 'chat_id' => $chatId,
                 'action' => $action,
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Send animated message reaction (burst particle animation in Telegram)
+     */
+    public static function setMessageReaction($chatId, int $messageId, string $emoji = '🔥', bool $isBig = true, ?string $token = null): void
+    {
+        if (empty($chatId) || empty($messageId)) {
+            return;
+        }
+
+        $settings = self::getSettings();
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
+        if (!$token || str_contains($token, 'Placeholder')) {
+            return;
+        }
+
+        try {
+            Http::timeout(1.5)->post("https://api.telegram.org/bot{$token}/setMessageReaction", [
+                'chat_id' => $chatId,
+                'message_id' => $messageId,
+                'reaction' => [
+                    [
+                        'type' => 'emoji',
+                        'emoji' => $emoji,
+                    ],
+                ],
+                'is_big' => $isBig,
             ]);
         } catch (\Throwable $e) {}
     }
