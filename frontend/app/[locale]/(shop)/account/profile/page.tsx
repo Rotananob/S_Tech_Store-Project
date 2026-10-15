@@ -320,21 +320,18 @@ const TABS = [
   { key: "orders", label: "History & Activities", desc: "Orders, Viewed Items & Searches", icon: History },
 ];
 
+const OFFICIAL_CUSTOMER_BOT = "S_TECH_ASSISTANTBOT";
+
 const sanitizeTgBot = (username?: string | null): string => {
-  if (!username || /stech_store_loginbot/i.test(username) || /s_tech_storebot/i.test(username)) {
-    return "S_TECH_ASSISTANTBOT";
-  }
-  return username;
+  return OFFICIAL_CUSTOMER_BOT;
 };
 
 const sanitizeTgDeepLink = (link?: string | null, token?: string | null): string => {
-  if (!link) return `https://t.me/S_TECH_ASSISTANTBOT${token ? `?start=${token}` : ""}`;
-  return link.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
+  return `https://t.me/${OFFICIAL_CUSTOMER_BOT}${token ? `?start=${token}` : ""}`;
 };
 
 const sanitizeTgAppLink = (link?: string | null, token?: string | null): string => {
-  if (!link) return `tg://resolve?domain=S_TECH_ASSISTANTBOT${token ? `&start=${token}` : ""}`;
-  return link.replace(/Stech_store_LoginBot/gi, "S_TECH_ASSISTANTBOT").replace(/s_tech_storeBot/gi, "S_TECH_ASSISTANTBOT");
+  return `tg://resolve?domain=${OFFICIAL_CUSTOMER_BOT}${token ? `&start=${token}` : ""}`;
 };
 
 export default function UserProfilePage() {

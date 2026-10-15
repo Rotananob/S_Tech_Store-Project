@@ -10,7 +10,24 @@ use Illuminate\Support\Str;
 
 class TelegramService
 {
-    public const OFFICIAL_BOT_USERNAME = 's_tech_storeBot';
+    // =========================================================================
+    // 🤖 TELEGRAM BOT ARCHITECTURE (SINGLE SOURCE OF TRUTH):
+    // 1. CUSTOMER BOT: @S_TECH_ASSISTANTBOT (ID: 8689597792)
+    //    👉 THE ONLY OFFICIAL CUSTOMER BOT FOR ALL CUSTOMER-FACING FEATURES.
+    //    - Customer Telegram Login & OAuth Handshake
+    //    - Telegram Mini App (Web App)
+    //    - Customer Live Chat & 24/7 AI Assistant
+    //    - Order tracking, Wallet, S-Coins, Promo codes
+    //    - NEVER EVER replace this with any other bot!
+    //
+    // 2. STAFF ALERT BOT: @s_tech_storeBot (Token: TELEGRAM_BOT_TOKEN)
+    //    👉 STRICTLY FOR INTERNAL STORE ADMIN/STAFF GROUP FORUM TOPICS ONLY.
+    //    - Receives new order notifications, repair job tickets, low stock alerts.
+    //    - NEVER expose or route customer login, verification, or customer chat to this bot!
+    // =========================================================================
+    public const OFFICIAL_STAFF_BOT_USERNAME = 's_tech_storeBot';
+    public const OFFICIAL_BOT_USERNAME = self::OFFICIAL_STAFF_BOT_USERNAME; // Backward-compatible alias for staff bot only
+
     public const OFFICIAL_CUSTOMER_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
     public const OFFICIAL_CUSTOMER_BOT_ID = '8689597792';
     public const OFFICIAL_CUSTOMER_BOT_TOKEN = '8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8';
@@ -490,6 +507,11 @@ class TelegramService
             if ($callbackId) {
                 $quickToast = self::getQuickToast($callbackData);
                 self::answerCallbackQuery($callbackId, $quickToast, $activeToken);
+            }
+
+            // ⚡ Instant Typing Indicator: Show active typing status in Telegram header
+            if ($chatType === 'private' && $chatId) {
+                self::sendChatAction($chatId, 'typing', $activeToken);
             }
 
 
@@ -1417,6 +1439,8 @@ class TelegramService
         if ($chatType === 'private') {
             $activeToken = self::getCustomerBotToken();
             $activeBotUsername = self::getCustomerBotUsername();
+            // ⚡ Instant Typing Indicator: Show active typing status in Telegram header
+            self::sendChatAction($chatId, 'typing', $activeToken);
         }
 
         // 3.1 Handle Contact Sharing (Direct Customer Phone Number capture)
@@ -2645,6 +2669,9 @@ class TelegramService
     {
         $cleanText = trim($text);
         if ($cleanText === '') return;
+
+        // ⚡ Immediate Typing Action: Signal user that bot is analyzing their question
+        self::sendChatAction($chatId, 'typing', $activeToken);
 
         $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
         $fromUsername = $from['username'] ?? '';
@@ -4324,7 +4351,7 @@ class TelegramService
     /**
      * Answer Telegram callback query to dismiss button loading spinners (supports Multi-Bot Token & Auto-Fallback)
      */
-    public static function answerCallbackQuery(?string $callbackId, string $text = '', ?string $token = null): void
+    public static function answerCallbackQuery(?string $callbackId, string $text = '', ?string $token = null, bool $showAlert = false): void
     {
         if (empty($callbackId)) {
             return;
@@ -4336,20 +4363,18 @@ class TelegramService
         }
 
         try {
-            $resp = Http::timeout(2)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", [
+            $payload = [
                 'callback_query_id' => $callbackId,
                 'text' => $text,
+                'show_alert' => $showAlert,
                 'cache_time' => 1,
-            ]);
+            ];
+            $resp = Http::timeout(2)->post("https://api.telegram.org/bot{$token}/answerCallbackQuery", $payload);
 
             // If token rejected with 400 (e.g. wrong bot token), automatically fallback to customer bot token
             if (!$resp->successful() && $token !== self::getCustomerBotToken() && self::getCustomerBotToken()) {
                 $altToken = self::getCustomerBotToken();
-                Http::timeout(2)->post("https://api.telegram.org/bot{$altToken}/answerCallbackQuery", [
-                    'callback_query_id' => $callbackId,
-                    'text' => $text,
-                    'cache_time' => 1,
-                ]);
+                Http::timeout(2)->post("https://api.telegram.org/bot{$altToken}/answerCallbackQuery", $payload);
             }
         } catch (\Throwable $e) {}
     }

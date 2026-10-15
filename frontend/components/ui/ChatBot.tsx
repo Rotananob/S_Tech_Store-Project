@@ -57,6 +57,32 @@ export const STATIC_SYSTEM_PROMPTS = [
   { label: "💳 ការទូទាត់ KHQR / COD", text: "តើហាងទទួលការទូទាត់តាមវិធីណាខ្លះ (KHQR/ABA/COD)?" },
   { label: "📞 ជជែកផ្ទាល់ជាមួយក្រុមការងារ", isAgent: true, text: "" },
 ];
+// ─── Native Telegram Mini App & Mobile Haptic Feedback ───────────────────────
+export const triggerHaptic = (style: "light" | "medium" | "heavy" | "rigid" | "soft" = "light") => {
+  if (typeof window !== "undefined") {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred(style);
+      } else if (navigator?.vibrate) {
+        navigator.vibrate(style === "heavy" ? 40 : 20);
+      }
+    } catch (e) {}
+  }
+};
+
+export const triggerHapticNotification = (type: "error" | "success" | "warning" = "success") => {
+  if (typeof window !== "undefined") {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.notificationOccurred(type);
+      } else if (navigator?.vibrate) {
+        navigator.vibrate([30, 40, 30]);
+      }
+    } catch (e) {}
+  }
+};
 
 export interface ThinkingStep {
   phase1: string;
@@ -647,6 +673,17 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
   // ─── Initialize Auth, User Info & Sessions ─────────────────────────────────
   useEffect(() => {
+    // 0. Native Telegram Mini App Handshake & Auto-Expand
+    if (typeof window !== "undefined") {
+      try {
+        const tg = (window as any).Telegram?.WebApp;
+        if (tg) {
+          tg.ready?.();
+          tg.expand?.();
+        }
+      } catch (e) {}
+    }
+
     // 1. Immediately detect if user is logged in via localStorage session or Telegram Mini App
     const initialLoggedIn = checkUserLoggedIn();
     setIsLoggedIn(initialLoggedIn);
@@ -1051,6 +1088,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       return;
     }
 
+    // ⚡ Instant Haptic Feedback on user action
+    triggerHaptic("medium");
+
     // Clear previews right away
     setAttachedImages([]);
 
@@ -1273,6 +1313,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       });
     } finally {
       setIsAiThinking(false);
+      triggerHapticNotification("success");
     }
   };
 
@@ -1802,6 +1843,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             key={idx}
             type="button"
             onClick={() => {
+              triggerHaptic("light");
               if (item.isAgent) {
                 // Guests are explicitly allowed to alert staff!
                 setShowAgentModal(true);
