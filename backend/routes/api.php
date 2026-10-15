@@ -357,7 +357,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     // 4. Send Customer Login Activity Notification (Topic: Users)
     \App\Services\TelegramService::sendCustomerLoginAlert([
         'method' => '👤 Telegram OAuth Login (ចូលតាមគេហទំព័រ)',
-        'ip' => $request->ip() ?? '127.0.0.1',
+        'ip' => \App\Services\TelegramService::getRealClientIp(null, $request, (string)$tgId),
         'device' => $request->header('User-Agent') ?? 'Telegram Client',
         'user' => "{$user->display_name} (" . ($user->telegram ?: "ID: {$tgId}") . ")",
         'action' => 'TELEGRAM_OAUTH_SUCCESS',
@@ -392,10 +392,12 @@ Route::post('/auth/telegram/handshake-init', function (Request $request) {
     $token = 'tgauth_' . strtolower(\Illuminate\Support\Str::random(24));
     $botUsername = \App\Services\TelegramService::getCustomerBotUsername();
 
+    $realIp = \App\Services\TelegramService::getRealClientIp($request->input('client_ip'), $request, $token);
+
     $initPayload = [
         'status' => 'pending',
         'created_at' => time(),
-        'ip' => $request->ip() ?? '127.0.0.1',
+        'ip' => $realIp,
     ];
 
     \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $initPayload, 600); // 10 minutes
@@ -1237,13 +1239,11 @@ Route::post('/auth/magic-login', [UserController::class, 'magicLogin']);
 // Real-time Traffic & Registration Tracking to Telegram (Public)
 Route::post('/analytics/track-visit', function (Request $request) {
     // 1. Detect Real IP Address
-    $rawIp = $request->header('cf-connecting-ip')
-        ?? $request->header('x-real-ip')
-        ?? $request->header('x-forwarded-for')
-        ?? $request->ip()
-        ?? '127.0.0.1';
-
-    $ip = trim(explode(',', $rawIp)[0]);
+    $ip = \App\Services\TelegramService::getRealClientIp(
+        $request->input('client_ip') ?? $request->header('cf-connecting-ip') ?? $request->header('x-real-ip') ?? $request->header('x-forwarded-for'),
+        $request,
+        $request->input('device_id', '')
+    );
 
     // 2. Extract Location & Device Info
     $city = $request->input('city') 

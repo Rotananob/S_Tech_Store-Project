@@ -637,7 +637,16 @@ export default function RegisterPage() {
 
     try {
       // 1. Initialize instant App Handshake from backend (Bypasses Bot domain invalid!)
-      const res = await api.post("/auth/telegram/handshake-init");
+      let clientIp = "";
+      try {
+        const ipRes = await Promise.race([
+          fetch("https://api.ipify.org?format=json").then((r) => r.json()),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1000)),
+        ]) as any;
+        if (ipRes?.ip) clientIp = String(ipRes.ip).trim();
+      } catch {}
+
+      const res = await api.post("/auth/telegram/handshake-init", clientIp ? { client_ip: clientIp } : {});
       if (res.data?.success && res.data?.handshake_token) {
         const token = res.data.handshake_token;
         const deepLink = res.data.deep_link || `https://t.me/S_TECH_ASSISTANTBOT?start=${token}`;
