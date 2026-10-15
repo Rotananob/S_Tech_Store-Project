@@ -168,24 +168,48 @@ export default function BottomNav() {
           const Icon = tab.icon;
           const active = isActive(tab.path);
 
-          // Center Camera Search button - Apple Intelligence Squircle Style
+          // Center Camera Visual Search Button - Floating Luminous Gem Style
           if (tab.isCenter) {
             return (
               <button
                 key={tab.path}
                 type="button"
                 onClick={openVisualSearch}
-                className="relative flex flex-col items-center justify-center h-full w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group -mt-1"
+                className="relative flex flex-col items-center justify-center w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group -mt-5.5 focus:outline-none"
                 aria-label="Scan products with Camera (S Tech Visual Search)"
               >
+                {/* Ambient Breathing Glow Aura */}
+                <div className="absolute top-0 w-14 h-14 rounded-full bg-gradient-to-tr from-[#8B1A1A] via-red-500 to-rose-400 blur-lg opacity-75 group-hover:opacity-100 transition-opacity animate-pulse pointer-events-none" />
+
+                {/* Secondary Soft Ambient Radiance */}
+                <div className="absolute -top-1 w-16 h-16 rounded-full bg-red-600/30 blur-xl pointer-events-none" />
+
+                {/* Outer Ring with Cyber Shimmer Bezel */}
                 <motion.div
-                  whileTap={{ scale: 0.9 }}
-                  className="w-[42px] h-[42px] rounded-2xl flex items-center justify-center bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 shadow-md shadow-red-900/25 border-2 border-white dark:border-[#0c0e14]"
+                  whileHover={{ scale: 1.1, y: -2 }}
+                  whileTap={{ scale: 0.92 }}
+                  className="relative w-[52px] h-[52px] sm:w-[56px] sm:h-[56px] rounded-full p-[2.5px] bg-gradient-to-tr from-amber-300 via-rose-500 to-[#8B1A1A] shadow-[0_12px_28px_-4px_rgba(225,29,72,0.6),0_0_22px_rgba(251,113,133,0.45)] flex items-center justify-center"
                 >
-                  <Icon size={20} color="white" strokeWidth={2.4} />
+                  {/* Inner Lens Body */}
+                  <div className="relative w-full h-full rounded-full bg-gradient-to-br from-[#8B1A1A] via-[#b91c1c] to-[#4c0505] border-[2.5px] border-white dark:border-[#0c0e14] flex items-center justify-center overflow-hidden">
+                    {/* Glass Sheen Specular Highlight */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-white/10 to-transparent pointer-events-none" />
+                    
+                    {/* Visual Scan Radar Sweeping Effect */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-white/30 to-transparent rotate-45 animate-[spin_4s_linear_infinite] pointer-events-none" />
+
+                    {/* Camera Icon & Sparkle */}
+                    <div className="relative z-10 flex items-center justify-center text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                      <Camera size={23} strokeWidth={2.4} />
+                      <Sparkles size={11} className="absolute -top-1 -right-1 text-amber-300 fill-amber-300 animate-pulse drop-shadow-[0_0_8px_rgba(252,211,77,0.95)]" />
+                    </div>
+                  </div>
                 </motion.div>
-                <span className="text-[10px] font-bold text-[#8B1A1A] dark:text-red-400 mt-0.5 tracking-tight">
-                  {tab.label}
+
+                {/* Label with shimmering gradient text */}
+                <span className="text-[10px] font-black tracking-tight mt-1 bg-gradient-to-r from-[#8B1A1A] via-red-600 to-rose-500 dark:from-red-400 dark:to-rose-300 bg-clip-text text-transparent flex items-center gap-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block mr-0.5" />
+                  <span>Visual Scan</span>
                 </span>
               </button>
             );

@@ -766,11 +766,13 @@ export default function VisualSearchModal() {
                         cameraInputRef.current?.click();
                       }
                     }}
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-white/95 p-1 flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.5)] hover:scale-105 active:scale-90 transition-all cursor-pointer border-none ring-4 ring-white/20"
+                    className="relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-tr from-amber-300 via-rose-500 to-[#8B1A1A] p-[3px] flex items-center justify-center shadow-[0_0_30px_rgba(225,29,72,0.65)] hover:scale-105 active:scale-90 transition-all cursor-pointer border-none ring-4 ring-rose-500/20"
                     aria-label="Capture photo to scan"
                   >
-                    <div className="w-full h-full rounded-full border-2 border-black/20 bg-gradient-to-br from-[#8B1A1A] via-[#c0392b] to-[#e74c3c] flex items-center justify-center shadow-inner">
-                      <Camera size={26} className="text-white drop-shadow" />
+                    <div className="relative w-full h-full rounded-full border-2 border-white/40 bg-gradient-to-br from-[#8B1A1A] via-[#b91c1c] to-[#4c0505] flex items-center justify-center shadow-inner overflow-hidden">
+                      <div className="absolute -inset-2 bg-gradient-to-r from-transparent via-white/25 to-transparent rotate-45 animate-[spin_5s_linear_infinite] pointer-events-none" />
+                      <Camera size={26} className="text-white drop-shadow relative z-10" />
+                      <Sparkles size={11} className="absolute top-2 right-2 text-amber-300 fill-amber-300 animate-pulse drop-shadow-[0_0_6px_rgba(252,211,77,0.9)] z-10" />
                     </div>
                   </button>
                 ) : (
