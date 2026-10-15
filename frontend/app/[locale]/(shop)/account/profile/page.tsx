@@ -1366,24 +1366,24 @@ export default function UserProfilePage() {
   const startTelegramPolling = (token: string) => {
     setTelegramPolling(true);
     let attempts = 0;
-    let pollInterval: any = null;
-
-    const onReturn = () => {
-      if (document.visibilityState === "visible") {
-        checkLink();
-      }
-    };
+    let pollTimeout: any = null;
+    let isChecking = false;
+    let isDone = false;
 
     const cleanup = () => {
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
+      isDone = true;
+      if (pollTimeout) {
+        clearTimeout(pollTimeout);
+        pollTimeout = null;
       }
       window.removeEventListener("focus", onReturn);
+      window.removeEventListener("pageshow", onReturn);
       document.removeEventListener("visibilitychange", onReturn);
     };
 
-    const checkLink = async () => {
+    const checkLink = async (): Promise<boolean> => {
+      if (isDone || isChecking) return false;
+      isChecking = true;
       try {
         const res = await api.get(`/user/telegram/link-check?token=${encodeURIComponent(token)}`);
         if (res.data?.completed) {
@@ -1436,24 +1436,45 @@ export default function UserProfilePage() {
           });
           return false;
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        isChecking = false;
+      }
       return false;
+    };
+
+    const onReturn = () => {
+      if (document.visibilityState === "visible") {
+        checkLink();
+      }
     };
 
     // Immediate check on trigger
     checkLink();
 
-    pollInterval = setInterval(async () => {
-      attempts++;
-      if (attempts > 120) {
-        cleanup();
-        setTelegramPolling(false);
-        return;
-      }
-      await checkLink();
-    }, 800);
+    const scheduleNext = (delay = 1000) => {
+      if (isDone) return;
+      if (pollTimeout) clearTimeout(pollTimeout);
+      pollTimeout = setTimeout(async () => {
+        if (isDone) return;
+        attempts++;
+        if (attempts > 70) {
+          cleanup();
+          setTelegramPolling(false);
+          return;
+        }
+        const completed = await checkLink();
+        if (!completed && !isDone) {
+          const isHidden = typeof document !== "undefined" && document.hidden;
+          scheduleNext(isHidden ? 2500 : 1000);
+        }
+      }, delay);
+    };
+
+    scheduleNext(1000);
 
     window.addEventListener("focus", onReturn);
+    window.addEventListener("pageshow", onReturn);
     document.addEventListener("visibilitychange", onReturn);
   };
 

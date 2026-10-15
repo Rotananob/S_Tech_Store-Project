@@ -422,11 +422,18 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
     }
 
     $data = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
-    if (!$data) {
+    // If cache is missing OR still in 'pending' status, do a rapid check in database to catch any cross-process updates
+    if (!$data || ($data['status'] ?? '') === 'pending') {
         try {
             $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
             if ($row && !empty($row->value)) {
-                $data = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                $dbData = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                if (!empty($dbData) && is_array($dbData)) {
+                    $data = $dbData;
+                    if (($data['status'] ?? '') === 'completed') {
+                        \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $data, 600);
+                    }
+                }
             }
         } catch (\Throwable $t) {}
     }
@@ -536,11 +543,18 @@ Route::get('/user/telegram/link-check', function (Request $request) {
     }
 
     $data = \Illuminate\Support\Facades\Cache::get("tg_link_{$token}");
-    if (!$data) {
+    // If cache is missing OR still in 'pending' status, check database for cross-process updates
+    if (!$data || ($data['status'] ?? '') === 'pending') {
         try {
             $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_link_{$token}")->first();
             if ($row && !empty($row->value)) {
-                $data = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                $dbData = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+                if (!empty($dbData) && is_array($dbData)) {
+                    $data = $dbData;
+                    if (($data['status'] ?? '') === 'completed') {
+                        \Illuminate\Support\Facades\Cache::put("tg_link_{$token}", $data, 600);
+                    }
+                }
             }
         } catch (\Throwable $t) {}
     }

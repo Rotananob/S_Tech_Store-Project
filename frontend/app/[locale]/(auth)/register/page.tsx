@@ -57,11 +57,13 @@ export default function RegisterPage() {
   };
 
   const handleCancelAuth = () => {
-    if (telegramPollIntervalRef.current) {
-      clearInterval(telegramPollIntervalRef.current);
-      telegramPollIntervalRef.current = null;
+    if (telegramPollTimeoutRef.current) {
+      clearTimeout(telegramPollTimeoutRef.current);
+      telegramPollTimeoutRef.current = null;
     }
     isPollingCompletedRef.current = false;
+    isCheckingRef.current = false;
+    activeTokenRef.current = null;
     localStorage.removeItem("stech_pending_tg_handshake");
     sessionStorage.removeItem("stech_pending_tg_handshake");
     setLoading(false);
@@ -435,22 +437,27 @@ export default function RegisterPage() {
   };
 
   // ─── High-Performance Real-Time Telegram Polling (Synchronized with Bot) ───
-  const telegramPollIntervalRef = useRef<any>(null);
+  const telegramPollTimeoutRef = useRef<any>(null);
   const isPollingCompletedRef = useRef<boolean>(false);
-  const lastResumeTimeRef = useRef<number>(0);
+  const isCheckingRef = useRef<boolean>(false);
+  const activeTokenRef = useRef<string | null>(null);
+
+  const stopTelegramPolling = () => {
+    if (telegramPollTimeoutRef.current) {
+      clearTimeout(telegramPollTimeoutRef.current);
+      telegramPollTimeoutRef.current = null;
+    }
+  };
 
   const startOrResumeTelegramPolling = (token: string, isReturning = false, deepLinkUrl?: string) => {
     if (isPollingCompletedRef.current) return;
-
-    if (telegramPollIntervalRef.current) {
-      clearInterval(telegramPollIntervalRef.current);
-      telegramPollIntervalRef.current = null;
-    }
+    activeTokenRef.current = token;
+    stopTelegramPolling();
 
     setAuthOverlay({
       show: true,
       title: isReturning
-        ? "⚡ កំពុងផ្ទៀងផ្ទាត់ជាមួយ Telegram Bot..."
+        ? "⚡ កំពុងផ្ទៀងផ្ទាត់ជាមួយ Telegram..."
         : "✈️ កំពុងផ្ទៀងផ្ទាត់ Telegram...",
       subtitle: isReturning
         ? "សូមរង់ចាំមួយភ្លែត កំពុងឆែកមើលស្ថានភាពជោគជ័យពី Telegram..."
@@ -460,16 +467,17 @@ export default function RegisterPage() {
       deepLink: deepLinkUrl || "",
     });
 
-    const checkStatus = async () => {
-      if (isPollingCompletedRef.current) return true;
+    const checkStatus = async (): Promise<boolean> => {
+      if (isPollingCompletedRef.current || isCheckingRef.current) return false;
+      const targetToken = activeTokenRef.current || token;
+      if (!targetToken) return false;
+
+      isCheckingRef.current = true;
       try {
-        const checkRes = await api.get(`/auth/telegram/handshake-check?token=${encodeURIComponent(token)}`);
+        const checkRes = await api.get(`/auth/telegram/handshake-check?token=${encodeURIComponent(targetToken)}`);
         if (checkRes.data?.success && checkRes.data?.completed && checkRes.data?.user) {
           isPollingCompletedRef.current = true;
-          if (telegramPollIntervalRef.current) {
-            clearInterval(telegramPollIntervalRef.current);
-            telegramPollIntervalRef.current = null;
-          }
+          stopTelegramPolling();
 
           const rawUser = checkRes.data.user;
           const userObj = {
@@ -500,10 +508,7 @@ export default function RegisterPage() {
           return true;
         } else if (checkRes.data?.status === "expired" || checkRes.data?.status === "rejected" || checkRes.data?.status === "conflict") {
           isPollingCompletedRef.current = true;
-          if (telegramPollIntervalRef.current) {
-            clearInterval(telegramPollIntervalRef.current);
-            telegramPollIntervalRef.current = null;
-          }
+          stopTelegramPolling();
           localStorage.removeItem("stech_pending_tg_handshake");
           sessionStorage.removeItem("stech_pending_tg_handshake");
           const errMsg = checkRes.data?.error || "ការផ្ទៀងផ្ទាត់ Telegram ត្រូវបានបដិសេធ ឬផុតកំណត់។";
@@ -511,45 +516,52 @@ export default function RegisterPage() {
           setAuthOverlay({ show: false, title: "", subtitle: "" });
           return false;
         }
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        isCheckingRef.current = false;
+      }
       return false;
     };
 
     // Immediate check on trigger (0ms delay)
     checkStatus();
 
-    // High-frequency snappy polling: 350ms up to 180 attempts (~65s duration)
+    // Smart Adaptive Polling loop:
+    // 1000ms while user is looking at the tab (foreground)
+    // 2500ms while tab is hidden (user is in Telegram app)
     let attempts = 0;
-    telegramPollIntervalRef.current = setInterval(async () => {
-      if (isPollingCompletedRef.current) {
-        clearInterval(telegramPollIntervalRef.current);
-        return;
-      }
-      attempts++;
-      if (attempts > 180) {
-        if (telegramPollIntervalRef.current) {
-          clearInterval(telegramPollIntervalRef.current);
-          telegramPollIntervalRef.current = null;
+    const scheduleNext = (delay = 1000) => {
+      if (isPollingCompletedRef.current) return;
+      stopTelegramPolling();
+
+      telegramPollTimeoutRef.current = setTimeout(async () => {
+        if (isPollingCompletedRef.current) return;
+        attempts++;
+        if (attempts > 70) {
+          stopTelegramPolling();
+          setAuthOverlay((prev) => ({
+            ...prev,
+            title: "⏱️ ការរង់ចាំលើសកំណត់ពេល",
+            subtitle: "មិនទាន់ទទួលបានការបញ្ជាក់ពី Telegram នៅឡើយទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីព្យាយាមម្តងទៀត ឬត្រឡប់ក្រោយ។",
+            canCancel: true,
+          }));
+          return;
         }
-        setAuthOverlay((prev) => ({
-          ...prev,
-          title: "⏱️ ការរង់ចាំលើសកំណត់ពេល",
-          subtitle: "មិនទាន់ទទួលបានការបញ្ជាក់ពី Telegram នៅឡើយទេ។ សូមចុចប៊ូតុងខាងក្រោមដើម្បីព្យាយាមម្តងទៀត ឬត្រឡប់ក្រោយ។",
-          canCancel: true,
-        }));
-        return;
-      }
-      await checkStatus();
-    }, 350);
+
+        const completed = await checkStatus();
+        if (!completed && !isPollingCompletedRef.current) {
+          const isHidden = typeof document !== "undefined" && document.hidden;
+          scheduleNext(isHidden ? 2500 : 1000);
+        }
+      }, delay);
+    };
+
+    scheduleNext(1000);
   };
 
-  // Mount & Visibility listener to lock page and resume login immediately upon return
+  // Mount & Visibility listener: When user returns to tab, INSTANTLY check in 0ms!
   useEffect(() => {
     const resumeIfPending = (isReturning = true) => {
-      const now = Date.now();
-      if (now - lastResumeTimeRef.current < 300) return; // Debounce rapid focus + visibilitychange
-      lastResumeTimeRef.current = now;
-
       if (isPollingCompletedRef.current) return;
 
       try {
@@ -579,14 +591,14 @@ export default function RegisterPage() {
     };
 
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
-      if (telegramPollIntervalRef.current) {
-        clearInterval(telegramPollIntervalRef.current);
-      }
+      stopTelegramPolling();
     };
   }, []);
 
