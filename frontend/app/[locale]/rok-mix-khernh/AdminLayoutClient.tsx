@@ -75,6 +75,17 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
   const isLoginPage = pathname === "/rok-mix-khernh/login" || pathname.endsWith("/rok-mix-khernh/login");
 
   useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.classList.add("admin-portal-mounted");
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("admin-portal-mounted");
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isLoginPage) {
       setCheckingAuth(false);
       return;
@@ -420,7 +431,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
   ];
 
   return (
-    <div className="admin-theme flex min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div data-admin-portal="true" className="admin-theme admin-portal-active flex min-h-screen bg-gray-50 text-gray-900 font-sans">
       {/* PWA Controller: Manifest, Meta Tags, Mobile Install Prompt */}
       <AdminPWAController />
 

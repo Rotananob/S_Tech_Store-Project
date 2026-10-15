@@ -17,10 +17,39 @@ import { useRouter, usePathname } from "@/i18n/routing";
 export default function WelcomeGiftModal() {
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
 
-  // Do not render gift modal or floating button inside the Admin portal
-  if (pathname?.includes("/rok-mix-khernh")) {
-    return null;
+  // Check if current page is any part of the Admin / Staff Portal
+  const isClient = typeof window !== "undefined";
+  const browserPath = isClient ? window.location.pathname.toLowerCase() : "";
+  const currentPath = (pathname || "").toLowerCase();
+
+  const isAdminRoute = 
+    currentPath.includes("rok-mix-khernh") ||
+    currentPath.includes("admin") ||
+    currentPath.includes("master-control") ||
+    browserPath.includes("rok-mix-khernh") ||
+    browserPath.includes("admin") ||
+    browserPath.includes("master-control");
+
+  const isAdminDom = isClient && Boolean(
+    document.querySelector("[data-admin-portal]") ||
+    document.body.classList.contains("admin-portal-mounted") ||
+    document.body.classList.contains("admin-theme")
+  );
+
+  const hasAdminSession = isClient && Boolean(
+    localStorage.getItem("stech_admin_token") ||
+    sessionStorage.getItem("stech_admin_token") ||
+    (typeof document !== "undefined" && document.cookie.includes("stech_admin_token"))
+  );
+
+  // Strictly DO NOT render gift modal or floating button inside the Admin portal
+  if (!mounted || isAdminRoute || (isAdminDom && hasAdminSession)) {
+    // Only return null if in admin or unmounted; regular visitors on the public website continue!
+    if (!mounted || isAdminRoute || isAdminDom) {
+      return null;
+    }
   }
 
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -36,6 +65,8 @@ export default function WelcomeGiftModal() {
   const [shareUrl, setShareUrl] = useState("https://stech-store.tech/?gift=welcome5");
 
   useEffect(() => {
+    setMounted(true);
+
     if (typeof window !== "undefined") {
       setShareUrl(`${window.location.origin}/?gift=welcome5`);
 
@@ -219,7 +250,8 @@ export default function WelcomeGiftModal() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-20 left-3.5 sm:bottom-7 sm:left-7 z-[7000] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-red-600/35 border-2 border-amber-300 ring-2 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all group backdrop-blur-md"
+          data-welcome-gift="true"
+          className="welcome-gift-floating-btn fixed bottom-20 left-3.5 sm:bottom-7 sm:left-7 z-[7000] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-red-600/35 border-2 border-amber-300 ring-2 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all group backdrop-blur-md"
           aria-label="បើកកាដូស្វាគមន៍ $5 USD"
         >
           <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 border border-amber-300 shadow-xs">
@@ -247,7 +279,7 @@ export default function WelcomeGiftModal() {
       {/* ── Master Welcome Gift Modal ── */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[105] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
+          <div data-welcome-gift="true" className="welcome-gift-modal-overlay fixed inset-0 z-[105] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}

@@ -1037,3 +1037,18 @@ html, body {
   opacity: 0.8;
   transition: all 0.1s ease;
 }
+
+/* ─── Admin Portal Protection: Suppress Customer-Facing Gift/Voucher Modals & Buttons ─── */
+body.admin-portal-mounted [data-welcome-gift],
+body.admin-portal-mounted .welcome-gift-floating-btn,
+body.admin-portal-mounted .welcome-gift-modal-overlay,
+body:has([data-admin-portal]) [data-welcome-gift],
+body:has([data-admin-portal]) .welcome-gift-floating-btn,
+body:has([data-admin-portal]) .welcome-gift-modal-overlay,
+[data-admin-portal] [data-welcome-gift],
+[data-admin-portal] .welcome-gift-floating-btn {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "@/i18n/routing";
+import api from "@/lib/api";
 import { 
   getAdminStats, getRecentOrders, broadcastTelegramMessage, 
   AdminStats, Order 
@@ -112,14 +113,23 @@ export default function AdminDashboardOverview() {
       setRecentOrders(ordersData);
 
       try {
-        fetch("/api/analytics/today")
-          .then((r) => r.json())
-          .then((data) => {
+        api.get("/analytics/today")
+          .then((res) => {
+            const data = res.data;
             if (data && typeof data.hits_today === "number") {
               setTodayTraffic({ hits_today: data.hits_today, unique_today: data.unique_today });
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            fetch("/api/analytics/today")
+              .then((r) => r.json())
+              .then((data) => {
+                if (data && typeof data.hits_today === "number") {
+                  setTodayTraffic({ hits_today: data.hits_today, unique_today: data.unique_today });
+                }
+              })
+              .catch(() => {});
+          });
       } catch {}
 
       try {
