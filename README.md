@@ -1,13 +1,47 @@
 # S Tech Store
 
-[![Release Version](https://img.shields.io/badge/Release-v1.1.0-emerald.svg)](https://www.s-tech-store.tech)
-[![Build](https://img.shields.io/badge/Build-20261013.02-blue.svg)](https://www.s-tech-store.tech)
+[![Release Version](https://img.shields.io/badge/Release-v1.2.0-emerald.svg)](https://www.s-tech-store.tech)
+[![Build](https://img.shields.io/badge/Build-20261016.01-blue.svg)](https://www.s-tech-store.tech)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2.10-black.svg)](https://nextjs.org/)
 [![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/)
 [![Bakong KHQR](https://img.shields.io/badge/Bakong-KHQR_EMVCo-crimson.svg)](https://bakong.nbc.org.kh/)
 [![Status](https://img.shields.io/badge/Production-Verified-success.svg)]()
 
 Production hardware retail platform, custom computer builder, and store management system built for the Cambodian technology market. The system connects a Next.js 16 storefront with a Laravel 11 backend, integrating National Bank of Cambodia Bakong KHQR payments, dual Telegram bot automation, progressive web applications, and an obfuscated operations portal.
+
+📖 **Staff & Operations Manual**: [ADMIN_AND_STAFF_TRAINING_GUIDE.md](file:///d:/WEB%20Development/S%20Tech%20Store/ADMIN_AND_STAFF_TRAINING_GUIDE.md)  
+📘 **Comprehensive Client & Features Manual**: [CLIENT_MANUAL_AND_FEATURES.md](file:///d:/WEB%20Development/S%20Tech%20Store/CLIENT_MANUAL_AND_FEATURES.md)
+
+---
+
+## 🚀 Release v1.2.0 (Production Master Edition)
+
+* **Version**: `v1.2.0`
+* **Build Identifier**: `20261016.01`
+* **Release Date**: October 16, 2026
+* **Status**: Production Stable (Live)
+
+### 🌟 Key Highlights & Changelog in v1.2.0:
+1. **📊 Real-Time Database Pagination (20 Accounts / Page) & Dynamic Search**:
+   - Backend controller (`UserController.php`) refactored with server-side slicing, delivering 20 records per page.
+   - Dual UI controls: numbered pagination (`1, 2, 3...`) and instant "Load More (+20 accounts)" append button.
+   - 350ms debounced dynamic search querying real database records by name, email, phone, Telegram handle, and city.
+2. **🔐 Dual Authentication Architecture & Channel Categorization**:
+   - Explicit separation and counting for **Firebase / Google Auth** (Web users) and **Telegram Bot OAuth** (PostgreSQL Mini App users).
+   - Resolved stat discrepancies: contextual role cards ensure active customer totals strictly match the viewing tab.
+   - Distinct visual badges (`🔥 Google Auth`, `✈️ Telegram Bot`, `🔗 Linked`) rendered across user profiles.
+3. **🤖 Automated Nightly & Weekly Telegram Analytics Reports**:
+   - Automated 8:00 PM (Monday–Saturday) analytics broadcast summarizing daily visitors, total orders, revenue, and top-selling items directly to the staff group.
+   - Weekly Sunday executive sales summary detailing trending products and new customer acquisition.
+4. **⚡ Real-Time Product Management & Telegram Audit Alerts**:
+   - Product Add, Edit, and Delete operations synchronize instantly with both admin UI and public storefront without requiring manual page reloads.
+   - Instant real-time Telegram audit alerts sent to the staff channel when products are created, modified, or removed.
+5. **🎫 Quick Customer Auto-fill on Repair Tickets**:
+   - One-click customer profile selector querying real database records, auto-populating contact details on repair tickets.
+6. **🏷️ Instant Real-Time Promotion Removal**:
+   - Evicts deleted promotions immediately from the storefront checkout UI upon removal in the admin dashboard.
+7. **🛡️ 401 Session Auto-Recovery & Persistent Authentication**:
+   - Multi-layered token persistence protecting System Owner and Admin accounts against 401 session expirations during device sleep and background states.
 
 ---
 

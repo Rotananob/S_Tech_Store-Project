@@ -1,9 +1,10 @@
 # 📘 S Tech Store — សៀវភៅណែនាំការប្រើប្រាស់ និងលក្ខណៈពិសេសទាំងមូល (Master Features & User Manual)
 
 > **ឯកសារផ្លូវការសម្រាប់អតិថិជន និងម្ចាស់អាជីវកម្ម (Official Client & Operations Manual)**  
-> កំណែប្រែ៖ **Version 1.1.0 (Build 20261013.02) — Enterprise Production Edition**  
+> កំណែប្រែ៖ **Version 1.2.0 (Build 20261016.01) — Production Master Edition**  
 > ស្ថានភាព៖ **Production Verified & Live**  
-> ភាសា៖ **ខ្មែរ (Khmer) & English Reference**
+> ភាសា៖ **ខ្មែរ (Khmer) & English Reference**  
+> 📖 **សៀវភៅបណ្តុះបណ្តាលបុគ្គលិកលម្អិត៖** [ADMIN_AND_STAFF_TRAINING_GUIDE.md](file:///d:/WEB%20Development/S%20Tech%20Store/ADMIN_AND_STAFF_TRAINING_GUIDE.md)
 
 ---
 
@@ -25,12 +26,14 @@
    - [៣.២ ផ្ទាំងស្ថិតិទូទៅ (Real-time Analytics Dashboard)](#៣២-ផ្ទាំងស្ថិតិទូទៅ-real-time-analytics-dashboard)
    - [៣.៣ ការគ្រប់គ្រងការបញ្ជាទិញ និងបោះពុម្ពវិក្កយបត្រ (Orders & Invoice Printing)](#៣៣-ការគ្រប់គ្រងការបញ្ជាទិញ-និងបោះពុម្ពវិក្កយបត្រ-orders--invoice-printing)
    - [៣.៤ ការគ្រប់គ្រងទំនិញ និងស្តុក (Catalog, Image Upload & Stock Matrix)](#៣៤-ការគ្រប់គ្រងទំនិញ-និងស្តុក-catalog-image-upload--stock-matrix)
-   - [៣.៥ ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ (Hardware Repair Management)](#៣៥-ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ-hardware-repair-management)
-   - [៣.៦ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)](#៣៦-ការគ្រប់គ្រងវេនការងារ-និងប្រអប់លុយ-staff-shifts--cash-register-pos)
-   - [៣.៧ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)](#៣៧-ការគ្រប់គ្រងប្រូម៉ូសិន-និងគូប៉ុង-coupons--promotions)
-   - [៣.៨ ការកំណត់សាខាហាង (Branches Management)](#៣៨-ការកំណត់សាខាហាង-branches-management)
-   - [៣.៩ ការគ្រប់គ្រង Telegram Bot ហាង (Merchant Alerts Configuration)](#៣៩-ការគ្រប់គ្រង-telegram-bot-ហាង-merchant-alerts-configuration)
-   - [៣.១០ Admin PWA សម្រាប់បុគ្គលិកហាង](#៣១០-admin-pwa-សម្រាប់បុគ្គលិកហាង)
+   - [៣.៥ ការគ្រប់គ្រងគណនីអតិថិជន និង Pagination (Users & Dual Auth DB)](#៣៥-ការគ្រប់គ្រងគណនីអតិថិជន-និង-pagination-users--dual-auth-db)
+   - [៣.៦ ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ (Hardware Repair Management)](#៣៦-ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ-hardware-repair-management)
+   - [៣.៧ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)](#៣៧-ការគ្រប់គ្រងវេនការងារ-និងប្រអប់លុយ-staff-shifts--cash-register-pos)
+   - [៣.៨ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)](#៣៨-ការគ្រប់គ្រងប្រូម៉ូសិន-និងគូប៉ុង-coupons--promotions)
+   - [៣.៩ ការកំណត់សាខាហាង (Branches Management)](#៣៩-ការកំណត់សាខាហាង-branches-management)
+   - [៣.១០ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)](#៣១០-ការគ្រប់គ្រង-telegram-bot--របាយការណ៍ស្វ័យប្រវត្តិ-telegram-alerts--auto-reports)
+   - [៣.១១ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Owner Only)](#៣១១-ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ)
+   - [៣.១២ Admin PWA សម្រាប់បុគ្គលិកហាង](#៣១២-admin-pwa-សម្រាប់បុគ្គលិកហាង)
 4. [ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម Dual Telegram Bot](#4-ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម-dual-telegram-bot)
 5. [ប្រព័ន្ធសុវត្ថិភាពកម្រិតខ្ពស់ (5-Stage Red Team Hardening)](#5-ប្រព័ន្ធសុវត្ថិភាពកម្រិតខ្ពស់-5-stage-red-team-hardening)
 6. [សំណួរញឹកញាប់ និងការដោះស្រាយបញ្ហា (FAQ & Troubleshooting)](#6-សំណួរញឹកញាប់-និងការដោះស្រាយបញ្ហា-faq--troubleshooting)
@@ -172,34 +175,49 @@
   * កំណត់តម្លៃលក់ (Selling Price), តម្លៃដើម (Cost Price), និងភាគរយបញ្ចុះតម្លៃ (Discount %)—ប្រព័ន្ធនឹងគណនាប្រាក់ចំណេញ (Profit Margin) បង្ហាញដោយស្វ័យប្រវត្តិ។
   * ប្រអប់បញ្ចូលលក្ខណៈបច្ចេកទេស (Dynamic Specifications) ងាយស្រួល និងរៀបរយ។
 
-### ៣.៥ ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ (Hardware Repair Management)
+### ៣.៥ ការគ្រប់គ្រងគណនីអតិថិជន និង Pagination (Users & Dual Auth DB)
+* ចូលទៅកាន់ `/rok-mix-khernh/users`៖
+  * **Role Tabs ជាក់លាក់**៖ អតិថិជន (Customers), បុគ្គលិក (Staff), Admin & System Owner, និងទាំងអស់ (All Accounts)។
+  * **Dual Authentication Tracking**៖ បែងចែករវាងគណនី Google Firebase Auth និង Telegram Bot OAuth ជាមួយ Badge ច្បាស់លាស់។
+  * **Database Pagination (២០ គណនី/ទំព័រ)**៖ គាំទ្រទាំងប៊ូតុងទំព័រ `1, 2, 3...` និងប៊ូតុង "មើលបន្ថែម (+២០ ទៀត) • Load More" ព្រមទាំង Live Database Search។
+  * **សកម្មភាពរហ័ស**៖ ផ្អាក/បើកដំណើរការគណនី, បង្កើត Magic Login Link, និងកែសម្រួល Loyalty Coins។
+
+### ៣.៦ ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ (Hardware Repair Management)
 * ចូលទៅកាន់ `/rok-mix-khernh/repairs` ដើម្បីគ្រប់គ្រងសំបុត្រជួសជុល៖
+  * **Quick Customer Auto-Fill**៖ ជ្រើសរើសឈ្មោះអតិថិជនពី Database នោះព័ត៌មានទំនាក់ទំនងនឹងបំពេញដោយស្វ័យប្រវត្តិតែម្តង។
   * បង្កើត Ticket ទទួលម៉ាស៊ីន (ម៉ាក Laptop/PC, លេខ Serial Number, អាការៈខូចដែលអតិថិជនប្រាប់)។
   * កំណត់ជាងទទួលខុសត្រូវ (Assign Technician)។
   * ធ្វើបច្ចុប្បន្នភាពដំណាក់កាល៖ បានទទួលម៉ាស៊ីន → កំពុងត្រួតពិនិត្យ → រង់ចាំគ្រឿងបន្លាស់ → កំពុងជួសជុល → ជួសជុលរួចរាល់រង់ចាំយក → ប្រគល់ជូនអតិថិជន។
   * កត់ត្រាតម្លៃគ្រឿងបន្លាស់ និងថ្លៃឈ្នួលជួសជុលចេញជាវិក្កយបត្រ។
 
-### ៣.៦ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)
+### ៣.៧ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)
 * ចូលទៅកាន់ `/rok-mix-khernh/shifts`៖
   * **បើកវេន (Open Shift)**៖ បុគ្គលិកគិតលុយបញ្ចូលចំនួនទឹកប្រាក់ដើមគ្រាក្នុងកេស (Opening Cash Drawer Balance)។
   * **តាមដានប្រាក់ចំណូលតាមវេន**៖ ប្រព័ន្ធកត់ត្រាចំនួនទឹកប្រាក់ដែលទទួលបានពី Cash និង Bakong KHQR ដាច់ដោយឡែកពីគ្នា។
   * **បិទវេន (Close Shift & Reconcile)**៖ រាប់ចំនួនទឹកប្រាក់ចុងក្រោយ ប្រព័ន្ធនឹងផ្ទៀងផ្ទាត់ថាតើទឹកប្រាក់គ្រប់, លើស ឬខ្វះ និងបង្កើតរបាយការណ៍បិទវេនជាស្វ័យប្រវត្តិ។
 
-### ៣.៧ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)
+### ៣.៨ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)
 * បង្កើតកូដបញ្ចុះតម្លៃ (ឧទាហរណ៍៖ `STECH2026`, `GAMINGPRO`)៖
   * កំណត់ការបញ្ចុះតម្លៃជាភាគរយ (%) ឬជាទឹកប្រាក់ជាក់លាក់ ($)។
   * កំណត់លក្ខខណ្ឌចំណាយអប្បបរមា (Minimum Spend)។
   * កំណត់ចំនួនដងដែលអាចប្រើប្រាស់បាន និងកាលបរិច្ឆេទផុតកំណត់។
+  * **Real-time Eviction**៖ ពេលលុបប្រូម៉ូសិន វានឹងរលុបបាត់ភ្លាមៗពី Website និង Checkout UI។
 
-### ៣.៨ ការកំណត់សាខាហាង (Branches Management)
+### ៣.៩ ការកំណត់សាខាហាង (Branches Management)
 * គ្រប់គ្រងព័ត៌មានសាខាហាងនីមួយៗ (អាសយដ្ឋាន, លេខទូរស័ព្ទទំនាក់ទំនង, ម៉ោងបើក/បិទ, និងទីតាំងលើ Google Map)។
 
-### ៣.៩ ការគ្រប់គ្រង Telegram Bot ហាង (Merchant Alerts Configuration)
+### ៣.១០ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)
 * ចូលទៅកាន់ `/rok-mix-khernh/telegram-bot` ដើម្បីត្រួតពិនិត្យ និងតេស្តការបញ្ជូនដំណឹងរបស់ Bot #1 (`s_tech_storeBot`) ចូលក្នុងគ្រុបបុគ្គលិកហាង។
+* **របាយការណ៍ស្វ័យប្រវត្តិម៉ោង ៨:០០ យប់ (ច័ន្ទ-សៅរ៍)**៖ គណនាផលបូកអ្នកចូលមើល, Order, ចំណូល, និងទំនិញលក់ដាច់។
+* **របាយការណ៍សប្តាហ៍ថ្ងៃអាទិត្យ**៖ សង្ខេបទំនិញពេញនិយម និងស្ថិតិអតិថិជនថ្មី។
 
-### ៣.១០ Admin PWA សម្រាប់បុគ្គលិកហាង
+### ៣.១១ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Owner Only)
+* គ្រប់គ្រង Storefront Mode (Normal, Vacation Countdown Mode ជាមួយការបើកឡើងវិញដោយស្វ័យប្រវត្តិ, Maintenance Mode) និងប៊ូតុង Master Lockdown បង្កកសិទ្ធិបុគ្គលិកពេលមានអាសន្ន។
+
+### ៣.១២ Admin PWA សម្រាប់បុគ្គលិកហាង
 * ផ្ទាំងគ្រប់គ្រង Admin ក៏គាំទ្រមុខងារ **PWA (Progressive Web App)** ផងដែរ៖
 * ម្ចាស់ហាង និងបុគ្គលិកអាច Add ផ្ទាំង Admin ទៅកាន់អេក្រង់ដើមរបស់ iPad, Tablet, ឬទូរស័ព្ទដៃ ដើម្បីប្រើប្រាស់ដូចជាម៉ាស៊ីន POS ចល័តក្នុងហាង ដើរឆែកមើលស្តុក និងស្កេនទំនិញបានគ្រប់ពេលវេលា!
+* បំពាក់ប្រព័ន្ធការពារ Session មិនឱ្យជួបបញ្ហា 401 Unauthorized ពេលទុកចោលយូរឡើយ។
 
 ---
 
