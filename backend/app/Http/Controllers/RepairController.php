@@ -22,7 +22,7 @@ class RepairController extends Controller
         $validated = $request->validate([
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
-            'customer_email' => 'nullable|email|max:150',
+            'customer_email' => 'nullable|string|max:150',
             'device_name' => 'required|string|max:255',
             'issue_description' => 'required|string|max:2000',
             'technician_name' => 'nullable|string|max:100',
@@ -37,9 +37,13 @@ class RepairController extends Controller
         $count = Repair::count() + 1;
         $ticketCode = 'REP-' . (1000 + $count);
 
-        $customerEmail = $validated['customer_email'] ?? null;
+        $rawEmail = trim((string)($request->input('customer_email') ?? ''));
+        $customerEmail = (!empty($rawEmail) && filter_var($rawEmail, FILTER_VALIDATE_EMAIL)) ? $rawEmail : null;
         if (empty($customerEmail) && !empty($validated['customer_phone'])) {
-            $customerEmail = UserProfile::where('phone', $validated['customer_phone'])->value('email');
+            $foundEmail = UserProfile::where('phone', $validated['customer_phone'])->value('email');
+            if (!empty($foundEmail) && filter_var($foundEmail, FILTER_VALIDATE_EMAIL)) {
+                $customerEmail = $foundEmail;
+            }
         }
 
         $repair = Repair::create([
