@@ -13,14 +13,16 @@
 2. [ផ្នែកអតិថិជន (Customer Storefront Features)](#2-ផ្នែកអតិថិជន-customer-storefront-features)
    - [២.១ ទំព័រដើម និងផ្ទាំងផ្សព្វផ្សាយ (Home & Dynamic Banners)](#២១-ទំព័រដើម-និងផ្ទាំងផ្សព្វផ្សាយ-home--dynamic-banners)
    - [២.២ ប្រព័ន្ធស្វែងរកទំនិញឆ្លាតវៃ (Live Predictive Search & Filter)](#២២-ប្រព័ន្ធស្វែងរកទំនិញឆ្លាតវៃ-live-predictive-search--filter)
-   - [២.៣ ទំព័រព័ត៌មានលម្អិតទំនិញ (Product Details, Specs & Reviews)](#២៣-ទំព័រព័ត៌មានលម្អិតទំនិញ-product-details-specs--reviews)
-   - [២.៤ កន្ត្រកទំនិញរហ័ស (Interactive Slide-Over Cart)](#២៤-កន្ត្រកទំនិញរហ័ស-interactive-slide-over-cart)
-   - [២.៥ ដំណើរការទូទាត់ប្រាក់ និង Bakong KHQR (Checkout & Payment Gateway)](#២៥-ដំណើរការទូទាត់ប្រាក់-និង-bakong-khqr-checkout--payment-gateway)
-   - [២.៦ ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត (Interactive Custom PC Builder)](#២៦-ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត-interactive-custom-pc-builder)
-   - [២.៧ សេវាកម្មជួសជុល និងថែទាំកុំព្យូទ័រ (Repairs & Maintenance Booking)](#២៧-សេវាកម្មជួសជុល-និងថែទាំកុំព្យូទ័រ-repairs--maintenance-booking)
-   - [២.៨ គណនីផ្ទាល់ខ្លួន និងការតាមដានការដឹកជញ្ជូន (VIP Profile & Order Tracking)](#២៨-គណនីផ្ទាល់ខ្លួន-និងការតាមដានការដឹកជញ្ជូន-vip-profile--order-tracking)
-   - [២.៩ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)](#២៩-ប្រព័ន្ធចូលគណនីឆ្លាតវៃ-1-click-telegram-handshake--social-auth)
-   - [២.១០ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)](#២១០-ការដំឡើង-app-លើទូរស័ព្ទ-pwa---add-to-home-screen)
+   - [២.៣ ស្កេនរូបភាពកាមេរ៉ាឆ្លាតវៃ (Camera Visual AI Search — Hero Feature)](#២៣-ស្កេនរូបភាពកាមេរ៉ាឆ្លាតវៃ-camera-visual-ai-search--hero-feature)
+   - [២.៤ ទំព័រព័ត៌មានលម្អិតទំនិញ (Product Details, Specs & Reviews)](#២៤-ទំព័រព័ត៌មានលម្អិតទំនិញ-product-details-specs--reviews)
+   - [២.៥ កន្ត្រកទំនិញរហ័ស (Interactive Slide-Over Cart)](#២៥-កន្ត្រកទំនិញរហ័ស-interactive-slide-over-cart)
+   - [២.៦ ដំណើរការទូទាត់ប្រាក់ និង Bakong KHQR (Checkout & Payment Gateway)](#២៦-ដំណើរការទូទាត់ប្រាក់-និង-bakong-khqr-checkout--payment-gateway)
+   - [២.៧ ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត (Interactive Custom PC Builder)](#២៧-ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត-interactive-custom-pc-builder)
+   - [២.៨ សេវាកម្មជួសជុល និងថែទាំកុំព្យូទ័រ (Repairs & Maintenance Booking)](#២៨-សេវាកម្មជួសជុល-និងថែទាំកុំព្យូទ័រ-repairs--maintenance-booking)
+   - [២.៩ គណនីផ្ទាល់ខ្លួន និងការតាមដានការដឹកជញ្ជូន (VIP Profile & Order Tracking)](#២៩-គណនីផ្ទាល់ខ្លួន-និងការតាមដានការដឹកជញ្ជូន-vip-profile--order-tracking)
+   - [២.១០ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)](#២១០-ប្រព័ន្ធចូលគណនីឆ្លាតវៃ-1-click-telegram-handshake--social-auth)
+   - [២.១១ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)](#២១១-ការដំឡើង-app-លើទូរស័ព្ទ-pwa---add-to-home-screen)
+   - [២.១២ ទិញទំនិញផ្ទាល់ក្នុង Telegram Mini App (In-Telegram Smart Shopping)](#២១២-ទិញទំនិញផ្ទាល់ក្នុង-telegram-mini-app-in-telegram-smart-shopping)
 3. [ផ្នែកគ្រប់គ្រងហាង និងបុគ្គលិក (Admin & Staff Portal — `/rok-mix-khernh`)](#3-ផ្នែកគ្រប់គ្រងហាង-និងបុគ្គលិក-admin--staff-portal--rok-mix-khernh)
    - [៣.១ ផ្លូវសម្ងាត់ និងការការពារសុវត្ថិភាព (Secret Route & RBAC Permissions)](#៣១-ផ្លូវសម្ងាត់-និងការការពារសុវត្ថិភាព-secret-route--rbac-permissions)
    - [៣.២ ផ្ទាំងស្ថិតិទូទៅ (Real-time Analytics Dashboard)](#៣២-ផ្ទាំងស្ថិតិទូទៅ-real-time-analytics-dashboard)
@@ -72,19 +74,24 @@
   * ត្រងតាមលក្ខណៈបច្ចេកទេស (Specs: Intel i5/i7/i9, AMD Ryzen, RTX 40-Series, RAM 16GB/32GB, SSD 512GB/1TB/2TB)
   * តម្រៀបតាម៖ តម្លៃទាបទៅខ្ពស់, តម្លៃខ្ពស់ទៅទាប, ទំនិញថ្មីបំផុត, និងពិន្ទុ Review ខ្ពស់បំផុត។
 
-### ២.៣ ទំព័រព័ត៌មានលម្អិតទំនិញ (Product Details, Specs & Reviews)
+### ២.៣ ស្កេនរូបភាពកាមេរ៉ាឆ្លាតវៃ (Camera Visual AI Search — Hero Feature)
+* 📸 **Floating Luminous Camera Shutter**៖ ប៊ូតុងកាមេរ៉ារាងមូលពន្លឺចាំងផ្លេកបែប **Ruby Glowing Gem** នៅចំកណ្តាលរបារ Bottom Nav (លើទូរស័ព្ទដៃ) និងនៅខាងក្នុងប្រអប់ស្វែងរក (លើកុំព្យូទ័រ)។
+* **Instant Pattern & Object Recognition**៖ អតិថិជន ឬបុគ្គលិកហាង អាចចុចថតរូបកុំព្យូទ័រ Laptop, គ្រឿង PC, ឬរូបថតអេក្រង់ដែលទាញយកពីក្នុងទូរស័ព្ទ ➔ ប្រព័ន្ធនឹងវិភាគរូបភាព និងស្វែងរកទំនិញដែលត្រូវគ្នាក្នុងឃ្លាំងរបស់ S Tech Store ភ្លាមៗក្នុងរយៈពេល **១ វិនាទី**។
+* គាំទ្រការប្រើប្រាស់កាមេរ៉ាមុខ/ក្រោយ (Front/Rear Camera Flip) និងការជ្រើសរើសរូបភាពពី Photo Albums។
+
+### ២.៤ ទំព័រព័ត៌មានលម្អិតទំនិញ (Product Details, Specs & Reviews)
 * **Interactive Image Gallery**៖ រូបភាពផលិតផលច្បាស់កម្រិតខ្ពស់ អាចចុច Zoom មើលលម្អិត និងប្តូររូបភាពតាម Thumbnail។
 * **Real-time Stock Counter**៖ បង្ហាញចំនួនទំនិញដែលនៅសល់ជាក់ស្តែងក្នុងឃ្លាំង មិនបារម្ភរឿងទិញជាន់គ្នា។
 * **Full Technical Specifications**៖ តារាងលម្អិតអំពី CPU, GPU, Display, Battery, Ports, និងលក្ខខណ្ឌធានា (Warranty Period)។
 * **Real Customer Reviews**៖ អតិថិជនដែលបានទិញពិតប្រាកដអាចដាក់ផ្កាយ (Rating 1–5 Stars) និងសរសេរមតិយោបល់ ដែលមានផ្លាកសម្គាល់ "Verified Buyer"។
 * **Social Sharing**៖ ចុច Share ទៅកាន់ Telegram, Facebook, ឬ Copy Link បានយ៉ាងរហ័ស។
 
-### ២.៤ កន្ត្រកទំនិញរហ័ស (Interactive Slide-Over Cart)
+### ២.៥ កន្ត្រកទំនិញរហ័ស (Interactive Slide-Over Cart)
 * **Flyout Cart Drawer**៖ ពេលចុច "Add to Cart" ផ្ទាំងកន្ត្រកនឹងរំកិលចេញមកពីចំហៀងភ្លាមៗ ដោយមិនបាច់ Refresh ឬចាកចេញពីទំព័រដែលកំពុងមើលឡើយ។
 * **Adjust Quantity**៖ បន្ថែម ឬបន្ថយចំនួនទំនិញភ្លាមៗ ដោយមានប្រព័ន្ធទប់ស្កាត់មិនឱ្យលើសពីស្តុកដែលមាន។
 * **Free Delivery Progress**៖ បង្ហាញរបាររំលឹកអតិថិជនថាត្រូវទិញប៉ុន្មានដុល្លារទៀតដើម្បីទទួលបានការដឹកជញ្ជូនឥតគិតថ្លៃ។
 
-### ២.៥ ដំណើរការទូទាត់ប្រាក់ និង Bakong KHQR (Checkout & Payment Gateway)
+### ២.៦ ដំណើរការទូទាត់ប្រាក់ និង Bakong KHQR (Checkout & Payment Gateway)
 * **One-Page Checkout**៖ បំពេញឈ្មោះ លេខទូរស័ព្ទ និងទីតាំងដឹកជញ្ជូន (រាជធានីភ្នំពេញ ឬតាមបណ្តាខេត្ត) យ៉ាងសាមញ្ញ និងលឿនរហ័ស។
 * **Coupon Promo Code**៖ អាចបញ្ចូលកូដបញ្ចុះតម្លៃដើម្បីទទួលបានការបញ្ចុះតម្លៃភ្លាមៗ។
 * **ជម្រើសទូទាត់ប្រាក់ចំនួន ៣ ប្រភេទ**៖
@@ -97,7 +104,7 @@
 * **Digital Invoice & Instant Telegram Dispatch**៖
   - ពេល Order ជោគជ័យ វិក្កយបត្រឌីជីថលពេញលេញនឹងត្រូវបានផ្ញើជូនអតិថិជនភ្លាមៗចូលទៅក្នុង **Telegram Bot `@S_TECH_ASSISTANTBOT`** របស់ពួកគាត់។
 
-### ២.៦ ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត (Interactive Custom PC Builder)
+### ២.៧ ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត (Interactive Custom PC Builder)
 * ចូលទៅកាន់ `/build-pc` ដើម្បីជ្រើសរើសគ្រឿងបន្លាស់មួយឈុតដោយខ្លួនឯង៖
   * CPU (Processor)
   * Motherboard (Mainboard)
@@ -111,7 +118,7 @@
 * **Wattage Estimator**៖ គណនាថាមពលភ្លើងសរុប (Estimated Wattage) ដើម្បីណែនាំទំហំ PSU ឱ្យសមស្រប។
 * **1-Click Add Entire Build to Cart**៖ ចុចតែមួយ Click បញ្ចូលគ្រឿងបន្លាស់ទាំងអស់ចូលក្នុងកន្ត្រកដើម្បី Checkout តែម្តង។
 
-### ២.៧ សេវាកម្មជួសជុល និងថែទាំកុំព្យូទ័រ (Repairs & Maintenance Booking)
+### ២.៨ សេវាកម្មជួសជុល និងថែទាំកុំព្យូទ័រ (Repairs & Maintenance Booking)
 * អតិថិជនអាចស្នើសុំសេវាកម្មតាមរយៈទំព័រ `/services`៖
   * ជួសជុល Laptop / Desktop
   * ប្តូរកម្ដៅ Thermal Paste និងសម្អាតធូលី (Deep Cleaning)
@@ -119,23 +126,28 @@
   * Upgrade SSD, RAM, GPU
 * អាចតាមដានដំណាក់កាលជួសជុលបានតាមរយៈលេខកូដសំបុត្រ (Repair Ticket ID)។
 
-### ២.៨ គណនីផ្ទាល់ខ្លួន និងការតាមដានការដឹកជញ្ជូន (VIP Profile & Order Tracking)
+### ២.៩ គណនីផ្ទាល់ខ្លួន និងការតាមដានការដឹកជញ្ជូន (VIP Profile & Order Tracking)
 * **VIP Member Badge**៖ កម្រិតសមាជិកភាពរបស់អតិថិជន (Standard, Silver, Gold, Platinum VIP) ផ្អែកលើប្រវត្តិទិញ។
 * **Live Order Tracking**៖ មើលដំណាក់កាលនៃទំនិញ (កំពុងរៀបចំ → កំពុងដឹក → បានដឹកដល់) ព្រមទាំងមានលេខទូរស័ព្ទ និងឈ្មោះអ្នកដឹកជញ្ជូនផ្ទាល់។
 * **Saved Addresses**៖ រក្សាទុកអាសយដ្ឋានច្រើនកន្លែង (ផ្ទះ, កន្លែងធ្វើការ) ស្រួលជ្រើសរើសពេលទិញលើកក្រោយ។
 * **Wishlist**៖ បញ្ជីទំនិញដែលពេញចិត្ត ដោយអាចចុចបេះដូងទុកមើលពេលក្រោយ។
 * **Security & 2FA OTP**៖ អាចបើកមុខងារផ្ទៀងផ្ទាត់ ២ ជាន់ (Two-Factor Authentication) ដើម្បីសុវត្ថិភាពគណនីខ្ពស់បំផុត។
 
-### ២.៩ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)
+### ២.១០ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)
 * **Telegram 1-Click Handshake Login**៖ មិនបាច់វាយ Email ឬ Password ឡើយ! គ្រាន់តែចុចប៊ូតុង "ចូលដោយប្រើ Telegram" វានឹងបើក Bot `@S_TECH_ASSISTANTBOT` រួច Log in ចូលវេបសាយដោយស្វ័យប្រវត្តិតាមបច្ចេកវិទ្យា Cryptographic Handshake។
 * **Google, Apple, Facebook Login**៖ គាំទ្រការចូលតាមគណនីសង្គមល្បីៗប្រកបដោយសុវត្ថិភាព។
 * **Traditional Email & Password**៖ មានប្រព័ន្ធ Password Strength Meter និង Reset Password តាម Email យ៉ាងត្រឹមត្រូវ។
 
-### ២.១០ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)
+### ២.១១ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)
 * វេបសាយទាំងមូលត្រូវបានបង្កើតឡើងជា **Progressive Web App (PWA)**៖
   * **លើ iPhone (Safari)**៖ ចុចប៊ូតុង **Share** (សញ្ញាព្រួញចង្អុលឡើងលើ) ➔ រើសយក **"Add to Home Screen"**។
   * **លើ Android (Chrome)**៖ ចុចប៊ូតុង Menu (ចំណុច ៣) ➔ រើសយក **"Install App"** ឬ **"Add to Home Screen"**។
 * បន្ទាប់ពីដំឡើងរួច Icon ហាង **S Tech Store** នឹងបង្ហាញនៅលើអេក្រង់ទូរស័ព្ទដូច App ធម្មតា ដោយបើកពេញអេក្រង់ (Standalone Fullscreen) គ្មានរបារ URL របស់ Browser ឡើយ និងដំណើរការលឿនដូច Native App!
+
+### ២.១២ ទិញទំនិញផ្ទាល់ក្នុង Telegram Mini App (In-Telegram Smart Shopping)
+* **ទិញទំនិញដោយផ្ទាល់ក្នុងកម្មវិធី Telegram** ដោយគ្រាន់តែចុចចូល Bot `@S_TECH_ASSISTANTBOT` រួចចុចប៊ូតុង Menu **"🛒 បើកហាង S Tech Store"**។
+* **Auto-Authenticated** មិនបាច់វាយលេខសម្ងាត់ ដោយប្រព័ន្ធភ្ជាប់ជាមួយគណនី Telegram របស់គាត់ដោយស្វ័យប្រវត្តិ។
+* គាំទ្រការស្កេនបង់ប្រាក់ Bakong KHQR ក្នុង Telegram និងទទួលវិក្កយបត្រឌីជីថលភ្លាមៗក្នុងប្រអប់ Chat។
 
 ---
 
@@ -229,7 +241,7 @@
 | **Token ប្រព័ន្ធ** | Bot Token របស់ហាង | `8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8` |
 | **អ្នកប្រើប្រាស់គោលដៅ** | ម្ចាស់ហាង, អ្នកគ្រប់គ្រង, និងបុគ្គលិក | អតិថិជនទូទៅដែលទិញទំនិញលើវេបសាយ |
 | **ទីកន្លែងដំណើរការ** | Group Chat ឬ Channel ផ្ទៃក្នុងរបស់ហាង | Private 1-on-1 Chat ផ្ទាល់ជាមួយអតិថិជន |
-| **មុខងារចម្បង** | • ជូនដំណឹងពេលមាន Order ថ្មី<br>• រាយការណ៍ពេលស្តុកទំនិញជិតអស់<br>• ដំណឹងប្តូរវេនការងារ និងបិទកេសលុយ<br>• ដំណឹងសំបុត្រជួសជុលម៉ាស៊ីនថ្មី | • ចូលប្រើប្រាស់វេបសាយដោយមិនបាច់វាយ Password (1-Click Login Handshake)<br>• ផ្ញើវិក្កយបត្រឌីជីថល (Digital Receipts) ភ្លាមៗពេលទិញទំនិញជោគជ័យ<br>• ផ្ញើដំណឹងដឹកជញ្ជូន និងលេខទូរស័ព្ទអ្នកដឹក<br>• ផ្ទៀងផ្ទាត់សុវត្ថិភាព 2FA |
+| **មុខងារចម្បង** | • ជូនដំណឹងពេលមាន Order ថ្មី<br>• រាយការណ៍ពេលស្តុកទំនិញជិតអស់<br>• ដំណឹងប្តូរវេនការងារ និងបិទកេសលុយ<br>• ដំណឹងសំបុត្រជួសជុលម៉ាស៊ីនថ្មី | • **Telegram Mini App (TMA)**៖ បើកទិញទំនិញពេញលេញក្នុង Telegram ផ្ទាល់<br>• ចូលប្រើប្រាស់វេបសាយដោយមិនបាច់វាយ Password (1-Click Login Handshake)<br>• ផ្ញើវិក្កយបត្រឌីជីថល (Digital Receipts) ភ្លាមៗពេលទិញទំនិញជោគជ័យ<br>• ផ្ញើដំណឹងដឹកជញ្ជូន និងលេខទូរស័ព្ទអ្នកដឹក<br>• ផ្ទៀងផ្ទាត់សុវត្ថិភាព 2FA |
 
 ---
 
