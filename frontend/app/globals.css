@@ -45,33 +45,34 @@
   --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
   --shadow-card-dark: 0 4px 16px rgba(0,0,0,0.4);
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  /* Radius - Apple iOS Squircle Curve Standards */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
 
   /* Transitions */
-  --t-fast: 150ms ease;
-  --t-base: 250ms ease;
+  --t-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --t-base: 250ms cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Mobile App Variables */
-  --bottom-nav-height: 60px;
-  --header-height: 56px;
+  --bottom-nav-height: 56px;
+  --header-height: 54px;
   --safe-area-bottom: env(safe-area-inset-bottom);
 }
 
 .dark {
-  --bg-white: #121212;
-  --bg-light: #1a1e27;
-  --bg-surface: #141720;
-  --bg-surface-2: #1b202c;
+  --bg-white: #0c0e14;
+  --bg-light: #131722;
+  --bg-surface: #131722;
+  --bg-surface-2: #191f2e;
   --text-dark: #f8f8f8;
   --text-med: #d1d5db;
   --text-muted: #9ca3af;
   --text-primary: #f9fafb;
   --text-secondary: #d1d5db;
-  --border: #2e3545;
-  --border-default: #2e3545;
+  --border: #23293a;
+  --border-default: #23293a;
 }
 
 /* ─── Fonts & Dynamic Font System ─────────────────────────────────────────── */
@@ -81,27 +82,27 @@
 }
 
 html[data-font="kantumruy"], body[data-font="kantumruy"], [data-font="kantumruy"] {
-  font-family: 'Kantumruy Pro', var(--font-inter), sans-serif !important;
+  font-family: var(--font-khmer), 'Kantumruy Pro', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
 }
 
 html[data-font="koh-santepheap"], body[data-font="koh-santepheap"], [data-font="koh-santepheap"] {
-  font-family: 'Koh Santepheap', var(--font-inter), sans-serif !important;
+  font-family: 'Koh Santepheap', var(--font-latin), 'Plus Jakarta Sans', -apple-system, sans-serif !important;
 }
 
 html[data-font="battambang"], body[data-font="battambang"], [data-font="battambang"] {
-  font-family: 'Battambang', var(--font-inter), sans-serif !important;
+  font-family: 'Battambang', var(--font-latin), 'Plus Jakarta Sans', sans-serif !important;
 }
 
 html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"] {
-  font-family: 'Noto Sans Khmer', var(--font-inter), sans-serif !important;
+  font-family: 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', sans-serif !important;
 }
 
 html[data-font="outfit"], body[data-font="outfit"], [data-font="outfit"] {
-  font-family: 'Outfit', var(--font-inter), sans-serif !important;
+  font-family: 'Outfit', var(--font-khmer), 'Kantumruy Pro', sans-serif !important;
 }
 
 html[data-font="inter"], body[data-font="inter"], [data-font="inter"] {
-  font-family: var(--font-inter), system-ui, sans-serif !important;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 @keyframes marquee {
@@ -115,10 +116,13 @@ html[data-font="inter"], body[data-font="inter"], [data-font="inter"] {
 
 /* ─── Reset ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { 
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
 body {
-  font-family: 'Kantumruy Pro', var(--font-inter), var(--font-khmer), 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg-white); /* Light theme default for mobile */
+  font-family: var(--font-khmer), 'Kantumruy Pro', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, Roboto, sans-serif;
+  background: var(--bg-white);
   color: var(--text-dark);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -133,13 +137,14 @@ img { max-width: 100%; display: block; }
 
 /* ─── Scrollbar ────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #aaa; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 9999px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Plus Jakarta Sans', 'Kantumruy Pro', var(--font-inter), var(--font-khmer), system-ui, sans-serif;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
@@ -147,9 +152,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── Khmer Fonts ──────────────────────────────────────────────────────────── */
 .font-khmer {
-  font-family: 'Kantumruy Pro', var(--font-khmer), sans-serif;
+  font-family: var(--font-khmer), 'Kantumruy Pro', sans-serif;
   font-weight: 400;
-  line-height: 1.75;
+  line-height: 1.7;
   letter-spacing: 0.005em;
 }
 .font-dangrek {

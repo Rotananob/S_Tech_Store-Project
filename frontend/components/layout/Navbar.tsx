@@ -326,8 +326,8 @@ export default function Navbar() {
       </div>
 
       {/* ── 2. Main Header Row (Logo + Search Bar + Icons) ───────────────── */}
-      <header className="bg-white dark:bg-[#12151e] border-b border-gray-100 dark:border-white/10 sticky top-0 z-40 shadow-sm transition-colors">
-        <div className="container h-[56px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-3 xl:gap-4">
+      <header className="bg-white/90 dark:bg-[#0c0e14]/90 backdrop-blur-xl border-b border-black/[0.05] dark:border-white/[0.08] sticky top-0 z-40 shadow-xs transition-colors">
+        <div className="container h-[54px] lg:h-[68px] flex items-center justify-between gap-2 lg:gap-3 xl:gap-4">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 lg:gap-2.5 flex-shrink-0 no-underline group">
@@ -626,11 +626,11 @@ export default function Navbar() {
       </header>
 
       {/* ── 4. Persistent Mobile Search Bar (Below Header on < lg) ── */}
-      <div className="lg:hidden sticky top-[56px] z-30 bg-white dark:bg-[#12151e] px-3 sm:px-4 py-2 border-b border-gray-100 dark:border-white/10 shadow-sm transition-colors relative" ref={mobileSearchRef}>
+      <div className="lg:hidden sticky top-[54px] z-30 bg-white/90 dark:bg-[#0c0e14]/90 backdrop-blur-xl px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/[0.08] shadow-xs transition-colors relative" ref={mobileSearchRef}>
         <form onSubmit={handleSearch} className="relative w-full flex items-center">
           <input
             type="search"
-            className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200/80 dark:border-white/10 rounded-full pl-11 pr-20 h-[42px] leading-normal text-[14px] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#161a25] transition-all shadow-inner"
+            className="w-full bg-gray-100/90 dark:bg-white/[0.08] border border-transparent focus:border-[#8B1A1A]/30 rounded-2xl pl-11 pr-20 h-[40px] leading-normal text-[14px] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:bg-white dark:focus:bg-[#161a25] transition-all shadow-xs"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}

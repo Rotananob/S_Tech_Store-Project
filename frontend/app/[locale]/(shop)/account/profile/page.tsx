@@ -311,11 +311,11 @@ const PRESET_AVATARS = [
 ];
 
 const FONT_SYSTEMS = [
-  { id: "inter", name: "Modern Inter / Default", sample: "S Tech Store Cambodia 2026" },
-  { id: "kantumruy", name: "Kantumruy Pro (Modern Khmer)", sample: "ហាងកំព្យូទ័រ អេស តិច ស្ត័រ" },
+  { id: "kantumruy", name: "Kantumruy Pro (Modern Khmer • Recommended)", sample: "ហាងកុំព្យូទ័រ អេស តិច ស្ត័រ (S Tech Store)" },
   { id: "koh-santepheap", name: "Koh Santepheap (Clean Khmer)", sample: "គុណភាពស្តង់ដារ និងការធានាផ្លូវការ" },
-  { id: "battambang", name: "Battambang (Classic Khmer)", sample: "ទំនុកចិត្ត គុណភាព និងតម្លៃសមរម្យ" },
   { id: "noto-sans", name: "Noto Sans Khmer (Google Standard)", sample: "សេវាកម្មដំឡើង និងជួសជុលរហ័ស" },
+  { id: "battambang", name: "Battambang (Classic Khmer)", sample: "ទំនុកចិត្ត គុណភាព និងតម្លៃសមរម្យ" },
+  { id: "inter", name: "Modern Inter / English First", sample: "S Tech Store Cambodia 2026" },
 ];
 
 const TABS = [
@@ -828,7 +828,7 @@ export default function UserProfilePage() {
   // Load persisted font preference
   useEffect(() => {
     try {
-      const savedFont = localStorage.getItem("stech_font_system") || "inter";
+      const savedFont = localStorage.getItem("stech_font_system") || "kantumruy";
       setSelectedFont(savedFont);
       document.documentElement.setAttribute("data-font", savedFont);
     } catch (e) {}

@@ -160,39 +160,31 @@ export default function BottomNav() {
   return (
     <>
       <nav 
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/85 backdrop-blur-xl border-t border-black/5 shadow-[0_-4px_24px_rgba(0,0,0,0.02)]" 
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/85 dark:bg-[#0c0e14]/85 backdrop-blur-2xl border-t border-black/[0.06] dark:border-white/[0.08] shadow-[0_-2px_20px_rgba(0,0,0,0.04)]" 
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 6px)' }}
       >
-      <div className="relative flex items-end justify-around h-[68px] max-w-[500px] mx-auto px-2">
+      <div className="relative flex items-center justify-around h-[56px] w-full max-w-xl mx-auto px-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = isActive(tab.path);
 
-          // Center Camera Search button - elevated Taobao FAB style
+          // Center Camera Search button - Apple Intelligence Squircle Style
           if (tab.isCenter) {
             return (
               <button
                 key={tab.path}
                 type="button"
                 onClick={openVisualSearch}
-                className="relative flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                className="relative flex flex-col items-center justify-center h-full w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group -mt-1"
                 aria-label="Scan products with Camera (S Tech Visual Search)"
               >
-                <div className="absolute -top-[20px] left-1/2 -translate-x-1/2 z-10">
-                  <motion.div
-                    whileTap={{ scale: 0.88 }}
-                    className="w-[52px] h-[52px] rounded-full flex items-center justify-center bg-gradient-to-br from-[#8B1A1A] to-[#c0392b]"
-                    style={{ 
-                      boxShadow: '0 8px 20px rgba(139,26,26,0.35), inset 0 2px 4px rgba(255,255,255,0.2)',
-                      border: '4px solid white' 
-                    }}
-                  >
-                    <Icon size={24} color="white" strokeWidth={2.5} />
-                  </motion.div>
-                </div>
-                <span
-                  className="text-[10px] font-bold transition-colors text-[#8B1A1A]"
+                <motion.div
+                  whileTap={{ scale: 0.9 }}
+                  className="w-[42px] h-[42px] rounded-2xl flex items-center justify-center bg-gradient-to-tr from-[#8B1A1A] via-red-600 to-rose-500 shadow-md shadow-red-900/25 border-2 border-white dark:border-[#0c0e14]"
                 >
+                  <Icon size={20} color="white" strokeWidth={2.4} />
+                </motion.div>
+                <span className="text-[10px] font-bold text-[#8B1A1A] dark:text-red-400 mt-0.5 tracking-tight">
                   {tab.label}
                 </span>
               </button>
@@ -200,39 +192,32 @@ export default function BottomNav() {
           }
 
           const content = (
-            <>
-              <motion.div
-                className={`relative flex items-center justify-center w-14 h-8 rounded-full mb-1 transition-colors ${
-                  active ? 'bg-[#8B1A1A]/10' : 'bg-transparent group-hover:bg-gray-100/50'
-                }`}
-                animate={{ scale: active ? 1.05 : 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-              >
+            <motion.div
+              whileTap={{ scale: 0.92 }}
+              className="flex flex-col items-center justify-center h-full w-full py-1"
+            >
+              <div className="relative flex items-center justify-center mb-0.5">
                 <Icon
-                  size={22}
-                  strokeWidth={active ? 2.5 : 2}
-                  className={active ? 'text-[#8B1A1A]' : 'text-gray-500'}
+                  size={21}
+                  strokeWidth={active ? 2.5 : 1.8}
+                  className={`transition-colors duration-200 ${
+                    active ? 'text-[#8B1A1A] dark:text-red-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600'
+                  }`}
                 />
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <motion.span
-                    key={tab.badge}
-                    initial={{ scale: 0.5, y: -10 }}
-                    animate={{ scale: 1, y: 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                    className="absolute -top-1 -right-1 bg-[#8B1A1A] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 border-2 border-white shadow-sm leading-none"
-                  >
+                  <span className="absolute -top-1 -right-2 bg-[#8B1A1A] text-white text-[9px] font-black min-w-[15px] h-[15px] rounded-full flex items-center justify-center px-1 border-2 border-white dark:border-[#0c0e14] shadow-sm leading-none">
                     {tab.badge > 99 ? '99+' : tab.badge}
-                  </motion.span>
+                  </span>
                 )}
-              </motion.div>
+              </div>
               <span
-                className={`text-[10px] transition-colors ${
-                  active ? 'font-semibold text-[#8B1A1A]' : 'font-medium text-gray-500 group-hover:text-gray-700'
+                className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                  active ? 'font-bold text-[#8B1A1A] dark:text-red-400' : 'font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-700'
                 }`}
               >
                 {tab.label}
               </span>
-            </>
+            </motion.div>
           );
 
           // Chat tab - open live ChatBot modal instead of navigating
@@ -250,7 +235,7 @@ export default function BottomNav() {
                   setUnreadChatCount(0);
                   openChat();
                 }}
-                className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                className="flex flex-col items-center justify-center h-full w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group"
                 aria-label="Open Customer Chat"
               >
                 {content}
@@ -271,7 +256,7 @@ export default function BottomNav() {
                     setShowAuthModal(true);
                   }
                 }}
-                className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] border-none bg-transparent cursor-pointer touch-manipulation group"
+                className="flex flex-col items-center justify-center h-full w-[20%] border-none bg-transparent cursor-pointer touch-manipulation group"
                 aria-label="Open User Account"
               >
                 {content}
@@ -284,7 +269,7 @@ export default function BottomNav() {
             <Link
               key={tab.path}
               href={tab.path as any}
-              className="flex flex-col items-center justify-end h-full w-[20%] pb-[6px] no-underline touch-manipulation group"
+              className="flex flex-col items-center justify-center h-full w-[20%] no-underline touch-manipulation group"
             >
               {content}
             </Link>

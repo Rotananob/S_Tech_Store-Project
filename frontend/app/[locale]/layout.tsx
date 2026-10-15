@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import { Inter, Battambang } from "next/font/google";
+import { Kantumruy_Pro, Plus_Jakarta_Sans } from "next/font/google";
 import "@/app/globals.css";
 import FloatingBackButton from "@/components/ui/FloatingBackButton";
 import { NextIntlClientProvider } from "next-intl";
@@ -14,11 +14,18 @@ import TrafficTracker from "@/components/ui/TrafficTracker";
 import TelegramAuthBridge from "@/components/auth/TelegramAuthBridge";
 import WelcomeGiftModal from "@/components/promotions/WelcomeGiftModal";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const khmerFont = Battambang({ 
-  weight: ["100", "300", "400", "700", "900"],
-  subsets: ["khmer"], 
-  variable: "--font-khmer" 
+const kantumruy = Kantumruy_Pro({
+  weight: ["300", "400", "500", "600", "700"],
+  subsets: ["khmer"],
+  display: "swap",
+  variable: "--font-khmer",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  weight: ["400", "500", "600", "700", "800"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-latin",
 });
 
 export const metadata: Metadata = {
@@ -210,7 +217,11 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#8B1A1A" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0e14" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="format-detection" content="telephone=no" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="icon" href="/logo.jpg" />
         <link rel="shortcut icon" href="/logo.jpg" />
@@ -219,7 +230,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Koh+Santepheap:wght@300;400;700;900&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Battambang:wght@400;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Dangrek&family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Koh+Santepheap:wght@300;400;700;900&family=Noto+Sans+Khmer:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap"
           rel="stylesheet"
         />
         <script
@@ -231,14 +242,18 @@ export default async function RootLayout({
             __html: `
               try {
                 var f = localStorage.getItem('stech_font_system');
-                if (f) document.documentElement.setAttribute('data-font', f);
+                if (!f || f === 'inter' || f === 'battambang') {
+                  f = 'kantumruy';
+                  localStorage.setItem('stech_font_system', 'kantumruy');
+                }
+                document.documentElement.setAttribute('data-font', f);
               } catch(e) {}
             `,
           }}
         />
         <script src="https://telegram.org/js/telegram-web-app.js" async />
       </head>
-      <body suppressHydrationWarning className={`${inter.variable} ${khmerFont.variable}`}>
+      <body suppressHydrationWarning className={`${kantumruy.variable} ${plusJakarta.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextIntlClientProvider messages={messages}>
             <SplashScreen />
