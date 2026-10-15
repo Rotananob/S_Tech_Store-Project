@@ -5,12 +5,13 @@ import {
   Send, CheckCircle2, AlertCircle, RefreshCw, Unlink, ExternalLink, 
   Copy, ShieldCheck, Bell, Smartphone, Sparkles, Layers, Key, Bot, 
   Settings, Check, ArrowRight, Zap, QrCode, X, ChevronRight, MessageSquare, Info,
-  ShoppingBag, Wrench, Clock, ArrowLeft
+  ShoppingBag, Wrench, Clock, ArrowLeft, BarChart3, Tag, ShieldAlert, Calendar, PackageCheck
 } from "lucide-react";
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
   disconnectTelegram, updateTelegramSettings, setupTelegramTopics, 
-  pairTelegramGroup, setupCustomerBot, TelegramStatus, TelegramPairLink 
+  pairTelegramGroup, setupCustomerBot, triggerDailyReport, triggerWeeklyReport,
+  scanLowStock, TelegramStatus, TelegramPairLink 
 } from "@/lib/services/admin.service";
 // =============================================================================
 // 🤖 TELEGRAM BOT ARCHITECTURE:
@@ -45,9 +46,61 @@ export default function TelegramBotCard() {
   const [showManualConnect, setShowManualConnect] = useState(false);
   const [manualConnecting, setManualConnecting] = useState(false);
 
+  const [sendingDailyReport, setSendingDailyReport] = useState(false);
+  const [sendingWeeklyReport, setSendingWeeklyReport] = useState(false);
+  const [scanningStock, setScanningStock] = useState(false);
+
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleTriggerDailyReport = async () => {
+    setSendingDailyReport(true);
+    try {
+      const res = await triggerDailyReport();
+      if (res.success) {
+        showToast("បានផ្ញើរបាយការណ៍អាជីវកម្មប្រចាំថ្ងៃ (៨ យប់) ទៅ Telegram ជោគជ័យ! 🎉");
+      } else {
+        showToast(res.message || "បរាជ័យក្នុងការផ្ញើរបាយការណ៍", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការផ្ញើរបាយការណ៍", "error");
+    } finally {
+      setSendingDailyReport(false);
+    }
+  };
+
+  const handleTriggerWeeklyReport = async () => {
+    setSendingWeeklyReport(true);
+    try {
+      const res = await triggerWeeklyReport();
+      if (res.success) {
+        showToast("បានផ្ញើរបាយការណ៍សង្ខេបប្រចាំសប្តាហ៍ទៅ Telegram ជោគជ័យ! 🎉");
+      } else {
+        showToast(res.message || "បរាជ័យក្នុងការផ្ញើរបាយការណ៍", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការផ្ញើរបាយការណ៍", "error");
+    } finally {
+      setSendingWeeklyReport(false);
+    }
+  };
+
+  const handleScanLowStock = async () => {
+    setScanningStock(true);
+    try {
+      const res = await scanLowStock(3);
+      if (res.success) {
+        showToast(res.message || "បានស្កេនពិនិត្យស្តុកជោគជ័យ!");
+      } else {
+        showToast(res.message || "បរាជ័យក្នុងការស្កេនស្តុក", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការស្កេនស្តុក", "error");
+    } finally {
+      setScanningStock(false);
+    }
   };
 
   const handleDirectConnect = async () => {
@@ -659,28 +712,49 @@ export default function TelegramBotCard() {
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Bell size={16} className="text-[#0088cc]" />
-                <span>ការកំណត់ការជូនដំណឹងស្វ័យប្រវត្តិ</span>
+                <span>ការកំណត់ការជូនដំណឹងស្វ័យប្រវត្តិ (Notification Sentinel)</span>
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {[
                   {
                     key: "notify_orders" as const,
                     icon: ShoppingBag,
-                    title: "ការបញ្ជាទិញថ្មី",
+                    title: "ការបញ្ជាទិញថ្មី (Orders)",
                     desc: "ផ្ញើព័ត៌មានលម្អិតពីអតិថិជន និងទំនិញភ្លាមៗពេលមានការកុម្ម៉ង់",
                     value: status.notify_orders,
                   },
                   {
                     key: "notify_low_stock" as const,
                     icon: AlertCircle,
-                    title: "ទំនិញជិតអស់ពីស្តុក",
-                    desc: "ប្រកាសអាសន្នពេលចំនួនទំនិញក្នុងស្តុកសល់តិចជាង ៥ គ្រឿង",
+                    title: "ទំនិញជិតអស់ស្តុក (Stock Alert)",
+                    desc: "ប្រកាសអាសន្នពេលទំនិញសល់ ≤ ៣ គ្រឿង ឬអស់ពីស្តុកភ្លាមៗ",
                     value: status.notify_low_stock,
+                  },
+                  {
+                    key: "notify_auto_reports" as const,
+                    icon: BarChart3,
+                    title: "របាយការណ៍ស្វ័យប្រវត្ត (៨ យប់)",
+                    desc: "គណនាផ្ញើសង្ខេបអ្នកចូលមើល & ការលក់ (ច័ន្ទ-សៅរ៍) និងទំនិញលក់ដាច់ប្រចាំសប្តាហ៍ (អាទិត្យ)",
+                    value: status.notify_auto_reports,
+                  },
+                  {
+                    key: "notify_promotions" as const,
+                    icon: Tag,
+                    title: "ប្រូម៉ូសិន & បញ្ចុះតម្លៃ",
+                    desc: "ជូនដំណឹងពេលបង្កើតកូដបញ្ចុះតម្លៃ ឬកម្មវិធីប្រូម៉ូសិនទំនិញថ្មីៗ",
+                    value: status.notify_promotions,
+                  },
+                  {
+                    key: "notify_errors" as const,
+                    icon: ShieldAlert,
+                    title: "បញ្ហាប្រព័ន្ធ (Errors Sentinel)",
+                    desc: "ជូនដំណឹងភ្លាមៗទៅកាន់ Topic Errors ពេលប្រព័ន្ធជួបបញ្ហាបច្ចេកទេស",
+                    value: status.notify_errors,
                   },
                   {
                     key: "notify_repairs" as const,
                     icon: Wrench,
-                    title: "សំណើជួសជុល",
+                    title: "សំណើជួសជុល (Repairs)",
                     desc: "ជូនដំណឹងពេលមានអតិថិជនដាក់សំណើសុំជួសជុលឧបករណ៍",
                     value: status.notify_repairs,
                   },
@@ -718,6 +792,65 @@ export default function TelegramBotCard() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* ── 🚀 QUICK ACTIONS & INSTANT REPORT TESTERS ── */}
+              <div className="mt-5 p-5 bg-gradient-to-br from-sky-50/60 via-white to-blue-50/40 rounded-2xl border border-sky-100 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-2">
+                      <Sparkles size={16} className="text-[#0088cc]" />
+                      <span>សកម្មភាពរហ័ស & សាកល្បងផ្ញើរបាយការណ៍ (Quick Reports & Stock Sentinel)</span>
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Admin និង Staff អាចចុចសាកល្បងបញ្ជូនរបាយការណ៍ ឬស្កេនពិនិត្យស្តុកទំនិញបានភ្លាមៗ ដោយមិនបាច់រង់ចាំដល់ម៉ោង ៨ យប់
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTriggerDailyReport}
+                    disabled={sendingDailyReport}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  >
+                    {sendingDailyReport ? (
+                      <RefreshCw size={14} className="animate-spin text-[#0088cc]" />
+                    ) : (
+                      <BarChart3 size={14} className="text-[#0088cc]" />
+                    )}
+                    <span>ផ្ញើរបាយការណ៍ថ្ងៃនេះ (Daily)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTriggerWeeklyReport}
+                    disabled={sendingWeeklyReport}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  >
+                    {sendingWeeklyReport ? (
+                      <RefreshCw size={14} className="animate-spin text-indigo-600" />
+                    ) : (
+                      <Calendar size={14} className="text-indigo-600" />
+                    )}
+                    <span>ផ្ញើរបាយការណ៍សប្តាហ៍ (Weekly)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleScanLowStock}
+                    disabled={scanningStock}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-white hover:bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold transition-all shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  >
+                    {scanningStock ? (
+                      <RefreshCw size={14} className="animate-spin text-amber-600" />
+                    ) : (
+                      <PackageCheck size={14} className="text-amber-600" />
+                    )}
+                    <span>ស្កេនទំនិញជិតអស់ស្តុក (≤ 3)</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

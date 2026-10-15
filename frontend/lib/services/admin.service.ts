@@ -261,6 +261,9 @@ export interface TelegramStatus {
   notify_low_stock: boolean;
   notify_repairs: boolean;
   notify_shifts: boolean;
+  notify_auto_reports: boolean;
+  notify_promotions: boolean;
+  notify_errors: boolean;
   topics?: Record<string, number>;
 }
 
@@ -289,6 +292,9 @@ export const getTelegramStatus = async (checkNow: boolean = false): Promise<Tele
       notify_low_stock: true,
       notify_repairs: true,
       notify_shifts: true,
+      notify_auto_reports: true,
+      notify_promotions: true,
+      notify_errors: true,
     };
   }
 };
@@ -334,6 +340,21 @@ export const broadcastTelegramMessage = async (message: string, topic: string = 
 
 export const setupCustomerBot = async (): Promise<{ success: boolean; bot_username?: string; commands_count?: number; details?: any; error?: string }> => {
   const res = await api.post("/admin/telegram/setup-customer-bot");
+  return res.data;
+};
+
+export const triggerDailyReport = async (date?: string): Promise<{ success: boolean; message: string; details?: any }> => {
+  const res = await api.post("/admin/telegram/trigger-daily-report", { date });
+  return res.data;
+};
+
+export const triggerWeeklyReport = async (): Promise<{ success: boolean; message: string; details?: any }> => {
+  const res = await api.post("/admin/telegram/trigger-weekly-report");
+  return res.data;
+};
+
+export const scanLowStock = async (threshold: number = 3): Promise<{ success: boolean; message: string; data?: any }> => {
+  const res = await api.post("/admin/telegram/scan-low-stock", { threshold });
   return res.data;
 };
 

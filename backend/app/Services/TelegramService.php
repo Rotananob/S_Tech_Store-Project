@@ -62,6 +62,9 @@ class TelegramService
             'notify_low_stock' => true,
             'notify_repairs' => true,
             'notify_shifts' => true,
+            'notify_auto_reports' => true,
+            'notify_promotions' => true,
+            'notify_errors' => true,
             'topics' => [],
             'pending_tokens' => [],
         ];
@@ -149,7 +152,8 @@ class TelegramService
         $fallbacks = [
             'users' => ['users', 'chat', 'orders'],
             'orders' => ['orders', 'finance'],
-            'stock' => ['stock', 'promotions'],
+            'reports' => ['reports', 'orders', 'finance', 'traffic'],
+            'stock' => ['stock', 'promotions', 'orders'],
             'repairs' => ['repairs', 'orders'],
             'chat' => ['chat', 'orders'],
             'traffic' => ['traffic'],
@@ -3267,6 +3271,10 @@ class TelegramService
                     'name' => '🛒 ការបញ្ជាទិញថ្មី',
                     'icon_color' => 7322096, // Light Blue
                 ],
+                'reports' => [
+                    'name' => '📊 របាយការណ៍អាជីវកម្ម',
+                    'icon_color' => 7322096, // Light Blue
+                ],
                 'chat' => [
                     'name' => '💬 អតិថិជនកំពុងឆាត',
                     'icon_color' => 13338331, // Violet
@@ -5026,6 +5034,23 @@ class TelegramService
             return false;
         }
 
+        // Support array fallback for backwards compatibility
+        if (is_array($order)) {
+            if (isset($order['chat_id'], $order['message'])) {
+                $parseMode = $order['parse_mode'] ?? 'HTML';
+                return (self::sendMessage($order['chat_id'], $order['message'], $parseMode)['ok'] ?? false) === true;
+            }
+            $order = (object)$order;
+        }
+
+        // Auto-load items with product & category relations if missing
+        $items = $order->items ?? null;
+        if ((empty($items) || (is_countable($items) && count($items) === 0)) && !empty($order->id)) {
+            $items = \App\Models\OrderItem::where('order_id', $order->id)->with('product.category')->get();
+        } elseif ($items instanceof \Illuminate\Database\Eloquent\Collection) {
+            $items->loadMissing('product.category');
+        }
+
         $orderId = $order->order_id ?? ('#ORD-' . ($order->id ?? 'NEW'));
         $name = htmlspecialchars($order->customer_name ?? 'Valued Customer');
         $phone = htmlspecialchars($order->customer_phone ?? 'N/A');
@@ -5034,34 +5059,110 @@ class TelegramService
         $payment = strtoupper($order->payment_method ?? 'Cash on Delivery (COD)');
         $delivery = htmlspecialchars($order->delivery_type ?? 'Standard Delivery');
 
+        $totalQty = 0;
+        $itemsCount = (!empty($items) && is_countable($items)) ? count($items) : 0;
         $itemsText = "";
-        if (!empty($order->items)) {
-            foreach ($order->items as $idx => $item) {
-                $pName = htmlspecialchars($item->product->name ?? ('Product #' . ($item->product_id ?? ($idx + 1))));
-                $qty = $item->quantity ?? 1;
-                $price = number_format((float)($item->unit_price ?? 0), 2);
-                $itemsText .= "  • <b>{$pName}</b> x{$qty} (\${$price})\n";
+
+        if ($itemsCount > 0) {
+            foreach ($items as $idx => $item) {
+                $p = $item->product ?? null;
+                $pName = htmlspecialchars($p->name ?? ('Product #' . ($item->product_id ?? ($idx + 1))));
+                $qty = (int)($item->quantity ?? 1);
+                $totalQty += $qty;
+                $unitPrice = number_format((float)($item->unit_price ?? 0), 2);
+                $subtotal = number_format((float)($item->subtotal ?? ($qty * (float)($item->unit_price ?? 0))), 2);
+
+                $brand = $p && !empty($p->brand) ? htmlspecialchars($p->brand) : null;
+                $cat = $p && !empty($p->category) ? htmlspecialchars($p->category->name) : null;
+                $stock = $p ? (int)$p->stock : null;
+
+                // Popularity stats: count all units ever ordered for this product
+                $totalSold = !empty($item->product_id)
+                    ? (int)\App\Models\OrderItem::where('product_id', $item->product_id)->sum('quantity')
+                    : $qty;
+
+                $stockBadge = "";
+                if ($stock !== null) {
+                    $stockBadge = $stock <= 3
+                        ? "⚠️ <i>(សល់តិច: {$stock} គ្រឿង)</i>"
+                        : "📦 <i>(ស្តុកនៅសល់: {$stock} គ្រឿង)</i>";
+                }
+
+                $popularBadge = "";
+                if ($totalSold >= 10) {
+                    $popularBadge = " • 🔥 <b>ពេញនិយមខ្លាំង (លក់បាន {$totalSold} គ្រឿង)</b>";
+                } elseif ($totalSold >= 3) {
+                    $popularBadge = " • ⭐ <b>ទំនិញពេញនិយម (លក់បាន {$totalSold} គ្រឿង)</b>";
+                } elseif ($totalSold > 0) {
+                    $popularBadge = " • 📈 <b>លក់ដាច់សរុប: {$totalSold} គ្រឿង</b>";
+                }
+
+                $num = $idx + 1;
+                $itemsText .= "<b>{$num}. {$pName}</b>\n";
+
+                $metaParts = [];
+                if ($brand) {
+                    $metaParts[] = "🏢 ម៉ាក: <b>{$brand}</b>";
+                }
+                if ($cat) {
+                    $metaParts[] = "📂 ប្រភេទ: {$cat}";
+                }
+                if (!empty($metaParts)) {
+                    $itemsText .= "   " . implode(' | ', $metaParts) . "\n";
+                }
+
+                $itemsText .= "   🔹 ចំនួន: <b>x{$qty}</b> × \${$unitPrice} = <b>\${$subtotal} USD</b>\n";
+                if ($stockBadge || $popularBadge) {
+                    $itemsText .= "   " . trim("{$stockBadge}{$popularBadge}") . "\n";
+                }
+                $itemsText .= "\n";
             }
         } else {
-            $itemsText = "  • <i>(ព័ត៌មានទំនិញត្រូវបានកត់ត្រាក្នុង Admin)</i>\n";
+            $itemsText = "  • <i>(ព័ត៌មានទំនិញត្រូវបានកត់ត្រាក្នុង Admin)</i>\n\n";
+        }
+
+        $discountInfo = "";
+        if (!empty($order->discount_amount) && (float)$order->discount_amount > 0) {
+            $discountFormatted = number_format((float)$order->discount_amount, 2);
+            $promo = !empty($order->promo_code) ? " (កូដ: <code>" . htmlspecialchars($order->promo_code) . "</code>)" : "";
+            $discountInfo = "🏷️ <b>បញ្ចុះតម្លៃ:</b> -\${$discountFormatted} USD{$promo}\n";
+        }
+
+        $notesInfo = "";
+        if (!empty($order->admin_notes)) {
+            $notesInfo = "📝 <b>ចំណាំពីអតិថិជន:</b> <i>" . htmlspecialchars($order->admin_notes) . "</i>\n";
         }
 
         $orderTopicId = self::resolveTopicId('orders');
+        $headerCount = $itemsCount > 0 ? "({$itemsCount} មុខ | សរុប {$totalQty} គ្រឿង)" : "(0 មុខ)";
 
-        $msg = "🛒 <b>ការបញ្ជាទិញថ្មី (NEW ORDER RECEIVED)!</b>\n\n"
-            . "🔖 <b>លេខវិក្កយបត្រ:</b> <code>{$orderId}</code>\n"
+        $msg = "🛒 <b>ការបញ្ជាទិញថ្មី (NEW ORDER RECEIVED)!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🔖 <b>លេខវិក្កយបត្រ:</b> <code>#{$orderId}</code>\n"
             . "👤 <b>អតិថិជន:</b> <b>{$name}</b>\n"
             . "📱 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
-            . "📍 <b>អាសយដ្ឋាន:</b> {$address}\n"
-            . "🚚 <b>ការដឹកជញ្ជូន:</b> {$delivery}\n"
-            . "💳 <b>វិធីទូទាត់:</b> {$payment}\n\n"
-            . "📦 <b>មុខទំនិញកុម្ម៉ង់:</b>\n"
-            . $itemsText . "\n"
-            . "💵 <b>សរុបទឹកប្រាក់:</b> <b>\${$total} USD</b>\n"
+            . "📍 <b>អាសយដ្ឋានដឹក:</b> {$address}\n"
+            . "🚚 <b>សេវាដឹក:</b> {$delivery}\n"
+            . "💳 <b>វិធីទូទាត់:</b> {$payment}\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "📦 <b>មុខទំនិញកុម្ម៉ង់ {$headerCount}:</b>\n\n"
+            . $itemsText
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . $discountInfo
+            . "💵 <b>សរុបទឹកប្រាក់ត្រូវទូទាត់:</b> <b>\${$total} USD</b>\n"
+            . $notesInfo
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/orders\">ចុចទីនេះដើម្បីពិនិត្យ និងរៀបចំការដឹកជញ្ជូន</a>";
 
-        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📋 មើលការកុម្ម៉ង់ក្នុង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh/orders'],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $keyboard, 'HTML', $orderTopicId);
         return ($res['ok'] ?? false) === true;
     }
 
@@ -5643,7 +5744,7 @@ class TelegramService
     }
 
     /**
-     * Send promotion & stock update alert to Telegram promotions topic
+     * Send promotion alert to Telegram promotions topic
      */
     public static function sendPromotionAlert(array $data): bool
     {
@@ -5651,25 +5752,131 @@ class TelegramService
         if (empty($settings['connected']) || empty($settings['chat_id'])) {
             return false;
         }
+        if (!($settings['notify_promotions'] ?? true)) {
+            return false;
+        }
 
         $title = htmlspecialchars($data['title'] ?? 'Promotion / Stock Update');
         $actor = htmlspecialchars($data['actor'] ?? 'Admin / Staff');
         $details = htmlspecialchars($data['details'] ?? 'N/A');
         $discount = htmlspecialchars($data['discount'] ?? 'N/A');
+        $code = !empty($data['code']) ? htmlspecialchars($data['code']) : null;
+        $validUntil = !empty($data['valid_until']) ? htmlspecialchars($data['valid_until']) : null;
 
         $promoTopicId = self::resolveTopicId('promotions') ?? self::resolveTopicId('stock');
 
-        $msg = "🎁 <b>[PROMOTION & STOCK] បច្ចុប្បន្នភាពប្រូម៉ូសិន ឬស្តុក!</b>\n"
+        $codeText = $code ? "🎟️ <b>កូដបញ្ចុះតម្លៃ:</b> <code>{$code}</code>\n" : "🎟️ <b>Discount:</b> <code>{$discount}</code>\n";
+        $validText = $validUntil ? "⏳ <b>ផុតកំណត់ត្រឹម:</b> {$validUntil}\n" : "";
+
+        $msg = "🎁 <b>[PROMOTION ALERT] បច្ចុប្បន្នភាពប្រូម៉ូសិនពិសេស!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "🏷️ <b>កម្មវិធី / ការផ្លាស់ប្តូរ:</b> <b>{$title}</b>\n"
-            . "👤 <b>អ្នករៀបចំ:</b> {$actor}\n"
-            . "🎟️ <b>Discount / Code:</b> <code>{$discount}</code>\n"
+            . "🏷️ <b>កម្មវិធី / ប្រូម៉ូសិន:</b> <b>{$title}</b>\n"
+            . $codeText
             . "📦 <b>ព័ត៌មានលម្អិត:</b> {$details}\n"
+            . $validText
+            . "👤 <b>រៀបចំដោយ:</b> {$actor}\n"
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
             . "👉 <a href=\"https://www.s-tech-store.tech/rok-mix-khernh/promotions\">ពិនិត្យមើលក្នុងផ្ទាំង Admin</a>";
 
-        $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $promoTopicId);
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🎁 ពិនិត្យមើលប្រូម៉ូសិនក្នុង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh/promotions'],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $keyboard, 'HTML', $promoTopicId);
         return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send low stock or out of stock alert to Telegram stock topic
+     */
+    public static function sendLowStockAlert($product, ?int $remainingStock = null): bool
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return false;
+        }
+        if (!($settings['notify_low_stock'] ?? true)) {
+            return false;
+        }
+
+        $stock = $remainingStock !== null ? $remainingStock : (int)($product->stock ?? 0);
+        $productId = $product->id ?? null;
+
+        // 1-hour anti-spam cooldown per product per stock count
+        if ($productId) {
+            $cacheKey = "tg_low_stock_cooldown_{$productId}_{$stock}";
+            if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                return true;
+            }
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, 3600);
+        }
+
+        $pName = htmlspecialchars($product->name ?? ('Product #' . $productId));
+        $brand = htmlspecialchars($product->brand ?? 'S Tech Store');
+        $category = htmlspecialchars($product->category->name ?? 'គ្រឿងអេឡិចត្រូនិច (Electronics)');
+        $price = number_format((float)($product->price ?? 0), 2);
+        $salePrice = !empty($product->sale_price) ? number_format((float)$product->sale_price, 2) : null;
+        $priceDisplay = $salePrice ? "\${$salePrice} USD <i>(ចុះពី \${$price})</i>" : "\${$price} USD";
+
+        $stockTopicId = self::resolveTopicId('stock');
+
+        $isZero = $stock <= 0;
+        $statusBadge = $isZero 
+            ? "🚨 <b>អស់ពីស្តុកហើយ (OUT OF STOCK - 0 គ្រឿង)!</b>"
+            : "⚠️ <b>ជិតអស់ពីស្តុក (នៅសល់តែ {$stock} គ្រឿងប៉ុណ្ណោះ)!</b>";
+
+        $msg = "📦 <b>[STOCK ALERT] ការប្រកាសអាសន្នស្តុកទំនិញ!</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🏷️ <b>មុខទំនិញ:</b> <b>{$pName}</b>\n"
+            . "🏢 <b>ម៉ាក (Brand):</b> <b>{$brand}</b>\n"
+            . "📂 <b>ប្រភេទ:</b> {$category}\n"
+            . "📊 <b>ស្ថានភាពស្តុក:</b> {$statusBadge}\n"
+            . "💵 <b>តម្លៃទំនិញ:</b> {$priceDisplay}\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime() . "\n\n"
+            . "👉 <i>សូមក្រុមការងារផ្នែកឃ្លាំង និង Admin មេត្តារៀបចំកម្ម៉ង់ ឬបញ្ចូលស្តុកបន្ថែមជាបន្ទាន់!</i>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📝 ចូលទៅកែសម្រួលស្តុកក្នុង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh/products'],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $keyboard, 'HTML', $stockTopicId);
+        return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Scan all inventory and alert any products below the specified threshold
+     */
+    public static function scanAndAlertLowStock(int $threshold = 3): array
+    {
+        $products = \App\Models\Product::where('stock', '<=', $threshold)->with('category')->get();
+        $alerted = 0;
+        $items = [];
+
+        foreach ($products as $p) {
+            $sent = self::sendLowStockAlert($p, (int)$p->stock);
+            if ($sent) {
+                $alerted++;
+                $items[] = [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'stock' => (int)$p->stock,
+                ];
+            }
+        }
+
+        return [
+            'scanned' => $products->count(),
+            'alerted' => $alerted,
+            'items' => $items,
+        ];
     }
 
     /**
@@ -5713,11 +5920,22 @@ class TelegramService
         if (empty($settings['connected']) || empty($settings['chat_id'])) {
             return false;
         }
+        if (!($settings['notify_errors'] ?? true)) {
+            return false;
+        }
 
         $error = htmlspecialchars($data['error'] ?? 'Unknown Exception');
         $context = htmlspecialchars($data['context'] ?? 'System Core');
         $actor = htmlspecialchars($data['actor'] ?? request()->ip() ?? 'System');
         $file = htmlspecialchars($data['file'] ?? 'N/A');
+
+        // Deduplication cooldown: 300s (5 minutes) per unique error signature
+        $errHash = md5(($data['error'] ?? '') . ($data['file'] ?? ''));
+        $cooldownKey = "tg_err_cooldown_{$errHash}";
+        if (\Illuminate\Support\Facades\Cache::has($cooldownKey)) {
+            return true;
+        }
+        \Illuminate\Support\Facades\Cache::put($cooldownKey, true, 300);
 
         $errTopicId = self::resolveTopicId('system_errors') ?? self::resolveTopicId('security');
 
@@ -5732,6 +5950,310 @@ class TelegramService
 
         $res = self::sendMessage($settings['chat_id'], $msg, 'HTML', $errTopicId);
         return ($res['ok'] ?? false) === true;
+    }
+
+    /**
+     * Send Rich Daily Business Summary Report to connected Telegram group (routed to Reports topic)
+     * Automatically triggered at 20:00 Cambodia Time (Monday - Saturday)
+     */
+    public static function sendDailyReport(?string $targetDate = null): array
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return ['ok' => false, 'error' => 'Telegram group not connected'];
+        }
+        if (!($settings['notify_auto_reports'] ?? true)) {
+            return ['ok' => false, 'error' => 'Auto reports are disabled in settings'];
+        }
+
+        $tz = new \DateTimeZone('Asia/Phnom_Penh');
+        $dt = $targetDate ? new \DateTime($targetDate, $tz) : new \DateTime('now', $tz);
+        $dateStr = $dt->format('Y-m-d');
+        $displayDate = self::khmerTime($dt, 'd-m-Y');
+
+        // 1. Website Visitors / Traffic Stats
+        $hitsKey = 'site_daily_pageviews_' . $dateStr;
+        $uniqueKey = 'site_daily_unique_ips_' . $dateStr;
+        $pageviews = (int)\Illuminate\Support\Facades\Cache::get($hitsKey, 0);
+        $uniqueList = \Illuminate\Support\Facades\Cache::get($uniqueKey, []);
+        $uniqueVisitors = is_array($uniqueList) ? count($uniqueList) : 0;
+        if ($pageviews < $uniqueVisitors) $pageviews = $uniqueVisitors;
+        if ($uniqueVisitors > 0 && $pageviews < 1) $pageviews = 1;
+
+        // 2. Orders & Revenue Stats for Today
+        $orders = \App\Models\Order::whereDate('created_at', $dateStr)
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        $totalOrders = $orders->count();
+        $totalRevenue = (float)$orders->sum('total_amount');
+        $paidOrders = $orders->whereIn('payment_status', ['paid', 'completed'])->count();
+
+        // 3. New Customer Signups
+        $newUsersCount = \App\Models\UserProfile::whereDate('created_at', $dateStr)->count();
+
+        // 4. Products Sold Today
+        $items = \App\Models\OrderItem::whereHas('order', function ($q) use ($dateStr) {
+            $q->whereDate('created_at', $dateStr)->where('status', '!=', 'cancelled');
+        })->with('product.category')->get();
+
+        $totalUnitsSold = (int)$items->sum('quantity');
+        $distinctProductsCount = $items->pluck('product_id')->unique()->count();
+
+        // Group by product for Top Sellers
+        $productStats = [];
+        foreach ($items as $item) {
+            $pid = $item->product_id ?: ('prod_' . $item->id);
+            $pName = htmlspecialchars($item->product->name ?? ('Product #' . $item->product_id));
+            $brand = $item->product && !empty($item->product->brand) ? htmlspecialchars($item->product->brand) : null;
+            if (!isset($productStats[$pid])) {
+                $productStats[$pid] = [
+                    'name' => $pName,
+                    'brand' => $brand,
+                    'qty' => 0,
+                    'revenue' => 0.0,
+                ];
+            }
+            $productStats[$pid]['qty'] += (int)($item->quantity ?? 1);
+            $productStats[$pid]['revenue'] += (float)($item->subtotal ?? ($item->quantity * ($item->unit_price ?? 0)));
+        }
+
+        uasort($productStats, fn($a, $b) => $b['qty'] <=> $a['qty']);
+
+        $topProductsText = "";
+        if (!empty($productStats)) {
+            $rank = 1;
+            foreach (array_slice($productStats, 0, 5) as $stat) {
+                $rev = number_format($stat['revenue'], 2);
+                $brandBadge = $stat['brand'] ? " [{$stat['brand']}]" : "";
+                $topProductsText .= "  {$rank}. <b>{$stat['name']}</b>{$brandBadge} — <b>x{$stat['qty']} គ្រឿង</b> (\${$rev})\n";
+                $rank++;
+            }
+        } else {
+            $topProductsText = "  • <i>(មិនទាន់មានទំនិញត្រូវបានបញ្ជាទិញនៅឡើយទេ)</i>\n";
+        }
+
+        $reportTopicId = self::resolveTopicId('reports');
+        $revFormatted = number_format($totalRevenue, 2);
+
+        $msg = "📊 <b>របាយការណ៍អាជីវកម្មប្រចាំថ្ងៃ (DAILY STORE REPORT)</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "📅 <b>កាលបរិច្ឆេទ:</b> {$displayDate} (ម៉ោង 08:00 យប់)\n\n"
+            . "🌐 <b>ចរាចរណ៍អ្នកចូលមើល (Website Traffic):</b>\n"
+            . "  • 👥 អ្នកចូលមើលថ្មី (Unique): <b>{$uniqueVisitors} នាក់</b>\n"
+            . "  • 👁️ ចំនួនមើលទំព័រ (Pageviews): <b>{$pageviews} ដង</b>\n\n"
+            . "🛒 <b>ការលក់ & ប្រាក់ចំណូល (Sales & Revenue):</b>\n"
+            . "  • 💵 ចំណូលសរុបថ្ងៃនេះ: <b>\${$revFormatted} USD</b>\n"
+            . "  • 📦 ការកុម្ម៉ង់សរុប: <b>{$totalOrders} កុម្ម៉ង់</b> (បានទូទាត់: {$paidOrders})\n"
+            . "  • 🛍️ ចំនួនទំនិញលក់បាន: <b>{$totalUnitsSold} គ្រឿង</b> ({$distinctProductsCount} មុខ)\n"
+            . "  • 👤 អតិថិជនចុះឈ្មោះថ្មី: <b>{$newUsersCount} នាក់</b>\n\n"
+            . "🔥 <b>ទំនិញលក់ដាច់ប្រចាំថ្ងៃ (Top Products Today):</b>\n"
+            . $topProductsText . "\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "⏰ <i>ប្រព័ន្ធគណនា និងផ្ញើស្វ័យប្រវត្តរៀងរាល់ម៉ោង ៨ យប់ (ច័ន្ទ - សៅរ៍)</i>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📊 មើលផ្ទាំងគ្រប់គ្រង Admin Dashboard', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh'],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $keyboard, 'HTML', $reportTopicId);
+        return $res;
+    }
+
+    /**
+     * Send Rich Weekly Product Sales & Performance Report to connected Telegram group
+     * Automatically triggered every Sunday at 20:00 Cambodia Time
+     */
+    public static function sendWeeklyReport(): array
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return ['ok' => false, 'error' => 'Telegram group not connected'];
+        }
+        if (!($settings['notify_auto_reports'] ?? true)) {
+            return ['ok' => false, 'error' => 'Auto reports are disabled in settings'];
+        }
+
+        $tz = new \DateTimeZone('Asia/Phnom_Penh');
+        $now = new \DateTime('now', $tz);
+        
+        // Past 7 days window (Monday 00:00:00 to Sunday 23:59:59)
+        $endDate = (clone $now);
+        $startDate = (clone $now)->modify('-6 days')->setTime(0, 0, 0);
+
+        $startStr = $startDate->format('Y-m-d 00:00:00');
+        $endStr = $endDate->format('Y-m-d 23:59:59');
+        $displayRange = $startDate->format('d/m/Y') . " - " . $endDate->format('d/m/Y');
+
+        // 1. Weekly Orders & Revenue
+        $orders = \App\Models\Order::whereBetween('created_at', [$startStr, $endStr])
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        $totalOrders = $orders->count();
+        $totalRevenue = (float)$orders->sum('total_amount');
+        $paidOrders = $orders->whereIn('payment_status', ['paid', 'completed'])->count();
+
+        // 2. All Items Purchased This Week (មានអ្នកទិញប៉ុន្មាន product and product ណាខ្លះ)
+        $items = \App\Models\OrderItem::whereHas('order', function ($q) use ($startStr, $endStr) {
+            $q->whereBetween('created_at', [$startStr, $endStr])->where('status', '!=', 'cancelled');
+        })->with('product.category')->get();
+
+        $totalUnitsSold = (int)$items->sum('quantity');
+        $distinctProductsCount = $items->pluck('product_id')->unique()->count();
+
+        // Aggregate every product bought
+        $productStats = [];
+        foreach ($items as $item) {
+            $pid = $item->product_id ?: ('prod_' . $item->id);
+            $pName = htmlspecialchars($item->product->name ?? ('Product #' . $item->product_id));
+            $brand = $item->product && !empty($item->product->brand) ? htmlspecialchars($item->product->brand) : null;
+            $stock = $item->product ? (int)$item->product->stock : null;
+
+            if (!isset($productStats[$pid])) {
+                $productStats[$pid] = [
+                    'name' => $pName,
+                    'brand' => $brand,
+                    'stock' => $stock,
+                    'qty' => 0,
+                    'revenue' => 0.0,
+                ];
+            }
+            $productStats[$pid]['qty'] += (int)($item->quantity ?? 1);
+            $productStats[$pid]['revenue'] += (float)($item->subtotal ?? ($item->quantity * ($item->unit_price ?? 0)));
+        }
+
+        uasort($productStats, fn($a, $b) => $b['qty'] <=> $a['qty']);
+
+        // Top 5 Medals
+        $topListText = "";
+        $medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+        $idx = 0;
+        foreach (array_slice($productStats, 0, 5) as $stat) {
+            $m = $medals[$idx] ?? '⭐';
+            $rev = number_format($stat['revenue'], 2);
+            $brandBadge = $stat['brand'] ? " [{$stat['brand']}]" : "";
+            $topListText .= "  {$m} <b>{$stat['name']}</b>{$brandBadge}\n"
+                . "     ↳ ចំនួន: <b>x{$stat['qty']} គ្រឿង</b> | ចំណូល: <b>\${$rev} USD</b>\n";
+            $idx++;
+        }
+        if (empty($topListText)) {
+            $topListText = "  • <i>(មិនទាន់មានទិន្នន័យការលក់ក្នុងសប្តាហ៍នេះ)</i>\n";
+        }
+
+        // Full Itemized breakdown of all products bought (product ណាខ្លះ)
+        $allItemsText = "";
+        $num = 1;
+        foreach ($productStats as $stat) {
+            $rev = number_format($stat['revenue'], 2);
+            $brandBadge = $stat['brand'] ? " ({$stat['brand']})" : "";
+            $stockInfo = $stat['stock'] !== null ? " [ស្តុកនៅសល់: {$stat['stock']}]" : "";
+            $allItemsText .= "  {$num}. {$stat['name']}{$brandBadge} — <b>x{$stat['qty']} គ្រឿង</b> (\${$rev}){$stockInfo}\n";
+            $num++;
+            if ($num > 15) {
+                $remaining = count($productStats) - 15;
+                $allItemsText .= "  ... និងមាន {$remaining} មុខទំនិញផ្សេងទៀតក្នុង Admin\n";
+                break;
+            }
+        }
+        if (empty($allItemsText)) {
+            $allItemsText = "  • <i>(គ្មានទំនិញត្រូវបានទិញក្នុងសប្តាហ៍នេះ)</i>\n";
+        }
+
+        // Sum weekly visitors
+        $weeklyVisitors = 0;
+        $period = new \DatePeriod(clone $startDate, new \DateInterval('P1D'), (clone $endDate)->modify('+1 day'));
+        foreach ($period as $day) {
+            $dStr = $day->format('Y-m-d');
+            $uList = \Illuminate\Support\Facades\Cache::get('site_daily_unique_ips_' . $dStr, []);
+            $weeklyVisitors += is_array($uList) ? count($uList) : 0;
+        }
+
+        // Weekly new members
+        $weeklyNewUsers = \App\Models\UserProfile::whereBetween('created_at', [$startStr, $endStr])->count();
+
+        $revFormatted = number_format($totalRevenue, 2);
+        $reportTopicId = self::resolveTopicId('reports');
+
+        $msg = "📈 <b>របាយការណ៍សង្ខេបប្រចាំសប្តាហ៍ (WEEKLY SALES & PRODUCT REPORT)</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🗓️ <b>ចន្លោះកាលបរិច្ឆេទ:</b> {$displayRange}\n"
+            . "⏰ <b>ពេលវេលាបញ្ជូន:</b> ថ្ងៃអាទិត្យ ម៉ោង 08:00 យប់\n\n"
+            . "💰 <b>ទិដ្ឋភាពទូទៅនៃអាជីវកម្ម (Weekly Overview):</b>\n"
+            . "  • 💵 ចំណូលសរុបប្រចាំសប្តាហ៍: <b>\${$revFormatted} USD</b>\n"
+            . "  • 🛒 ការបញ្ជាទិញសរុប: <b>{$totalOrders} orders</b> (បានទូទាត់: {$paidOrders})\n"
+            . "  • 📦 ចំនួនមុខទំនិញដែលបានលក់: <b>{$distinctProductsCount} មុខ (សរុប {$totalUnitsSold} គ្រឿង)</b>\n"
+            . "  • 👥 អ្នកចូលទស្សនាគេហទំព័រសរុប: <b>~{$weeklyVisitors} នាក់</b>\n"
+            . "  • 👤 សមាជិកថ្មីចុះឈ្មោះ: <b>{$weeklyNewUsers} នាក់</b>\n\n"
+            . "🏆 <b>TOP 5 ទំនិញលក់ដាច់បំផុតប្រចាំសប្តាហ៍:</b>\n"
+            . $topListText . "\n"
+            . "🛍️ <b>បញ្ជីមុខទំនិញដែលត្រូវបានទិញក្នុងសប្តាហ៍នេះ (Product Breakdown):</b>\n"
+            . $allItemsText . "\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "⏰ <i>ប្រព័ន្ធគណនា និងផ្ញើស្វ័យប្រវត្តរៀងរាល់ថ្ងៃអាទិត្យ ម៉ោង ៨ យប់</i>";
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📈 ពិនិត្យមើលរបាយការណ៍លម្អិតក្នុង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh/analytics'],
+                ]
+            ]
+        ];
+
+        $res = self::sendMessageWithKeyboard($settings['chat_id'], $msg, $keyboard, 'HTML', $reportTopicId);
+        return $res;
+    }
+
+    /**
+     * Autonomous 8:00 PM Cambodia Time (Asia/Phnom_Penh) Scheduler
+     * Runs Mon-Sat for Daily Report, and Sunday for Weekly Report.
+     */
+    public static function checkAndTriggerScheduledReports(): void
+    {
+        // 60-second cooldown so it only evaluates once a minute maximum
+        if (!\Illuminate\Support\Facades\Cache::add('tg_scheduled_report_check_cooldown', 1, 60)) {
+            return;
+        }
+
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return;
+        }
+        if (!($settings['notify_auto_reports'] ?? true)) {
+            return;
+        }
+
+        $tz = new \DateTimeZone('Asia/Phnom_Penh');
+        $now = new \DateTime('now', $tz);
+        $hour = (int)$now->format('H'); // 20 = 8 PM
+        $dayOfWeek = (int)$now->format('w'); // 0 = Sunday, 1..6 = Monday..Saturday
+        $todayStr = $now->format('Y-m-d');
+        $weekStr = $now->format('o-W');
+
+        // Only fire if 20:00 or later (8 PM window)
+        if ($hour < 20) {
+            return;
+        }
+
+        if ($dayOfWeek === 0) {
+            // Sunday: Send Weekly Report
+            $weeklyLock = "tg_weekly_report_sent_{$weekStr}";
+            if (!\Illuminate\Support\Facades\Cache::has($weeklyLock)) {
+                \Illuminate\Support\Facades\Cache::put($weeklyLock, true, 86400 * 6);
+                self::sendWeeklyReport();
+            }
+        } else {
+            // Monday to Saturday: Send Daily Report
+            $dailyLock = "tg_daily_report_sent_{$todayStr}";
+            if (!\Illuminate\Support\Facades\Cache::has($dailyLock)) {
+                \Illuminate\Support\Facades\Cache::put($dailyLock, true, 86400);
+                self::sendDailyReport($todayStr);
+            }
+        }
     }
 
     /**
@@ -5940,6 +6462,29 @@ class TelegramService
         $phone = htmlspecialchars($order->customer_phone ?: 'N/A');
         $methodName = strtoupper($method ?: 'KHQR');
 
+        // Load items for verification context
+        $items = $order->items ?? null;
+        if ((empty($items) || (is_countable($items) && count($items) === 0)) && !empty($order->id)) {
+            $items = \App\Models\OrderItem::where('order_id', $order->id)->with('product.category')->get();
+        } elseif ($items instanceof \Illuminate\Database\Eloquent\Collection) {
+            $items->loadMissing('product.category');
+        }
+
+        $itemsSummary = "";
+        if (!empty($items) && is_countable($items) && count($items) > 0) {
+            $itemsSummary = "📦 <b>មុខទំនិញបញ្ជាទិញ (" . count($items) . " មុខ):</b>\n";
+            foreach ($items as $idx => $it) {
+                $p = $it->product ?? null;
+                $pName = htmlspecialchars($p->name ?? ('Product #' . ($it->product_id ?? ($idx + 1))));
+                $qty = (int)($it->quantity ?? 1);
+                $itPrice = number_format((float)($it->unit_price ?? 0), 2);
+                $itSub = number_format((float)($it->subtotal ?? ($qty * (float)($it->unit_price ?? 0))), 2);
+                $brand = $p && !empty($p->brand) ? " [{$p->brand}]" : "";
+                $itemsSummary .= "  • <b>{$pName}</b>{$brand} x<b>{$qty}</b> (\${$itPrice}) = \${$itSub}\n";
+            }
+            $itemsSummary .= "\n";
+        }
+
         $ordersTopicId = self::resolveTopicId('orders') ?? self::resolveTopicId('finance');
 
         $msg = "⚡ <b>[ORDER PAYMENT VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការទូទាត់ទំនិញ!</b>\n"
@@ -5949,7 +6494,8 @@ class TelegramService
             . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
             . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
             . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
-            . "🔖 <b>Ref Tran ID:</b> <code>{$tranId}</code>\n"
+            . "🔖 <b>Ref Tran ID:</b> <code>{$tranId}</code>\n\n"
+            . $itemsSummary
             . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
             . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
 

@@ -145,6 +145,12 @@ class OrderController extends Controller
 
                 // Deduct stock
                 $product->decrement('stock', $item['quantity']);
+                $newStock = (int)$product->fresh()->stock;
+                if ($newStock <= 3) {
+                    try {
+                        \App\Services\TelegramService::sendLowStockAlert($product->fresh(), $newStock);
+                    } catch (\Throwable $t) {}
+                }
             }
 
             // Handle Promo Code Discount (Server-Side Only - Client cannot forge discount amount)

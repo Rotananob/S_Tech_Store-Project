@@ -42,6 +42,9 @@ class TelegramController extends Controller
             'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
             'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
             'notify_shifts' => (bool)($settings['notify_shifts'] ?? true),
+            'notify_auto_reports' => (bool)($settings['notify_auto_reports'] ?? true),
+            'notify_promotions' => (bool)($settings['notify_promotions'] ?? true),
+            'notify_errors' => (bool)($settings['notify_errors'] ?? true),
             'topics' => $settings['topics'] ?? [],
         ]);
     }
@@ -263,6 +266,15 @@ class TelegramController extends Controller
         if ($request->has('notify_shifts')) {
             $settings['notify_shifts'] = (bool)$request->input('notify_shifts');
         }
+        if ($request->has('notify_auto_reports')) {
+            $settings['notify_auto_reports'] = (bool)$request->input('notify_auto_reports');
+        }
+        if ($request->has('notify_promotions')) {
+            $settings['notify_promotions'] = (bool)$request->input('notify_promotions');
+        }
+        if ($request->has('notify_errors')) {
+            $settings['notify_errors'] = (bool)$request->input('notify_errors');
+        }
 
         TelegramService::saveSettings($settings);
 
@@ -279,7 +291,53 @@ class TelegramController extends Controller
                 'notify_low_stock' => (bool)($settings['notify_low_stock'] ?? true),
                 'notify_repairs' => (bool)($settings['notify_repairs'] ?? true),
                 'notify_shifts' => (bool)($settings['notify_shifts'] ?? true),
+                'notify_auto_reports' => (bool)($settings['notify_auto_reports'] ?? true),
+                'notify_promotions' => (bool)($settings['notify_promotions'] ?? true),
+                'notify_errors' => (bool)($settings['notify_errors'] ?? true),
             ],
+        ]);
+    }
+
+    /**
+     * Trigger instant Daily Business Report (Manual Admin test run)
+     */
+    public function triggerDailyReport(Request $request)
+    {
+        $date = $request->input('date');
+        $res = TelegramService::sendDailyReport($date);
+        $ok = ($res['ok'] ?? false) === true;
+        return response()->json([
+            'success' => $ok,
+            'message' => $ok ? 'បានផ្ញើរបាយការណ៍សង្ខេបប្រចាំថ្ងៃទៅ Telegram រួចរាល់!' : ($res['error'] ?? 'បរាជ័យក្នុងការផ្ញើរបាយការណ៍'),
+            'details' => $res,
+        ], $ok ? 200 : 400);
+    }
+
+    /**
+     * Trigger instant Weekly Sales & Product Report (Manual Admin test run)
+     */
+    public function triggerWeeklyReport(Request $request)
+    {
+        $res = TelegramService::sendWeeklyReport();
+        $ok = ($res['ok'] ?? false) === true;
+        return response()->json([
+            'success' => $ok,
+            'message' => $ok ? 'បានផ្ញើរបាយការណ៍សង្ខេបប្រចាំសប្តាហ៍ទៅ Telegram រួចរាល់!' : ($res['error'] ?? 'បរាជ័យក្នុងការផ្ញើរបាយការណ៍'),
+            'details' => $res,
+        ], $ok ? 200 : 400);
+    }
+
+    /**
+     * Scan low stock items and alert Telegram
+     */
+    public function scanLowStock(Request $request)
+    {
+        $threshold = (int)($request->input('threshold') ?: 3);
+        $res = TelegramService::scanAndAlertLowStock($threshold);
+        return response()->json([
+            'success' => true,
+            'message' => "បានស្កេនពិនិត្យស្តុកចប់សព្វគ្រប់ (បានរកឃើញ និងផ្ញើដំណឹង {$res['alerted']} មុខទំនិញ)",
+            'data' => $res,
         ]);
     }
 

@@ -90,4 +90,29 @@ Artisan::command('telegram:test-security', function () {
     $this->info($sent ? "Security alert sent successfully!" : "Failed to send security alert");
 })->purpose('Send test security alert to Telegram security topic');
 
+// ── Autonomous 8:00 PM (Asia/Phnom_Penh) Report Scheduler ──
+\Illuminate\Support\Facades\Schedule::call(function () {
+    \App\Services\TelegramService::checkAndTriggerScheduledReports();
+})->everyTenMinutes()->name('telegram-scheduled-reports');
+
+Artisan::command('telegram:daily-report {--date= : Custom target date (YYYY-MM-DD)}', function () {
+    $date = $this->option('date');
+    $this->info("Triggering Daily Business Report for " . ($date ?: 'today') . "...");
+    $res = \App\Services\TelegramService::sendDailyReport($date);
+    $this->line(json_encode($res, JSON_PRETTY_PRINT));
+})->purpose('Send rich daily business summary report to Telegram group');
+
+Artisan::command('telegram:weekly-report', function () {
+    $this->info("Triggering Weekly Sales & Product Breakdown Report...");
+    $res = \App\Services\TelegramService::sendWeeklyReport();
+    $this->line(json_encode($res, JSON_PRETTY_PRINT));
+})->purpose('Send rich weekly product sales breakdown report to Telegram group');
+
+Artisan::command('telegram:scan-stock {--threshold=3 : Low stock threshold}', function () {
+    $threshold = (int)$this->option('threshold') ?: 3;
+    $this->info("Scanning products with stock <= {$threshold}...");
+    $res = \App\Services\TelegramService::scanAndAlertLowStock($threshold);
+    $this->line(json_encode($res, JSON_PRETTY_PRINT));
+})->purpose('Scan and send Telegram alerts for products running low on stock');
+
 

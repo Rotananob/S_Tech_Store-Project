@@ -256,6 +256,24 @@ class ProductController extends Controller
         $product->update($validated);
         $product->load('category');
 
+        if ((int)$product->stock <= 3) {
+            try {
+                \App\Services\TelegramService::sendLowStockAlert($product, (int)$product->stock);
+            } catch (\Throwable $t) {}
+        }
+
+        if (!empty($product->sale_price) && (float)$product->sale_price < (float)$product->price && $request->has('sale_price')) {
+            try {
+                $discountPercent = round((((float)$product->price - (float)$product->sale_price) / (float)$product->price) * 100);
+                \App\Services\TelegramService::sendPromotionAlert([
+                    'title' => "បញ្ចុះតម្លៃពិសេសលើ {$product->name}",
+                    'actor' => $request->header('X-User-Email') ?? 'Admin / Staff',
+                    'discount' => "{$discountPercent}% OFF (សល់ត្រឹម \${$product->sale_price})",
+                    'details' => "តម្លៃដើម \${$product->price} បញ្ចុះនៅសល់ត្រឹម \${$product->sale_price} USD",
+                ]);
+            } catch (\Throwable $t) {}
+        }
+
         Cache::increment('products_cache_version');
 
         return response()->json([

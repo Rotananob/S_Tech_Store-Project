@@ -313,6 +313,21 @@ class PromoCodeController extends Controller
         unset($validated['image']);
 
         $promo->update($validated);
+
+        try {
+            $user = $request->header('X-User-Email') ?? 'Admin';
+            if ($promo->status === 'active') {
+                \App\Services\TelegramService::sendPromotionAlert([
+                    'title' => $promo->name,
+                    'actor' => $user,
+                    'code' => $promo->code,
+                    'valid_until' => $promo->valid_until ? date('d-m-Y', strtotime($promo->valid_until)) : null,
+                    'details' => $promo->description ?? "បច្ចុប្បន្នភាពប្រូម៉ូសិន " . ($promo->type === 'percentage' ? "{$promo->value}%" : "\${$promo->value}"),
+                    'discount' => $promo->code ?? ($promo->type === 'percentage' ? "{$promo->value}% OFF" : "\${$promo->value} OFF"),
+                ]);
+            }
+        } catch (\Throwable $e) {}
+
         return response()->json(['message' => 'Promo code updated', 'data' => $promo]);
     }
 
