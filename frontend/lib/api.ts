@@ -90,19 +90,31 @@ api.interceptors.request.use(
               config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
             }
           }
-          // 3. Fallback: Direct Telegram Mini App WebApp context (Zero latency)
-          if ((window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-            const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
-            config.headers["X-Telegram-Chat-ID"] = String(tgUser.id);
-            if (!config.headers["X-Firebase-UID"]) {
-              config.headers["X-Firebase-UID"] = `tg_${tgUser.id}`;
-            }
-            if (!config.headers["X-Firebase-Name"]) {
-              config.headers["X-Firebase-Name"] = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || `tg_${tgUser.id}`;
-            }
-            if (tgUser.photo_url && !config.headers["X-Firebase-Photo"]) {
-              config.headers["X-Firebase-Photo"] = tgUser.photo_url;
-            }
+        }
+
+        // 3. Fallback / Augment: Direct Telegram Mini App WebApp context (Zero latency)
+        if ((window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+          const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
+          config.headers["X-Telegram-Chat-ID"] = String(tgUser.id);
+          if (!config.headers["X-Firebase-UID"]) {
+            config.headers["X-Firebase-UID"] = `tg_${tgUser.id}`;
+          }
+          if (!config.headers["X-Firebase-Name"]) {
+            config.headers["X-Firebase-Name"] = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || `tg_${tgUser.id}`;
+          }
+          if (tgUser.photo_url && !config.headers["X-Firebase-Photo"]) {
+            config.headers["X-Firebase-Photo"] = tgUser.photo_url;
+          }
+        } else if (!config.headers["X-Telegram-Chat-ID"]) {
+          const sUserStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+          if (sUserStr) {
+            try {
+              const sUser = JSON.parse(sUserStr);
+              const tid = sUser?.telegram_chat_id || sUser?.telegram_id;
+              if (tid) {
+                config.headers["X-Telegram-Chat-ID"] = String(tid);
+              }
+            } catch (_) {}
           }
         }
 

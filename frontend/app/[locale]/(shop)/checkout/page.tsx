@@ -188,6 +188,7 @@ export default function CheckoutPage() {
   const [showTelegramLocModal, setShowTelegramLocModal] = useState(false);
   const [telegramLocSyncCode, setTelegramLocSyncCode] = useState("");
   const [telegramLocBotUrl, setTelegramLocBotUrl] = useState("");
+  const [isInsideMiniApp, setIsInsideMiniApp] = useState(false);
   const telegramLocPollRef = useRef<NodeJS.Timeout | null>(null);
   const gpsWatchdogRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -291,6 +292,15 @@ export default function CheckoutPage() {
   // Auto pre-fill from user authentication & cloud profile
   useEffect(() => {
     fetchCart();
+
+    if (typeof window !== "undefined") {
+      const tg = (window as any).Telegram?.WebApp;
+      const inTg = Boolean(tg?.initData || tg?.initDataUnsafe?.user || (window as any).TelegramWebviewProxy);
+      if (inTg) {
+        setIsInsideMiniApp(true);
+        setActiveLocationMode("telegram");
+      }
+    }
 
     const loadCloudProfile = (fallbackUser?: any) => {
       const uName = fallbackUser?.displayName || fallbackUser?.display_name || fallbackUser?.name || "";
@@ -659,53 +669,110 @@ export default function CheckoutPage() {
     setTelegramLocLoading(true);
 
     const tg = typeof window !== "undefined" ? (window as any).Telegram?.WebApp : null;
+    const isMiniApp = Boolean(
+      tg && (tg.initData || tg.initDataUnsafe?.user || (window as any).TelegramWebviewProxy)
+    );
     const tgUser = tg?.initDataUnsafe?.user;
     const effective = getEffectiveUser();
     const tgId = tgUser?.id || (effective as any)?.telegram_id || (effective as any)?.telegram_chat_id;
 
-    // 1. In Telegram Mini App (Bot API 8.0 LocationManager)
-    const lm = tg?.LocationManager;
-    if (lm && typeof lm.init === "function") {
-      let lmFinished = false;
-      const lmTimer = setTimeout(() => {
-        if (!lmFinished) {
-          fallbackTelegramLocWebsite(tgId);
+    // Helper: direct GPS request within the in-app webview
+    const requestInAppGPS = (): Promise<{ lat: number; lng: number } | null> => {
+      return new Promise((resolve) => {
+        if (typeof window === "undefined" || !navigator?.geolocation) {
+          return resolve(null);
         }
-      }, 3500);
+        const timer = setTimeout(() => resolve(null), 8000);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            clearTimeout(timer);
+            resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          },
+          () => {
+            clearTimeout(timer);
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 }
+        );
+      });
+    };
 
-      try {
-        lm.init(() => {
-          if (lmFinished) return;
-          if (lm.isInited && lm.isLocationAvailable) {
-            lm.getLocation(async (loc: any) => {
-              lmFinished = true;
-              clearTimeout(lmTimer);
-              if (loc && loc.latitude && loc.longitude) {
-                await applyCoordinatesAndReverseGeocode(loc.latitude, loc.longitude, "Telegram Location");
+    // ── 1. In Telegram Mini App: NEVER redirect out or close Mini App! ──
+    if (isMiniApp) {
+      // Step A: Try native Telegram LocationManager (Telegram Bot API 8.0+)
+      const lm = tg?.LocationManager;
+      if (lm && typeof lm.init === "function") {
+        try {
+          const gotLmLoc = await new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => resolve(false), 3500);
+            lm.init(() => {
+              if (lm.isInited && lm.isLocationAvailable) {
+                lm.getLocation(async (loc: any) => {
+                  clearTimeout(timeout);
+                  if (loc && loc.latitude && loc.longitude) {
+                    await applyCoordinatesAndReverseGeocode(loc.latitude, loc.longitude, "Telegram Live GPS");
+                    resolve(true);
+                  } else {
+                    resolve(false);
+                  }
+                });
               } else {
-                fallbackTelegramLocWebsite(tgId);
+                clearTimeout(timeout);
+                resolve(false);
               }
             });
-          } else {
-            lmFinished = true;
-            clearTimeout(lmTimer);
-            fallbackTelegramLocWebsite(tgId);
+          });
+
+          if (gotLmLoc) {
+            setTelegramLocLoading(false);
+            return;
           }
-        });
-        return;
-      } catch (_) {
-        lmFinished = true;
-        clearTimeout(lmTimer);
-        fallbackTelegramLocWebsite(tgId);
+        } catch (_) {}
+      }
+
+      // Step B: Trigger native In-App Browser GPS (triggers standard OS "Allow location" popup inside Telegram)
+      const directPos = await requestInAppGPS();
+      if (directPos) {
+        await applyCoordinatesAndReverseGeocode(directPos.lat, directPos.lng, "Telegram Live GPS");
+        setTelegramLocLoading(false);
         return;
       }
+
+      // Step C: Fallback to existing saved location from user's Telegram profile/chat
+      try {
+        const resp = await api.get(`/auth/telegram/latest-location?telegram_id=${tgId || ""}`);
+        if (resp.data?.success && resp.data?.location) {
+          const l = resp.data.location;
+          if (l.lat && l.lng) {
+            await applyCoordinatesAndReverseGeocode(Number(l.lat), Number(l.lng), "Telegram Saved Location");
+            setTelegramLocLoading(false);
+            return;
+          } else if (l.address) {
+            setAddress(l.address);
+            setLocationSuccessMsg("📍 បានទាញយកអាសយដ្ឋានពីគណនី Telegram របស់អ្នកជោគជ័យ!");
+            setTelegramLocLoading(false);
+            return;
+          }
+        }
+      } catch (_) {}
+
+      // If user denied permission or GPS is off on phone:
+      setTelegramLocLoading(false);
+      setGpsError("សូមចុច Allow / អនុញ្ញាតលើផ្ទាំង Telegram ដើម្បីចាប់យកទីតាំងផ្ទាល់ ឬបញ្ចូលអាសយដ្ឋានដោយដៃ");
+      return;
     }
 
-    // 2. On Website / Desktop Browser
+    // ── 2. On standard Website / Desktop Browser ──
     await fallbackTelegramLocWebsite(tgId);
   };
 
   const fallbackTelegramLocWebsite = async (tgId?: string | number) => {
+    // Guard: Never perform redirect or sync popup if inside Mini App
+    if (typeof window !== "undefined" && Boolean((window as any).Telegram?.WebApp?.initData || (window as any).TelegramWebviewProxy)) {
+      setTelegramLocLoading(false);
+      return;
+    }
+
     // A. Check if user already has location saved in profile or cache
     try {
       const resp = await api.get(`/auth/telegram/latest-location?telegram_id=${tgId || ""}`);
@@ -931,24 +998,35 @@ export default function CheckoutPage() {
       total_amount: Number(total),
     };
 
-    const res = await createOrder(payload);
+    try {
+      const res = await createOrder(payload);
 
-    if (res.success) {
-      const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
-      setOrderId(newOrderId);
+      if (res.success) {
+        const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+        setOrderId(newOrderId);
 
-      try {
-        const walletPayRes = await payOrderWithWallet(newOrderId);
-        setWalletBalance(walletPayRes.remaining_balance);
+        try {
+          const walletPayRes = await payOrderWithWallet(newOrderId);
+          if (walletPayRes.remaining_balance !== undefined) {
+            setWalletBalance(Number(walletPayRes.remaining_balance));
+          }
+          setLoading(false);
+          await finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
+        } catch (err: any) {
+          setLoading(false);
+          const errorMsg = err.response?.data?.message || err.message || "មិនអាចកាត់ប្រាក់ពីកាបូបបានទេ។ សូមពិនិត្យសមតុល្យរបស់អ្នក។";
+          alert(errorMsg);
+        }
+      } else {
         setLoading(false);
-        await finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
-      } catch (err: any) {
-        setLoading(false);
-        alert(err.response?.data?.message || "មិនអាចកាត់ប្រាក់ពីកាបូបបានទេ។ សូមពិនិត្យសមតុល្យរបស់អ្នក។");
+        alert(res.error || t("alertFailed"));
       }
-    } else {
+    } catch (err: any) {
       setLoading(false);
-      alert(res.error || t("alertFailed"));
+      const errorMsg = err.response?.data?.message || err.message || "មានបញ្ហាបច្ចេកទេសក្នុងការកត់ត្រាការបញ្ជាទិញ។ សូមសាកល្បងម្ដងទៀត។";
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1674,18 +1752,26 @@ export default function CheckoutPage() {
                           onClick={handleGetTelegramLocation}
                           disabled={telegramLocLoading}
                           className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
-                          title="យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"
+                          title={isInsideMiniApp ? "ចាប់យកទីតាំងផ្ទាល់ក្នុង Mini App ដោយមិនបាច់បិទកម្មវិធី" : "យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"}
                         >
                           {telegramLocLoading ? (
                             <Loader2 size={13} className="animate-spin text-white" />
                           ) : (
                             <Send size={13} className="text-white rotate-[-20deg]" />
                           )}
-                          <span>{telegramLocLoading ? "កំពុងទាញ..." : "✈️ យកទីតាំងពី Telegram (1-Click)"}</span>
+                          <span>
+                            {telegramLocLoading
+                              ? "កំពុងចាប់ទីតាំង..."
+                              : isInsideMiniApp
+                              ? "📍 ចាប់យកទីតាំងផ្ទាល់ (In-App Live GPS)"
+                              : "✈️ យកទីតាំងពី Telegram (1-Click)"}
+                          </span>
                         </button>
 
                         <span className="text-[11px] text-gray-500 dark:text-gray-400 hidden sm:inline">
-                          (ទាញពី Profile ឬចែករំលែក Pin ក្នុង Bot)
+                          {isInsideMiniApp
+                            ? "(Telegram នឹងបង្ហាញផ្ទាំង Allow ដើម្បីចាប់ទីតាំង auto ភ្លាមៗ)"
+                            : "(ទាញពី Profile ឬចែករំលែក Pin ក្នុង Bot)"}
                         </span>
                       </div>
 
@@ -1847,14 +1933,29 @@ export default function CheckoutPage() {
               </div>
 
               {/* ── 1. S-Tech Real Wallet Highlight / 1-Click Pay Option ── */}
-              <div className={`p-4 sm:p-5 rounded-2xl mb-5 transition-all border ${
-                payment === "wallet"
-                  ? "bg-gradient-to-br from-red-950/40 via-[#11131a] to-[#151922] border-[#8B1A1A] ring-2 ring-red-500/30 shadow-md"
-                  : "bg-gray-50/70 dark:bg-white/[0.03] border-gray-200/90 dark:border-white/10 hover:border-gray-300"
-              }`}>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => setPayment("wallet")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setPayment("wallet");
+                  }
+                }}
+                className={`p-4 sm:p-5 rounded-2xl mb-5 transition-all border cursor-pointer select-none text-left relative ${
+                  payment === "wallet"
+                    ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-500 ring-2 ring-emerald-500/50 shadow-md"
+                    : "bg-gray-50/70 dark:bg-white/[0.03] border-gray-200/90 dark:border-white/10 hover:border-emerald-400 dark:hover:border-emerald-600/50 hover:bg-emerald-50/20"
+                }`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md shadow-red-950/50 shrink-0">
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 transition-all ${
+                      payment === "wallet"
+                        ? "bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-950/40"
+                        : "bg-gradient-to-tr from-[#8B1A1A] to-red-600 shadow-red-950/50"
+                    }`}>
                       <Wallet size={20} />
                     </div>
                     <div>
@@ -1862,7 +1963,11 @@ export default function CheckoutPage() {
                         <h4 className="text-sm font-black text-gray-900 dark:text-white">
                           កាបូបលុយ S-Tech Real Wallet
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          payment === "wallet"
+                            ? "bg-emerald-500 text-white"
+                            : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                        }`}>
                           1-Click Instant Pay
                         </span>
                       </div>
@@ -1872,43 +1977,56 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-end sm:self-auto">
-                    {walletBalance >= Number(total) ? (
+                  <div className="flex items-center gap-2.5 self-end sm:self-auto">
+                    {walletBalance < Number(total) && (
                       <button
                         type="button"
-                        onClick={() => setPayment(payment === "wallet" ? "bakong" : "wallet")}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                          payment === "wallet"
-                            ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                            : "bg-gray-200 dark:bg-white/10 hover:bg-emerald-600 hover:text-white text-gray-800 dark:text-gray-200"
-                        }`}
-                      >
-                        {payment === "wallet" ? <Check size={14} strokeWidth={3} /> : <Zap size={14} />}
-                        <span>{payment === "wallet" ? "✓ កំពុងជ្រើសរើស Wallet" : "ប្រើប្រាស់ Wallet"}</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setShowWalletTopupModal(true)}
-                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-md shadow-red-950/40 active:scale-95 transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowWalletTopupModal(true);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-md shadow-red-950/40 active:scale-95 transition-all"
                       >
                         <Plus size={13} strokeWidth={3} />
                         <span>បញ្ចូលលុយ (Top Up)</span>
                       </button>
                     )}
+
+                    {/* Radio Check Circle matching ABA / Bakong */}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${
+                        payment === "wallet" ? "text-emerald-600 dark:text-emerald-400" : "text-gray-400"
+                      }`}>
+                        {payment === "wallet" ? "✓ បានជ្រើសរើស" : "ជ្រើសរើស"}
+                      </span>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        payment === "wallet" 
+                          ? "border-emerald-500 bg-emerald-500 text-white shadow-xs" 
+                          : "border-gray-300 dark:border-white/20"
+                      }`}>
+                        {payment === "wallet" && <Check size={11} strokeWidth={3} />}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {payment === "wallet" && (
-                  <div className="mt-3 pt-3 border-t border-red-500/20 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                  <div className="mt-3 pt-3 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 size={15} />
-                      <span>សមតុល្យគ្រប់គ្រាន់ — ចុច &ldquo;ទូទាត់ជាមួយ S-Tech Wallet&rdquo; ខាងក្រោមដើម្បីកាត់ប្រាក់ភ្លាមៗ</span>
+                      <span>
+                        {walletBalance >= Number(total)
+                          ? "សមតុល្យគ្រប់គ្រាន់ — ចុច «ទូទាត់ជាមួយ S-Tech Wallet» ខាងក្រោមដើម្បីកាត់ប្រាក់ភ្លាមៗ"
+                          : `សមតុល្យខ្វះ $${(Number(total) - walletBalance).toFixed(2)} USD — សូមចុចបញ្ចូលលុយ Top Up ខាងលើ ឬប្តូរវិធីសាស្ត្រ`}
+                      </span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setPayment("bakong")}
-                      className="text-[11px] text-gray-400 hover:text-gray-300 underline cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPayment("bakong");
+                      }}
+                      className="text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline cursor-pointer"
                     >
                       ប្តូរទៅធនាគារវិញ (Switch to Bank)
                     </button>
@@ -1916,7 +2034,7 @@ export default function CheckoutPage() {
                 )}
                 {payment !== "wallet" && walletBalance < Number(total) && (
                   <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                    ⚠️ សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD — សូមជ្រើសរើសវិធីសាស្ត្រធនាគារខាងក្រោម ឬចុចបញ្ចូលលុយ
+                    ⚠️ សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD — ចុចទីនេះដើម្បីជ្រើសរើស ឬចុចបញ្ចូលលុយ Top Up
                   </div>
                 )}
               </div>

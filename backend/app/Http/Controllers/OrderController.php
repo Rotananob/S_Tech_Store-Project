@@ -208,22 +208,26 @@ class OrderController extends Controller
             // Dispatch instant notification to connected Telegram group (ABA Merchant Style)
             try {
                 \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
-                \App\Services\TelegramService::sendFinanceAlert([
-                    'type' => 'New Order Payment (' . strtoupper($order->payment_method ?? 'COD') . ')',
-                    'amount' => $order->total_amount,
-                    'method' => strtoupper($order->payment_method ?? 'COD'),
-                    'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
-                    'customer' => $order->customer_name ?? 'Customer',
-                ]);
+                if ($order->payment_method !== 'wallet') {
+                    \App\Services\TelegramService::sendFinanceAlert([
+                        'type' => 'New Order Payment (' . strtoupper($order->payment_method ?? 'COD') . ')',
+                        'amount' => $order->total_amount,
+                        'method' => strtoupper($order->payment_method ?? 'COD'),
+                        'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                        'customer' => $order->customer_name ?? 'Customer',
+                    ]);
+                }
             } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::error("Telegram order notification failed: " . $t->getMessage());
+                \Illuminate\Support\Facades\Log::warning("Telegram order notification non-critical error: " . $t->getMessage());
             }
 
             // Dispatch instant personalized alert directly to Customer Telegram (Bot 2 Companion)
-            try {
-                \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'created');
-            } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert failed: " . $t->getMessage());
+            if ($order->payment_method !== 'wallet') {
+                try {
+                    \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'created');
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert skipped: " . $t->getMessage());
+                }
             }
 
             return response()->json([

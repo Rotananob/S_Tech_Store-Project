@@ -49,21 +49,55 @@ class WalletController extends Controller
      */
     private function resolveUser(Request $request): ?UserProfile
     {
+        // 1. Direct Telegram Identity Resolution (Mini App, Bot WebApp, and URL tg_token)
+        $tgChatId = $request->header('X-Telegram-Chat-ID') 
+            ?: $request->input('telegram_chat_id') 
+            ?: $request->input('chat_id')
+            ?: $request->query('tg_token')
+            ?: $request->input('tg_token');
+
+        if (!empty($tgChatId)) {
+            $cleanChatId = preg_replace('/\D/', '', (string)$tgChatId);
+            if (!empty($cleanChatId)) {
+                $user = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
+                if ($user) return $user;
+            }
+        }
+
+        // 2. Check X-Firebase-UID (or tg_<chat_id> format)
         $uid = $this->getUid($request);
         if ($uid) {
             $user = UserProfile::where('firebase_uid', $uid)->first();
             if ($user) return $user;
+
+            // If uid starts with tg_, resolve by telegram_chat_id
+            if (str_starts_with((string)$uid, 'tg_')) {
+                $rawTgId = preg_replace('/\D/', '', (string)$uid);
+                if (!empty($rawTgId)) {
+                    $user = \App\Services\TelegramService::resolveActiveUser($rawTgId);
+                    if ($user) return $user;
+                }
+            }
         }
 
-        $token = $request->header('X-Customer-Token') ?: $request->bearerToken();
+        // 3. Check customer session token
+        $token = $request->header('X-Customer-Token') ?: $request->bearerToken() ?: $request->query('tg_token') ?: $request->input('tg_token');
         if (!empty($token)) {
             $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
             if ($userId) {
                 $user = UserProfile::find($userId);
                 if ($user) return $user;
             }
+            if (is_numeric($token) || str_starts_with((string)$token, 'tg_')) {
+                $cleanId = preg_replace('/\D/', '', (string)$token);
+                if (!empty($cleanId)) {
+                    $user = \App\Services\TelegramService::resolveActiveUser($cleanId);
+                    if ($user) return $user;
+                }
+            }
         }
 
+        // 4. Auto-create only if genuinely a new user with valid UID
         if ($uid) {
             return UserProfile::create([
                 'firebase_uid' => $uid,
@@ -824,8 +858,10 @@ class WalletController extends Controller
             'order_id' => 'required|string',
         ]);
 
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $validated) {
-            $orderIdInput = trim((string)$validated['order_id']);
+        $orderIdInput = trim((string)$validated['order_id']);
+
+        // 1. ATOMIC TRANSACTION: Only database writes (Zero network latency, sub-5ms)
+        $txResult = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $orderIdInput) {
             $orderQuery = Order::where('order_id', $orderIdInput);
             if (is_numeric($orderIdInput)) {
                 $orderQuery->orWhere('id', (int)$orderIdInput);
@@ -833,19 +869,16 @@ class WalletController extends Controller
             $order = $orderQuery->lockForUpdate()->first();
 
             if (!$order) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "រកមិនឃើញការបញ្ជាទិញ #{$orderIdInput} ឡើយ (Order Not Found)",
-                ], 404);
+                return ['error_status' => 404, 'message' => "រកមិនឃើញការបញ្ជាទិញ #{$orderIdInput} ឡើយ (Order Not Found)"];
             }
 
             if ($order->payment_status === 'paid') {
-                return response()->json([
+                return [
                     'success' => true,
                     'message' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់រួចរាល់ហើយ',
                     'order' => $order,
                     'remaining_balance' => (float)$user->fresh()->wallet_balance,
-                ]);
+                ];
             }
 
             $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
@@ -854,29 +887,38 @@ class WalletController extends Controller
 
             if ($walletBalance < $orderAmount) {
                 $shortage = round($orderAmount - $walletBalance, 2);
-                return response()->json([
-                    'success' => false,
+                return [
+                    'error_status' => 422,
                     'message' => "សមតុល្យក្នុងកាបូបមិនគ្រប់គ្រាន់ឡើយ (ខ្វះ $" . number_format($shortage, 2) . ")! សូមបញ្ចូលលុយបន្ថែម។",
                     'current_balance' => $walletBalance,
                     'required_amount' => $orderAmount,
                     'shortage' => $shortage,
-                ], 422);
+                ];
             }
 
             // Deduct balance atomically
-            $lockedUser->wallet_balance = $walletBalance - $orderAmount;
+            $lockedUser->wallet_balance = round($walletBalance - $orderAmount, 2);
             $lockedUser->save();
 
-            // Mark order as paid
+            // Mark order as paid in DB
             $tranId = 'WAL_' . strtoupper(Str::random(10));
-            PaymentService::markOrderAsPaid($order, $tranId, 'wallet', [
+            $order->payment_status = 'paid';
+            $order->status = 'processing';
+            $order->payment_method = 'wallet';
+            $order->transaction_id = $tranId;
+            $order->paid_at = now();
+            $order->payment_details = json_encode([
                 'paid_via' => 'stech_wallet',
                 'customer_uid' => $lockedUser->firebase_uid,
+                'customer_id' => $lockedUser->id,
             ]);
+            $order->save();
+
+            $targetUid = $lockedUser->firebase_uid ?: ('tg_' . ($lockedUser->telegram_chat_id ?: $lockedUser->id));
 
             // Record in ledger
             WalletTransaction::create([
-                'firebase_uid' => $lockedUser->firebase_uid,
+                'firebase_uid' => $targetUid,
                 'type' => 'purchase',
                 'amount' => -$orderAmount,
                 'coins' => 0,
@@ -886,14 +928,87 @@ class WalletController extends Controller
                 'status' => 'completed',
             ]);
 
-            return response()->json([
+            return [
                 'success' => true,
                 'message' => "ការទូទាត់តាមកាបូប S-Tech Wallet បានជោគជ័យ 100%! 🎉",
+                'order' => $order,
                 'order_id' => $order->order_id,
                 'amount_deducted' => $orderAmount,
                 'remaining_balance' => (float)$lockedUser->wallet_balance,
-            ]);
+                'tranId' => $tranId,
+            ];
         });
+
+        if (isset($txResult['error_status'])) {
+            return response()->json([
+                'success' => false,
+                'message' => $txResult['message'],
+                'current_balance' => $txResult['current_balance'] ?? null,
+                'required_amount' => $txResult['required_amount'] ?? null,
+                'shortage' => $txResult['shortage'] ?? null,
+            ], $txResult['error_status']);
+        }
+
+        // 2. DISPATCH NOTIFICATIONS OUTSIDE DB TRANSACTION (Zero risk of DB transaction timeout)
+        try {
+            $paidOrder = $txResult['order'] ?? null;
+            $tranId = $txResult['tranId'] ?? ('WAL_' . strtoupper(Str::random(10)));
+            if ($paidOrder) {
+                // Customer in-app notification
+                if (!empty($paidOrder->user_id)) {
+                    try {
+                        \App\Models\UserNotification::create([
+                            'firebase_uid' => $paidOrder->user_id,
+                            'title' => 'ការទូទាត់កាបូបលុយជោគជ័យ! 💳',
+                            'message' => "ការទូទាត់សម្រាប់ Order #{$paidOrder->order_id} ចំនួន \${$paidOrder->total_amount} ត្រូវបានផ្ទៀងផ្ទាត់ជោគជ័យ។ ក្រុមការងារកំពុងរៀបចំទំនិញដឹកជូនលោកអ្នក។",
+                            'type' => 'order',
+                            'read' => false,
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+
+                // Telegram alert to Order fulfillment topic
+                try {
+                    $settings = \App\Services\TelegramService::getSettings();
+                    if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+                        $orderTopicId = $settings['topics']['orders'] ?? null;
+                        $pAmount = number_format((float)$paidOrder->total_amount, 2);
+
+                        $msg = "✅ <b>ការទូទាត់តាម WALLET ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n\n"
+                            . "🧾 <b>Order ID:</b> <code>{$paidOrder->order_id}</code>\n"
+                            . "💰 <b>ទឹកប្រាក់បានកាត់:</b> <b>\${$pAmount} USD</b>\n"
+                            . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> <b>S-TECH REAL WALLET</b>\n"
+                            . "🔢 <b>Transaction ID:</b> <code>{$tranId}</code>\n"
+                            . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($paidOrder->customer_name) . "\n"
+                            . "📞 <b>ទូរស័ព្ទ:</b> " . htmlspecialchars($paidOrder->customer_phone) . "\n"
+                            . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($paidOrder->shipping_address) . "\n"
+                            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . now()->format('d-m-Y H:i:s') . "\n\n"
+                            . "👉 <b>ស្ថានភាពឥឡូវនេះ: Processing (កំពុងរៀបចំដឹក)</b>";
+
+                        \App\Services\TelegramService::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to notify Telegram of wallet payment: " . $e->getMessage());
+                }
+
+                // Customer direct alert to Telegram Bot Companion
+                try {
+                    \App\Services\TelegramService::sendCustomerDirectOrderAlert($paidOrder->load('items.product'), 'paid');
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram wallet payment alert failed: " . $e->getMessage());
+                }
+            }
+        } catch (\Throwable $t) {
+            \Illuminate\Support\Facades\Log::warning("Post-wallet payment notification error: " . $t->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $txResult['message'] ?? "ការទូទាត់តាមកាបូប S-Tech Wallet បានជោគជ័យ 100%! 🎉",
+            'order_id' => $txResult['order_id'] ?? $orderIdInput,
+            'amount_deducted' => $txResult['amount_deducted'] ?? 0,
+            'remaining_balance' => $txResult['remaining_balance'] ?? 0,
+        ]);
     }
 
     /**
