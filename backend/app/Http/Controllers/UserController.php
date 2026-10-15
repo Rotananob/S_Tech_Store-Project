@@ -1044,6 +1044,100 @@ class UserController extends Controller
     }
 
     /**
+     * POST /api/user/send-confirm-email
+     * Send email confirmation OTP & link to real Gmail
+     */
+    public function sendConfirmEmail(Request $request)
+    {
+        $email = $request->input('email');
+        $username = $request->input('username');
+
+        if (empty($email)) {
+            $uid = $this->getUid($request);
+            if ($uid) {
+                $user = UserProfile::where('firebase_uid', $uid)->first();
+                if ($user && !empty($user->email)) {
+                    $email = $user->email;
+                    if (empty($username)) {
+                        $username = $user->username ?: $user->display_name;
+                    }
+                }
+            }
+        }
+
+        $cleanEmail = strtolower(trim((string)$email));
+        if (empty($cleanEmail) || !filter_var($cleanEmail, FILTER_VALIDATE_EMAIL)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'សូមបញ្ជាក់អាសយដ្ឋាន Gmail/Email ត្រឹមត្រូវ',
+            ], 422);
+        }
+
+        $res = \App\Services\EmailService::sendEmailConfirmation($cleanEmail, $username);
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានផ្ញើលេខកូដបញ្ជាក់ទៅកាន់ {$cleanEmail} រួចរាល់ហើយ! 📩",
+            'data' => $res,
+        ]);
+    }
+
+    /**
+     * POST /api/user/verify-confirm-email
+     * Verify email confirmation OTP or Token
+     */
+    public function verifyConfirmEmail(Request $request)
+    {
+        $email = strtolower(trim((string)$request->input('email')));
+        $otp = trim((string)$request->input('otp'));
+        $token = trim((string)$request->input('token'));
+
+        $matched = false;
+
+        if (!empty($otp) && !empty($email)) {
+            $cachedOtp = \Illuminate\Support\Facades\Cache::get("email_verify_otp_{$email}");
+            if ($cachedOtp && (string)$cachedOtp === (string)$otp) {
+                $matched = true;
+                \Illuminate\Support\Facades\Cache::forget("email_verify_otp_{$email}");
+            }
+        }
+
+        if (!$matched && !empty($token)) {
+            $tokenData = \Illuminate\Support\Facades\Cache::get("email_verify_token_{$token}");
+            if ($tokenData && (!empty($tokenData['email']))) {
+                if (empty($email) || $email === strtolower($tokenData['email'])) {
+                    $email = strtolower($tokenData['email']);
+                    $matched = true;
+                    \Illuminate\Support\Facades\Cache::forget("email_verify_token_{$token}");
+                }
+            }
+        }
+
+        if (!$matched) {
+            return response()->json([
+                'success' => false,
+                'message' => 'លេខកូដ OTP ឬ Token មិនត្រឹមត្រូវ ឬបានផុតកំណត់សុពលភាព!',
+            ], 422);
+        }
+
+        // Mark user profile as active/verified
+        $user = UserProfile::where('email', $email)->first();
+        if ($user) {
+            $user->status = 'active';
+            $user->save();
+        }
+
+        \Illuminate\Support\Facades\Cache::put("email_verified_{$email}", true, 86400 * 365);
+
+        return response()->json([
+            'success' => true,
+            'message' => "អាសយដ្ឋាន Gmail ({$email}) ត្រូវបានផ្ទៀងផ្ទាត់ជោគជ័យ ១០០%! 🎉",
+            'email' => $email,
+            'verified' => true,
+        ]);
+    }
+
+    /**
      * POST /api/user/request-2fa-otp
      * Sends a 6-digit OTP code to the user's Telegram or real Gmail/email.
      * Supports intelligent channel selection:

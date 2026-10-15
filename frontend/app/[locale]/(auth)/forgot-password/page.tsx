@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link } from "@/i18n/routing";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import api from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -17,17 +18,44 @@ export default function ForgotPasswordPage() {
     setMessage("");
 
     if (!email) {
-      setError("Please enter your email address.");
+      setError("Please enter your email address (សូមបញ្ចូលអាសយដ្ឋាន Gmail/Email របស់អ្នក)។");
       return;
     }
 
     setLoading(true);
+    let sentSuccess = false;
+
     try {
-      await sendPasswordResetEmail(auth, email);
-      setMessage("Password reset email sent! Please check your inbox.");
-      setEmail("");
+      // 1. Dispatch official luxury branded reset email via S Tech Backend Email Service
+      try {
+        const res = await api.post("/user/send-reset-email", {
+          email: email.trim(),
+          channel: "email",
+        });
+        if (res.data?.success) {
+          sentSuccess = true;
+          setMessage(res.data.message || "បានផ្ញើតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ទៅកាន់ Gmail របស់អ្នករួចរាល់ហើយ! សូមពិនិត្យមើលប្រអប់សំបុត្រ Inbox ឬ Spam។ 📩");
+          setEmail("");
+        }
+      } catch (backendErr: any) {
+        console.warn("Backend reset email notice:", backendErr);
+      }
+
+      // 2. Also trigger Firebase client reset email as companion/fallback
+      try {
+        await sendPasswordResetEmail(auth, email.trim());
+        if (!sentSuccess) {
+          sentSuccess = true;
+          setMessage("បានផ្ញើតំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់រួចរាល់ហើយ! Please check your inbox or spam folder.");
+          setEmail("");
+        }
+      } catch (firebaseErr: any) {
+        if (!sentSuccess) {
+          throw firebaseErr;
+        }
+      }
     } catch (err: any) {
-      setError(err.message || "Failed to send reset email.");
+      setError(err.response?.data?.message || err.message || "Failed to send reset email. សូមព្យាយាមម្តងទៀត ឬទាក់ទងមកកាន់ Admin។");
     } finally {
       setLoading(false);
     }

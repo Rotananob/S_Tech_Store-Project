@@ -28,7 +28,8 @@ const ACTIVE_TABS = [
   "Telegram Bot", 
   "Regional & Currency", 
   "Security & 2FA", 
-  "Notification Settings"
+  "Notification Settings",
+  "Email & Gmail Delivery"
 ];
 
 export default function SystemSettingsPage() {
@@ -65,6 +66,21 @@ export default function SystemSettingsPage() {
   const [orderNotify, setOrderNotify] = useState(true);
   const [lowStockNotify, setLowStockNotify] = useState(true);
   const [repairNotify, setRepairNotify] = useState(true);
+
+  // Email & Real Gmail Delivery Engine State
+  const [emailProvider, setEmailProvider] = useState<"gmail" | "resend" | "smtp" | "auto">("gmail");
+  const [gmailAddress, setGmailAddress] = useState("");
+  const [gmailAppPassword, setGmailAppPassword] = useState("");
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("S Tech Store Cambodia");
+  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpEncryption, setSmtpEncryption] = useState("tls");
+  const [emailEngineInfo, setEmailEngineInfo] = useState<any>(null);
+  const [testEmailRecipient, setTestEmailRecipient] = useState("");
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -119,6 +135,23 @@ export default function SystemSettingsPage() {
           });
         }
       }
+
+      // Fetch Real Email & Gmail Delivery Engine Configuration
+      try {
+        const emailRes = await api.get("/admin/email/settings");
+        if (emailRes.data?.success && emailRes.data?.settings) {
+          const s = emailRes.data.settings;
+          setEmailEngineInfo(s);
+          if (s.provider) setEmailProvider(s.provider);
+          if (s.gmail_address) setGmailAddress(s.gmail_address);
+          if (s.smtp_username && !s.gmail_address) setGmailAddress(s.smtp_username);
+          if (s.from_email) setFromEmail(s.from_email);
+          if (s.from_name) setFromName(s.from_name);
+          if (s.smtp_host) setSmtpHost(s.smtp_host);
+          if (s.smtp_port) setSmtpPort(s.smtp_port);
+          if (s.smtp_encryption) setSmtpEncryption(s.smtp_encryption);
+        }
+      } catch (e) {}
     } catch (err: any) {
       console.warn("Could not load settings:", err);
     } finally {
@@ -329,12 +362,84 @@ export default function SystemSettingsPage() {
     }
   };
 
+  // ─── Save Email & Gmail Delivery Settings ──────────────────────────────
+  const handleSaveEmailSettings = async () => {
+    setIsSaving(true);
+    try {
+      const payload: any = {
+        provider: emailProvider,
+        from_email: fromEmail.trim(),
+        from_name: fromName.trim(),
+      };
+
+      if (emailProvider === "gmail") {
+        payload.gmail_address = gmailAddress.trim();
+        if (gmailAppPassword) {
+          payload.gmail_app_password = gmailAppPassword.trim();
+        }
+        payload.smtp_host = "smtp.gmail.com";
+        payload.smtp_port = smtpPort;
+        payload.smtp_encryption = smtpEncryption;
+      } else if (emailProvider === "resend") {
+        if (resendApiKey) {
+          payload.resend_api_key = resendApiKey.trim();
+        }
+      } else if (emailProvider === "smtp") {
+        payload.smtp_host = smtpHost.trim();
+        payload.smtp_port = smtpPort;
+        payload.smtp_username = gmailAddress.trim();
+        if (gmailAppPassword) {
+          payload.smtp_password = gmailAppPassword.trim();
+        }
+        payload.smtp_encryption = smtpEncryption;
+      }
+
+      const res = await api.post("/admin/email/settings", payload);
+      if (res.data?.success) {
+        showToast("បានរក្សាទុកការកំណត់ Email & Gmail ជោគជ័យ! ✅", "success");
+        if (res.data.settings) {
+          setEmailEngineInfo(res.data.settings);
+        }
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "បរាជ័យក្នុងការរក្សាទុកការកំណត់ Email";
+      showToast(msg, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ─── Send Live Test Email ────────────────────────────────────────────────
+  const handleSendTestEmail = async () => {
+    if (!testEmailRecipient || !testEmailRecipient.includes("@")) {
+      return showToast("សូមបញ្ចូលអាសយដ្ឋាន Email ទទួលតេស្តត្រឹមត្រូវ", "error");
+    }
+    setIsSendingTestEmail(true);
+    setTestEmailResult(null);
+    try {
+      const res = await api.post("/admin/email/test", {
+        recipient: testEmailRecipient.trim(),
+      });
+      if (res.data?.success) {
+        setTestEmailResult({ success: true, message: res.data.message });
+        showToast(res.data.message || "បានផ្ញើ Email សាកល្បងជោគជ័យ! 🎉", "success");
+      }
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || err.message || "បរាជ័យក្នុងការផ្ញើ Email សាកល្បង";
+      setTestEmailResult({ success: false, message: errMsg });
+      showToast(errMsg, "error");
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
   const TAB_ICONS: Record<string, React.ReactNode> = {
     "Store Profile": <Store size={17} />,
     "Telegram Bot": <Send size={17} className="text-[#0088cc]" />,
     "Regional & Currency": <Globe size={17} />,
     "Security & 2FA": <Shield size={17} />,
     "Notification Settings": <Bell size={17} />,
+    "Email & Gmail Delivery": <Mail size={17} className="text-emerald-600" />,
   };
 
   const Toggle = ({ value, onChange, disabled }: { value: boolean; onChange: () => void; disabled?: boolean }) => (
@@ -833,6 +938,263 @@ export default function SystemSettingsPage() {
                   {isSaving && <Loader2 size={14} className="animate-spin" />}
                   <span>រក្សាទុកជម្រើស (Save Preferences)</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── 6. EMAIL & REAL GMAIL DELIVERY ── */}
+          {activeTab === "Email & Gmail Delivery" && (
+            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-5 sm:p-7 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-100 gap-2">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Mail className="text-emerald-600" size={20} />
+                    <span>Email & Gmail Delivery • សេវាផ្ញើអ៊ីមែលពិតប្រាកដ</span>
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-1">
+                    គ្រប់គ្រងការផ្ញើ Email ស្វ័យប្រវត្តសម្រាប់ Welcome User, Reset Password, Confirm Gmail និងសំបុត្រជួសជុល (Service Tickets)។
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                    emailEngineInfo?.is_ready 
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                  }`}>
+                    {emailEngineInfo?.is_ready ? (
+                      <>
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        <span>{emailEngineInfo?.active_engine === 'gmail' ? 'Gmail SMTP Active' : (emailEngineInfo?.active_engine === 'resend' ? 'Resend API Active' : 'SMTP Active')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={13} className="text-amber-600" />
+                        <span>មិនទាន់កំណត់ (Not Configured)</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Provider Selection Tabs */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                  ជ្រើសរើសប្រព័ន្ធបញ្ជូន (Email Provider)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { id: "gmail", name: "📧 Google Gmail", sub: "ប្រើ Gmail App Password (ឥតគិតថ្លៃ)", rec: "ពេញនិយម" },
+                    { id: "resend", name: "⚡ Resend HTTPS API", sub: "Free 3,000 emails/mo (Port 443 មិនជាប់ Block)", rec: "Recommended" },
+                    { id: "smtp", name: "🌐 Custom SMTP", sub: "Mailgun, Brevo, AWS SES ឬ Hostinger" },
+                  ].map((p) => {
+                    const isSelected = emailProvider === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setEmailProvider(p.id as any)}
+                        className={`p-4 rounded-xl border text-left transition-all cursor-pointer relative ${
+                          isSelected
+                            ? "border-[#8B1A1A] bg-red-50/30 ring-2 ring-red-100"
+                            : "border-gray-200 bg-gray-50/50 hover:bg-gray-100/60"
+                        }`}
+                      >
+                        {p.rec && (
+                          <span className={`absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                            p.rec === "Recommended" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-[#8B1A1A]"
+                          }`}>
+                            {p.rec}
+                          </span>
+                        )}
+                        <div className="font-extrabold text-xs sm:text-sm text-gray-900 mb-1">{p.name}</div>
+                        <div className="text-[11px] text-gray-500">{p.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Gmail Specific Fields */}
+              {emailProvider === "gmail" && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/40 border border-amber-200/70 space-y-4">
+                  <div className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <span>🔑 ការកំណត់ Google Gmail App Password</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        អាសយដ្ឋាន Gmail របស់អ្នក (Gmail Address) *
+                      </label>
+                      <input
+                        type="email"
+                        value={gmailAddress}
+                        onChange={(e) => setGmailAddress(e.target.value.trim())}
+                        placeholder="ឧ. yourshop@gmail.com"
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm font-mono outline-none focus:border-[#8B1A1A] focus:ring-2 focus:ring-red-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">
+                        Gmail 16-Digit App Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={gmailAppPassword}
+                        onChange={(e) => setGmailAppPassword(e.target.value)}
+                        placeholder="•••••••••••••••• (16 ខ្ទង់)"
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm font-mono outline-none focus:border-[#8B1A1A] focus:ring-2 focus:ring-red-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 bg-white/80 rounded-xl border border-amber-200/60 text-xs text-gray-600 space-y-1.5 leading-relaxed">
+                    <div className="font-bold text-gray-800 flex items-center gap-1.5">
+                      <span>💡 របៀបយក 16-Digit App Password ពី Google ក្នុងរយៈពេល 1 នាទី៖</span>
+                    </div>
+                    <div>1. ចូលទៅកាន់ Google Account របស់អ្នក ➔ <b>Security</b></div>
+                    <div>2. បើក <b>2-Step Verification</b> (ប្រសិនបើមិនទាន់បានបើក)</div>
+                    <div>3. ចូលទៅកាន់ <b>App passwords</b> (ឬស្វែងរកពាក្យថា 'App passwords' ក្នុង Search Bar លើ Google Account)</div>
+                    <div>4. បង្កើត App Name ថ្មីដាក់ឈ្មោះថា <b>"S Tech Store"</b> រួច Copy លេខកូដ 16 ខ្ទង់នោះមក Paste ក្នុងប្រអប់ខាងលើ!</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Resend Specific Fields */}
+              {emailProvider === "resend" && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/40 border border-emerald-200/70 space-y-3">
+                  <div className="text-xs sm:text-sm font-bold text-gray-900">
+                    ⚡ Resend HTTPS API Key (Port 443 — 100% Cloud-Proof)
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">
+                      Resend API Key (re_...) *
+                    </label>
+                    <input
+                      type="password"
+                      value={resendApiKey}
+                      onChange={(e) => setResendApiKey(e.target.value.trim())}
+                      placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm font-mono outline-none focus:border-[#8B1A1A]"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    ចូលទៅកាន់ <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-emerald-600 font-bold underline">resend.com</a> ដើម្បីចុះឈ្មោះ និងបង្កើត API Key ឥតគិតថ្លៃ (Free 3,000 emails/ខែ)។
+                  </p>
+                </div>
+              )}
+
+              {/* Custom SMTP Fields */}
+              {emailProvider === "smtp" && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-bold text-gray-700 mb-1">SMTP Host</label>
+                      <input
+                        type="text"
+                        value={smtpHost}
+                        onChange={(e) => setSmtpHost(e.target.value.trim())}
+                        placeholder="smtp.example.com"
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Port</label>
+                      <input
+                        type="number"
+                        value={smtpPort}
+                        onChange={(e) => setSmtpPort(Number(e.target.value))}
+                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sender Identities */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    ឈ្មោះអ្នកផ្ញើ (From Name)
+                  </label>
+                  <input
+                    type="text"
+                    value={fromName}
+                    onChange={(e) => setFromName(e.target.value)}
+                    placeholder="S Tech Store Cambodia"
+                    className="w-full px-3.5 py-2.5 bg-gray-50/80 border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    អ៊ីមែលអ្នកផ្ញើ (From Email)
+                  </label>
+                  <input
+                    type="email"
+                    value={fromEmail}
+                    onChange={(e) => setFromEmail(e.target.value.trim())}
+                    placeholder="orders@s-tech-store.tech ឬ Gmail របស់អ្នក"
+                    className="w-full px-3.5 py-2.5 bg-gray-50/80 border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A]"
+                  />
+                </div>
+              </div>
+
+              {/* Save Settings Button */}
+              <div className="flex justify-end pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleSaveEmailSettings}
+                  disabled={isSaving}
+                  className="w-full sm:w-auto px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isSaving && <Loader2 size={14} className="animate-spin" />}
+                  <span>រក្សាទុកការកំណត់ Email (Save Email Settings)</span>
+                </button>
+              </div>
+
+              {/* Live Test Email Section */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-blue-50/40 border border-blue-200/70 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Send className="text-blue-600" size={17} />
+                  <span className="text-xs sm:text-sm font-black text-gray-900">
+                    🚀 ធ្វើតេស្តផ្ញើសារពិតប្រាកដទៅកាន់ Gmail (Live Delivery Test)
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  បញ្ចូលអាសយដ្ឋាន Gmail របស់អ្នក (ឧទាហរណ៍ <code>rothvloger@gmail.com</code>) ដើម្បីផ្ទៀងផ្ទាត់ថាសំបុត្រអាចហោះចូលប្រអប់ Inbox ពិតៗបានដែរឬទេ។
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <input
+                    type="email"
+                    value={testEmailRecipient}
+                    onChange={(e) => setTestEmailRecipient(e.target.value.trim())}
+                    placeholder="បញ្ចូល Gmail សម្រាប់ទទួលតេស្ត..."
+                    className="flex-1 px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs sm:text-sm outline-none focus:border-blue-600 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendTestEmail}
+                    disabled={isSendingTestEmail || !testEmailRecipient}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+                  >
+                    {isSendingTestEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    <span>ផ្ញើតេស្តឥឡូវនេះ (Test Send)</span>
+                  </button>
+                </div>
+
+                {testEmailResult && (
+                  <div className={`p-3 rounded-xl text-xs flex items-start gap-2 ${
+                    testEmailResult.success 
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300" 
+                      : "bg-red-100 text-red-800 border border-red-300"
+                  }`}>
+                    {testEmailResult.success ? <CheckCircle2 size={15} className="shrink-0 mt-0.5" /> : <AlertCircle size={15} className="shrink-0 mt-0.5" />}
+                    <span>{testEmailResult.message}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

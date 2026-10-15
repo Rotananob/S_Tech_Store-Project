@@ -31,7 +31,9 @@ class EmailAdminController extends Controller
     public function updateSettings(Request $request)
     {
         $validated = $request->validate([
-            'provider' => 'nullable|string|in:auto,resend,brevo,smtp',
+            'provider' => 'nullable|string|in:auto,resend,brevo,smtp,gmail',
+            'gmail_address' => 'nullable|email|max:150',
+            'gmail_app_password' => 'nullable|string|max:255',
             'resend_api_key' => 'nullable|string|max:255',
             'brevo_api_key' => 'nullable|string|max:255',
             'smtp_host' => 'nullable|string|max:150',

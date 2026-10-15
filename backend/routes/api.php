@@ -1363,6 +1363,8 @@ Route::post('/user/profile/avatar', [UserController::class, 'uploadAvatar']);
 Route::post('/user/claim-welcome-gift', [UserController::class, 'claimWelcomeGift']);
 Route::post('/user/send-welcome-email', [UserController::class, 'sendWelcomeEmail']);
 Route::post('/user/send-reset-email', [UserController::class, 'sendResetEmail'])->middleware('throttle:5,1');
+Route::post('/user/send-confirm-email', [UserController::class, 'sendConfirmEmail'])->middleware('throttle:5,1');
+Route::post('/user/verify-confirm-email', [UserController::class, 'verifyConfirmEmail'])->middleware('throttle:10,1');
 Route::post('/user/request-2fa-otp', [UserController::class, 'requestTwoFactorOtp'])->middleware('throttle:5,1');
 Route::post('/user/verify-2fa-otp', [UserController::class, 'verifyTwoFactorOtp'])->middleware('throttle:10,1');
 

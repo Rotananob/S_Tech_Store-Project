@@ -368,7 +368,7 @@ class RepairController extends Controller
                 </div>
                 <div class='footer'>
                   <p>© 2026 S Tech Store Cambodia. All rights reserved.<br>
-                  តាមដានគេហទំព័រ: <a href='https://s-tech-store.vercel.app'>s-tech-store.vercel.app</a></p>
+                  តាមដានគេហទំព័រ: <a href='https://www.s-tech-store.tech'>www.s-tech-store.tech</a></p>
                 </div>
               </div>
             </body>

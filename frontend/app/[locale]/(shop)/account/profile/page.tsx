@@ -422,6 +422,14 @@ export default function UserProfilePage() {
     resetLink?: string;
   } | null>(null);
 
+  // Real Gmail Verification State
+  const [emailVerifyLoading, setEmailVerifyLoading] = useState(false);
+  const [emailVerifySent, setEmailVerifySent] = useState(false);
+  const [emailVerifyOtp, setEmailVerifyOtp] = useState("");
+  const [emailVerifyModal, setEmailVerifyModal] = useState(false);
+  const [emailVerifyError, setEmailVerifyError] = useState("");
+  const [emailVerifySuccess, setEmailVerifySuccess] = useState(false);
+
   // Privacy and Cache Toast
   const [privacyToast, setPrivacyToast] = useState<string | null>(null);
 
@@ -992,6 +1000,61 @@ export default function UserProfilePage() {
       alert(errMsg);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleSendEmailVerification = async () => {
+    const rawEmail = (profile.email || user?.email || "").trim();
+    if (!rawEmail || !rawEmail.includes("@")) {
+      alert("សូមបញ្ចូលអាសយដ្ឋាន Gmail ត្រឹមត្រូវជាមុនសិន!");
+      return;
+    }
+    setEmailVerifyLoading(true);
+    setEmailVerifyError("");
+    try {
+      const res = await api.post("/user/send-confirm-email", {
+        email: rawEmail,
+        username: profile.display_name || user?.displayName || "S Tech Member",
+      });
+      if (res.data?.success) {
+        setEmailVerifySent(true);
+        setEmailVerifyModal(true);
+      } else {
+        alert(res.data?.message || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់");
+    } finally {
+      setEmailVerifyLoading(false);
+    }
+  };
+
+  const handleConfirmEmailOtp = async () => {
+    const rawEmail = (profile.email || user?.email || "").trim();
+    if (!emailVerifyOtp || emailVerifyOtp.length < 4) {
+      setEmailVerifyError("សូមបញ្ចូលលេខកូដ OTP ឱ្យបានត្រឹមត្រូវ");
+      return;
+    }
+    setEmailVerifyLoading(true);
+    setEmailVerifyError("");
+    try {
+      const res = await api.post("/user/verify-confirm-email", {
+        email: rawEmail,
+        otp: emailVerifyOtp.trim(),
+      });
+      if (res.data?.success) {
+        setEmailVerifySuccess(true);
+        setEmailVerifyModal(false);
+        setProfile((prev) => ({ ...prev, status: "active" }));
+        setPrivacyToast("អាសយដ្ឋាន Gmail ត្រូវបានផ្ទៀងផ្ទាត់ជោគជ័យ ១០០%! 🎉");
+        setTimeout(() => setPrivacyToast(null), 3500);
+      } else {
+        setEmailVerifyError(res.data?.message || "លេខកូដ OTP មិនត្រឹមត្រូវ");
+      }
+    } catch (err: any) {
+      setEmailVerifyError(err.response?.data?.message || "លេខកូដ OTP មិនត្រឹមត្រូវ ឬផុតកំណត់");
+    } finally {
+      setEmailVerifyLoading(false);
     }
   };
 
@@ -2371,9 +2434,21 @@ export default function UserProfilePage() {
                       <span>Real Gmail / Email Address (អ៊ីមែលសម្រាប់ទាក់ទង & ដំណឹង)</span>
                     </label>
                     {profile.email && !profile.email.endsWith("@s-tech-store.tech") && !profile.email.endsWith("@telegram.s-tech-store.tech") && !profile.email.startsWith("tg_") && profile.email.includes("@") ? (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                        <Check size={10} /> Real Gmail Active
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                          <Check size={10} /> Real Gmail Active
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleSendEmailVerification}
+                          disabled={emailVerifyLoading}
+                          className="px-2 py-0.5 rounded-md bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900/60 text-sky-700 dark:text-sky-300 text-[10px] font-bold transition-all border border-sky-300 dark:border-sky-800 cursor-pointer flex items-center gap-1"
+                          title="ផ្ញើលេខកូដបញ្ជាក់ទៅ Gmail របស់អ្នក"
+                        >
+                          {emailVerifyLoading ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                          <span>ផ្ទៀងផ្ទាត់ (Verify)</span>
+                        </button>
+                      </div>
                     ) : (
                       <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-400 text-[10px] font-bold flex items-center gap-1">
                         <AlertTriangle size={10} /> សូមបញ្ចូល Gmail ពិត
@@ -4868,6 +4943,94 @@ export default function UserProfilePage() {
                 >
                   {telegramUnlinking ? <RefreshCw size={14} className="animate-spin" /> : null}
                   <span>{telegramUnlinking ? "កំពុងដំណើរការផ្តាច់..." : "យល់ព្រមផ្តាច់"}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Real Gmail OTP Verification Modal ────────────────────── */}
+      <AnimatePresence>
+        {emailVerifyModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-white dark:bg-[#141722] text-gray-900 dark:text-white rounded-3xl p-6 sm:p-7 border border-white/20 shadow-2xl text-center space-y-4"
+            >
+              <button
+                type="button"
+                onClick={() => setEmailVerifyModal(false)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 flex items-center justify-center text-gray-500 dark:text-gray-300 transition-colors border-none cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-500 flex items-center justify-center mx-auto shadow-md">
+                <Mail size={30} />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">
+                  ផ្ទៀងផ្ទាត់គណនី Gmail ✉️
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
+                  យើងបានផ្ញើលេខកូដសម្ងាត់ 6 ខ្ទង់ (OTP) ទៅកាន់ប្រអប់សំបុត្រ Gmail របស់អ្នក៖
+                </p>
+                <div className="mt-2 p-2 rounded-xl bg-gray-50 dark:bg-white/5 font-mono text-xs font-bold text-sky-600 dark:text-sky-400">
+                  {profile.email}
+                </div>
+              </div>
+
+              {emailVerifyError && (
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-bold">
+                  {emailVerifyError}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={emailVerifyOtp}
+                  onChange={(e) => setEmailVerifyOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full text-center text-2xl tracking-[8px] font-mono font-black py-3 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-black/40 text-gray-900 dark:text-white outline-none focus:border-sky-500"
+                />
+                <p className="text-[11px] text-gray-400">
+                  សូមពិនិត្យមើល Inbox ឬ Spam folder ក្នុង Gmail របស់អ្នក (សុពលភាព ១៥ នាទី)
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEmailVerifyModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/15 text-gray-700 dark:text-gray-300 text-xs font-bold transition-all border-none cursor-pointer"
+                >
+                  បិទ (Close)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmEmailOtp}
+                  disabled={emailVerifyLoading || emailVerifyOtp.length < 6}
+                  className="flex-1 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-md shadow-sky-600/30 border-none cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {emailVerifyLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  <span>ផ្ទៀងផ្ទាត់ OTP</span>
+                </button>
+              </div>
+
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={handleSendEmailVerification}
+                  disabled={emailVerifyLoading}
+                  className="text-[11px] text-sky-500 hover:underline bg-transparent border-none cursor-pointer font-semibold"
+                >
+                  មិនទាន់បានទទួលលេខកូដ? ចុចផ្ញើឡើងវិញ (Resend OTP)
                 </button>
               </div>
             </motion.div>
