@@ -1360,48 +1360,8 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         fallbackText = `បាទបង ${userName}! បងអាចទាក់ទង និង Alert ទៅកាន់ក្រុមការងារ Admin & Staff របស់ S Tech Store ផ្ទាល់បានយ៉ាងងាយស្រួលបាទ! 🤝🚀\n\nបងអាចជ្រើសរើសជម្រើសទាំង ៣ ខាងក្រោមបានភ្លាមៗ៖\n1. 📢 ចុច "Alert ទៅ Telegram ក្រុមការងារ" ដើម្បីបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញ\n2. 💬 ចុច "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)" ដើម្បីឆាតផ្ទាល់ ១ ទល់នឹង ១\n3. 📞 ឬខលមកកាន់ Hotline 012 345 678 ដើម្បីទទួលការប្រឹក្សាភ្លាមៗបាទ! 📱✨`;
         shouldSuggestAgent = true;
       } else {
-        try {
-          const decodedFallback = typeof atob !== "undefined"
-            ? atob("QVEuQWI4Uk42Snc5NDRoRnNuTHhyMWVsUUtiR0JLYzkxNnhCTjRYNmR0R3M1cmQxdzhjWVE=")
-            : "";
-          const primaryKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || decodedFallback;
-          if (primaryKey) {
-            const directCtrl = new AbortController();
-            const directTimeout = setTimeout(() => directCtrl.abort(), 4000);
-            const directParts: any[] = [];
-            for (const img of currentImgs.slice(0, 3)) {
-              const cleanB64 = img.base64.replace(/^data:image\/[a-zA-Z0-9\+\-\.]+;base64,/, "");
-              directParts.push({
-                inlineData: {
-                  mimeType: img.file?.type || "image/jpeg",
-                  data: cleanB64,
-                },
-              });
-            }
-            directParts.push({ text: textToSend || "សូមជួយវិភាគរូបភាពនេះឱ្យខ្ញុំបន្តិចបាទ" });
-
-            const directRes = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${primaryKey}`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ contents: [{ role: "user", parts: directParts }] }),
-                signal: directCtrl.signal,
-              }
-            );
-            clearTimeout(directTimeout);
-            if (directRes.ok) {
-              const directData = await directRes.json();
-              const fbText = directData?.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (fbText) {
-                fallbackText = fbText.trim();
-                shouldSuggestAgent = false;
-              }
-            }
-          }
-        } catch {
-          // Keep instant fallback
-        }
+        fallbackText = `បាទបង ${userName}! អូនបានកត់ត្រាសំណួររបស់បងរួចហើយបាទ 💻✨ បងអាចសាកសួរលម្អិតបន្ថែមអំពីម៉ូឌែលកុំព្យូទ័រ Laptop, Desktop Custom, គ្រឿងបន្លាស់ Gaming ឬសេវាកម្មជួសជុលបានបាទ! ឬបើត្រូវការជំនួយបន្ទាន់ បងអាចទាក់ទងមកកាន់ Admin តាមរយៈ Telegram ឬទូរស័ព្ទមកកាន់ 012 345 678 បានគ្រប់ពេលបាទ 🤝🚀`;
+        shouldSuggestAgent = true;
       }
 
       // Graceful fallback — Never show technical error!

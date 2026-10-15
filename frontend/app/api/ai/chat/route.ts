@@ -465,19 +465,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Resilient key pool with safe base64 decoding (avoids GitHub secret scanner blocks)
-    const fallbackKey = typeof Buffer !== "undefined"
-      ? Buffer.from("QVEuQWI4Uk42Snc5NDRoRnNuTHhyMWVsUUtiR0JLYzkxNnhCTjRYNmR0R3M1cmQxdzhjWVE=", "base64").toString("utf-8")
-      : "";
-
+    // Secure server-side key pool strictly from environment variables
     const keyPool = Array.from(
       new Set(
         [
           process.env.GEMINI_API_KEY,
-          process.env.NEXT_PUBLIC_GEMINI_API_KEY,
           process.env.GOOGLE_API_KEY,
           process.env.GOOGLE_GENAI_API_KEY,
-          fallbackKey,
         ].filter((k): k is string => Boolean(k && k.trim().length > 10))
       )
     );
