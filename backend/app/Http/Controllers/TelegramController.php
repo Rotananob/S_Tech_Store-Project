@@ -321,14 +321,110 @@ class TelegramController extends Controller
 
         $responsePayload = ['ok' => true];
         if (!empty($callbackId)) {
-            $responsePayload = [
-                'method' => 'answerCallbackQuery',
-                'callback_query_id' => $callbackId,
-                'text' => $quickToast,
-                'cache_time' => 1,
-            ];
+            $cbChatId = $callbackQuery['message']['chat']['id'] ?? $callbackQuery['from']['id'] ?? null;
+            $cbMessageId = $callbackQuery['message']['message_id'] ?? null;
+            $fromName = trim(($callbackQuery['from']['first_name'] ?? '') . ' ' . ($callbackQuery['from']['last_name'] ?? '')) ?: 'អតិថិជន';
+
+            if ($callbackData === 'cust_my_orders' && $cbChatId && $cbMessageId) {
+                $orderMenuText = "📦 <b>ការពិនិត្យមើលប្រវត្តិបញ្ជាទិញ (My Orders Hub):</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "ជម្រាបសួរ <b>" . htmlspecialchars($fromName) . "</b>!\n"
+                    . "សូមជ្រើសរើសជម្រើសចន្លោះកាលបរិច្ឆេទដែលលោកអ្នកចង់ពិនិត្យមើល៖\n\n"
+                    . "• 📅 <b>«ការ Order ថ្ងៃនេះ»</b> — មើលទំនិញដែលបានកុម្ម៉ង់ក្នុងថ្ងៃនេះ\n"
+                    . "• 🗓️ <b>«ការ Order សប្ដាហ៍នេះ»</b> — មើលទំនិញ ៧ ថ្ងៃចុងក្រោយ\n"
+                    . "• 📦 <b>«ការ Order ទាំងអស់»</b> — ប្រវត្តិបញ្ជាទិញសរុប\n"
+                    . "• 📆 <b>«ជ្រើសរើសថ្ងៃជាក់លាក់»</b> — ម្សិលមិញ ឬកាលបរិច្ឆេទណាមួយ\n\n"
+                    . "👉 <i>សូមចុចប៊ូតុងជម្រើសខាងក្រោម៖</i>";
+
+                $responsePayload = [
+                    'method' => 'editMessageText',
+                    'chat_id' => $cbChatId,
+                    'message_id' => $cbMessageId,
+                    'text' => $orderMenuText,
+                    'parse_mode' => 'HTML',
+                    'reply_markup' => [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '📅 ការ Order ថ្ងៃនេះ', 'callback_data' => 'cust_orders_filter:today'],
+                                ['text' => '🗓️ ការ Order សប្ដាហ៍នេះ', 'callback_data' => 'cust_orders_filter:week'],
+                            ],
+                            [
+                                ['text' => '📦 ការ Order ទាំងអស់', 'callback_data' => 'cust_orders_filter:all'],
+                                ['text' => '📆 ជ្រើសរើសថ្ងៃជាក់លាក់', 'callback_data' => 'cust_orders_filter:picker'],
+                            ],
+                            [
+                                ['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => "https://www.s-tech-store.tech/orders?tg_token={$cbChatId}"]],
+                            ],
+                            [
+                                ['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => "https://www.s-tech-store.tech/?tg_token={$cbChatId}"]],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
+                        ],
+                    ],
+                ];
+            } else {
+                $responsePayload = [
+                    'method' => 'answerCallbackQuery',
+                    'callback_query_id' => $callbackId,
+                    'text' => $quickToast,
+                    'cache_time' => 1,
+                ];
+            }
             // Flag this callback as answered directly in webhook response to prevent duplicate HTTP calls
             app()->instance('tg_cb_answered_' . $callbackId, true);
+        } elseif (isset($update['message']['text'])) {
+            $msgText = trim($update['message']['text']);
+            $msgChatId = $update['message']['chat']['id'] ?? null;
+            $msgFromName = trim(($update['message']['from']['first_name'] ?? '') . ' ' . ($update['message']['from']['last_name'] ?? '')) ?: 'អតិថិជន';
+
+            if ($msgChatId && preg_match('/^\/start(?:@\w+)?(?:\s+(.*))?$/i', $msgText, $matches)) {
+                $startParam = trim($matches[1] ?? '');
+                if (str_starts_with(strtolower($startParam), 'syncloc_')) {
+                    $responsePayload = [
+                        'method' => 'sendMessage',
+                        'chat_id' => $msgChatId,
+                        'text' => "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n━━━━━━━━━━━━━━━━━━━━\n\nសួស្តី <b>" . htmlspecialchars($msgFromName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។",
+                        'parse_mode' => 'HTML',
+                        'reply_markup' => [
+                            'keyboard' => [
+                                [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
+                            ],
+                            'resize_keyboard' => true,
+                            'one_time_keyboard' => true,
+                        ],
+                    ];
+                } elseif (!str_starts_with(strtolower($startParam), 'st') && !str_starts_with(strtolower($startParam), 'tgauth_')) {
+                    $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                        . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
+                        . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                        . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
+                        . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+
+                    $responsePayload = [
+                        'method' => 'sendMessage',
+                        'chat_id' => $msgChatId,
+                        'text' => $welcomeText,
+                        'parse_mode' => 'HTML',
+                        'reply_markup' => [
+                            'inline_keyboard' => [
+                                [['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => "https://www.s-tech-store.tech/?tg_token={$msgChatId}"]]],
+                                [
+                                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                                    ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                                ],
+                                [
+                                    ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
+                                    ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                                ],
+                                [
+                                    ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
+                                    ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
+                                ],
+                            ],
+                        ],
+                    ];
+                }
+            }
         }
 
         // ⚡ INSTANT NON-BLOCKING RESPONSE TO TELEGRAM:
