@@ -1286,8 +1286,29 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       let fallbackText = "ប្រព័ន្ធ AI កំពុងរវល់ ឬជួបបញ្ហាបច្ចេកទេសបន្តិចបាទ! ⚙️ ដើម្បីកុំឱ្យបងរង់ចាំយូរ បងអាចចុចប៊ូតុងខាងក្រោមដើម្បីឆាតផ្ទាល់ជាមួយ Telegram Bot Assistant (@S_TECH_ASSISTANTBOT) ឬ Alert ទៅកាន់ក្រុមការងារបច្ចេកទេសរបស់ S Tech Store បានភ្លាមៗបាទ! 🚀🤝";
       let shouldSuggestAgent = true;
 
-      // Instant voucher explanation if user uploads or asks about the $5 welcome voucher
+      // Extreme rudeness / Cursing / Emotion venting defusion
       if (
+        lowerText.includes("ជេរ") ||
+        lowerText.includes("ចុយ") ||
+        lowerText.includes("ម្រាយ") ||
+        lowerText.includes("កាដួយ") ||
+        lowerText.includes("ក្ដ") ||
+        lowerText.includes("ឆ្កែ") ||
+        lowerText.includes("ងាប់") ||
+        lowerText.includes("ខឹង") ||
+        lowerText.includes("ខ្វាក់") ||
+        lowerText.includes("ភ្លើ") ||
+        lowerText.includes("ល្ងង់") ||
+        lowerText.includes("ឈ្លើយ") ||
+        lowerText.includes("ឌឺ") ||
+        lowerText.includes("fuck") ||
+        lowerText.includes("bitch") ||
+        lowerText.includes("idiot") ||
+        lowerText.includes("stupid")
+      ) {
+        fallbackText = `អូហូយបង ${userName}! កម្ដៅឡើងកប់លើស CPU Core i9 ពេល Full Load ទៀតបង! 😂🔥 សម្រួលអារម្មណ៍បន្តិចបង អង្គុយផឹកកាហ្វេ ឬតែក្រូចឆ្មាត្រជាក់ៗមួយកែវសិនមក កុំទាន់ក្តៅក្រហាយណា៎ ទុកឱ្យអូន S Tech AI ជួយសម្រួលជូនបងវិញ! ☕🎮 ជេរអូនបានបង តែហាមខឹងបោកទូរស័ព្ទណា៎ ប្រយ័ត្នអស់លុយទិញថ្មី ទុកលុយមកដំឡើង RTX 4080 លេងហ្គេមជាមួយអូនវិញអេមជាង! ឥឡូវបងចង់ឱ្យអូនជួយរឿង Laptop, PC, គ្រឿងបន្លាស់ ឬឆែក Order អីដែរ និយាយមកបង អូនជួយអស់ពីចិត្ត ១០០% ហ្មង! 💻✨`;
+        shouldSuggestAgent = false;
+      } else if (
         lowerText.includes("មានន័យ") ||
         lowerText.includes("voucher") ||
         lowerText.includes("welcome") ||
