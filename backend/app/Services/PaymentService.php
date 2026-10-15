@@ -52,6 +52,7 @@ class PaymentService
         $accountName = $cfg['account_name'] ?: 'ROTANA NOB';
         $accountUsd = $cfg['account_usd'] ?: '014579634';
         $accountKhr = $cfg['account_khr'] ?: '006822995';
+        $p2pId = $cfg['aba_p2p_id'] ?: '81AF51D8FAFE';
         $bankName = $cfg['bank_name'] ?: 'ABA Bank';
         $city = $cfg['merchant_city'] ?: 'Phnom Penh';
 
@@ -62,59 +63,65 @@ class PaymentService
         // Point of Initiation Method: 12 = Dynamic QR (with amount), 11 = Static QR
         $pointOfInitiation = ($isDynamic && $amount > 0) ? '12' : '11';
 
-        // 1. Tag 29: Official NBC Bakong Merchant Account Information (Individual)
-        // Clean, standard EMVCo tag recognized by ALL 36+ Cambodian member banks (ACLEDA, Wing, Canadia, Sathapana, ABA, etc.)
+        // 1. Tag 29: Official NBC Bakong Account Information (Individual)
+        // Clean standard EMVCo tag recognized by ALL 36+ Cambodian member banks (ACLEDA, Wing, Canadia, Sathapana, etc.)
         $sub29_00 = self::tlv('00', $merchantId);
         $sub29_01 = self::tlv('01', $primaryAccount);
         $sub29_02 = self::tlv('02', $bankName);
         $tag29 = self::tlv('29', $sub29_00 . $sub29_01 . $sub29_02);
 
-        // 2. Tag 52: Merchant Category Code (5999 = Standard General Goods/Services)
-        $tag52 = self::tlv('52', '5999');
+        // 2. Tag 40: ABA Mobile P2P Proprietary Tag (Dual Currency Personal Account)
+        // CRITICAL: ABA Mobile app uses Tag 40 to identify its own native personal accounts.
+        // Without Tag 40, ABA Mobile fails to identify the personal account or tries to resolve it as an ABA PayWay merchant.
+        $tag40 = '';
+        if (!empty($p2pId)) {
+            $sub40_00 = self::tlv('00', 'abaP2P');
+            $sub40_01 = self::tlv('01', $p2pId);
+            $sub40_02 = self::tlv('02', $accountKhr);
+            $sub40_03 = self::tlv('03', $accountUsd);
+            $sub40_04 = self::tlv('04', 'Dual');
+            $tag40 = self::tlv('40', $sub40_00 . $sub40_01 . $sub40_02 . $sub40_03 . $sub40_04);
+        }
 
-        // 3. Tag 53: Transaction Currency (840 = USD, 116 = KHR)
+        // 3. Tag 52: Merchant Category Code (MCC)
+        // CRITICAL FIX: Personal/individual accounts MUST use '0000'.
+        // Using '5999' caused ABA Mobile app to categorize the QR as an ABA PayWay Corporate Merchant QR,
+        // which triggered the error "Invalid merchant qr" because the account is an individual account, not a PayWay merchant!
+        $tag52 = self::tlv('52', '0000');
+
+        // 4. Tag 53: Transaction Currency (840 = USD, 116 = KHR)
         $tag53 = self::tlv('53', $currCode);
 
-        // 4. Tag 54: Transaction Amount (Present in dynamic QR with amount > 0)
+        // 5. Tag 54: Transaction Amount (Present in dynamic QR with amount > 0)
         $tag54 = '';
         if ($isDynamic && $amount > 0) {
             $formattedAmount = $isUSD ? number_format($amount, 2, '.', '') : (string)round($amount);
             $tag54 = self::tlv('54', $formattedAmount);
         }
 
-        // 5. Tag 58: Country Code (KH)
+        // 6. Tag 58: Country Code (KH)
         $tag58 = self::tlv('58', 'KH');
 
-        // 6. Tag 59: Merchant/Recipient Name (Up to 25 chars)
+        // 7. Tag 59: Merchant/Recipient Name (Up to 25 chars)
         $tag59 = self::tlv('59', substr($accountName, 0, 25));
 
-        // 7. Tag 60: Merchant City (Up to 15 chars)
+        // 8. Tag 60: Merchant City (Up to 15 chars)
         $tag60 = self::tlv('60', substr($city, 0, 15));
 
-        // 8. Tag 62: Additional Data Field (Bill/Order Reference, Store Label, Terminal Label)
+        // 9. Tag 62: Additional Data Field (Bill/Order Reference)
+        // NOTE: For personal/individual accounts, ONLY sub-tag 01 (Bill Number) is permitted.
+        // Sub-tags 03 (Store Label) and 07 (Terminal Label) are reserved for corporate POS terminals
+        // and must NOT be added here to avoid triggering merchant validation failures in ABA Mobile.
         $tag62 = '';
-        $sub62_01 = !empty($orderId) ? self::tlv('01', substr($orderId, 0, 25)) : '';
-        $sub62_03 = self::tlv('03', 'S-TECH STORE');
-        $sub62_07 = self::tlv('07', 'STECH01');
-        $sub62_data = $sub62_01 . $sub62_03 . $sub62_07;
-        if (!empty($sub62_data)) {
-            $tag62 = self::tlv('62', $sub62_data);
-        }
-
-        // 9. Tag 99: Dynamic Expiration Timestamp (Required by NBC Bakong specification for dynamic QR)
-        $tag99 = '';
-        if ($isDynamic && $amount > 0) {
-            $nowMs = (string)round(microtime(true) * 1000);
-            $expMs = (string)round((microtime(true) + 1800) * 1000); // 30 minutes validity
-            $sub99_00 = self::tlv('00', $nowMs);
-            $sub99_01 = self::tlv('01', $expMs);
-            $tag99 = self::tlv('99', $sub99_00 . $sub99_01);
+        if (!empty($orderId)) {
+            $tag62 = self::tlv('62', self::tlv('01', substr($orderId, 0, 25)));
         }
 
         // Assemble EMVCo payload without CRC
         $rawPayload = self::tlv('00', '01')
             . self::tlv('01', $pointOfInitiation)
             . $tag29
+            . $tag40
             . $tag52
             . $tag53
             . $tag54
@@ -122,7 +129,6 @@ class PaymentService
             . $tag59
             . $tag60
             . $tag62
-            . $tag99
             . '6304';
 
         // Compute NBC mandated CRC16-CCITT checksum
@@ -207,8 +213,9 @@ class PaymentService
             'deeplinks' => [
                 'universal' => $universalDeeplink,
                 'bakong' => $universalDeeplink,
-                'aba' => "abamobilebank://ababank.com?type=payway&qrcode=" . rawurlencode($activeKhqr),
+                'aba' => $universalDeeplink ?: ("abamobilebank://ababank.com?qrcode=" . rawurlencode($activeKhqr)),
                 'aba_app' => "abamobilebank://",
+                'aba_direct' => "abamobilebank://ababank.com?qrcode=" . rawurlencode($activeKhqr),
                 'wing' => "wing://pay?qr=" . rawurlencode($activeKhqr),
                 'acleda' => "acledamobile://pay?qr=" . rawurlencode($activeKhqr),
             ],

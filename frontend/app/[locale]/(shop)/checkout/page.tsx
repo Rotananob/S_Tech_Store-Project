@@ -2565,7 +2565,7 @@ export default function CheckoutPage() {
               {/* 1-Click Mobile Banking Deeplinks */}
               {(() => {
                 const isAbaOrder = payment === "aba";
-                const abaDeeplink = khqrSession.deeplinks?.aba || (khqrSession.khqr_string ? `abamobilebank://ababank.com?type=payway&qrcode=${encodeURIComponent(khqrSession.khqr_string)}` : "abamobilebank://");
+                const abaDeeplink = khqrSession.deeplinks?.aba || khqrSession.deeplinks?.universal || (khqrSession.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "abamobilebank://");
                 const bakongDeeplink = khqrSession.deeplinks?.bakong || khqrSession.deeplinks?.universal || (khqrSession.khqr_string ? `https://bakong-deeplink.nbc.gov.kh/bakong/payment?qr=${encodeURIComponent(khqrSession.khqr_string)}` : "#");
                 const primaryDeeplink = isAbaOrder ? abaDeeplink : bakongDeeplink;
 
