@@ -708,8 +708,9 @@ export default function EditProductPage(props: {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    Badge / Tag (Optional)
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                    <Tag size={13} className="text-[#8B1A1A]" />
+                    <span>Badge / Tag 🏷️ (ជម្រើស Tag សម្គាល់)</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -719,9 +720,36 @@ export default function EditProductPage(props: {
                       type="text" 
                       value={badge} 
                       onChange={e => setBadge(e.target.value)} 
-                      placeholder="e.g. HOT, SALE, BEST SELLER" 
+                      placeholder="ឧ. HOT, SALE, BEST SELLER..." 
                       className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" 
                     />
+                  </div>
+                  {/* Tag Suggestion Pills */}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[10px] text-gray-400 font-bold uppercase">Tag ពេញនិយម:</span>
+                    {["HOT", "NEW", "SALE", "BEST SELLER", "POPULAR", "LIMITED"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setBadge(tag)}
+                        className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          badge.toUpperCase() === tag
+                            ? "bg-purple-600 text-white shadow-xs"
+                            : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/60"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                    {badge && (
+                      <button
+                        type="button"
+                        onClick={() => setBadge("")}
+                        className="text-[10px] text-gray-400 hover:text-red-500 ml-1 underline cursor-pointer"
+                      >
+                        សម្អាត
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -15,11 +15,15 @@ type Product = {
   name: string;
   slug: string;
   description: string | null;
-  price: number;
+  price: number | string;
+  sale_price?: number | string | null;
   stock: number;
   image_url: string | null;
   category: Category | null;
   category_id: number;
+  brand?: string | null;
+  condition?: string | null;
+  badge?: string | null;
   pinned_to_top?: boolean;
   bumped_at?: string | null;
 };
@@ -107,6 +111,12 @@ export default function AdminProductsPage() {
         } catch (_) {}
         return next;
       });
+
+      // Clear filters so user immediately sees newly added or edited product at the top
+      setCurrentPage(1);
+      setCategoryFilter("All Categories");
+      setStockFilter("All Stock Status");
+      setSearchQuery("");
 
       showToast(`⚡ ផលិតផល "${updated.name}" បាន update ក្នុងតារាងភ្លាមៗ!`);
     };
@@ -206,7 +216,7 @@ export default function AdminProductsPage() {
       await api.delete(`/products/${deleteTarget.id}`);
       removeProductFromCache(deleteTarget.id);
       setProducts(prev => {
-        const next = prev.filter(p => p.id !== deleteTarget.id);
+        const next = prev.filter(p => Number(p.id) !== Number(deleteTarget.id) && p.slug !== deleteTarget.slug);
         try {
           sessionStorage.setItem('admin_cached_products', JSON.stringify(next));
         } catch (e) {}
@@ -460,6 +470,16 @@ export default function AdminProductsPage() {
                                 <span>ខ្ទាស់លើគេ</span>
                               </span>
                             )}
+                            {prod.badge && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200">
+                                🏷️ {prod.badge}
+                              </span>
+                            )}
+                            {prod.brand && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600">
+                                {prod.brand}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-500">{prod.slug}</div>
                         </div>
@@ -469,7 +489,20 @@ export default function AdminProductsPage() {
                       {prod.category?.name || "Uncategorized"}
                     </td>
                     <td className="p-4 text-sm font-bold text-gray-900">
-                      ${Number(prod.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {prod.sale_price && Number(prod.sale_price) > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="text-emerald-700 font-extrabold font-mono">
+                            ${Number(prod.sale_price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[11px] text-gray-400 line-through font-mono">
+                            ${Number(prod.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="font-mono">
+                          ${Number(prod.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
                     </td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded text-xs font-bold ${stockBadge(status)}`}>

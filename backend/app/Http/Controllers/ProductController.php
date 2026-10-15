@@ -109,7 +109,7 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'required',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|string|max:100',
@@ -126,6 +126,47 @@ class ProductController extends Controller
             'bump_to_top' => 'nullable',
             'condition' => 'nullable|string|max:100'
         ]);
+
+        // Safely resolve category_id
+        if (!empty($validated['category_id'])) {
+            $catId = (int)$validated['category_id'];
+            if (!\App\Models\Category::where('id', $catId)->exists()) {
+                $firstCat = \App\Models\Category::first();
+                $validated['category_id'] = $firstCat ? $firstCat->id : 1;
+            } else {
+                $validated['category_id'] = $catId;
+            }
+        } else {
+            $firstCat = \App\Models\Category::first();
+            $validated['category_id'] = $firstCat ? $firstCat->id : 1;
+        }
+
+        // Clean price formatting (strip $, commas, spaces)
+        if ($request->has('price')) {
+            $rawPrice = $request->input('price');
+            $cleanPrice = preg_replace('/[^0-9.]/', '', (string)$rawPrice);
+            $validated['price'] = $cleanPrice !== '' ? $cleanPrice : '0.00';
+        }
+
+        // Clean sale_price formatting
+        if ($request->filled('sale_price')) {
+            $rawSale = $request->input('sale_price');
+            $cleanSale = preg_replace('/[^0-9.]/', '', (string)$rawSale);
+            $validated['sale_price'] = $cleanSale !== '' ? $cleanSale : null;
+        } else {
+            $validated['sale_price'] = null;
+        }
+
+        // Support explicitly clearing nullable fields
+        if ($request->has('badge') && trim((string)$request->input('badge')) === '') {
+            $validated['badge'] = null;
+        }
+        if ($request->has('brand') && trim((string)$request->input('brand')) === '') {
+            $validated['brand'] = null;
+        }
+        if ($request->has('description') && trim((string)$request->input('description')) === '') {
+            $validated['description'] = null;
+        }
 
         if (isset($validated['is_featured'])) {
             $validated['is_featured'] = filter_var($validated['is_featured'], FILTER_VALIDATE_BOOLEAN);
@@ -199,12 +240,16 @@ class ProductController extends Controller
             Log::error("Failed to send telegram new product alert: " . $e->getMessage());
         }
 
-        Cache::increment('products_cache_version');
+        Cache::forget('products_cache_version');
+        Cache::put('products_cache_version', time(), 86400 * 30);
 
         return response()->json([
             'message' => 'Product created successfully',
             'data' => $product
-        ], 201);
+        ], 201)
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**
@@ -400,7 +445,8 @@ class ProductController extends Controller
         if ($product->slug) {
             Cache::forget("product_single_{$product->slug}");
         }
-        Cache::increment('products_cache_version');
+        Cache::forget('products_cache_version');
+        Cache::put('products_cache_version', time(), 86400 * 30);
 
         return response()->json([
             'message' => 'Product updated successfully',
@@ -422,13 +468,17 @@ class ProductController extends Controller
         $product->save();
         $product->load('category');
 
-        Cache::increment('products_cache_version');
+        Cache::forget('products_cache_version');
+        Cache::put('products_cache_version', time(), 86400 * 30);
 
         return response()->json([
             'success' => true,
             'message' => "បានរុញទំនិញ \"{$product->name}\" មកលើគេបង្អស់ (ធ្វើឱ្យថ្មីជានិច្ច) ជោគជ័យ!",
             'data' => $product
-        ]);
+        ])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**
@@ -446,7 +496,8 @@ class ProductController extends Controller
         $product->save();
         $product->load('category');
 
-        Cache::increment('products_cache_version');
+        Cache::forget('products_cache_version');
+        Cache::put('products_cache_version', time(), 86400 * 30);
 
         $msg = $newStatus
             ? "បានខ្ទាស់ទំនិញ \"{$product->name}\" នៅលើគេបង្អស់ជោគជ័យ (Pinned to Top)!"
@@ -457,7 +508,10 @@ class ProductController extends Controller
             'message' => $msg,
             'pinned_to_top' => $newStatus,
             'data' => $product
-        ]);
+        ])
+        ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
     }
 
     /**
@@ -482,7 +536,8 @@ class ProductController extends Controller
         if ($product->slug) {
             Cache::forget("product_single_{$product->slug}");
         }
-        Cache::increment('products_cache_version');
+        Cache::forget('products_cache_version');
+        Cache::put('products_cache_version', time(), 86400 * 30);
 
         // 3. Delete product
         $product->delete();

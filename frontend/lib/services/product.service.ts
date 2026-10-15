@@ -187,6 +187,8 @@ export function invalidateProductCache(updatedProduct?: any): void {
             }
             sessionStorage.setItem("admin_cached_products", JSON.stringify(list));
           }
+        } else {
+          sessionStorage.setItem("admin_cached_products", JSON.stringify([normalized]));
         }
       } catch (_) {}
     }

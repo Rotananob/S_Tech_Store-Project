@@ -78,12 +78,14 @@ export default function AddNewProductPage() {
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("1");
   const [price, setPrice] = useState("");
+  const [salePrice, setSalePrice] = useState("");
   const [stock, setStock] = useState("");
   const [description, setDescription] = useState("");
   const [featured, setFeatured] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [brand, setBrand] = useState("");
   const [condition, setCondition] = useState("Brand New");
+  const [badge, setBadge] = useState("");
 
   // Primary Image: Support direct URL OR uploaded file
   const [primaryImageMode, setPrimaryImageMode] = useState<"url" | "file">("url");
@@ -139,12 +141,14 @@ export default function AddNewProductPage() {
   const handleResetForm = () => {
     setName("");
     setPrice("");
+    setSalePrice("");
     setStock("");
     setDescription("");
     setFeatured(false);
     setPinned(false);
     setBrand("");
     setCondition("Brand New");
+    setBadge("");
     setPrimaryImageUrl("");
     if (primaryImagePreview) URL.revokeObjectURL(primaryImagePreview);
     setPrimaryImageFile(null);
@@ -184,11 +188,14 @@ export default function AddNewProductPage() {
   };
 
   const handleSave = async () => {
+    const cleanPrice = price.trim().replace(/[^0-9.]/g, "");
+    const cleanSalePrice = salePrice.trim().replace(/[^0-9.]/g, "");
+
     if (!name.trim()) {
       showToast("សូមបញ្ចូលឈ្មោះផលិតផល (Product Name)", "error");
       return;
     }
-    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+    if (!cleanPrice || isNaN(Number(cleanPrice)) || Number(cleanPrice) <= 0) {
       showToast("សូមបញ្ចូលតម្លៃលក់ត្រឹមត្រូវ (Price)", "error");
       return;
     }
@@ -204,13 +211,21 @@ export default function AddNewProductPage() {
       const formData = new FormData();
       formData.append("name", name.trim());
       formData.append("category_id", categoryId);
-      formData.append("price", price);
-      formData.append("stock", stock);
+      formData.append("price", cleanPrice);
+      formData.append("stock", String(Math.max(0, parseInt(stock, 10))));
+      
+      if (cleanSalePrice) {
+        formData.append("sale_price", cleanSalePrice);
+      } else {
+        formData.append("sale_price", "");
+      }
+
       formData.append("description", description);
       formData.append("is_featured", featured ? "1" : "0");
       formData.append("pinned_to_top", pinned ? "1" : "0");
       if (brand.trim()) formData.append("brand", brand.trim());
       if (condition.trim()) formData.append("condition", condition.trim());
+      if (badge.trim()) formData.append("badge", badge.trim());
 
       // 1. Primary Image
       if (primaryImageMode === "file" && primaryImageFile) {
@@ -232,7 +247,14 @@ export default function AddNewProductPage() {
       setSavingStep(2);
 
       const res = await api.post("/products", formData);
-      const createdData = res.data?.data || { name, price, stock };
+      const createdData = res.data?.data || res.data || { 
+        name: name.trim(), 
+        price: cleanPrice, 
+        sale_price: cleanSalePrice || null, 
+        stock: parseInt(stock, 10),
+        badge: badge.trim() || null,
+        brand: brand.trim() || null
+      };
 
       setSavingStep(3);
       setSavedProduct(createdData);
@@ -662,34 +684,82 @@ export default function AddNewProductPage() {
               </div>
             </div>
 
-            {/* Condition */}
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                Condition (ស្ថានភាពទំនិញ)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { value: "Brand New", label: "Brand New (100% Genuine)" },
-                  { value: "Like New (99%)", label: "Like New (99%)" },
-                  { value: "Second-Hand / Used", label: "Second-Hand (មួយទឹក)" },
-                  { value: "Refurbished", label: "Refurbished" },
-                ].map((cond) => {
-                  const isSel = condition === cond.value;
-                  return (
+            {/* Condition & Badge / Tag */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Condition (ស្ថានភាពទំនិញ)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "Brand New", label: "Brand New (100% Genuine)" },
+                    { value: "Like New (99%)", label: "Like New (99%)" },
+                    { value: "Second-Hand / Used", label: "Second-Hand (មួយទឹក)" },
+                    { value: "Refurbished", label: "Refurbished" },
+                  ].map((cond) => {
+                    const isSel = condition === cond.value;
+                    return (
+                      <button
+                        key={cond.value}
+                        type="button"
+                        onClick={() => setCondition(cond.value)}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-semibold border text-center transition-all cursor-pointer ${
+                          isSel
+                            ? "bg-red-50 border-red-300 text-[#8B1A1A] font-bold shadow-xs"
+                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {cond.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Tag size={13} className="text-[#8B1A1A]" />
+                  <span>Badge / Tag 🏷️ (ជម្រើស Tag សម្គាល់)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Tag size={15} className="text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={badge}
+                    onChange={(e) => setBadge(e.target.value)}
+                    placeholder="ឧ. HOT, SALE, BEST SELLER..."
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-red-500/20 focus:border-[#8B1A1A] transition-all bg-gray-50/30 focus:bg-white"
+                  />
+                </div>
+                {/* Tag Suggestion Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  <span className="text-[10px] text-gray-400 font-bold uppercase">Tag ពេញនិយម:</span>
+                  {["HOT", "NEW", "SALE", "BEST SELLER", "POPULAR", "LIMITED"].map((tag) => (
                     <button
-                      key={cond.value}
+                      key={tag}
                       type="button"
-                      onClick={() => setCondition(cond.value)}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-semibold border text-center transition-all cursor-pointer ${
-                        isSel
-                          ? "bg-red-50 border-red-300 text-[#8B1A1A] font-bold shadow-xs"
-                          : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                      onClick={() => setBadge(tag)}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        badge.toUpperCase() === tag
+                          ? "bg-purple-600 text-white shadow-xs"
+                          : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/60"
                       }`}
                     >
-                      {cond.label}
+                      {tag}
                     </button>
-                  );
-                })}
+                  ))}
+                  {badge && (
+                    <button
+                      type="button"
+                      onClick={() => setBadge("")}
+                      className="text-[10px] text-gray-400 hover:text-red-500 ml-1 underline cursor-pointer"
+                    >
+                      សម្អាត
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -705,13 +775,13 @@ export default function AddNewProductPage() {
                   តម្លៃ និងស្តុកទំនិញ (Pricing &amp; Inventory)
                 </h2>
                 <p className="text-[11px] text-gray-400">
-                  កំណត់តម្លៃលក់ជាដុល្លារ ($) និងចំនួនទំនិញក្នុងស្តុក
+                  កំណត់តម្លៃលក់ជាដុល្លារ ($), តម្លៃបញ្ចុះតម្លៃ (Sale Price) និងចំនួនទំនិញក្នុងស្តុក
                 </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Price USD */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {/* Regular Price USD */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
                   Price (USD) <span className="text-rose-500">*</span>
@@ -721,9 +791,7 @@ export default function AddNewProductPage() {
                     $
                   </span>
                   <input
-                    type="number"
-                    step="any"
-                    min="0"
+                    type="text"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="0.00"
@@ -738,9 +806,39 @@ export default function AddNewProductPage() {
                 {khrEquivalent && (
                   <div className="mt-2.5 text-xs font-mono text-emerald-700 font-bold bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-100 flex items-center justify-between">
                     <span className="flex items-center gap-1">
-                      <Sparkles size={12} className="text-emerald-600" /> សមមូលប្រាក់រៀល:
+                      <Sparkles size={12} className="text-emerald-600" /> សមមូល:
                     </span>
                     <span className="text-emerald-800">~ {khrEquivalent} KHR</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Sale Price USD */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                  Sale Price (USD) <span className="text-[11px] text-gray-400 font-normal lowercase">(optional)</span>
+                </label>
+                <div className="h-12 flex items-center bg-gray-50/60 hover:bg-white focus-within:bg-white border border-gray-200 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl transition-all px-3.5">
+                  <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-xs mr-2">
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    value={salePrice}
+                    onChange={(e) => setSalePrice(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full bg-transparent outline-none font-mono font-bold text-base sm:text-lg text-emerald-700"
+                  />
+                  <span className="text-xs font-extrabold text-gray-400 shrink-0 uppercase tracking-wider">
+                    USD
+                  </span>
+                </div>
+
+                {/* Sale discount badge */}
+                {salePrice && !isNaN(Number(salePrice.replace(/[^0-9.]/g, ""))) && Number(salePrice.replace(/[^0-9.]/g, "")) > 0 && price && Number(price.replace(/[^0-9.]/g, "")) > Number(salePrice.replace(/[^0-9.]/g, "")) && (
+                  <div className="mt-2.5 text-xs font-mono text-rose-700 font-bold bg-rose-50 px-3 py-2 rounded-xl border border-rose-100 flex items-center justify-between">
+                    <span>បញ្ចុះតម្លៃ:</span>
+                    <span>-{Math.round(((Number(price.replace(/[^0-9.]/g, "")) - Number(salePrice.replace(/[^0-9.]/g, ""))) / Number(price.replace(/[^0-9.]/g, ""))) * 100)}% OFF</span>
                   </div>
                 )}
               </div>
