@@ -342,8 +342,36 @@ const sanitizeTgAppLink = (link?: string | null, token?: string | null): string 
 
 export default function UserProfilePage() {
   const { theme, setTheme } = useTheme();
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sessionStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sessionStr) {
+          const sUser = JSON.parse(sessionStr);
+          const uid = sUser?.firebase_uid || sUser?.uid || (sUser?.id ? `tg_${sUser.id}` : null);
+          if (uid) {
+            return {
+              uid: uid,
+              displayName: sUser.display_name || sUser.name || "S Tech Member",
+              email: sUser.email,
+              photoURL: sUser.photo_url || sUser.avatar,
+            } as any;
+          }
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
   const [mounted, setMounted] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("stech_cached_user_profile");
+        if (cached) return false;
+      } catch (e) {}
+    }
+    return true;
+  });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSwitchingTheme, setIsSwitchingTheme] = useState(false);
@@ -364,7 +392,23 @@ export default function UserProfilePage() {
   const [saveModal, setSaveModal] = useState<{ show: boolean; success: boolean; title: string; message: string } | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("stech_cached_user_profile");
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.photo_url) return p.photo_url;
+        }
+        const sessionStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sessionStr) {
+          const sUser = JSON.parse(sessionStr);
+          if (sUser.photo_url || sUser.avatar) return sUser.photo_url || sUser.avatar;
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUploadSuccess, setAvatarUploadSuccess] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
@@ -522,29 +566,98 @@ export default function UserProfilePage() {
   } = useUpdateStore();
   const [updateStatusMsg, setUpdateStatusMsg] = useState<string | null>(null);
 
-  // 100% Real cloud data from Neon PostgreSQL / Laravel API
-  const [profile, setProfile] = useState<ProfileData>({
-    display_name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "Phnom Penh",
-    khan: "",
-    telegram: "",
-    telegram_chat_id: undefined,
-    profession: "",
-    gender: "",
-    birthday: "",
-    delivery_notes: "",
-    two_fa_enabled: false,
-    notif_orders: true,
-    notif_promos: true,
-    notif_builds: true,
-    notif_telegram: true,
-    points: 0,
-    created_at: "",
-    gps_lat: undefined,
-    gps_lng: undefined,
+  // 100% Real cloud data from Neon PostgreSQL / Laravel API with Instant Local-First Hydration
+  const [profile, setProfile] = useState<ProfileData>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("stech_cached_user_profile");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === "object") {
+            return {
+              display_name: parsed.display_name || "",
+              email: parsed.email || "",
+              phone: parsed.phone || "",
+              address: parsed.address || "",
+              city: parsed.city || "Phnom Penh",
+              khan: parsed.khan || "",
+              telegram: parsed.telegram || "",
+              telegram_chat_id: parsed.telegram_chat_id,
+              profession: parsed.profession || "",
+              gender: parsed.gender || "",
+              birthday: parsed.birthday || "",
+              delivery_notes: parsed.delivery_notes || "",
+              two_fa_enabled: Boolean(parsed.two_fa_enabled),
+              notif_orders: parsed.notif_orders ?? true,
+              notif_promos: parsed.notif_promos ?? true,
+              notif_builds: parsed.notif_builds ?? true,
+              notif_telegram: parsed.notif_telegram ?? true,
+              points: Number(parsed.points || 0),
+              created_at: parsed.created_at || "",
+              gps_lat: parsed.gps_lat,
+              gps_lng: parsed.gps_lng,
+              photo_url: parsed.photo_url,
+              firebase_uid: parsed.firebase_uid,
+              provider: parsed.provider,
+            };
+          }
+        }
+        const sess = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sess) {
+          const parsed = JSON.parse(sess);
+          const uid = parsed?.firebase_uid || parsed?.uid || (parsed?.id ? String(parsed.id) : "");
+          return {
+            display_name: parsed.display_name || parsed.name || "",
+            email: parsed.email || "",
+            phone: parsed.phone || "",
+            address: parsed.address || "",
+            city: parsed.city || "Phnom Penh",
+            khan: parsed.khan || "",
+            telegram: parsed.telegram || parsed.username || "",
+            telegram_chat_id: parsed.telegram_chat_id || parsed.telegram_id,
+            profession: parsed.profession || "",
+            gender: parsed.gender || "",
+            birthday: parsed.birthday || "",
+            delivery_notes: parsed.delivery_notes || "",
+            two_fa_enabled: Boolean(parsed.two_fa_enabled),
+            notif_orders: true,
+            notif_promos: true,
+            notif_builds: true,
+            notif_telegram: true,
+            points: Number(parsed.points || 0),
+            created_at: parsed.created_at || "",
+            gps_lat: parsed.gps_lat,
+            gps_lng: parsed.gps_lng,
+            photo_url: parsed.photo_url || parsed.avatar,
+            firebase_uid: uid,
+            provider: parsed.provider,
+          };
+        }
+      } catch (e) {}
+    }
+    return {
+      display_name: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "Phnom Penh",
+      khan: "",
+      telegram: "",
+      telegram_chat_id: undefined,
+      profession: "",
+      gender: "",
+      birthday: "",
+      delivery_notes: "",
+      two_fa_enabled: false,
+      notif_orders: true,
+      notif_promos: true,
+      notif_builds: true,
+      notif_telegram: true,
+      points: 0,
+      created_at: "",
+      gps_lat: undefined,
+      gps_lng: undefined,
+    };
   });
 
   const [stats, setStats] = useState(() => {
@@ -576,7 +689,18 @@ export default function UserProfilePage() {
     };
   });
 
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("stech_cached_orders");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<"all" | "pending" | "processing" | "packing" | "shipped" | "completed">("all");
   const [visibleOrderCount, setVisibleOrderCount] = useState<number>(8);
@@ -687,17 +811,39 @@ export default function UserProfilePage() {
             if (sUser.photo_url || sUser.avatar) {
               setAvatarPreview(sUser.photo_url || sUser.avatar);
             }
-            setProfile((prev) => ({
-              ...prev,
-              firebase_uid: uid,
-              provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : prev.provider),
-              display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech Member",
-              email: sUser.email || prev.email,
-              phone: sUser.phone || prev.phone,
-              photo_url: sUser.photo_url || sUser.avatar || prev.photo_url,
-              telegram: sUser.telegram || prev.telegram,
-              telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || prev.telegram_chat_id,
-            }));
+
+            try {
+              const cached = localStorage.getItem("stech_cached_user_profile");
+              if (cached) {
+                const p = JSON.parse(cached);
+                setProfile((prev) => ({
+                  ...prev,
+                  ...p,
+                  firebase_uid: uid,
+                  provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : p.provider || prev.provider),
+                  display_name: sUser.display_name || sUser.name || p.display_name || prev.display_name || "S Tech Member",
+                  email: sUser.email || p.email || prev.email,
+                  phone: sUser.phone || p.phone || prev.phone,
+                  photo_url: sUser.photo_url || sUser.avatar || p.photo_url || prev.photo_url,
+                  telegram: sUser.telegram || p.telegram || prev.telegram,
+                  telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || p.telegram_chat_id || prev.telegram_chat_id,
+                }));
+                setProfileLoading(false);
+              } else {
+                setProfile((prev) => ({
+                  ...prev,
+                  firebase_uid: uid,
+                  provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : prev.provider),
+                  display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech Member",
+                  email: sUser.email || prev.email,
+                  phone: sUser.phone || prev.phone,
+                  photo_url: sUser.photo_url || sUser.avatar || prev.photo_url,
+                  telegram: sUser.telegram || prev.telegram,
+                  telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || prev.telegram_chat_id,
+                }));
+              }
+            } catch (e) {}
+
             loadProfile(pseudoUser);
             loadOrders();
             loadProfileWalletTx();
@@ -711,12 +857,35 @@ export default function UserProfilePage() {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-        setProfile((prev) => ({
-          ...prev,
-          firebase_uid: u.uid,
-          display_name: u.displayName || prev.display_name || "S Tech Member",
-          email: u.email || prev.email,
-        }));
+        try {
+          const cached = localStorage.getItem("stech_cached_user_profile");
+          if (cached) {
+            const p = JSON.parse(cached);
+            setProfile((prev) => ({
+              ...prev,
+              ...p,
+              firebase_uid: u.uid,
+              display_name: u.displayName || p.display_name || prev.display_name,
+              email: u.email || p.email || prev.email,
+            }));
+            if (p.photo_url) setAvatarPreview(p.photo_url);
+            setProfileLoading(false);
+          } else {
+            setProfile((prev) => ({
+              ...prev,
+              firebase_uid: u.uid,
+              display_name: u.displayName || prev.display_name || "S Tech Member",
+              email: u.email || prev.email,
+            }));
+          }
+        } catch (e) {
+          setProfile((prev) => ({
+            ...prev,
+            firebase_uid: u.uid,
+            display_name: u.displayName || prev.display_name || "S Tech Member",
+            email: u.email || prev.email,
+          }));
+        }
         loadProfile(u);
         loadOrders();
         loadProfileWalletTx();
@@ -752,11 +921,28 @@ export default function UserProfilePage() {
     try {
       const res = await api.get("/user/profile");
       if (res.data?.profile) {
-        setProfile((prev) => ({
-          ...prev,
-          ...res.data.profile,
-          photo_url: res.data.profile.photo_url || prev.photo_url,
-        }));
+        setProfile((prev) => {
+          const updated = {
+            ...prev,
+            ...res.data.profile,
+            photo_url: res.data.profile.photo_url || prev.photo_url,
+          };
+          try {
+            localStorage.setItem("stech_cached_user_profile", JSON.stringify(updated));
+            const hasTg = Boolean(
+              updated.telegram_chat_id ||
+              (updated.telegram && updated.telegram.trim() !== "") ||
+              updated.provider === "telegram" ||
+              updated.firebase_uid?.startsWith("tg_")
+            );
+            if (hasTg) {
+              localStorage.setItem("stech_telegram_connected", "true");
+            } else {
+              localStorage.removeItem("stech_telegram_connected");
+            }
+          } catch (e) {}
+          return updated;
+        });
         if (res.data.profile.photo_url) {
           setAvatarPreview(res.data.profile.photo_url);
         }
@@ -785,6 +971,8 @@ export default function UserProfilePage() {
           setAvatarPreview(currentUser.photoURL);
         }
       }
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -795,8 +983,11 @@ export default function UserProfilePage() {
       const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
       setOrders(list);
       setStats((prev) => ({ ...prev, orders: list.length }));
+      try {
+        localStorage.setItem("stech_cached_orders", JSON.stringify(list));
+      } catch (e) {}
     } catch (e) {
-      setOrders([]);
+      // Keep existing cached orders on temporary error
     } finally {
       setOrdersLoading(false);
     }
@@ -804,7 +995,46 @@ export default function UserProfilePage() {
 
   const isTelegramConnected = Boolean(
     profile.telegram_chat_id ||
-    (profile.telegram && profile.telegram.trim() !== "")
+    (profile.telegram && profile.telegram.trim() !== "") ||
+    profile.provider === "telegram" ||
+    profile.firebase_uid?.startsWith("tg_") ||
+    user?.uid?.startsWith("tg_") ||
+    (typeof window !== "undefined" && (
+      localStorage.getItem("stech_telegram_connected") === "true" ||
+      (() => {
+        try {
+          const s = JSON.parse(localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || "{}");
+          return Boolean(
+            s.telegram_chat_id ||
+            s.telegram_id ||
+            s.telegram ||
+            s.provider === "telegram" ||
+            (s.firebase_uid && s.firebase_uid.startsWith("tg_")) ||
+            (s.id && String(s.id).startsWith("tg_"))
+          );
+        } catch { return false; }
+      })()
+    ))
+  );
+
+  const effectiveTelegramHandle = (
+    profile.telegram ||
+    (typeof window !== "undefined" ? (() => {
+      try {
+        const s = JSON.parse(localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || "{}");
+        return s.telegram || s.username || "";
+      } catch { return ""; }
+    })() : "")
+  );
+
+  const effectiveTelegramChatId = (
+    profile.telegram_chat_id ||
+    (typeof window !== "undefined" ? (() => {
+      try {
+        const s = JSON.parse(localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || "{}");
+        return s.telegram_chat_id || s.telegram_id || (s.id && String(s.id).startsWith("tg_") ? String(s.id).slice(3) : undefined);
+      } catch { return undefined; }
+    })() : undefined)
   );
 
   const isTelegramAuthUser = Boolean(
@@ -817,8 +1047,12 @@ export default function UserProfilePage() {
           try {
             const s1 = JSON.parse(localStorage.getItem("user_session") || "{}");
             const s2 = JSON.parse(localStorage.getItem("stech_user_session") || "{}");
-            return Boolean((s1?.provider === "telegram" && (s1?.telegram_id || s1?.telegram)) ||
-                           (s2?.provider === "telegram" && (s2?.telegram_id || s2?.telegram)));
+            return Boolean(
+              (s1?.provider === "telegram" && (s1?.telegram_id || s1?.telegram)) ||
+              (s2?.provider === "telegram" && (s2?.telegram_id || s2?.telegram)) ||
+              (s1?.firebase_uid && s1.firebase_uid.startsWith("tg_")) ||
+              (s2?.firebase_uid && s2.firebase_uid.startsWith("tg_"))
+            );
           } catch { return false; }
         })()
       ))
@@ -990,17 +1224,32 @@ export default function UserProfilePage() {
       });
 
       if (res.data?.profile) {
-        setProfile((prev) => ({
-          ...prev,
+        const updated = {
+          ...profile,
           ...res.data.profile,
-          email: res.data.profile.email || cleanEmail || prev.email,
-        }));
+          email: res.data.profile.email || cleanEmail || profile.email,
+        };
+        setProfile(updated);
         try {
+          localStorage.setItem("stech_cached_user_profile", JSON.stringify(updated));
+          const hasTg = Boolean(
+            updated.telegram_chat_id ||
+            (updated.telegram && updated.telegram.trim() !== "") ||
+            updated.provider === "telegram" ||
+            updated.firebase_uid?.startsWith("tg_")
+          );
+          if (hasTg) {
+            localStorage.setItem("stech_telegram_connected", "true");
+          } else {
+            localStorage.removeItem("stech_telegram_connected");
+          }
           const sessStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
           if (sessStr) {
             const sessObj = JSON.parse(sessStr);
             if (res.data.profile.email) sessObj.email = res.data.profile.email;
             if (res.data.profile.display_name) sessObj.display_name = res.data.profile.display_name;
+            if (res.data.profile.telegram) sessObj.telegram = res.data.profile.telegram;
+            if (res.data.profile.phone) sessObj.phone = res.data.profile.phone;
             localStorage.setItem("stech_user_session", JSON.stringify(sessObj));
             localStorage.setItem("user_session", JSON.stringify(sessObj));
             window.dispatchEvent(new Event("user_session_updated"));
@@ -1327,6 +1576,11 @@ export default function UserProfilePage() {
         localStorage.removeItem("customer_token");
         localStorage.removeItem("user_session");
         localStorage.removeItem("stech_user_session");
+        localStorage.removeItem("stech_cached_user_profile");
+        localStorage.removeItem("stech_telegram_connected");
+        localStorage.removeItem("stech_cached_orders");
+        localStorage.removeItem("stech_cached_wallet");
+        document.cookie = "customer_token=; path=/; max-age=0;";
         await signOut(auth);
         window.location.href = "/";
       } catch (e) {
@@ -1498,13 +1752,29 @@ export default function UserProfilePage() {
             openedTgTabRef.current = null;
           }
 
-          setProfile((prev) => ({
-            ...prev,
-            telegram: res.data.telegram || prev.telegram,
-            telegram_chat_id: res.data.telegram_id || prev.telegram_chat_id,
-            photo_url: res.data.photo_url || prev.photo_url,
+          const updatedTgProfile = {
+            ...profile,
+            telegram: res.data.telegram || profile.telegram,
+            telegram_chat_id: res.data.telegram_id || profile.telegram_chat_id,
+            photo_url: res.data.photo_url || profile.photo_url,
             notif_telegram: true,
-          }));
+          };
+          setProfile(updatedTgProfile);
+          try {
+            localStorage.setItem("stech_cached_user_profile", JSON.stringify(updatedTgProfile));
+            localStorage.setItem("stech_telegram_connected", "true");
+            const sessStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+            if (sessStr) {
+              const sess = JSON.parse(sessStr);
+              sess.telegram = res.data.telegram || sess.telegram;
+              sess.telegram_id = res.data.telegram_id || sess.telegram_id;
+              sess.telegram_chat_id = res.data.telegram_id || sess.telegram_chat_id;
+              localStorage.setItem("stech_user_session", JSON.stringify(sess));
+              localStorage.setItem("user_session", JSON.stringify(sess));
+              window.dispatchEvent(new Event("user_session_updated"));
+            }
+          } catch (e) {}
+
           if (res.data.photo_url) {
             setAvatarPreview(res.data.photo_url);
           }
@@ -1613,9 +1883,20 @@ export default function UserProfilePage() {
           }));
         }
 
-        // Clean up locally stored session so re-renders don't resurrect telegram state
+        // Clean up locally stored session and profile cache so re-renders don't resurrect telegram state
         if (typeof window !== "undefined") {
           try {
+            localStorage.removeItem("stech_telegram_connected");
+            const cachedProfileStr = localStorage.getItem("stech_cached_user_profile");
+            if (cachedProfileStr) {
+              const cp = JSON.parse(cachedProfileStr);
+              delete cp.telegram;
+              delete cp.telegram_chat_id;
+              if (cp.provider === "telegram") cp.provider = "email";
+              if (newUid) cp.firebase_uid = newUid;
+              localStorage.setItem("stech_cached_user_profile", JSON.stringify(cp));
+            }
+
             const sess = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
             if (sess) {
               const p = JSON.parse(sess);
@@ -2020,7 +2301,7 @@ export default function UserProfilePage() {
                 </div>
                 <p className="text-xs text-gray-300/90 leading-relaxed max-w-xl">
                   {isTelegramConnected
-                    ? `ទទួលបានវិក្កយបត្រ (E-Receipts) ដំណឹងបញ្ជាទិញ និង Login 1-Click ផ្ទាល់ខ្លួន (${profile.telegram ? `@${profile.telegram.replace('@', '')}` : ""} ${profile.telegram_chat_id ? `• ID: ${profile.telegram_chat_id}` : ""})`
+                    ? `ទទួលបានវិក្កយបត្រ (E-Receipts) ដំណឹងបញ្ជាទិញ និង Login 1-Click ផ្ទាល់ខ្លួន${effectiveTelegramHandle ? ` (@${effectiveTelegramHandle.replace('@', '')})` : ""}${effectiveTelegramChatId ? ` • ID: ${effectiveTelegramChatId}` : ""}`
                     : "ភ្ជាប់ជាមួយ Telegram Bot ផ្លូវការរបស់ S Tech ដើម្បីទទួលវិក្កយបត្រ (E-Receipts) និងដំណឹងកុម្ម៉ង់ 24/7 (🛡️ សុវត្ថិភាព 100% មិនទាមទារលេខសម្ងាត់ ឬព័ត៌មានផ្ទាល់ខ្លួន Telegram ឡើយ)"}
                 </p>
               </div>
@@ -2049,6 +2330,11 @@ export default function UserProfilePage() {
                     <Unlink size={14} className="shrink-0 text-red-400" />
                     <span>{telegramUnlinking ? "កំពុងផ្តាច់..." : "ផ្តាច់ Telegram"}</span>
                   </button>
+                </div>
+              ) : profileLoading ? (
+                <div className="w-full sm:w-36 h-10 rounded-xl bg-white/10 animate-pulse flex items-center justify-center gap-2 text-xs text-gray-300 font-medium border border-white/10">
+                  <Loader2 size={14} className="animate-spin text-[#229ED9]" />
+                  <span>កំពុងពិនិត្យ...</span>
                 </div>
               ) : (
                 <button
@@ -4409,6 +4695,10 @@ export default function UserProfilePage() {
                     localStorage.removeItem("stech_user_session");
                     localStorage.removeItem("user_session");
                     localStorage.removeItem("customer_token");
+                    localStorage.removeItem("stech_cached_user_profile");
+                    localStorage.removeItem("stech_telegram_connected");
+                    localStorage.removeItem("stech_cached_orders");
+                    localStorage.removeItem("stech_cached_wallet");
                     document.cookie = "customer_token=; path=/; max-age=0;";
                     signOut(auth);
                     setUser(null);

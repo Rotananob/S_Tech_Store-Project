@@ -570,6 +570,10 @@ export default function Navbar() {
                     localStorage.removeItem("stech_user_session");
                     localStorage.removeItem("user_session");
                     localStorage.removeItem("customer_token");
+                    localStorage.removeItem("stech_cached_user_profile");
+                    localStorage.removeItem("stech_telegram_connected");
+                    localStorage.removeItem("stech_cached_orders");
+                    localStorage.removeItem("stech_cached_wallet");
                     document.cookie = "customer_token=; path=/; max-age=0;";
                     signOut(auth);
                     setUser(null);

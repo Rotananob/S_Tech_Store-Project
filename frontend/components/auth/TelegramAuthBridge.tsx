@@ -55,6 +55,7 @@ export default function TelegramAuthBridge() {
       };
       localStorage.setItem("user_session", JSON.stringify(userObj));
       localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+      localStorage.setItem("stech_telegram_connected", "true");
       if (token) {
         localStorage.setItem("customer_token", token);
         document.cookie = `customer_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
@@ -225,6 +226,7 @@ export default function TelegramAuthBridge() {
               };
               localStorage.setItem("user_session", JSON.stringify(userObj));
               localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+              localStorage.setItem("stech_telegram_connected", "true");
               localStorage.setItem("customer_token", checkRes.data.token);
               document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
               localStorage.removeItem("stech_pending_tg_handshake");
