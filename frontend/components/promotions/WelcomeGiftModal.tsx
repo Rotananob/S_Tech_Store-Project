@@ -44,16 +44,6 @@ export default function WelcomeGiftModal() {
     (typeof document !== "undefined" && document.cookie.includes("stech_admin_token"))
   );
 
-  // Strictly DO NOT render gift modal or floating button inside the Admin portal
-  if (
-    !mounted || 
-    isAdminRoute || 
-    isAdminDom || 
-    (isClient && (window.location.href.includes("rok-mix-khernh") || window.location.pathname.includes("rok-mix-khernh") || window.location.href.includes("master-control")))
-  ) {
-    return null;
-  }
-
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [hasShared, setHasShared] = useState(false);
@@ -235,6 +225,16 @@ export default function WelcomeGiftModal() {
     setIsOpen(false);
     sessionStorage.setItem("stech_dismissed_gift_modal", "true");
   };
+
+  // Strictly DO NOT render gift modal or floating button inside the Admin portal or before mount
+  if (
+    !mounted || 
+    isAdminRoute || 
+    isAdminDom || 
+    (isClient && (window.location.href.includes("rok-mix-khernh") || window.location.pathname.includes("rok-mix-khernh") || window.location.href.includes("master-control")))
+  ) {
+    return null;
+  }
 
   // If user has claimed and modal is closed, don't show floating button
   if (hasClaimed && !isOpen) return null;

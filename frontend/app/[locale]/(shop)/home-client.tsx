@@ -368,8 +368,22 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
   const [activePromo, setActivePromo] = useState<any | null>(null);
+  const [dealProducts, setDealProducts] = useState<any[]>(products);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 7, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    if (products && products.length > 0) {
+      setDealProducts(products);
+    } else {
+      import("@/lib/services/product.service").then(({ getProducts }) => {
+        getProducts({ _t: Date.now(), fresh: 1 }).then((res) => {
+          const list = Array.isArray(res) ? res : (res?.data || []);
+          if (list && list.length > 0) setDealProducts(list);
+        });
+      });
+    }
+  }, [products]);
 
   // Dynamically sync with backend active promotion
   useEffect(() => {
@@ -416,7 +430,7 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
   // If no promotion exists in DB or no products, completely hide the section
   if (!activePromo) return null;
 
-  const promoProducts = (products && products.length > 0 ? products : []).slice(0, 4);
+  const promoProducts = (dealProducts && dealProducts.length > 0 ? dealProducts : []).slice(0, 4);
   if (promoProducts.length === 0) return null;
 
   const handleCopyCode = (code: string) => {
@@ -1338,7 +1352,14 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
 
   useEffect(() => {
     if (initialProducts && initialProducts.length > 0) {
-      setProducts(initialProducts);
+      setProducts((current) => {
+        if (!current || current.length === 0) return initialProducts;
+        if (current.length > initialProducts.length) return current;
+        const currentLatestId = Math.max(...current.map((p) => Number(p.id) || 0));
+        const initialLatestId = Math.max(...initialProducts.map((p) => Number(p.id) || 0));
+        if (currentLatestId > initialLatestId) return current;
+        return initialProducts;
+      });
     }
   }, [initialProducts]);
 
