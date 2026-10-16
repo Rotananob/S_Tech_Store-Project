@@ -104,7 +104,7 @@ class TelegramController extends Controller
         } else {
             $success = TelegramService::connectDirectChat(
                 $validated['chat_id'],
-                $validated['chat_title'] ?? 'S Tech Store Team Group'
+                $validated['chat_title'] ?? null
             );
         }
 

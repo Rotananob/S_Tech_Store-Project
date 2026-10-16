@@ -48,7 +48,6 @@ export default function TelegramBotCard() {
 
   // Manual Direct Connect State
   const [manualChatId, setManualChatId] = useState("");
-  const [manualChatTitle, setManualChatTitle] = useState("");
   const [showManualConnect, setShowManualConnect] = useState(false);
   const [manualConnecting, setManualConnecting] = useState(false);
 
@@ -116,7 +115,7 @@ export default function TelegramBotCard() {
     }
     setManualConnecting(true);
     try {
-      const res = await pairTelegramGroup(manualChatId.trim(), undefined, manualChatTitle.trim() || "Store Group");
+      const res = await pairTelegramGroup(manualChatId.trim());
       if (res.success) {
         showToast("Telegram Group បានភ្ជាប់ជោគជ័យ!");
         fetchStatus(true);
@@ -810,42 +809,58 @@ export default function TelegramBotCard() {
                 </button>
 
                 {showManualConnect && (
-                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3.5">
-                    <p className="text-xs text-slate-500 m-0 leading-relaxed font-medium">
-                      បញ្ចូល Chat ID របស់ Telegram Group ឬ Supergroup (ឧទាហរណ៍: <code>-100xxxxxxxxxx</code>) ដើម្បីភ្ជាប់ភ្លាមៗ៖
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-black text-slate-700 uppercase mb-1.5">Telegram Chat ID</label>
-                        <input
-                          type="text"
-                          value={manualChatId}
-                          onChange={(e) => setManualChatId(e.target.value)}
-                          placeholder="-100xxxxxxxxxx"
-                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-mono font-bold focus:border-slate-900 outline-none transition-colors"
-                        />
+                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-4">
+                    {/* Short & Clear Guide to Get Telegram Group Chat ID */}
+                    <div className="p-3.5 sm:p-4 rounded-xl bg-sky-50/80 border border-sky-200/90 text-xs text-slate-700 space-y-2 leading-relaxed font-medium">
+                      <div className="flex items-center gap-2 font-black text-slate-900">
+                        <Info size={15} className="text-[#0088cc] shrink-0" />
+                        <span>របៀបយក Chat ID របស់ Telegram Group ងាយៗ៖</span>
                       </div>
-                      <div>
-                        <label className="block text-[11px] font-black text-slate-700 uppercase mb-1.5">Group Title / ឈ្មោះគ្រុប</label>
-                        <input
-                          type="text"
-                          value={manualChatTitle}
-                          onChange={(e) => setManualChatTitle(e.target.value)}
-                          placeholder="S Tech Store Team Group"
-                          className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-bold focus:border-slate-900 outline-none transition-colors"
-                        />
+                      <div className="space-y-1.5 pl-5 list-disc text-slate-600 text-[11.5px]">
+                        <div>
+                          <b>វិធីទី១</b>៖ Forward សារណាមួយពី Group របស់បងទៅកាន់ Bot <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-[#0088cc] font-bold underline">@userinfobot</a> ឬ <a href="https://t.me/RawDataBot" target="_blank" rel="noreferrer" className="text-[#0088cc] font-bold underline">@RawDataBot</a> នោះវានឹងបង្ហាញលេខ <b>Id</b> ភ្លាមៗ (ឧ. <code>-100xxxxxxxxxx</code>)។
+                        </div>
+                        <div>
+                          <b>វិធីទី២</b>៖ ចុច Copy Link លើសារណាមួយក្នុង Group (ឧ. <code>https://t.me/c/2481234567/1</code> → លេខ Chat ID គឺគ្រាន់តែថែម <code>-100</code> នៅខាងមុខ គឺ <code>-1002481234567</code>)។
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-sky-800 font-bold bg-white/70 px-2.5 py-1 rounded-lg border border-sky-200/60 inline-block">
+                        💡 ចំណាំ៖ Chat ID របស់ Telegram Group តែងតែចាប់ផ្តើមដោយសញ្ញាដក និងលេខ ១០០ (<code>-100...</code>)
                       </div>
                     </div>
-                    <div className="flex justify-end pt-1">
-                      <button
-                        type="button"
-                        onClick={handleDirectConnect}
-                        disabled={manualConnecting}
-                        className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-2 disabled:opacity-50"
-                      >
-                        <Zap size={14} className={manualConnecting ? "animate-spin" : ""} />
-                        <span>{manualConnecting ? "កំពុងភ្ជាប់..." : "ភ្ជាប់ Group ភ្លាមៗ (Instant Connect)"}</span>
-                      </button>
+
+                    {/* Chat ID Input & Connect Action */}
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <label className="block text-[11px] font-black text-slate-700 uppercase">
+                          Telegram Chat ID
+                        </label>
+                        <span className="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                          <Check size={12} /> Bot នឹងចាប់ឈ្មោះ Group ដោយស្វ័យប្រវត្តិ (Auto-detect)
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={manualChatId}
+                            onChange={(e) => setManualChatId(e.target.value)}
+                            placeholder="-100xxxxxxxxxx"
+                            className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 text-xs font-mono font-bold focus:border-slate-900 outline-none transition-colors"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleDirectConnect}
+                          disabled={manualConnecting}
+                          className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+                        >
+                          <Zap size={14} className={manualConnecting ? "animate-spin" : ""} />
+                          <span>{manualConnecting ? "កំពុងភ្ជាប់..." : "ភ្ជាប់ Group ភ្លាមៗ (Instant Connect)"}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -5814,18 +5814,35 @@ HTML;
     /**
      * Connect chat directly by Chat ID (e.g. from Admin settings)
      */
-    public static function connectDirectChat($chatId, string $chatTitle = 'S Tech Store Group'): bool
+    public static function connectDirectChat($chatId, ?string $chatTitle = null): bool
     {
         $settings = self::getSettings();
         $chatIdStr = (string)$chatId;
+
+        // Auto-fetch real group title from Telegram if not explicitly provided
+        if (empty($chatTitle) || $chatTitle === 'S Tech Store Group' || $chatTitle === 'Store Group') {
+            $token = $settings['bot_token'] ?? config('services.telegram.bot_token');
+            if ($token && !str_contains($token, 'Placeholder')) {
+                try {
+                    $resp = Http::timeout(3)->get("https://api.telegram.org/bot{$token}/getChat", [
+                        'chat_id' => $chatIdStr,
+                    ])->json();
+                    if (!empty($resp['result']['title'])) {
+                        $chatTitle = $resp['result']['title'];
+                    }
+                } catch (\Throwable $e) {}
+            }
+        }
+        if (empty($chatTitle)) {
+            $chatTitle = 'S Tech Store Team Group';
+        }
+
         if (!empty($settings['chat_id']) && (string)$settings['chat_id'] !== $chatIdStr) {
             $settings['topics'] = [];
         }
         $settings['connected'] = true;
         $settings['chat_id'] = $chatIdStr;
-        if (!empty($chatTitle)) {
-            $settings['chat_title'] = $chatTitle;
-        }
+        $settings['chat_title'] = $chatTitle;
         $settings['chat_type'] = 'supergroup';
         $settings['connected_at'] = now()->format('Y-m-d H:i:s');
         $settings['connected_by'] = 'Admin Direct Connect';
