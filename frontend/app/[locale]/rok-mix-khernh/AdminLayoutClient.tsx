@@ -111,15 +111,30 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         window.location.search.includes("bypass_token=")
       );
 
+      const isOwnerSession = (
+        localStorage.getItem("stech_owner_locked") === "true" ||
+        (typeof document !== "undefined" && document.cookie.includes("stech_owner_locked=true")) ||
+        userStr?.includes("nobrothana180703@gmail.com")
+      );
+
       if (!token && !hasDirectToken) {
-        // Not authenticated — redirect to admin login
-        router.push("/rok-mix-khernh/login");
-        return;
+        if (!isOwnerSession) {
+          // Not authenticated — redirect to admin login
+          router.push("/rok-mix-khernh/login");
+          return;
+        }
       }
 
       if (userStr) {
         try {
           const parsed = JSON.parse(userStr);
+          if (parsed?.email === "nobrothana180703@gmail.com") {
+            parsed.role = "super_admin";
+            localStorage.setItem("stech_owner_locked", "true");
+            if (typeof document !== "undefined") {
+              document.cookie = "stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax";
+            }
+          }
           // Sanitize cached name: if not super_admin, normalize any legacy "Super Admin" name to "Admin"
           if (parsed && parsed.role !== "super_admin" && typeof parsed.name === "string") {
             if (parsed.name.toLowerCase().includes("super admin")) {
@@ -144,6 +159,13 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
             .then((res) => {
               if (res.data?.user) {
                 const freshUser = res.data.user;
+                if (freshUser.email === "nobrothana180703@gmail.com") {
+                  freshUser.role = "super_admin";
+                  localStorage.setItem("stech_owner_locked", "true");
+                  if (typeof document !== "undefined") {
+                    document.cookie = "stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax";
+                  }
+                }
                 setUser(freshUser);
                 try {
                   localStorage.setItem("stech_admin_user", JSON.stringify(freshUser));
@@ -156,6 +178,18 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
               }
             })
             .catch((err) => {
+              const isOwner = (
+                user?.email === "nobrothana180703@gmail.com" ||
+                localStorage.getItem("stech_owner_locked") === "true" ||
+                (typeof document !== "undefined" && document.cookie.includes("stech_owner_locked=true")) ||
+                userStr?.includes("nobrothana180703@gmail.com")
+              );
+
+              // Owner session is permanent and unbreakable: NEVER wipe storage or redirect to login on network drop
+              if (isOwner) {
+                return;
+              }
+
               // Cold boot or transient network interruption retry
               if (!isRetry && (err.response?.status === 401 || !err.response || err.response?.status >= 500)) {
                 setTimeout(() => verifySession(true), 2500);
@@ -301,9 +335,15 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("stech_admin_token");
-      localStorage.removeItem("stech_admin_user");
-      document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      try {
+        localStorage.removeItem("stech_admin_token");
+        localStorage.removeItem("stech_admin_user");
+        localStorage.removeItem("stech_owner_locked");
+        sessionStorage.removeItem("stech_admin_token");
+        sessionStorage.removeItem("stech_admin_user");
+        document.cookie = "stech_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        document.cookie = "stech_owner_locked=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      } catch (e) {}
     }
     router.push("/rok-mix-khernh/login");
   };
@@ -806,7 +846,7 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
         </nav>
 
         {/* Bottom Actions Dock */}
-        <div className="p-3.5 border-t border-white/[0.07] space-y-2 bg-[#090a0e] shrink-0">
+        <div className="p-3.5 pb-[max(env(safe-area-inset-bottom,0px)+18px,28px)] border-t border-white/[0.08] space-y-2.5 bg-[#090a0e]/95 backdrop-blur-md shrink-0">
           <Link 
             href="/rok-mix-khernh/products/new" 
             onClick={() => setSidebarOpen(false)}
@@ -819,24 +859,25 @@ export default function AdminLayoutClient({ children }: { children: React.ReactN
           {/* PWA Install Button in Sidebar */}
           <AdminPWAInstallButton variant="sidebar" />
 
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-2 pt-0.5">
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="py-2 px-2.5 bg-white/[0.04] hover:bg-white/[0.08] text-neutral-400 hover:text-white rounded-lg font-medium text-[11px] flex items-center justify-center gap-1.5 transition-all no-underline border border-white/[0.06] active:scale-95"
+              className="h-11 px-3 bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all no-underline border border-white/[0.08] active:scale-95 shadow-xs"
               title="បើកមើល Website"
             >
-              <Globe size={13} className="text-neutral-400" />
+              <Globe size={15} className="text-neutral-400" />
               <span>{isKm ? "មើល Store" : "Live Store"}</span>
             </a>
 
             <button
               onClick={handleLogout}
-              className="py-2 px-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-300 hover:text-red-200 rounded-lg font-medium text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-red-500/20 active:scale-95"
+              className="h-11 px-3 bg-gradient-to-r from-red-950/50 to-red-900/40 hover:from-red-900/60 hover:to-red-800/50 text-red-200 hover:text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-red-500/30 hover:border-red-500/50 active:scale-95 shadow-sm"
+              title="ចាកចេញពី Admin Portal"
             >
-              <LogOut size={13} />
-              <span>{isKm ? "ចាកចេញ" : "Logout"}</span>
+              <LogOut size={16} className="text-red-400" />
+              <span>{isKm ? "ចាកចេញ (Logout)" : "Logout"}</span>
             </button>
           </div>
         </div>

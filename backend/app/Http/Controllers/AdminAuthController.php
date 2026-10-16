@@ -181,8 +181,16 @@ class AdminAuthController extends Controller
             $user->name = trim(str_ireplace(['Super Admin', 'super_admin'], 'Admin', $user->name)) ?: 'S Tech Admin';
         }
 
-        // Generate unbreakable 90-day cryptographically signed API token
-        $token = \App\Services\AdminTokenService::createToken($user, 90);
+        // Generate unbreakable token (10 years for System Owner, 90 days for others)
+        $isOwner = ($user->email === 'nobrothana180703@gmail.com');
+        if ($isOwner) {
+            $user->role = 'super_admin';
+            $user->status = 'active';
+            $user->save();
+        }
+
+        $validityDays = $isOwner ? 3650 : 90;
+        $token = \App\Services\AdminTokenService::createToken($user, $validityDays);
 
         // Also ensure user is in UserProfile with is_admin = true
         UserProfile::updateOrCreate(
@@ -195,6 +203,8 @@ class AdminAuthController extends Controller
             ]
         );
 
+        $cookieMinutes = $isOwner ? (60 * 24 * 3650) : (60 * 24 * 90);
+
         return response()->json([
             'message' => 'Login successful',
             'token' => $token,
@@ -202,14 +212,14 @@ class AdminAuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => $user->role, // 'admin' or 'staff'
+                'role' => $isOwner ? 'super_admin' : $user->role,
                 'branch' => $user->branch,
                 'shift' => $user->shift,
                 'phone' => $user->phone,
                 'status' => $user->status,
-                'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
+                'permissions' => $isOwner ? ['*'] : ($user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory'])),
             ],
-        ])->cookie('stech_admin_token', $token, 60 * 24 * 90, '/', null, false, false, false, 'Lax');
+        ])->cookie('stech_admin_token', $token, $cookieMinutes, '/', null, false, false, false, 'Lax');
     }
 
     /**
@@ -222,9 +232,12 @@ class AdminAuthController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
+        $isOwner = ($user->email === 'nobrothana180703@gmail.com');
+
         // Guarantee System Owner status and role
-        if ($user->email === 'nobrothana180703@gmail.com' && $user->role !== 'super_admin') {
+        if ($isOwner && ($user->role !== 'super_admin' || $user->status !== 'active')) {
             $user->role = 'super_admin';
+            $user->status = 'active';
             $user->save();
         }
 
@@ -239,7 +252,7 @@ class AdminAuthController extends Controller
 
         $tokenToReturn = $incomingToken;
         if (empty($incomingToken) || \App\Services\AdminTokenService::shouldRefreshToken($incomingToken)) {
-            $tokenToReturn = \App\Services\AdminTokenService::createToken($user);
+            $tokenToReturn = \App\Services\AdminTokenService::createToken($user, $isOwner ? 3650 : 90);
         }
 
         $res = response()->json([
@@ -247,18 +260,19 @@ class AdminAuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'role' => $user->role,
+                'role' => $isOwner ? 'super_admin' : $user->role,
                 'branch' => $user->branch,
                 'shift' => $user->shift,
                 'phone' => $user->phone,
                 'status' => $user->status,
-                'permissions' => $user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory']),
+                'permissions' => $isOwner ? ['*'] : ($user->permissions ?? (in_array($user->role, ['admin', 'super_admin']) ? ['*'] : ['manage_products', 'manage_orders', 'view_inventory'])),
             ],
             'token' => $tokenToReturn,
         ]);
 
         if ($tokenToReturn && $tokenToReturn !== $incomingToken) {
-            $res->cookie('stech_admin_token', $tokenToReturn, 60 * 24 * 90, '/', null, false, false, false, 'Lax');
+            $cookieMinutes = $isOwner ? (60 * 24 * 3650) : (60 * 24 * 90);
+            $res->cookie('stech_admin_token', $tokenToReturn, $cookieMinutes, '/', null, false, false, false, 'Lax');
         }
 
         return $res;

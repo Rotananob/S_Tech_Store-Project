@@ -35,18 +35,27 @@ export default function AdminLoginPage() {
 
       const { token, user } = res.data;
 
-      // Persist auth session (90 days unbreakable signed session)
+      const isOwner = user.role === "super_admin" || user.email === "nobrothana180703@gmail.com";
+      if (isOwner) {
+        user.role = "super_admin";
+      }
+
+      // Persist auth session (10 years for System Owner, 90 days for staff)
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem("stech_admin_token", token);
           localStorage.setItem("stech_admin_user", JSON.stringify(user));
           sessionStorage.setItem("stech_admin_token", token);
           sessionStorage.setItem("stech_admin_user", JSON.stringify(user));
-          document.cookie = `stech_admin_token=${token}; path=/; max-age=7776000; SameSite=Lax`;
+          if (isOwner) {
+            localStorage.setItem("stech_owner_locked", "true");
+            document.cookie = `stech_admin_token=${token}; path=/; max-age=315360000; SameSite=Lax`;
+            document.cookie = `stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax`;
+          } else {
+            document.cookie = `stech_admin_token=${token}; path=/; max-age=7776000; SameSite=Lax`;
+          }
         } catch (e) {}
       }
-
-      const isOwner = user.role === "super_admin" || user.email === "nobrothana180703@gmail.com";
       const cleanName = !isOwner && user.name ? user.name.replace(/Super Admin/gi, "Admin") : (user.name || "Admin");
       const roleLabel = isOwner ? "OWNER" : user.role === "admin" ? "ADMIN" : "STAFF";
       setSuccessMsg(`សូមស្វាគមន៍ ${cleanName} • [${roleLabel}]! កំពុងចូលប្រព័ន្ធ...`);
