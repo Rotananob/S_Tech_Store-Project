@@ -81,8 +81,7 @@
   font-style: normal;
 }
 
-html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"],
-html[data-font="kantumruy"], body[data-font="kantumruy"], [data-font="kantumruy"] {
+html[data-font="noto-sans"], body[data-font="noto-sans"], [data-font="noto-sans"] {
   font-family: var(--font-khmer), 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif !important;
 }
 
@@ -121,7 +120,7 @@ body {
   font-family: var(--font-khmer), 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, Roboto, sans-serif;
   background: var(--bg-white);
   color: var(--text-dark);
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -141,18 +140,25 @@ img { max-width: 100%; display: block; }
 
 /* ─── Typography ──────────────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-latin), 'Plus Jakarta Sans', var(--font-khmer), 'Noto Sans Khmer', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
 }
 
 /* ─── Khmer Fonts ──────────────────────────────────────────────────────────── */
 .font-khmer {
-  font-family: var(--font-khmer), 'Kantumruy Pro', sans-serif;
-  font-weight: 400;
-  line-height: 1.7;
+  font-family: var(--font-khmer), 'Noto Sans Khmer', var(--font-latin), 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500;
+  line-height: 1.65;
   letter-spacing: 0.005em;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+input::placeholder, textarea::placeholder {
+  line-height: 1.5;
 }
 .font-dangrek {
   font-family: 'Dangrek', cursive;

@@ -17,7 +17,7 @@ function ProductsContent() {
 
   useEffect(() => {
     setLoading(true);
-    api.get("/products")
+    api.get("/products", { params: { fresh: 1, _t: Date.now() } })
       .then((res) => {
         let allProducts = Array.isArray(res.data) ? res.data : (res.data?.data || []);
 
@@ -37,6 +37,49 @@ function ProductsContent() {
         console.error(err);
         setLoading(false);
       });
+
+    const handleProductUpdated = (e: any) => {
+      const updated = e.detail || e;
+      if (!updated || !updated.id) return;
+      const numId = Number(updated.id);
+      setProducts((prev) => {
+        const exists = prev.some((p) => Number(p.id) === numId);
+        if (exists) {
+          return prev.map((p) => (Number(p.id) === numId ? { ...p, ...updated } : p));
+        }
+        return [updated, ...prev];
+      });
+    };
+
+    const handleProductDeleted = (e: any) => {
+      const delId = e.detail?.id ?? e.productId ?? e.detail?.rawId ?? e;
+      if (!delId) return;
+      const numId = Number(delId);
+      setProducts((prev) => prev.filter((p) => Number(p.id) !== numId && p.slug !== String(delId)));
+    };
+
+    window.addEventListener("stech:product-updated", handleProductUpdated as EventListener);
+    window.addEventListener("stech:product-deleted", handleProductDeleted as EventListener);
+
+    let channel: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("stech_products_channel");
+        channel.onmessage = (event) => {
+          if (event.data?.type === "PRODUCT_UPDATED" && event.data.product) {
+            handleProductUpdated({ detail: event.data.product });
+          } else if (event.data?.type === "PRODUCT_DELETED") {
+            handleProductDeleted({ detail: { id: event.data.productId, rawId: event.data.rawId } });
+          }
+        };
+      }
+    } catch (_) {}
+
+    return () => {
+      window.removeEventListener("stech:product-updated", handleProductUpdated as EventListener);
+      window.removeEventListener("stech:product-deleted", handleProductDeleted as EventListener);
+      if (channel) channel.close();
+    };
   }, [sort]);
 
   return (

@@ -57,8 +57,8 @@ function getBaseUrl(): string {
     return "https://stech-backend-xz6j.onrender.com/api";
   }
 
-  // 5. Local dev SSR fallback
-  return "http://127.0.0.1:8000/api";
+  // 5. Default SSR fallback to live cloud backend
+  return "https://stech-backend-xz6j.onrender.com/api";
 }
 
 function normalizeProduct(p: any): Product {
@@ -265,7 +265,7 @@ export function removeProductFromCache(productId: number | string): void {
 }
 
 export async function getProducts(params?: Record<string, any>): Promise<Product[] | ApiResponse<Product[]>> {
-  const isGlobalCatalog = !params || Object.keys(params).length === 0;
+  const isGlobalCatalog = !params || Object.keys(params).length === 0 || Object.keys(params).every(k => k === '_t' || k === 'fresh' || k === 'cache_bust');
   const isForcedFresh = Boolean(params?._t || params?.fresh);
 
   // Instant client cache return for fast navigation without redundant DB roundtrips (bypassed if forced fresh)

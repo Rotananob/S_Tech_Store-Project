@@ -891,6 +891,14 @@ export function ProductCard({ product }: { product: any }) {
   const [isShaking, setIsShaking] = useState(false);
   const [imgError, setImgError] = useState(false);
 
+  const numPrice = Number(product.price || 0);
+  const numSalePrice = (product.sale_price !== null && product.sale_price !== undefined && Number(product.sale_price) > 0 && Number(product.sale_price) < numPrice)
+    ? Number(product.sale_price)
+    : null;
+  const effectivePrice = numSalePrice !== null ? numSalePrice : numPrice;
+  const hasDiscount = numSalePrice !== null;
+  const discountPercent = hasDiscount ? Math.round(((numPrice - numSalePrice!) / numPrice) * 100) : null;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -910,7 +918,7 @@ export function ProductCard({ product }: { product: any }) {
     addItem({
       id: Number(product.id),
       name: product.name,
-      price: product.price,
+      price: effectivePrice,
       quantity: 1,
       image_url: product.image_url || product.image
     });
@@ -927,8 +935,14 @@ export function ProductCard({ product }: { product: any }) {
         whileHover={{ y: -6 }}
         className="bg-white dark:bg-[#151922] rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 relative border border-gray-100 dark:border-white/10 hover:border-red-200 dark:hover:border-red-500/30 flex flex-col h-full group"
       >
-        {/* Hot / Featured Badge */}
-        {product.is_featured ? (
+        {/* Hot / Featured / Discount Badge */}
+        {hasDiscount ? (
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1">
+            <span className="bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md uppercase tracking-wider">
+              -{discountPercent}%
+            </span>
+          </div>
+        ) : product.is_featured ? (
           <div className="absolute top-3 left-3 z-10">
             <span className="bg-gradient-to-r from-[#8B1A1A] to-[#c0392b] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-md uppercase tracking-wider">
               {t("hot")}
@@ -977,11 +991,23 @@ export function ProductCard({ product }: { product: any }) {
           <div className="mt-auto pt-3 border-t border-gray-100 dark:border-white/10 flex flex-col gap-2.5">
             <div className="flex items-baseline justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="text-[17px] sm:text-[19px] xl:text-[20px] font-black text-[#8B1A1A] dark:text-red-400 leading-tight drop-shadow-sm font-mono truncate">
-                  {formatUSD(product.price)}
+                <div className="flex items-baseline gap-2">
+                  <div className="text-[17px] sm:text-[19px] xl:text-[20px] font-black text-[#8B1A1A] dark:text-red-400 leading-tight drop-shadow-sm font-mono truncate">
+                    {formatUSD(effectivePrice)}
+                  </div>
+                  {hasDiscount && (
+                    <div className="text-xs text-gray-400 dark:text-gray-500 line-through font-mono">
+                      {formatUSD(numPrice)}
+                    </div>
+                  )}
                 </div>
-                <div className="text-[11px] text-gray-400 dark:text-gray-400 font-semibold mt-0.5 truncate">
-                  {formatKHR(product.price)}
+                <div className="text-[11px] text-gray-400 dark:text-gray-400 font-semibold mt-0.5 truncate flex items-center gap-1.5">
+                  <span>{formatKHR(effectivePrice)}</span>
+                  {hasDiscount && (
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      បញ្ចុះតម្លៃពិសេស
+                    </span>
+                  )}
                 </div>
               </div>
               <Link 
@@ -1053,7 +1079,13 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
       const updated = e.detail || e;
       if (!updated || !updated.id) return;
       const numId = Number(updated.id);
-      setProducts(prev => prev.map(p => Number(p.id) === numId ? { ...p, ...updated } : p));
+      setProducts((prev) => {
+        const exists = prev.some((p) => Number(p.id) === numId);
+        if (exists) {
+          return prev.map((p) => (Number(p.id) === numId ? { ...p, ...updated } : p));
+        }
+        return [updated, ...prev];
+      });
     };
 
     const handleProductDeleted = (e: any) => {

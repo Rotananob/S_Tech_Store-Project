@@ -311,9 +311,8 @@ const PRESET_AVATARS = [
 ];
 
 const FONT_SYSTEMS = [
-  { id: "kantumruy", name: "Kantumruy Pro (Modern Khmer • Recommended)", sample: "ហាងកុំព្យូទ័រ អេស តិច ស្ត័រ (S Tech Store)" },
+  { id: "noto-sans", name: "Noto Sans Khmer (Modern Professional • Recommended)", sample: "ហាងកុំព្យូទ័រ អេស តិច ស្ត័រ (S Tech Store)" },
   { id: "koh-santepheap", name: "Koh Santepheap (Clean Khmer)", sample: "គុណភាពស្តង់ដារ និងការធានាផ្លូវការ" },
-  { id: "noto-sans", name: "Noto Sans Khmer (Google Standard)", sample: "សេវាកម្មដំឡើង និងជួសជុលរហ័ស" },
   { id: "battambang", name: "Battambang (Classic Khmer)", sample: "ទំនុកចិត្ត គុណភាព និងតម្លៃសមរម្យ" },
   { id: "inter", name: "Modern Inter / English First", sample: "S Tech Store Cambodia 2026" },
 ];
@@ -829,7 +828,8 @@ export default function UserProfilePage() {
   // Load persisted font preference
   useEffect(() => {
     try {
-      const savedFont = localStorage.getItem("stech_font_system") || "kantumruy";
+      const saved = localStorage.getItem("stech_font_system");
+      const savedFont = (!saved || saved === "kantumruy") ? "noto-sans" : saved;
       setSelectedFont(savedFont);
       document.documentElement.setAttribute("data-font", savedFont);
     } catch (e) {}

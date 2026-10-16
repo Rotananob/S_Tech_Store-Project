@@ -832,6 +832,7 @@ export default function AdminRealtimeChatPage() {
                   messages.map((msg) => {
                     const isStaff = msg.sender === "admin" || msg.sender === "staff";
                     const isSystem = msg.sender === "system";
+                    const isBot = msg.sender === "bot";
 
                     if (isSystem) {
                       return (
@@ -856,6 +857,11 @@ export default function AdminRealtimeChatPage() {
                               <ShieldCheck size={11} className="text-[#8B1A1A]" />
                               <span>{msg.senderName} (Staff)</span>
                             </>
+                          ) : isBot ? (
+                            <>
+                              <Bot size={11} className="text-indigo-600" />
+                              <span className="text-indigo-600 font-extrabold">S Tech AI (Bot)</span>
+                            </>
                           ) : (
                             <span>{activeChat.userName}</span>
                           )}
@@ -866,6 +872,8 @@ export default function AdminRealtimeChatPage() {
                           className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-[13px] leading-relaxed shadow-xs ${
                             isStaff
                               ? "bg-gradient-to-r from-[#8B1A1A] to-red-700 text-white rounded-tr-xs"
+                              : isBot
+                              ? "bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 border border-indigo-200/60 dark:border-indigo-800/40 rounded-tl-xs shadow-xs"
                               : "bg-white text-gray-900 border border-gray-200 rounded-tl-xs shadow-xs"
                           }`}
                         >

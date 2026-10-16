@@ -10,11 +10,11 @@ export const mockCategories = [
   { id: 6, name: "Accessories", slug: "accessories", icon: "🔌", count: 65 },
 ];
 
-export const USD_TO_KHR = 4060;
+export const USD_TO_KHR = 4100;
 
 export function toKHR(usd: number): string {
   const khr = Math.round(usd * USD_TO_KHR);
-  return `~${khr.toLocaleString()} ៛`;
+  return `≈ ${khr.toLocaleString()} ៛`;
 }
 
 export const mockProducts = [

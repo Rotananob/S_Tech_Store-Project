@@ -964,8 +964,19 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     if (!chatId) return;
     const unsub = subscribeToChatMeta(chatId, (meta) => {
       if (meta) {
-        setIsAiPaused(!!meta.ai_paused);
-        setPausedByStaff(meta.paused_by || "S Tech Staff");
+        // If staff paused AI more than 20 minutes ago, auto-unpause so customer is not ignored
+        const pausedAt = (meta as any).paused_at || 0;
+        const isStalePause = meta.ai_paused && pausedAt > 0 && (Date.now() - pausedAt > 20 * 60 * 1000);
+        if (isStalePause) {
+          import("@/lib/services/chat.service").then(({ setChatAiStatus }) => {
+            setChatAiStatus(chatId, false, "System Auto-Resume").catch(() => {});
+          });
+          setIsAiPaused(false);
+          setPausedByStaff("");
+        } else {
+          setIsAiPaused(!!meta.ai_paused);
+          setPausedByStaff(meta.paused_by || "S Tech Staff");
+        }
       } else {
         setIsAiPaused(false);
         setPausedByStaff("");
@@ -974,7 +985,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     return () => unsub();
   }, [chatId]);
 
-  // ─── Subscribe to real-time messages from Firebase RTDB (Both User & Staff) ───
+  // ─── Subscribe to real-time messages from Firebase RTDB (Both User, Bot & Staff) ───
   useEffect(() => {
     if (!chatId || !activeSessionId) return;
 
@@ -999,20 +1010,6 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
               (cleanText && existingSignatures.has(sig));
 
             if (isAlreadyPresent) {
-              continue;
-            }
-
-            // Check if this message belongs to this customer session / live chat room
-            const isForThisSession =
-              !m.sessionId ||
-              m.sessionId === activeSessionId ||
-              isAiPaused ||
-              m.sender === "admin" ||
-              m.sender === "staff" ||
-              m.sender === "system" ||
-              (m.timestamp && Date.now() - m.timestamp < 7 * 24 * 3600 * 1000);
-
-            if (!isForThisSession) {
               continue;
             }
 
@@ -1047,22 +1044,20 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
               if (m.id) existingIds.add(m.id);
               hasChanges = true;
             } else if (m.sender === "bot") {
-              // Restore bot replies if matching active session
-              if (m.sessionId === activeSessionId) {
-                merged.push({
-                  id: m.id,
-                  sender: "bot",
-                  senderName: m.senderName || "S Tech AI",
-                  text: m.text,
-                  timestamp: m.timestamp || Date.now(),
-                  time: m.timestamp
-                    ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                    : "",
-                });
-                if (cleanText) existingSignatures.add(sig);
-                if (m.id) existingIds.add(m.id);
-                hasChanges = true;
-              }
+              // Restore all bot replies seamlessly across all sessions
+              merged.push({
+                id: m.id,
+                sender: "bot",
+                senderName: m.senderName || "S Tech AI",
+                text: m.text,
+                timestamp: m.timestamp || Date.now(),
+                time: m.timestamp
+                  ? new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+              });
+              if (cleanText) existingSignatures.add(sig);
+              if (m.id) existingIds.add(m.id);
+              hasChanges = true;
             }
           }
 
@@ -1370,6 +1365,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         senderName: "S Tech AI",
         text: fallbackText,
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: Date.now(),
         suggestAgent: shouldSuggestAgent,
       };
       setMessages((prev) => {
@@ -1379,6 +1375,23 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         }
         return [...prev, fallbackMsg];
       });
+
+      // Also persist fallback reply into Firebase RTDB
+      if (chatId) {
+        sendChatMessage(
+          chatId,
+          {
+            sender: "bot",
+            senderName: "S Tech AI",
+            text: fallbackText,
+            sessionId: activeSessionId,
+          },
+          {
+            userName: userName,
+            sessionId: activeSessionId,
+          }
+        ).catch(() => {});
+      }
     } finally {
       setIsAiThinking(false);
       triggerHapticNotification("success");
@@ -1664,11 +1677,23 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-1 flex-shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-            <span>👤 {pausedByStaff || "ក្រុមការងារ S Tech"} កំពុងឆ្លើយតបផ្ទាល់ (AI ត្រូវបានផ្អាកបណ្តោះអាសន្ន)</span>
+            <span>👤 {pausedByStaff || "ក្រុមការងារ S Tech"} កំពុងឆ្លើយតបផ្ទាល់</span>
           </div>
-          <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded-full uppercase tracking-wider font-extrabold">
-            Live Staff Active
-          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (chatId) {
+                import("@/lib/services/chat.service").then(({ setChatAiStatus }) => {
+                  setChatAiStatus(chatId, false, userName || "អតិថិជន").catch(() => {});
+                  setIsAiPaused(false);
+                  setPausedByStaff("");
+                });
+              }
+            }}
+            className="text-[10px] bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-full uppercase tracking-wider font-extrabold cursor-pointer border border-white/30 transition-colors"
+          >
+            ប្តូរទៅ AI វិញ
+          </button>
         </div>
       )}
 

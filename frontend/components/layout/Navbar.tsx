@@ -352,7 +352,7 @@ export default function Navbar() {
             <form onSubmit={handleSearch} className="relative w-full flex items-center">
               <input
                 type="search"
-                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full pl-11 pr-20 h-10 text-[14px] text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 focus:bg-white dark:focus:bg-[#161a25] focus:shadow-sm transition-all"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full pl-11 pr-20 h-11 py-2 text-[14px] leading-relaxed text-gray-900 dark:text-white outline-none focus:border-[#8B1A1A] dark:focus:border-red-500 focus:bg-white dark:focus:bg-[#161a25] focus:shadow-sm transition-all placeholder:leading-relaxed font-khmer placeholder:font-khmer placeholder:text-gray-400"
                 placeholder={t('searchPlaceholder')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -630,7 +630,7 @@ export default function Navbar() {
         <form onSubmit={handleSearch} className="relative w-full flex items-center">
           <input
             type="search"
-            className="w-full bg-gray-100/90 dark:bg-white/[0.08] border border-transparent focus:border-[#8B1A1A]/30 rounded-2xl pl-11 pr-20 h-[40px] leading-normal text-[14px] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:bg-white dark:focus:bg-[#161a25] transition-all shadow-xs"
+            className="w-full bg-gray-100/90 dark:bg-white/[0.08] border border-transparent focus:border-[#8B1A1A]/30 rounded-2xl pl-11 pr-20 h-11 py-2 leading-relaxed text-[14px] text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:bg-white dark:focus:bg-[#161a25] transition-all shadow-xs placeholder:leading-relaxed font-khmer placeholder:font-khmer placeholder:text-gray-400"
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
