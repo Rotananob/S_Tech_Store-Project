@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useRouter } from "@/i18n/routing";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { 
@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { formatUSD, formatKHR } from "@/lib/mock-data";
 import { useCartStore } from "@/store/cartStore";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getEffectiveUser } from "@/lib/auth-user";
@@ -69,6 +69,18 @@ const dropCardVariants: Variants = {
 };
 
 const DEFAULT_HERO_SLIDES = [
+  {
+    title: "🎉 មហាប្រូម៉ូសិន ភ្ជុំបិណ្ឌ & Mega Deals",
+    desc: "បញ្ចុះតម្លៃពិសេសរហូតដល់ 35% លើផលិតផលបច្ចេកវិទ្យាគ្រប់ប្រភេទ 100% Genuine ធានាផ្លូវការ!",
+    image: "/images/pchum-ben-promo.jpg",
+    alt: "Pchum Ben Mega Festival Sale",
+    badge: "🔥 PCHUM2026 • 35% OFF",
+    isGrandFestival: true,
+    isPromo: true,
+    promoCode: "PCHUM2026",
+    link: "/category/all",
+    ctaText: "ទិញឥឡូវនេះ (Shop Now)"
+  },
   {
     title: "Next-Gen Laptops & Gear",
     desc: "Top-tier performance, 100% Genuine with Official Warranty.",
@@ -142,7 +154,8 @@ export function HeroSection() {
             link: p.target_url || "/category/all",
             ctaText: "ទិញឥឡូវនេះ (Shop Now)",
           }));
-          setSlides([...promoSlides, ...DEFAULT_HERO_SLIDES]);
+          const nonPromoDefaults = DEFAULT_HERO_SLIDES.filter(s => !(s as any).isPromo);
+          setSlides([...promoSlides, ...nonPromoDefaults]);
         } else {
           // Fallback to active-popup if hero-banners is empty
           api.get("/promotions/active-popup").then((popupRes) => {
@@ -161,13 +174,10 @@ export function HeroSection() {
                 link: p.target_url || "/category/all",
                 ctaText: "ទិញឥឡូវនេះ (Shop Now)",
               };
-              setSlides([dynamicSlide, ...DEFAULT_HERO_SLIDES]);
-            } else {
-              setSlides(DEFAULT_HERO_SLIDES);
+              const nonPromoDefaults = DEFAULT_HERO_SLIDES.filter(s => !(s as any).isPromo);
+              setSlides([dynamicSlide, ...nonPromoDefaults]);
             }
-          }).catch(() => {
-            if (mounted) setSlides(DEFAULT_HERO_SLIDES);
-          });
+          }).catch(() => {});
         }
       })
       .catch(() => {});
@@ -364,11 +374,60 @@ export function HeroSection() {
 }
 
 // ─── Special Promotion Deals Component (Placed between Banner & Categories) ──
+const DEFAULT_ACTIVE_PROMO = {
+  id: "pchum-ben-2026",
+  name: "Pchum Ben Mega Festival Sale",
+  description: "ការបញ្ចុះតម្លៃពិសេសរហូតដល់ 35% លើផលិតផលបច្ចេកវិទ្យាគ្រប់ប្រភេទ ជាមួយកាដូ និងការធានាផ្លូវការ!",
+  code: "PCHUM2026",
+  type: "percentage",
+  value: 35,
+  valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+};
+
+const DEFAULT_DEAL_PRODUCTS = [
+  {
+    id: 991,
+    name: "ROG Zephyrus G16 (2026) Ultra 9 RTX 4080",
+    slug: "rog-zephyrus-g16-ultra-9",
+    price: 2499,
+    sale_price: 2199,
+    image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600&auto=format&fit=crop",
+    category: { name: "Laptops" },
+  },
+  {
+    id: 992,
+    name: "Custom Liquid-Cooled Beast PC Intel i9 14900KS",
+    slug: "custom-liquid-cooled-beast-pc",
+    price: 3200,
+    sale_price: 2799,
+    image_url: "https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=600&auto=format&fit=crop",
+    category: { name: "Desktops" },
+  },
+  {
+    id: 993,
+    name: "NVIDIA GeForce RTX 4090 OC 24GB GDDR6X",
+    slug: "geforce-rtx-4090-oc-24gb",
+    price: 1899,
+    sale_price: 1699,
+    image_url: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=600&auto=format&fit=crop",
+    category: { name: "Components" },
+  },
+  {
+    id: 994,
+    name: "Samsung Odyssey OLED G9 49\" 240Hz Curved",
+    slug: "samsung-odyssey-oled-g9-49",
+    price: 1599,
+    sale_price: 1299,
+    image_url: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?q=80&w=600&auto=format&fit=crop",
+    category: { name: "Monitors" },
+  },
+];
+
 export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
-  const [activePromo, setActivePromo] = useState<any | null>(null);
-  const [dealProducts, setDealProducts] = useState<any[]>(products);
+  const [activePromo, setActivePromo] = useState<any>(DEFAULT_ACTIVE_PROMO);
+  const [dealProducts, setDealProducts] = useState<any[]>(products && products.length > 0 ? products : DEFAULT_DEAL_PRODUCTS);
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 7, hours: 0, minutes: 0, seconds: 0 });
 
@@ -392,11 +451,9 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
       .then((res) => {
         if (!mounted) return;
         const p = (res.data?.success && res.data?.promo) ? res.data.promo : null;
-        setActivePromo(p);
+        if (p) setActivePromo(p);
       })
-      .catch(() => {
-        if (mounted) setActivePromo(null);
-      });
+      .catch(() => {});
     return () => {
       mounted = false;
     };
@@ -427,11 +484,12 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
     return () => clearInterval(interval);
   }, [activePromo]);
 
-  // If no promotion exists in DB or no products, completely hide the section
-  if (!activePromo) return null;
-
-  const promoProducts = (dealProducts && dealProducts.length > 0 ? dealProducts : []).slice(0, 4);
-  if (promoProducts.length === 0) return null;
+  const candidateList = dealProducts && dealProducts.length > 0 ? dealProducts : DEFAULT_DEAL_PRODUCTS;
+  const promoProducts = [...candidateList].sort((a, b) => {
+    const aSale = (a.sale_price && Number(a.sale_price) < Number(a.price)) ? 1 : 0;
+    const bSale = (b.sale_price && Number(b.sale_price) < Number(b.price)) ? 1 : 0;
+    return bSale - aSale;
+  }).slice(0, 4);
 
   const handleCopyCode = (code: string) => {
     if (code) {
@@ -851,6 +909,8 @@ const resolveCategory = (c: any): CategoryConfig & { raw: any } => {
 
 export function CategorySection({ categories: initialCategories = [] }: { categories?: any[] }) {
   const [categories, setCategories] = useState<any[]>(initialCategories);
+  const locale = useLocale();
+  const isKm = locale === "km";
 
   // Client background sync to ensure fresh categories from Neon DB
   useEffect(() => {
@@ -997,29 +1057,45 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
     <section className="bg-white dark:bg-[#0c0e12] py-6 sm:py-10 border-b border-gray-100 dark:border-white/5 transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         
-        {/* ── Section Header with High-Tech Pill & Khmer Typography ────────────────── */}
+        {/* ── Section Header with High-Tech Luxury Button Pill ────────────────── */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-red-500/10 dark:bg-red-500/15 border border-red-500/20 mb-2 shadow-2xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 dark:bg-red-500/15 border border-red-500/20 mb-2 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse shadow-sm shadow-red-500" />
-              <span className="text-[10.5px] sm:text-xs font-black text-red-700 dark:text-red-400 uppercase tracking-widest font-khmer">
-                S-Tech Categories • ជម្រើសសម្ភារបច្ចេកវិទ្យា
+              <span className="text-[11px] font-black text-red-700 dark:text-red-400 uppercase tracking-widest font-khmer">
+                {isKm ? "S-TECH • ជម្រើសសម្ភារបច្ចេកវិទ្យា" : "S-TECH • Official Categories"}
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-normal font-khmer flex items-center gap-2">
-              <span>ទិញតាមប្រភេទផលិតផល</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-1 font-khmer">
-              ជ្រើសរើសប្រភេទឧបករណ៍ដែលអ្នកត្រូវការ ជាមួយការធានាផ្លូវការ និងតម្លៃពិសេស
+
+            {/* Luxury 3D Action Button for Category Header */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Link
+                href="/category/all"
+                className="group relative inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#8B1A1A] text-white shadow-md hover:shadow-xl hover:shadow-red-900/30 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 no-underline border border-red-400/40"
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-300 animate-ping" />
+                <h2 className="text-base sm:text-xl lg:text-2xl font-black text-white tracking-wide m-0 p-0 flex items-center gap-2 font-khmer">
+                  <span>{isKm ? "⚡ ទិញតាមប្រភេទទំនិញ" : "⚡ Shop by Categories"}</span>
+                </h2>
+                <span className="px-2 py-0.5 rounded-lg bg-black/30 text-[10.5px] font-black uppercase text-amber-300 border border-amber-300/30 font-khmer">
+                  {isKm ? "ពេញនិយម" : "POPULAR"}
+                </span>
+                <ChevronRight size={18} className="text-white group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-semibold mt-2 font-khmer">
+              {isKm 
+                ? "ជ្រើសរើសប្រភេទឧបករណ៍ដែលអ្នកត្រូវការ ជាមួយការធានាផ្លូវការ និងតម្លៃពិសេស" 
+                : "Choose top-grade computing gear with official warranty and exclusive deals"}
             </p>
           </div>
           <Link
             href="/category/all"
-            className="group self-start sm:self-auto text-xs sm:text-sm bg-gray-100 hover:bg-red-50 dark:bg-white/10 dark:hover:bg-red-950/40 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400 font-extrabold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl flex items-center gap-2 transition-all no-underline border border-gray-200/80 dark:border-white/10 hover:border-red-500/30 shadow-xs active:scale-95 shrink-0"
+            className="group self-start sm:self-auto text-xs sm:text-sm bg-gray-100 hover:bg-gradient-to-r hover:from-red-600 hover:to-[#8B1A1A] dark:bg-white/10 dark:hover:from-red-600 dark:hover:to-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white dark:hover:text-white font-black px-4 sm:px-5 py-2.5 rounded-2xl flex items-center gap-2 transition-all no-underline border border-gray-200/80 dark:border-white/10 shadow-xs active:scale-95 shrink-0"
           >
-            <span className="font-khmer">មើលទាំងអស់</span>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-sans tracking-wider hidden xs:inline">View All</span>
-            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform text-red-500 shrink-0" />
+            <span className="font-khmer">{isKm ? "មើលទាំងអស់" : "View All"}</span>
+            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform text-red-500 group-hover:text-white shrink-0" />
           </Link>
         </div>
 
@@ -1051,7 +1127,7 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
 
                 {/* Optional Badge */}
                 {cat.badge && (
-                  <span className="absolute top-2 right-2 px-2 py-0.5 bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[8.5px] font-black rounded-full z-10 shadow-sm border border-white/20 uppercase tracking-wider">
+                  <span className="absolute top-2 right-2 px-2 py-0.5 bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[8.5px] font-black rounded-full z-10 shadow-sm border border-white/20 uppercase tracking-wider font-khmer">
                     {cat.badge}
                   </span>
                 )}
@@ -1067,22 +1143,19 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
                   </div>
                 </div>
 
-                {/* Dual Language Typography (Prominent Khmer + Sleek English) */}
+                {/* Single Language Typography (Strictly 1 language according to active locale) */}
                 <div className="flex flex-col items-center w-full">
-                  <span className="text-[12px] sm:text-[13.5px] font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight font-khmer text-center line-clamp-1">
-                    {cat.khName}
+                  <span className="text-[12.5px] sm:text-[14px] font-black text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight font-khmer text-center line-clamp-1">
+                    {isKm ? cat.khName : cat.enName}
                   </span>
-                  <span className="text-[9.5px] sm:text-[10.5px] font-bold text-gray-400 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors tracking-wider uppercase mt-0.5 text-center line-clamp-1">
-                    {cat.enName}
-                  </span>
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium font-khmer">
+                  <span className="text-[10px] sm:text-[11px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-semibold font-khmer text-center">
                     {cat.desc}
                   </span>
                 </div>
 
                 {/* Micro Interactive Pill on Desktop */}
                 <div className="mt-2.5 pt-2 border-t border-gray-100 dark:border-white/5 w-full hidden sm:flex items-center justify-center gap-1 text-[10px] font-bold text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                  <span className="font-khmer">រុករក</span>
+                  <span className="font-khmer">{isKm ? "រុករក" : "Explore"}</span>
                   <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </Link>
@@ -1193,7 +1266,7 @@ export function ProductCard({ product }: { product: any }) {
           </div>
 
           <Link href={`/products/${product.slug}`} className="no-underline">
-            <h3 className="text-[14px] sm:text-[15px] font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 min-h-[42px] mb-2 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors">
+            <h3 className="text-[14px] sm:text-[15px] font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 min-h-[42px] mb-2 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors font-khmer">
               {product.name}
             </h3>
           </Link>
@@ -1212,10 +1285,10 @@ export function ProductCard({ product }: { product: any }) {
                     </div>
                   )}
                 </div>
-                <div className="text-[11px] text-gray-400 dark:text-gray-400 font-semibold mt-0.5 truncate flex items-center gap-1.5">
+                <div className="text-[11px] text-gray-400 dark:text-gray-400 font-semibold mt-0.5 truncate flex items-center gap-1.5 font-khmer">
                   <span>{formatKHR(effectivePrice)}</span>
                   {hasDiscount && (
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400">
                       បញ្ចុះតម្លៃពិសេស
                     </span>
                   )}
@@ -1234,7 +1307,7 @@ export function ProductCard({ product }: { product: any }) {
               animate={isShaking ? { x: [0, -4, 4, -4, 4, 0] } : {}}
               whileTap={{ scale: 0.96 }}
               onClick={handleAddToCart}
-              className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#a62222] hover:from-[#6B1010] hover:to-[#8B1A1A] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer border-none active:scale-[0.98]"
+              className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-[#a62222] hover:from-[#6B1010] hover:to-[#8B1A1A] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer border-none active:scale-[0.98] font-khmer"
               aria-label={t("addToCart")}
             >
               <ShoppingCart size={16} strokeWidth={2.3} />
@@ -1363,6 +1436,28 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
     }
   }, [initialProducts]);
 
+  // Sort products so:
+  // 1. Admin/Staff pinned products are #1
+  // 2. Active promotion / discounted products are #2
+  // 3. Newly added products (highest ID / bumped_at / created_at) are #3
+  const sortedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      const aPinned = a.pinned_to_top || a.is_pinned || false ? 1 : 0;
+      const bPinned = b.pinned_to_top || b.is_pinned || false ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+
+      const aDiscount = (a.sale_price && Number(a.sale_price) > 0 && Number(a.sale_price) < Number(a.price)) ? 1 : 0;
+      const bDiscount = (b.sale_price && Number(b.sale_price) > 0 && Number(b.sale_price) < Number(b.price)) ? 1 : 0;
+      if (aDiscount !== bDiscount) return bDiscount - aDiscount;
+
+      const aTime = a.bumped_at ? new Date(a.bumped_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const bTime = b.bumped_at ? new Date(b.bumped_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+      if (aTime !== bTime) return bTime - aTime;
+
+      return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+  }, [products]);
+
   return (
     <section className="bg-[#f8f9fa] dark:bg-[#0c0d12] py-8 sm:py-12 border-b border-gray-100 dark:border-white/5">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
@@ -1370,15 +1465,17 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A]" />
-              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Top Recommended</span>
+              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider font-khmer">
+                Top Recommended • ទំនិញពេញនិយម
+              </span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight font-khmer">
               {t("bestSellers")}
             </h2>
           </div>
           <Link
             href="/category/all"
-            className="text-xs sm:text-sm bg-white dark:bg-white/10 hover:bg-[#8B1A1A] dark:hover:bg-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm border border-gray-200 dark:border-white/10"
+            className="text-xs sm:text-sm bg-white dark:bg-white/10 hover:bg-[#8B1A1A] dark:hover:bg-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm border border-gray-200 dark:border-white/10 font-khmer"
           >
             <span>{t("viewAll")}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
@@ -1393,7 +1490,7 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
           viewport={{ once: true, margin: "-40px" }}
           className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5 lg:gap-6 xl:gap-7"
         >
-          {products.map((product) => (
+          {sortedProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </motion.div>

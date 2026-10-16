@@ -48,6 +48,7 @@ class ProductController extends Controller
 
             $products = $query
                 ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
+                ->orderByRaw('CASE WHEN sale_price IS NOT NULL AND sale_price > 0 AND sale_price < price THEN 1 ELSE 0 END DESC')
                 ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
                 ->orderBy('id', 'desc')
                 ->get();
@@ -92,6 +93,7 @@ class ProductController extends Controller
 
             return $query
                 ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
+                ->orderByRaw('CASE WHEN sale_price IS NOT NULL AND sale_price > 0 AND sale_price < price THEN 1 ELSE 0 END DESC')
                 ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
                 ->orderBy('id', 'desc')
                 ->get();
