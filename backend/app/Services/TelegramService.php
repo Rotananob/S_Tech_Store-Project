@@ -836,6 +836,20 @@ class TelegramService
                 return;
             }
 
+            // Customer Download Invoice as File / Document
+            if (str_starts_with($callbackData, 'cust_file_inv_') && $chatId) {
+                $rawOrdId = substr($callbackData, strlen('cust_file_inv_'));
+                self::sendCustomerInvoiceDocument($chatId, $rawOrdId, $activeToken);
+                return;
+            }
+
+            // Customer View Invoice as Image
+            if (str_starts_with($callbackData, 'cust_inv_') && $chatId) {
+                $rawOrdId = substr($callbackData, strlen('cust_inv_'));
+                self::sendCustomerInvoicePhoto($chatId, $rawOrdId, $fromName, $activeToken);
+                return;
+            }
+
             // Customer My Wallet & Cash Balance (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_wallet', 'btn_my_wallet']) && $chatId) {
                 // Local-First Cached Profile & Transactions (< 1ms on repeat clicks)
@@ -2905,13 +2919,71 @@ class TelegramService
                     . "</blockquote>\n\n"
                     . "👉 លោកអ្នកអាចពិនិត្យមើលព័ត៌មានលម្អិតបន្ថែមនៅក្នុង Mini App!";
 
+                $cleanOrdCode = ltrim($order->order_id, '#');
                 $orderKb = [
                     'inline_keyboard' => [
+                        [
+                            ['text' => '🧾 មើលវិក្កយបត្រ (Invoice Image)', 'callback_data' => "cust_inv_{$cleanOrdCode}"],
+                            ['text' => '📄 ទាញយក File', 'callback_data' => "cust_file_inv_{$cleanOrdCode}"],
+                        ],
                         [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]]],
                         [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ],
                 ];
                 self::sendMessageWithKeyboard($chatId, $orderMsg, $orderKb, 'HTML', null, $activeToken);
+                return;
+            }
+        }
+
+        // A.0.0 Dedicated Invoice & Receipt inquiries ("វិក្កយបត្រ", "បុង", "invoice", "receipt", "bill", "/invoice", "/receipt")
+        if (preg_match('/(វិក្កយបត្រ|បុង|invoice|receipt|bill|សុំវិក្កយបត្រ|ចង់បានវិក្កយបត្រ|ទាញយកវិក្កយបត្រ|មើលវិក្កយបត្រ)/ui', $textLower) || preg_match('/^\/(?:invoice|receipt|bill)(?:@\w+)?(?:\s+(.*))?$/i', $cleanText, $invMatch)) {
+            if ($messageId) self::setMessageReaction($chatId, $messageId, '🧾', true, $activeToken);
+
+            $targetOrderId = null;
+            if (!empty($invMatch[1])) {
+                $targetOrderId = trim($invMatch[1]);
+            } elseif (preg_match('/\b((?:ST|ORD)[-_]?[A-Za-z0-9]{3,12})\b/i', $cleanText, $om)) {
+                $targetOrderId = $om[1];
+            }
+
+            $order = null;
+            if ($targetOrderId) {
+                $cleanOrd = ltrim($targetOrderId, '#');
+                $order = \App\Models\Order::where('order_id', $cleanOrd)
+                    ->orWhere('order_id', '#' . $cleanOrd)
+                    ->with('items.product')
+                    ->first();
+                if (!$order && is_numeric($cleanOrd)) {
+                    $order = \App\Models\Order::where('id', (int)$cleanOrd)->with('items.product')->first();
+                }
+            }
+
+            // If no specific order ID, get customer's latest order
+            if (!$order) {
+                $user = self::resolveActiveUser((string)$chatId);
+                $order = self::getCustomerOrdersBuilder((string)$chatId, $user)
+                    ->with('items.product')
+                    ->latest()
+                    ->first();
+            }
+
+            if ($order) {
+                self::sendCustomerInvoicePhoto($chatId, $order, $fromName, $activeToken);
+                return;
+            } else {
+                $noInvText = "🧾 <b>វិក្កយបត្រអេឡិចត្រូនិច (Digital Invoice):</b>\n\n"
+                    . "ជម្រាបសួរ <b>{$fromName}</b>!\n"
+                    . "បច្ចុប្បន្ន ប្រព័ន្ធមិនទាន់រកឃើញការបញ្ជាទិញណាមួយភ្ជាប់ជាមួយ Telegram របស់អ្នកនៅឡើយទេ។\n\n"
+                    . "👉 ប្រសិនបើលោកអ្នកធ្លាប់បានកុម្ម៉ង់ សូមវាយបញ្ចូលលេខ Order ID ដូចជា៖ <code>/invoice ORD-10023</code>\n"
+                    . "ឬចូលទិញទំនិញថ្មីៗក្នុង Mini App ដើម្បីទទួលបានវិក្កយបត្រ និងការធានាផ្លូវការភ្លាមៗ!";
+
+                $noInvKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ],
+                ];
+                self::sendMessageWithKeyboard($chatId, $noInvText, $noInvKb, 'HTML', null, $activeToken);
                 return;
             }
         }
@@ -3050,6 +3122,58 @@ class TelegramService
         // A.3 Promotions, Vouchers & Promo Code Inquiries ("voucher", "coupon", "code", "បញ្ចុះតម្លៃ", "stech10")
         if (preg_match('/(voucher|coupon|code|កូដ|បញ្ចុះតម្លៃ|discount|កូដបញ្ចុះតម្លៃ|stech10|pchumben)/u', $textLower)) {
             if ($messageId) self::setMessageReaction($chatId, $messageId, '🎉', true, $activeToken);
+
+            // Attempt to show a real promotion/deal product photo
+            try {
+                $dealProduct = \App\Models\Product::with('category')
+                    ->whereNotNull('image_url')
+                    ->where('image_url', '!=', '')
+                    ->where(function($q) {
+                        $q->where('is_featured', true)
+                          ->orWhere('sale_price', '>', 0)
+                          ->orWhereNotNull('badge');
+                    })
+                    ->latest()
+                    ->first();
+
+                if ($dealProduct && !empty($dealProduct->image_url)) {
+                    $dealPhotoUrl = $dealProduct->image_url;
+                    if (!str_starts_with($dealPhotoUrl, 'http://') && !str_starts_with($dealPhotoUrl, 'https://')) {
+                        $dealPhotoUrl = 'https://www.s-tech-store.tech/' . ltrim($dealPhotoUrl, '/');
+                    }
+
+                    $dPrice = $dealProduct->sale_price ?: $dealProduct->price;
+                    $origPrice = ($dealProduct->sale_price && $dealProduct->price > $dealProduct->sale_price)
+                        ? " <s>\$" . number_format((float)$dealProduct->price, 2) . "</s>" : "";
+
+                    $dealCaption = "🔥 <b>ប្រូម៉ូសិនពិសេស & កូដបញ្ចុះតម្លៃ (Vouchers & Deals)!</b>\n\n"
+                        . "🌟 <b>Hot Deal:</b> <b>" . htmlspecialchars($dealProduct->name) . "</b>\n"
+                        . "💰 <b>តម្លៃពិសេស:</b> <b>\$" . number_format((float)$dPrice, 2) . " USD</b>{$origPrice}\n\n"
+                        . "🎉 <b>កូដបញ្ចុះតម្លៃសកម្មបច្ចុប្បន្ន (Active Promo Codes):</b>\n"
+                        . self::formatActivePromoCodesText() . "\n\n"
+                        . "🚚 <b>Free Delivery:</b> ដឹកជញ្ជូនឥតគិតថ្លៃក្នុងរាជធានីភ្នំពេញ (ចាប់ពី \$50 ឡើងទៅ)\n"
+                        . "🎁 <b>កាដូថែមជូន:</b> Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows 11 Free!\n\n"
+                        . "👉 <b>សូមចុចបើក Mini App ដើម្បីប្រើប្រាស់កូដបញ្ចុះតម្លៃភ្លាមៗ!</b>";
+
+                    $dealKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🛍️ ប្រើកូដទិញក្នុង Mini App', 'web_app' => ['url' => "https://www.s-tech-store.tech/products/" . ($dealProduct->slug ?: $dealProduct->id)]]],
+                            [
+                                ['text' => '💻 មើលផលិតផលបញ្ចុះតម្លៃ', 'callback_data' => 'cust_shop'],
+                                ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                            ],
+                        ],
+                    ];
+
+                    $photoRes = self::sendPhoto($chatId, $dealPhotoUrl, $dealCaption, 'HTML', $dealKb, $activeToken);
+                    if (!empty($photoRes['ok'])) {
+                        return;
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Telegram promo photo error: " . $e->getMessage());
+            }
+
             $promoText = "🔥 <b>កូដបញ្ចុះតម្លៃ & ប្រូម៉ូសិនពិសេស (Vouchers & Deals):</b>\n\n"
                 . "🎉 <b>កូដបញ្ចុះតម្លៃសកម្មបច្ចុប្បន្ន (Active Promo Codes):</b>\n"
                 . self::formatActivePromoCodesText() . "\n\n"
@@ -3073,6 +3197,83 @@ class TelegramService
         // B. Laptop & PC Pricing inquiries
         if (preg_match('/(laptop|pc|កុំព្យូទ័រ|តម្លៃ|price|cost|ថ្លៃ|macbook|dell|asus|lenovo|acer|msi|gaming|screen|ram|ssd|vga|rtx|monitor|គ្រឿង)/u', $textLower)) {
             if ($messageId) self::setMessageReaction($chatId, $messageId, '⚡', true, $activeToken);
+
+            // Attempt to show a real product photo with 1-click buy button
+            try {
+                $productQuery = \App\Models\Product::with('category')
+                    ->whereNotNull('image_url')
+                    ->where('image_url', '!=', '');
+
+                // Match specific brand or keyword if mentioned
+                $matchedKeyword = null;
+                $brandKeywords = ['macbook', 'asus', 'dell', 'lenovo', 'acer', 'msi', 'rtx', 'rog', 'tuf', 'thinkpad', 'legion', 'gaming', 'monitor', 'ram', 'ssd'];
+                foreach ($brandKeywords as $bk) {
+                    if (str_contains($textLower, $bk)) {
+                        $matchedKeyword = $bk;
+                        break;
+                    }
+                }
+
+                if ($matchedKeyword) {
+                    $foundProduct = (clone $productQuery)
+                        ->where(function($q) use ($matchedKeyword) {
+                            $q->where('name', 'LIKE', "%{$matchedKeyword}%")
+                              ->orWhere('brand', 'LIKE', "%{$matchedKeyword}%")
+                              ->orWhere('description', 'LIKE', "%{$matchedKeyword}%");
+                        })
+                        ->latest()
+                        ->first();
+                } else {
+                    $foundProduct = (clone $productQuery)
+                        ->where(function($q) {
+                            $q->where('is_featured', true)
+                              ->orWhere('pinned_to_top', true);
+                        })
+                        ->latest()
+                        ->first() ?: (clone $productQuery)->latest()->first();
+                }
+
+                if ($foundProduct && !empty($foundProduct->image_url)) {
+                    $photoUrl = $foundProduct->image_url;
+                    if (!str_starts_with($photoUrl, 'http://') && !str_starts_with($photoUrl, 'https://')) {
+                        $photoUrl = 'https://www.s-tech-store.tech/' . ltrim($photoUrl, '/');
+                    }
+
+                    $pPrice = $foundProduct->sale_price ?: $foundProduct->price;
+                    $pPriceFormatted = number_format((float)$pPrice, 2);
+                    $originalPriceFormatted = ($foundProduct->sale_price && $foundProduct->price > $foundProduct->sale_price)
+                        ? " <s>\$" . number_format((float)$foundProduct->price, 2) . "</s>" : "";
+                    $catName = $foundProduct->category ? ($foundProduct->category->name ?? '') : '';
+                    $cleanDesc = $foundProduct->description ? \Illuminate\Support\Str::limit(strip_tags($foundProduct->description), 130) : '';
+
+                    $photoCaption = "💻 <b>" . htmlspecialchars($foundProduct->name) . "</b>\n\n"
+                        . "💰 <b>តម្លៃពិសេស:</b> <b>\${$pPriceFormatted} USD</b>{$originalPriceFormatted}\n"
+                        . ($catName ? "🏷️ <b>ប្រភេទ:</b> " . htmlspecialchars($catName) . "\n" : "")
+                        . ($cleanDesc ? "📝 <b>លក្ខណៈសម្បត្តិ:</b> " . htmlspecialchars($cleanDesc) . "\n\n" : "\n")
+                        . "🚚 <b>Free Delivery</b> ក្នុងភ្នំពេញ | ធានាគុណភាព ១០០%\n"
+                        . "🎁 <b>កាដូថែមជូន:</b> Mouse Wireless, Mousepad, កាតាប និងដំឡើង Windows 11 Free!\n\n"
+                        . "👉 <b>សូមចុចប៊ូតុងខាងក្រោមដើម្បីមើលលម្អិត & កុម្ម៉ង់ទិញភ្លាមៗ!</b>";
+
+                    $photoKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🛍️ ទិញក្នុង Mini App (Buy Now)', 'web_app' => ['url' => "https://www.s-tech-store.tech/products/" . ($foundProduct->slug ?: $foundProduct->id)]]],
+                            [
+                                ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                                ['text' => '💬 សួរតម្លៃម៉ូឌែលផ្សេង', 'callback_data' => 'cust_support'],
+                            ],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ],
+                    ];
+
+                    $photoRes = self::sendPhoto($chatId, $photoUrl, $photoCaption, 'HTML', $photoKb, $activeToken);
+                    if (!empty($photoRes['ok'])) {
+                        return;
+                    }
+                }
+            } catch (\Throwable $e) {
+                \Log::warning("Telegram product inquiry photo error: " . $e->getMessage());
+            }
+
             $reply = "💻 <b>ព័ត៌មានតម្លៃ Laptops & PC នៅ S Tech Store:</b>\n\n"
                 . "យើងខ្ញុំមានលក់ Laptops, Desktop PC និងគ្រឿងបន្លាស់ Original ១០០% ជាមួយនឹងតម្លៃពិសេស៖\n\n"
                 . "• 💻 <b>Laptops ការិយាល័យ & សិក្សា:</b> ចាប់ពី <b>\$299 - \$699</b> (Dell, Lenovo, Acer, ASUS)\n"
@@ -4104,6 +4305,379 @@ class TelegramService
     }
 
     /**
+     * Send photo using Telegram Bot API (supports URL or binary upload, caption, buttons, forum thread)
+     */
+    public static function sendPhoto($chatId, $photo, ?string $caption = null, string $parseMode = 'HTML', ?array $replyMarkup = null, ?int $threadId = null, ?string $token = null): array
+    {
+        $settings = self::getSettings();
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
+
+        if (!$token || str_contains($token, 'Placeholder')) {
+            Log::info("[Telegram] Mock sendPhoto to {$chatId}: Caption: {$caption}");
+            return ['ok' => true, 'mock' => true];
+        }
+
+        try {
+            $url = "https://api.telegram.org/bot{$token}/sendPhoto";
+            $isHttpUrl = is_string($photo) && (str_starts_with($photo, 'http://') || str_starts_with($photo, 'https://'));
+
+            if ($isHttpUrl) {
+                $payload = [
+                    'chat_id' => $chatId,
+                    'photo' => $photo,
+                ];
+                if ($caption !== null) $payload['caption'] = $caption;
+                if ($parseMode) $payload['parse_mode'] = $parseMode;
+                if ($replyMarkup) $payload['reply_markup'] = json_encode($replyMarkup);
+                if ($threadId) $payload['message_thread_id'] = $threadId;
+
+                $response = Http::timeout(6.0)->connectTimeout(3.0)->post($url, $payload);
+                $json = $response->json();
+            } else {
+                $photoData = is_file($photo) ? file_get_contents($photo) : $photo;
+                $req = Http::timeout(8.0)->connectTimeout(3.0)->attach('photo', $photoData, 'photo.jpg');
+                $params = ['chat_id' => $chatId];
+                if ($caption !== null) $params['caption'] = $caption;
+                if ($parseMode) $params['parse_mode'] = $parseMode;
+                if ($replyMarkup) $params['reply_markup'] = json_encode($replyMarkup);
+                if ($threadId) $params['message_thread_id'] = $threadId;
+
+                $response = $req->post($url, $params);
+                $json = $response->json();
+            }
+
+            return $json ?? ['ok' => $response->successful()];
+        } catch (\Throwable $e) {
+            Log::error("Failed to send Telegram photo: " . $e->getMessage());
+            if ($caption) {
+                return self::sendMessageWithKeyboard($chatId, $caption, $replyMarkup ?? [], $parseMode, $threadId, $token);
+            }
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Send document / file using Telegram Bot API (supports URL or binary content, custom filename, buttons)
+     */
+    public static function sendDocument($chatId, $document, string $filename = 'document.pdf', ?string $caption = null, string $parseMode = 'HTML', ?array $replyMarkup = null, ?int $threadId = null, ?string $token = null): array
+    {
+        $settings = self::getSettings();
+        if (!$token) {
+            $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
+            $token = $isPrivateUserChat 
+                ? self::getCustomerBotToken() 
+                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        }
+
+        if (!$token || str_contains($token, 'Placeholder')) {
+            Log::info("[Telegram] Mock sendDocument to {$chatId}: {$filename}");
+            return ['ok' => true, 'mock' => true];
+        }
+
+        try {
+            $url = "https://api.telegram.org/bot{$token}/sendDocument";
+            $isHttpUrl = is_string($document) && (str_starts_with($document, 'http://') || str_starts_with($document, 'https://'));
+
+            if ($isHttpUrl) {
+                $payload = [
+                    'chat_id' => $chatId,
+                    'document' => $document,
+                ];
+                if ($caption !== null) $payload['caption'] = $caption;
+                if ($parseMode) $payload['parse_mode'] = $parseMode;
+                if ($replyMarkup) $payload['reply_markup'] = json_encode($replyMarkup);
+                if ($threadId) $payload['message_thread_id'] = $threadId;
+
+                $response = Http::timeout(8.0)->connectTimeout(3.0)->post($url, $payload);
+                $json = $response->json();
+            } else {
+                $fileData = is_file($document) ? file_get_contents($document) : $document;
+                $req = Http::timeout(10.0)->connectTimeout(3.0)->attach('document', $fileData, $filename);
+                $params = ['chat_id' => $chatId];
+                if ($caption !== null) $params['caption'] = $caption;
+                if ($parseMode) $params['parse_mode'] = $parseMode;
+                if ($replyMarkup) $params['reply_markup'] = json_encode($replyMarkup);
+                if ($threadId) $params['message_thread_id'] = $threadId;
+
+                $response = $req->post($url, $params);
+                $json = $response->json();
+            }
+
+            return $json ?? ['ok' => $response->successful()];
+        } catch (\Throwable $e) {
+            Log::error("Failed to send Telegram document: " . $e->getMessage());
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Generate standalone printable HTML receipt document
+     */
+    public static function generateHtmlInvoice($order): string
+    {
+        $tz = 'Asia/Phnom_Penh';
+        $orderId = htmlspecialchars($order->order_id ?? ('ORD-' . $order->id));
+        $customerName = htmlspecialchars($order->customer_name ?? 'Valued Customer');
+        $customerPhone = htmlspecialchars($order->customer_phone ?? '-');
+        $address = htmlspecialchars($order->shipping_address ?? 'Phnom Penh, Cambodia');
+        $payMethod = strtoupper($order->payment_method ?? 'Bakong KHQR');
+        $payStatus = strtoupper($order->payment_status ?? 'PAID');
+        $date = $order->created_at ? $order->created_at->timezone($tz)->format('M d, Y h:i A') : date('M d, Y');
+        $total = number_format((float)($order->total_amount ?? 0), 2);
+        $totalKHR = number_format(round(((float)($order->total_amount ?? 0) * 4060) / 1000) * 1000);
+        $delivery = htmlspecialchars($order->delivery_type ?? 'Express');
+        $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=2&data=" . urlencode("https://www.s-tech-store.tech/orders?verify={$orderId}");
+
+        $itemsHtml = '';
+        if ($order->items && $order->items->isNotEmpty()) {
+            foreach ($order->items as $idx => $it) {
+                $name = htmlspecialchars($it->product->name ?? 'Product');
+                $qty = (int)$it->quantity;
+                $price = number_format((float)($it->unit_price ?? 0), 2);
+                $sub = number_format((float)($it->unit_price ?? 0) * $qty, 2);
+                $itemsHtml .= "<tr>
+                    <td style='padding:12px;border-bottom:1px solid #eee;font-weight:600;'>{$name}</td>
+                    <td style='padding:12px;border-bottom:1px solid #eee;text-align:center;'>{$qty}</td>
+                    <td style='padding:12px;border-bottom:1px solid #eee;text-align:right;'>\${$price}</td>
+                    <td style='padding:12px;border-bottom:1px solid #eee;text-align:right;font-weight:700;'>\${$sub}</td>
+                </tr>";
+            }
+        } else {
+            $itemsHtml = "<tr>
+                <td style='padding:12px;border-bottom:1px solid #eee;font-weight:600;'>S Tech Store Merchandise</td>
+                <td style='padding:12px;border-bottom:1px solid #eee;text-align:center;'>1</td>
+                <td style='padding:12px;border-bottom:1px solid #eee;text-align:right;'>\${$total}</td>
+                <td style='padding:12px;border-bottom:1px solid #eee;text-align:right;font-weight:700;'>\${$total}</td>
+            </tr>";
+        }
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice #{$orderId} - S Tech Store</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; color: #1e293b; }
+  .invoice-box { max-width: 780px; margin: auto; background: #fff; padding: 36px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f1f5f9; padding-bottom: 24px; margin-bottom: 24px; }
+  .brand-logo { width: 44px; height: 44px; background: #8B1A1A; border-radius: 12px; color: #fff; font-size: 24px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; margin-right: 12px; }
+  .status-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  .info-grid { display: flex; justify-content: space-between; background: #f8fafc; padding: 16px 20px; border-radius: 14px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  th { background: #0f172a; color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 10px 12px; border-radius: 6px; }
+  .totals { display: flex; justify-content: space-between; align-items: flex-end; border-top: 2px solid #f1f5f9; padding-top: 20px; }
+  .grand-total { font-size: 26px; font-weight: 900; color: #8B1A1A; margin: 0; }
+  .print-btn { background: #8B1A1A; color: #fff; border: none; padding: 10px 22px; font-size: 13px; font-weight: 700; border-radius: 10px; cursor: pointer; margin-bottom: 16px; }
+  @media print { .print-btn { display: none; } body { background: #fff; padding: 0; } .invoice-box { box-shadow: none; border: none; padding: 0; } }
+</style>
+</head>
+<body>
+  <div style="text-align: right; max-width: 780px; margin: auto;">
+    <button class="print-btn" onclick="window.print()">🖨️ បោះពុម្ព / Save as PDF</button>
+  </div>
+  <div class="invoice-box">
+    <div class="header">
+      <div>
+        <div style="display:flex;align-items:center;margin-bottom:6px;">
+          <div class="brand-logo">S</div>
+          <div>
+            <div style="font-size:22px;font-weight:900;color:#0f172a;">S TECH STORE</div>
+            <div style="font-size:11px;font-weight:700;color:#8B1A1A;letter-spacing:.1em;">OFFICIAL TECH & GAMING HUB</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#64748b;">Phnom Penh, Cambodia • Hotline: 012 345 678</div>
+        <div style="font-size:12px;color:#64748b;">www.s-tech-store.tech</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:26px;font-weight:900;color:#0f172a;">INVOICE</div>
+        <div style="font-size:14px;font-weight:800;color:#8B1A1A;font-family:monospace;margin:2px 0;">#{$orderId}</div>
+        <span class="status-badge">{$payStatus}</span>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div>
+        <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;">អតិថិជន / Bill To</div>
+        <div style="font-size:15px;font-weight:800;color:#0f172a;">{$customerName}</div>
+        <div style="font-size:12px;color:#475569;">Tel: {$customerPhone}</div>
+        <div style="font-size:12px;color:#64748b;">{$address}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;margin-bottom:4px;">ព័ត៌មានកុម្ម៉ង់ / Order Info</div>
+        <div style="font-size:12px;color:#475569;">កាលបរិច្ឆេទ: <strong>{$date}</strong></div>
+        <div style="font-size:12px;color:#475569;">ការទូទាត់: <strong>{$payMethod}</strong></div>
+        <div style="font-size:12px;color:#475569;">សេវាដឹក: <strong>{$delivery}</strong></div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;">Item Description</th>
+          <th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Unit Price</th>
+          <th style="text-align:right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {$itemsHtml}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="{$qrUrl}" width="80" height="80" alt="QR" style="border:1px solid #e2e8f0;border-radius:8px;">
+        <div style="font-size:11px;color:#64748b;max-width:200px;">
+          <strong style="color:#15803d;display:block;">✓ 100% Verified Authentic</strong>
+          ស្កេនដើម្បីផ្ទៀងផ្ទាត់វិក្កយបត្រផ្លូវការ និងការធានាលើ S Tech Store
+        </div>
+      </div>
+      <div style="text-align:right;min-width:220px;">
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Grand Total / តម្លៃសរុប:</div>
+        <div class="grand-total">\${$total} USD</div>
+        <div style="font-size:12px;font-weight:700;color:#64748b;">≈ {$totalKHR} KHR</div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #f1f5f9;padding-top:16px;margin-top:24px;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;">
+      <span>S Tech Store Cambodia • Thank you for your business!</span>
+      <span>Official Warranty Coverage Included</span>
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+    }
+
+    /**
+     * Send instant rich invoice image to customer in Telegram
+     */
+    public static function sendCustomerInvoicePhoto($chatId, $orderOrId, ?string $fromName = null, ?string $token = null): array
+    {
+        $order = null;
+        if ($orderOrId instanceof \App\Models\Order) {
+            $order = $orderOrId;
+        } else {
+            $cleanCode = ltrim((string)$orderOrId, '#');
+            $order = \App\Models\Order::where('order_id', $cleanCode)
+                ->orWhere('order_id', '#' . $cleanCode)
+                ->with('items.product')
+                ->first();
+            if (!$order && is_numeric($cleanCode)) {
+                $order = \App\Models\Order::where('id', (int)$cleanCode)->with('items.product')->first();
+            }
+        }
+
+        if (!$order) {
+            return self::sendMessage($chatId, "⚠️ រកមិនឃើញវិក្កយបត្រសម្រាប់ការបញ្ជាទិញនេះឡើយ។ សូមពិនិត្យលេខកូដឡើងវិញ។", 'HTML', null, $token);
+        }
+
+        $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
+        $ordersAppUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
+        $imageUrl = "https://www.s-tech-store.tech/api/invoice-image?order_id=" . urlencode($order->order_id);
+
+        $tz = 'Asia/Phnom_Penh';
+        $formattedDate = $order->created_at ? $order->created_at->timezone($tz)->format('d/m/Y H:i') : date('d/m/Y');
+        $totalUSD = number_format((float)($order->total_amount ?? 0), 2);
+        $totalKHR = number_format(round(((float)($order->total_amount ?? 0) * 4060) / 1000) * 1000);
+        $payMethod = strtoupper($order->payment_method ?? 'Bakong KHQR');
+        $payStatus = strtoupper($order->payment_status ?? 'PAID');
+        $statusBadge = match(strtolower($order->status ?? 'pending')) {
+            'completed', 'delivered' => '✅ បានដឹកជញ្ជូនរួចរាល់ (Delivered)',
+            'shipping', 'delivering' => '🚚 កំពុងដឹកជញ្ជូន (Shipping)',
+            'processing' => '🔄 កំពុងរៀបចំទំនិញ (Processing)',
+            'cancelled' => '❌ បានលុបចោល (Cancelled)',
+            default => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
+        };
+
+        $itemsSummary = [];
+        if ($order->items) {
+            foreach ($order->items as $it) {
+                $name = $it->product->name ?? 'ទំនិញ';
+                $itemsSummary[] = "• {$name} × {$it->quantity}";
+            }
+        }
+        $itemsText = !empty($itemsSummary) ? implode("\n", array_slice($itemsSummary, 0, 3)) : '• ទំនិញ S Tech Store';
+        if (count($itemsSummary) > 3) {
+            $itemsText .= "\n• និងមុខទំនិញ " . (count($itemsSummary) - 3) . " ផ្សេងទៀត...";
+        }
+
+        $caption = "🧾 <b>[OFFICIAL INVOICE] វិក្កយបត្រផ្លូវការ #{$order->order_id}</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($order->customer_name ?? 'អតិថិជន') . "</b>\n"
+            . "⚡ <b>ស្ថានភាព:</b> <b>{$statusBadge}</b>\n"
+            . "💵 <b>តម្លៃសរុប:</b> <b>\${$totalUSD} USD</b> (≈ <code>{$totalKHR} KHR</code>)\n"
+            . "💳 <b>វិធីទូទាត់:</b> {$payMethod} (<b>{$payStatus}</b>)\n"
+            . "⏰ <b>កាលបរិច្ឆេទ:</b> {$formattedDate}\n\n"
+            . "<blockquote expandable>\n"
+            . "🛍️ <b>មុខទំនិញ:</b>\n{$itemsText}\n"
+            . "📍 <b>ទីតាំងដឹក:</b> " . htmlspecialchars($order->shipping_address ?? 'ភ្នំពេញ') . "\n"
+            . "</blockquote>\n\n"
+            . "👉 <i>លោកអ្នកអាចទាញយកជាឯកសារ (Download File) ឬពិនិត្យក្នុង Mini App!</i>";
+
+        $kb = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '📄 ទាញយកជា File វិក្កយបត្រ (HTML / PDF)', 'callback_data' => "cust_file_inv_{$order->order_id}"],
+                ],
+                [
+                    ['text' => '📱 មើល Orders ក្នុង Mini App', 'web_app' => ['url' => $ordersAppUrl]],
+                    ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        return self::sendPhoto($chatId, $imageUrl, $caption, 'HTML', $kb, null, $token);
+    }
+
+    /**
+     * Send official invoice HTML document as file attachment to customer
+     */
+    public static function sendCustomerInvoiceDocument($chatId, $orderOrId, ?string $token = null): array
+    {
+        $order = null;
+        if ($orderOrId instanceof \App\Models\Order) {
+            $order = $orderOrId;
+        } else {
+            $cleanCode = ltrim((string)$orderOrId, '#');
+            $order = \App\Models\Order::where('order_id', $cleanCode)
+                ->orWhere('order_id', '#' . $cleanCode)
+                ->with('items.product')
+                ->first();
+            if (!$order && is_numeric($cleanCode)) {
+                $order = \App\Models\Order::where('id', (int)$cleanCode)->with('items.product')->first();
+            }
+        }
+
+        if (!$order) {
+            return self::sendMessage($chatId, "⚠️ រកមិនឃើញទិន្នន័យវិក្កយបត្រនេះឡើយ។", 'HTML', null, $token);
+        }
+
+        $htmlContent = self::generateHtmlInvoice($order);
+        $filename = "Invoice_{$order->order_id}.html";
+        $caption = "📄 <b>ឯកសារវិក្កយបត្រផ្លូវការ #{$order->order_id}</b> ពី <b>S Tech Store</b>\n"
+            . "លោកអ្នកអាចបើកមើល ឬ Save ជា PDF / Print បានគ្រប់ពេលវេលា!";
+
+        $kb = [
+            'inline_keyboard' => [
+                [
+                    ['text' => '🖼️ មើលជារូបភាព (Invoice Image)', 'callback_data' => "cust_inv_{$order->order_id}"],
+                    ['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu'],
+                ],
+            ],
+        ];
+
+        return self::sendDocument($chatId, $htmlContent, $filename, $caption, 'HTML', $kb, null, $token);
+    }
+
+    /**
      * Customer Main Menu Keyboard with Mini App button right at the top
      */
     public static function getCustomerMainMenuKeyboard(?string $chatId = null): array
@@ -4806,6 +5380,10 @@ class TelegramService
 
             $kb = [
                 'inline_keyboard' => [
+                    [
+                        ['text' => '🧾 មើលវិក្កយបត្រ (Invoice Image)', 'callback_data' => "cust_inv_{$cleanOrderId}"],
+                        ['text' => '📄 ទាញយក File (HTML)', 'callback_data' => "cust_file_inv_{$cleanOrderId}"],
+                    ],
                     [['text' => '📱 តាមដាន Order ក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
                     [
                         ['text' => '🌐 បើកលើ Browser', 'url' => $directUrl],
@@ -4824,6 +5402,10 @@ class TelegramService
 
             $kb = [
                 'inline_keyboard' => [
+                    [
+                        ['text' => '🧾 មើលវិក្កយបត្រ (Invoice Image)', 'callback_data' => "cust_inv_{$cleanOrderId}"],
+                        ['text' => '📄 ទាញយក File (HTML)', 'callback_data' => "cust_file_inv_{$cleanOrderId}"],
+                    ],
                     [['text' => '📱 ពិនិត្យមើលក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
                     [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                 ],
@@ -4862,6 +5444,10 @@ class TelegramService
 
             $kb = [
                 'inline_keyboard' => [
+                    [
+                        ['text' => '🧾 មើលវិក្កយបត្រ (Invoice Image)', 'callback_data' => "cust_inv_{$cleanOrderId}"],
+                        ['text' => '📄 ទាញយក File (HTML)', 'callback_data' => "cust_file_inv_{$cleanOrderId}"],
+                    ],
                     [['text' => '📱 ពិនិត្យមើល Order ក្នុង Mini App', 'web_app' => ['url' => $directUrl]]],
                     [
                         ['text' => '💬 សាកសួរក្រុមការងារ', 'callback_data' => 'cust_support'],

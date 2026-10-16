@@ -256,6 +256,30 @@ class OrderController extends Controller
     }
 
     /**
+     * GET /api/orders/{idOrOrderId}
+     * Public order & invoice lookup endpoint
+     */
+    public function show($idOrOrderId)
+    {
+        $cleanId = ltrim($idOrOrderId, '#');
+        $order = Order::where('order_id', $cleanId)
+            ->orWhere('order_id', '#' . $cleanId);
+        if (is_numeric($cleanId)) {
+            $order = $order->orWhere('id', (int)$cleanId);
+        }
+        $order = $order->with('items.product')->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'error' => 'Order not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'order' => $order,
+        ]);
+    }
+
+    /**
      * POST /api/orders/{idOrOrderId}/mark-failed
      * Sets order status and payment_status to 'failed' (បរាជ័យ) when checkout or payment fails
      */

@@ -1502,6 +1502,7 @@ Route::delete('/user/cart', [UserController::class, 'clearCart']);
 // User Orders
 Route::get('/user/orders', [UserController::class, 'getUserOrders']);
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:30,1');
+Route::get('/orders/{idOrOrderId}', [OrderController::class, 'show']);
 Route::post('/orders/{idOrOrderId}/mark-failed', [OrderController::class, 'markFailed']);
 
 // PC Builds
