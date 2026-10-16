@@ -698,9 +698,145 @@ export function FeatureStrip() {
   );
 }
 
+// Category Configuration with Professional Khmer & English Typography
+interface CategoryConfig {
+  slug: string;
+  khName: string;
+  enName: string;
+  desc: string;
+  badge?: string;
+  color: string;
+  glowBg: string;
+  glowShadow: string;
+}
+
+const CATEGORY_DEFINITIONS: Record<string, CategoryConfig> = {
+  laptops: {
+    slug: "laptops",
+    khName: "កុំព្យូទ័រយួរដៃ",
+    enName: "Laptops",
+    desc: "Ultrabook & Gaming",
+    color: "from-blue-600 via-indigo-600 to-sky-500",
+    glowBg: "bg-blue-500/25",
+    glowShadow: "shadow-blue-500/30",
+  },
+  accessories: {
+    slug: "accessories",
+    khName: "គ្រឿងបន្ថែម",
+    enName: "Accessories",
+    desc: "Mouse, Keyboard & Audio",
+    color: "from-rose-600 via-pink-600 to-red-500",
+    glowBg: "bg-rose-500/25",
+    glowShadow: "shadow-rose-500/30",
+  },
+  desktops: {
+    slug: "desktops",
+    khName: "កុំព្យូទ័រលើតុ",
+    enName: "Desktops",
+    desc: "Custom PCs & Towers",
+    color: "from-purple-600 via-violet-600 to-indigo-600",
+    glowBg: "bg-purple-500/25",
+    glowShadow: "shadow-purple-500/30",
+  },
+  components: {
+    slug: "components",
+    khName: "គ្រឿងបន្លាស់",
+    enName: "Components",
+    desc: "CPU, GPU & Storage",
+    color: "from-teal-600 via-emerald-600 to-cyan-500",
+    glowBg: "bg-teal-500/25",
+    glowShadow: "shadow-teal-500/30",
+  },
+  parts: {
+    slug: "parts",
+    khName: "គ្រឿងបន្លាស់",
+    enName: "Components",
+    desc: "CPU, GPU & Storage",
+    color: "from-teal-600 via-emerald-600 to-cyan-500",
+    glowBg: "bg-teal-500/25",
+    glowShadow: "shadow-teal-500/30",
+  },
+  "gaming-gear": {
+    slug: "gaming-gear",
+    khName: "សម្ភារហ្គេម",
+    enName: "Gaming Gear",
+    desc: "Pro Esports Gear",
+    badge: "PRO",
+    color: "from-amber-500 via-orange-600 to-red-500",
+    glowBg: "bg-amber-500/25",
+    glowShadow: "shadow-amber-500/30",
+  },
+  gaming: {
+    slug: "gaming",
+    khName: "សម្ភារហ្គេម",
+    enName: "Gaming Gear",
+    desc: "Pro Esports Gear",
+    badge: "PRO",
+    color: "from-amber-500 via-orange-600 to-red-500",
+    glowBg: "bg-amber-500/25",
+    glowShadow: "shadow-amber-500/30",
+  },
+  monitors: {
+    slug: "monitors",
+    khName: "អេក្រង់កុំព្យូទ័រ",
+    enName: "Monitors",
+    desc: "4K & High Refresh",
+    color: "from-cyan-600 via-blue-600 to-sky-500",
+    glowBg: "bg-cyan-500/25",
+    glowShadow: "shadow-cyan-500/30",
+  },
+  secondhand: {
+    slug: "secondhand",
+    khName: "មួយទឹកស្អាត",
+    enName: "Second Hand",
+    desc: "100% QC Inspected",
+    badge: "HOT",
+    color: "from-amber-600 via-yellow-500 to-orange-500",
+    glowBg: "bg-yellow-500/25",
+    glowShadow: "shadow-yellow-500/30",
+  },
+  services: {
+    slug: "services",
+    khName: "សេវាកម្មជួសជុល",
+    enName: "Services",
+    desc: "Repair & Upgrade Hub",
+    color: "from-blue-700 via-indigo-700 to-purple-700",
+    glowBg: "bg-indigo-500/25",
+    glowShadow: "shadow-indigo-500/30",
+  },
+};
+
+const resolveCategory = (c: any): CategoryConfig & { raw: any } => {
+  const slug = (c.slug || c.name || "").toLowerCase().trim();
+  for (const [key, def] of Object.entries(CATEGORY_DEFINITIONS)) {
+    if (slug === key || slug.includes(key) || key.includes(slug)) {
+      return {
+        ...def,
+        khName: def.khName,
+        enName: def.enName,
+        desc: def.desc,
+        badge: c.badge || def.badge,
+        color: def.color,
+        glowBg: def.glowBg,
+        glowShadow: def.glowShadow,
+        raw: c,
+      };
+    }
+  }
+  return {
+    slug: c.slug || slug,
+    khName: c.name || "ផលិតផលបច្ចេកវិទ្យា",
+    enName: c.name || "Tech Gear",
+    desc: "Official Tech",
+    color: "from-gray-700 to-gray-900",
+    glowBg: "bg-red-500/20",
+    glowShadow: "shadow-red-500/20",
+    raw: c,
+  };
+};
+
 export function CategorySection({ categories: initialCategories = [] }: { categories?: any[] }) {
   const [categories, setCategories] = useState<any[]>(initialCategories);
-  const t = useTranslations("Categories");
 
   // Client background sync to ensure fresh categories from Neon DB
   useEffect(() => {
@@ -725,64 +861,101 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   // Bespoke Luxury Cyber-Tech Category Icons (Custom crafted, glow-accented, non-template)
   const getIcon = (slug: string) => {
     const s = slug.toLowerCase();
-    if (s.includes("laptop")) return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <rect x="5" y="6" width="22" height="15" rx="2.5" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
-        <path d="M9 11h14M9 14h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
-        <path d="M2 24c0-1.1.9-2 2-2h24a2 2 0 0 1 2 2v1H2v-1z" fill="currentColor" />
-        <rect x="13" y="22.5" width="6" height="1.5" rx="0.75" fill="#fff" fillOpacity="0.8" />
-        <circle cx="16" cy="13.5" r="1.5" fill="#fff" fillOpacity="0.9" />
-      </svg>
-    );
-    if (s.includes("desktop")) return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <rect x="7" y="3" width="18" height="26" rx="3.5" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.15" />
-        <circle cx="16" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.4" />
-        <path d="M11 15h10M11 18h10M11 21h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <rect x="10" y="24" width="12" height="2" rx="1" fill="#fff" fillOpacity="0.7" />
-        <circle cx="21" cy="8" r="0.8" fill="#fff" />
-      </svg>
-    );
-    if (s.includes("part") || s.includes("component") || s.includes("accessor")) return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <rect x="7" y="7" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
-        <rect x="12" y="12" width="8" height="8" rx="1.5" fill="currentColor" />
-        <circle cx="16" cy="16" r="1.5" fill="#fff" />
-        <path d="M12 3v4M16 3v4M20 3v4M12 25v4M16 25v4M20 25v4M3 12h4M3 16h4M3 20h4M25 12h4M25 16h4M25 20h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    );
-    if (s.includes("gaming")) return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <path d="M6 14c0-3.5 2.5-6 6.5-6h7c4 0 6.5 2.5 6.5 6 0 4.5-2 9-4 9-1.5 0-2.5-2-4-2h-4c-1.5 0-2.5 2-4 2-2 0-4-4.5-4-9z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
-        <path d="M11 11v6M8 14h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="21" cy="12.5" r="1.3" fill="#fff" />
-        <circle cx="23.5" cy="15" r="1.3" fill="#fff" />
-        <circle cx="18.5" cy="15" r="1.3" fill="#fff" />
-        <circle cx="21" cy="17.5" r="1.3" fill="#fff" />
-      </svg>
-    );
-    if (s.includes("second") || s.includes("used") || s.includes("hand")) return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <path d="M16 3l11 5v7c0 7-5 12.5-11 14C10 27.5 5 22 5 15V8l11-5z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
-        <path d="M11.5 16l3 3 6.5-7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    );
+    if (s.includes("laptop")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <rect x="4" y="5" width="20" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.12" />
+          <path d="M7 14.5h14" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.5" />
+          <circle cx="14" cy="11.5" r="1.5" fill="currentColor" />
+          <path d="M2 21c0-.8.7-1.5 1.5-1.5h21c.8 0 1.5.7 1.5 1.5v.5H2v-.5z" fill="currentColor" />
+          <rect x="11.5" y="19.5" width="5" height="1" rx="0.5" fill="#fff" fillOpacity="0.9" />
+        </svg>
+      );
+    }
+    if (s.includes("accessor")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <path d="M5 14a9 9 0 0 1 18 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <rect x="3" y="13" width="4.5" height="8" rx="2.2" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.2" />
+          <rect x="20.5" y="13" width="4.5" height="8" rx="2.2" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.2" />
+          <path d="M22.5 17c0 3-1.5 5-4.5 5.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="17.5" cy="22.5" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    }
+    if (s.includes("desktop")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <rect x="6" y="3" width="16" height="22" rx="3" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.12" />
+          <circle cx="14" cy="7" r="1.5" fill="currentColor" />
+          <path d="M10 12h8M10 15h8M10 18h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6" />
+          <rect x="9" y="21" width="10" height="1.8" rx="0.9" fill="currentColor" />
+        </svg>
+      );
+    }
+    if (s.includes("part") || s.includes("component")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <rect x="6" y="6" width="16" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.12" />
+          <rect x="10.5" y="10.5" width="7" height="7" rx="1.5" fill="currentColor" />
+          <circle cx="14" cy="14" r="1.2" fill="#fff" />
+          <path d="M10 2v4M14 2v4M18 2v4M10 22v4M14 22v4M18 22v4M2 10h4M2 14h4M2 18h4M22 10h4M22 14h4M22 18h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    }
+    if (s.includes("gaming")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <path d="M6 12c0-3 2-5 5.5-5h5c3.5 0 5.5 2 5.5 5 0 4-1.8 7.5-3.5 7.5-1.3 0-2.2-1.7-3.5-1.7s-2.2 1.7-3.5 1.7C9.8 19.5 8 16 6 12z" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.15" />
+          <path d="M10 10v4M8 12h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="18" cy="11" r="1.1" fill="#fff" />
+          <circle cx="20" cy="13" r="1.1" fill="#fff" />
+          <circle cx="16" cy="13" r="1.1" fill="#fff" />
+          <circle cx="18" cy="15" r="1.1" fill="#fff" />
+        </svg>
+      );
+    }
+    if (s.includes("monitor") || s.includes("screen") || s.includes("display")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <rect x="3" y="5" width="22" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.12" />
+          <path d="M7 15h14" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.5" />
+          <path d="M14 19v4M10 23h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="14" cy="17" r="0.8" fill="currentColor" />
+        </svg>
+      );
+    }
+    if (s.includes("second") || s.includes("used") || s.includes("hand")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <path d="M14 3l9 4.2v6.2c0 5.8-3.9 10.3-9 11.6-5.1-1.3-9-5.8-9-11.6V7.2L14 3z" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.15" />
+          <path d="M10.5 13.5l2.5 2.5 5-5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    }
+    if (s.includes("service") || s.includes("repair")) {
+      return (
+        <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+          <path d="M19.5 4.5a3.5 3.5 0 0 0-4.6 4.6L6.5 17.5a2 2 0 1 0 2.8 2.8l8.4-8.4a3.5 3.5 0 0 0 4.6-4.6l-2.8 2.8-2-2 2-2.8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
+          <circle cx="8" cy="19" r="1" fill="#fff" />
+        </svg>
+      );
+    }
     return (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" className="drop-shadow-md">
-        <path d="M22 6a5.5 5.5 0 0 0-7.78 0L6 14.22a3 3 0 0 0 0 4.24l7.54 7.54a3 3 0 0 0 4.24 0L26 17.78A5.5 5.5 0 0 0 22 6z" stroke="currentColor" strokeWidth="2" fill="currentColor" fillOpacity="0.2" />
-        <path d="M19 9l4 4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="20" r="1.5" fill="#fff" />
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none" className="transition-transform group-hover:scale-110 duration-300 drop-shadow-sm">
+        <rect x="5" y="5" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.8" fill="currentColor" fillOpacity="0.15" />
+        <path d="M9 14h10M14 9v10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     );
   };
 
-  const defaultCategories = [
-    { name: t("laptops"), slug: "laptops", color: "from-blue-600 via-indigo-600 to-sky-500", glow: "shadow-blue-500/25", desc: "Laptops & MacBooks" },
-    { name: t("desktops"), slug: "desktops", color: "from-[#8B1A1A] via-red-600 to-rose-500", glow: "shadow-red-600/25", desc: "Custom PCs & Desktops" },
-    { name: t("parts"), slug: "parts", color: "from-purple-600 via-violet-600 to-fuchsia-500", glow: "shadow-purple-500/25", desc: "CPUs, GPUs & Storage" },
-    { name: t("gaming"), slug: "gaming", color: "from-emerald-600 via-teal-600 to-cyan-500", glow: "shadow-emerald-500/25", desc: "Gaming Gear & Esports" },
-    { name: t("secondHand"), slug: "secondhand", color: "from-amber-500 via-orange-600 to-yellow-500", glow: "shadow-amber-500/25", badge: "HOT", desc: "Inspected Pre-Owned" },
-    { name: t("services"), slug: "services", color: "from-cyan-600 via-blue-600 to-indigo-700", glow: "shadow-cyan-500/25", desc: "Repair & Support" },
+  const defaultCategoryList: CategoryConfig[] = [
+    CATEGORY_DEFINITIONS.laptops,
+    CATEGORY_DEFINITIONS.accessories,
+    CATEGORY_DEFINITIONS.desktops,
+    CATEGORY_DEFINITIONS.components,
+    CATEGORY_DEFINITIONS["gaming-gear"],
+    CATEGORY_DEFINITIONS.monitors,
   ];
 
   // Exclude "smartphones" per user explicit instruction
@@ -791,89 +964,113 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
     return !s.includes("smart") && !s.includes("phone");
   });
 
-  // Always produce EXACTLY 6 categories by merging DB categories with defaultCategories
+  // Always produce EXACTLY 6 categories by merging DB categories with defaultCategoryList
   let merged: any[] = [...filteredCategories];
-  if (!merged.some((c) => c.slug?.toLowerCase() === "secondhand")) {
-    merged.push({ name: t("secondHand"), slug: "secondhand", badge: "HOT", desc: "Inspected Pre-Owned" });
-  }
-  for (const def of defaultCategories) {
+  for (const def of defaultCategoryList) {
     if (merged.length >= 6) break;
-    if (!merged.some((c) => c.slug?.toLowerCase() === def.slug.toLowerCase())) {
+    const exists = merged.some((c) => {
+      const cs = (c.slug || c.name || "").toLowerCase();
+      return cs.includes(def.slug) || def.slug.includes(cs);
+    });
+    if (!exists) {
       merged.push(def);
     }
   }
-  let displayCategories = merged.slice(0, 6);
 
-  const colors = [
-    "from-blue-600 via-indigo-600 to-sky-500",
-    "from-[#8B1A1A] via-red-600 to-rose-500",
-    "from-purple-600 via-violet-600 to-fuchsia-500",
-    "from-emerald-600 via-teal-600 to-cyan-500",
-    "from-amber-500 via-orange-600 to-yellow-500",
-    "from-cyan-600 via-blue-600 to-indigo-700"
-  ];
-  displayCategories = displayCategories.map((c, i) => ({
-    ...c,
-    color: c.color || colors[i % colors.length]
-  }));
+  const displayCategories = merged.slice(0, 6).map(resolveCategory);
 
   return (
     <section className="bg-white dark:bg-[#0c0e12] py-6 sm:py-10 border-b border-gray-100 dark:border-white/5 transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
-        <div className="flex justify-between items-end mb-6">
+        
+        {/* ── Section Header with High-Tech Pill & Khmer Typography ────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-6">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#8B1A1A] dark:bg-red-500 animate-pulse" />
-              <span className="text-[11px] sm:text-xs font-bold text-[#8B1A1A] dark:text-red-400 uppercase tracking-wider">Explore Genuine Gear</span>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-red-500/10 dark:bg-red-500/15 border border-red-500/20 mb-2 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-red-600 dark:bg-red-500 animate-pulse shadow-sm shadow-red-500" />
+              <span className="text-[10.5px] sm:text-xs font-black text-red-700 dark:text-red-400 uppercase tracking-widest font-khmer">
+                S-Tech Categories • ជម្រើសសម្ភារបច្ចេកវិទ្យា
+              </span>
             </div>
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              {t("shopByCategory")}
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white tracking-normal font-khmer flex items-center gap-2">
+              <span>ទិញតាមប្រភេទផលិតផល</span>
             </h2>
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium mt-1 font-khmer">
+              ជ្រើសរើសប្រភេទឧបករណ៍ដែលអ្នកត្រូវការ ជាមួយការធានាផ្លូវការ និងតម្លៃពិសេស
+            </p>
           </div>
           <Link
             href="/category/all"
-            className="text-xs sm:text-sm bg-gray-100 dark:bg-white/10 hover:bg-[#8B1A1A] dark:hover:bg-[#8B1A1A] text-gray-800 dark:text-gray-200 hover:text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition-all no-underline shadow-sm"
+            className="group self-start sm:self-auto text-xs sm:text-sm bg-gray-100 hover:bg-red-50 dark:bg-white/10 dark:hover:bg-red-950/40 text-gray-800 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400 font-extrabold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl flex items-center gap-2 transition-all no-underline border border-gray-200/80 dark:border-white/10 hover:border-red-500/30 shadow-xs active:scale-95 shrink-0"
           >
-            <span>View All</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6"/></svg>
+            <span className="font-khmer">មើលទាំងអស់</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-sans tracking-wider hidden xs:inline">View All</span>
+            <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform text-red-500 shrink-0" />
           </Link>
         </div>
 
-        {/* Exactly 6 Categories in 1 balanced row on Desktop & 2 rows on Phone */}
+        {/* ── Exactly 6 Professional Luxury Category Cards ────────────────── */}
         <motion.div
           variants={dropContainerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-40px" }}
-          className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5"
+          className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-6 gap-2.5 sm:gap-4 lg:gap-5"
         >
           {displayCategories.map((cat) => (
             <motion.div
               key={cat.slug}
               variants={dropCardVariants}
-              whileHover={{ y: -6 }}
+              whileHover={{ y: -5 }}
+              whileTap={{ scale: 0.96 }}
               className="h-full"
             >
               <Link
                 href={`/category/${cat.slug}`}
-                className="flex flex-col items-center p-3.5 sm:p-5 rounded-2xl bg-gray-50/70 dark:bg-[#151922] hover:bg-white dark:hover:bg-[#1c2230] border border-gray-100 dark:border-white/5 hover:border-red-200 dark:hover:border-red-500/30 hover:shadow-xl transition-all duration-300 group no-underline relative text-center h-full"
+                className="group relative flex flex-col items-center justify-between p-3 sm:p-4.5 rounded-2xl sm:rounded-3xl bg-gradient-to-b from-gray-50/90 via-white to-gray-50/60 dark:from-[#131722] dark:via-[#10131b] dark:to-[#0c0e14] hover:bg-white dark:hover:bg-[#161b28] border border-gray-200/80 dark:border-white/10 hover:border-red-500/50 dark:hover:border-red-500/50 transition-all duration-300 shadow-xs hover:shadow-xl hover:shadow-red-950/15 dark:hover:shadow-black/60 text-center h-full no-underline overflow-hidden"
               >
+                {/* Ambient Interactive Backlight Glow */}
+                <div className={`absolute -top-10 -right-10 w-24 h-24 rounded-full ${cat.glowBg || "bg-red-500/15"} blur-2xl opacity-0 group-hover:opacity-70 transition-opacity duration-500 pointer-events-none`} />
+
+                {/* Top Rim Laser Accent */}
+                <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-red-500/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                {/* Optional Badge */}
                 {cat.badge && (
-                  <span className="absolute -top-1.5 -right-1 px-2 py-0.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 text-white text-[9px] font-black rounded-full z-10 shadow-sm border border-white dark:border-zinc-900 uppercase tracking-wider">
+                  <span className="absolute top-2 right-2 px-2 py-0.5 bg-gradient-to-r from-red-600 to-[#8B1A1A] text-white text-[8.5px] font-black rounded-full z-10 shadow-sm border border-white/20 uppercase tracking-wider">
                     {cat.badge}
                   </span>
                 )}
-                <div className={`w-[56px] h-[56px] sm:w-[64px] sm:h-[64px] rounded-[20px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-lg ${cat.glow || 'shadow-red-900/20'} group-hover:scale-110 group-hover:rotate-2 transition-all duration-300 mb-3 border border-white/20`}>
-                  <div className="transition-transform group-hover:scale-105 duration-300">
+
+                {/* Luxury Icon Pod */}
+                <div className="relative mb-2.5 mt-1">
+                  {/* Soft Ambient Icon Glow */}
+                  <div className={`absolute inset-0 rounded-2xl ${cat.glowBg || "bg-red-500/20"} blur-md opacity-30 group-hover:opacity-90 transition-opacity duration-300`} />
+                  
+                  {/* Icon Frame */}
+                  <div className={`relative w-12 h-12 sm:w-14 sm:h-14 lg:w-15 lg:h-15 rounded-2xl bg-gradient-to-br ${cat.color} flex items-center justify-center text-white shadow-md ${cat.glowShadow || "shadow-red-900/20"} group-hover:scale-110 group-hover:-translate-y-0.5 transition-all duration-300 border border-white/20`}>
                     {getIcon(cat.slug)}
                   </div>
                 </div>
-                <span className="text-[12px] sm:text-[13px] font-bold text-gray-900 dark:text-gray-100 group-hover:text-[#8B1A1A] dark:group-hover:text-red-400 transition-colors leading-tight">
-                  {cat.name}
-                </span>
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium">
-                  {cat.desc || "Explore More"}
-                </span>
+
+                {/* Dual Language Typography (Prominent Khmer + Sleek English) */}
+                <div className="flex flex-col items-center w-full">
+                  <span className="text-[12px] sm:text-[13.5px] font-extrabold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors leading-tight font-khmer text-center line-clamp-1">
+                    {cat.khName}
+                  </span>
+                  <span className="text-[9.5px] sm:text-[10.5px] font-bold text-gray-400 dark:text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors tracking-wider uppercase mt-0.5 text-center line-clamp-1">
+                    {cat.enName}
+                  </span>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 hidden lg:block line-clamp-1 font-medium font-khmer">
+                    {cat.desc}
+                  </span>
+                </div>
+
+                {/* Micro Interactive Pill on Desktop */}
+                <div className="mt-2.5 pt-2 border-t border-gray-100 dark:border-white/5 w-full hidden sm:flex items-center justify-center gap-1 text-[10px] font-bold text-gray-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                  <span className="font-khmer">រុករក</span>
+                  <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+                </div>
               </Link>
             </motion.div>
           ))}
