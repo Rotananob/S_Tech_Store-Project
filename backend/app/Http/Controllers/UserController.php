@@ -2033,25 +2033,12 @@ class UserController extends Controller
      */
     public function getUserOrders(Request $request)
     {
-        $uid = $this->getUid($request);
-
-        $chatId = $request->header('X-Telegram-Chat-ID')
-            ?: $request->query('chat_id')
-            ?: ($request->header('X-Firebase-UID') && str_starts_with($request->header('X-Firebase-UID'), 'tg_') ? preg_replace('/\D/', '', $request->header('X-Firebase-UID')) : null)
-            ?: (is_string($uid) && str_starts_with($uid, 'tg_') ? preg_replace('/\D/', '', $uid) : null);
+        $rawChatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
+        $chatId = $rawChatId ? preg_replace('/\D/', '', $rawChatId) : null;
 
         $token = $request->header('X-Customer-Token')
             ?: $request->query('tg_token')
             ?: $request->query('token');
-
-        if (empty($chatId) && !empty($token)) {
-            if (is_numeric($token) || str_starts_with($token, 'tg_')) {
-                $clean = preg_replace('/\D/', '', $token);
-                if (!empty($clean)) {
-                    $chatId = $clean;
-                }
-            }
-        }
 
         $user = null;
         if (!empty($token)) {
@@ -2059,38 +2046,69 @@ class UserController extends Controller
             if ($sessUserId) {
                 $user = UserProfile::find($sessUserId);
             }
+            if (!$user) {
+                $user = UserProfile::where('magic_login_token', $token)->first();
+            }
         }
 
-        if (!$user && $chatId) {
+        if (!$user && !empty($chatId)) {
             $user = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
         }
 
-        if (!$user && $uid) {
-            $user = UserProfile::where('firebase_uid', $uid)
-                ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
-                ->first();
-        }
-
-        if (!$user && !empty($token)) {
-            $cleanToken = preg_replace('/\D/', '', $token);
-            if (!empty($cleanToken)) {
-                $user = UserProfile::where('telegram_chat_id', $cleanToken)
-                    ->orWhere('firebase_uid', 'tg_' . $cleanToken)
+        $uid = null;
+        if (!$user) {
+            $uid = $this->getUid($request);
+            if ($uid) {
+                $user = UserProfile::where('firebase_uid', $uid)
+                    ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
                     ->first();
             }
         }
 
-        if ($user && !empty($user->telegram_chat_id) && !$chatId) {
-            $chatId = (string)$user->telegram_chat_id;
+        // Support direct lookup of an order by order_id or id if supplied (e.g. from Telegram alert direct link)
+        $targetOrderId = $request->query('order_id') ?: $request->query('id') ?: $request->header('X-Order-ID');
+        if ($targetOrderId && !$user) {
+            $cleanTarget = ltrim($targetOrderId, '#');
+            $targetOrder = Order::where('order_id', $cleanTarget)
+                ->orWhere('order_id', '#' . $cleanTarget)
+                ->orWhere('id', is_numeric($cleanTarget) ? (int)$cleanTarget : 0)
+                ->first();
+            if ($targetOrder) {
+                if (!empty($targetOrder->user_id)) {
+                    $user = UserProfile::where('firebase_uid', $targetOrder->user_id)->first();
+                }
+                if (!$user && !empty($targetOrder->customer_phone)) {
+                    $user = UserProfile::where('phone', $targetOrder->customer_phone)->first();
+                }
+                if (!$user && !empty($targetOrder->customer_email)) {
+                    $user = UserProfile::where('email', $targetOrder->customer_email)->first();
+                }
+            }
         }
 
-        if (!$uid && !$user && !$chatId) {
+        if ($user && !empty($user->telegram_chat_id) && !$chatId) {
+            $chatId = preg_replace('/\D/', '', (string)$user->telegram_chat_id);
+        }
+
+        if (!$uid && !$user && !$chatId && !$targetOrderId) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
         // Delegate to unified TelegramService::getCustomerOrdersBuilder for 100% parity with Telegram Bot & Web
         $effectiveChatId = (string)($chatId ?: ($user->telegram_chat_id ?? $uid ?? ''));
-        $orders = \App\Services\TelegramService::getCustomerOrdersBuilder($effectiveChatId, $user)
+        $ordersBuilder = \App\Services\TelegramService::getCustomerOrdersBuilder($effectiveChatId, $user);
+
+        // If specific order_id was requested, also ensure it is included
+        if ($targetOrderId) {
+            $cleanTargetId = ltrim($targetOrderId, '#');
+            $ordersBuilder = $ordersBuilder->orWhere(function ($q) use ($cleanTargetId) {
+                $q->where('order_id', $cleanTargetId)
+                  ->orWhere('order_id', '#' . $cleanTargetId)
+                  ->orWhere('id', is_numeric($cleanTargetId) ? (int)$cleanTargetId : 0);
+            });
+        }
+
+        $orders = $ordersBuilder
             ->with(['items' => function ($q) {
                 $q->with(['product:id,name,image_url,images']);
             }])

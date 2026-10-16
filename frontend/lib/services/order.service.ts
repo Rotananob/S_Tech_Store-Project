@@ -123,3 +123,15 @@ export const confirmManualPayment = async (orderId: string, method: string = "kh
     };
   }
 };
+
+export const markOrderFailed = async (orderId: string, reason?: string) => {
+  try {
+    const response = await api.post(`/orders/${orderId}/mark-failed`, { reason });
+    return { success: true, data: response.data };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.response?.data?.message || "Failed to mark order as failed",
+    };
+  }
+};

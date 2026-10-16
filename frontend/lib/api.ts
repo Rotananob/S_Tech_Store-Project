@@ -40,69 +40,80 @@ api.interceptors.request.use(
     }
 
     if (typeof window !== "undefined") {
-      // 1. Attach Admin/Staff Token if logged into Admin portal
-      try {
-        let adminToken = localStorage.getItem("stech_admin_token") || sessionStorage.getItem("stech_admin_token");
-        if (!adminToken && typeof document !== "undefined") {
-          const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
-          if (match && match[1]) {
-            adminToken = decodeURIComponent(match[1]);
-            try {
-              localStorage.setItem("stech_admin_token", adminToken);
-              sessionStorage.setItem("stech_admin_token", adminToken);
-            } catch (err) {}
-          }
-        }
+      // Determine if the current request is intended for the admin portal
+      const currentPath = window.location.pathname || "";
+      const reqUrl = config.url || "";
+      const isAdminRequest = (
+        currentPath.includes("/rok-mix-khernh") ||
+        reqUrl.includes("/admin") ||
+        reqUrl.includes("/rok-mix-khernh")
+      );
 
-        const storedUserStr = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
-        let parsedAdminUser: any = null;
-        if (storedUserStr) {
-          try {
-            parsedAdminUser = JSON.parse(storedUserStr);
-          } catch (e) {}
-        }
-
-        const isOwnerLocked = (
-          localStorage.getItem("stech_owner_locked") === "true" ||
-          (typeof document !== "undefined" && document.cookie.includes("stech_owner_locked=true"))
-        );
-        const isOwner = (
-          isOwnerLocked || 
-          parsedAdminUser?.email === "nobrothana180703@gmail.com"
-        );
-
-        if (isOwner) {
-          try {
-            localStorage.setItem("stech_owner_locked", "true");
-            if (typeof document !== "undefined") {
-              document.cookie = "stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax";
+      // 1. Attach Admin/Staff Token if on Admin portal or calling Admin API
+      if (isAdminRequest) {
+        try {
+          let adminToken = localStorage.getItem("stech_admin_token") || sessionStorage.getItem("stech_admin_token");
+          if (!adminToken && typeof document !== "undefined") {
+            const match = document.cookie.match(/(?:^|;\s*)stech_admin_token=([^;]*)/);
+            if (match && match[1]) {
+              adminToken = decodeURIComponent(match[1]);
+              try {
+                localStorage.setItem("stech_admin_token", adminToken);
+                sessionStorage.setItem("stech_admin_token", adminToken);
+              } catch (err) {}
             }
-          } catch (e) {}
-
-          // Unconditional Owner headers: Guaranteed immunity from 401 and 403 on all routes
-          config.headers["X-User-Email"] = "nobrothana180703@gmail.com";
-          config.headers["X-Admin-Role"] = "super_admin";
-          config.headers["X-Firebase-Email"] = "nobrothana180703@gmail.com";
-        }
-
-        if (adminToken) {
-          config.headers["Authorization"] = `Bearer ${adminToken}`;
-          config.headers["X-Admin-Token"] = adminToken;
-        }
-
-        if (parsedAdminUser && !isOwner) {
-          if (parsedAdminUser?.role) {
-            config.headers["X-Admin-Role"] = parsedAdminUser.role;
           }
-          if (parsedAdminUser?.email) {
-            config.headers["X-User-Email"] = parsedAdminUser.email;
+
+          const storedUserStr = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
+          let parsedAdminUser: any = null;
+          if (storedUserStr) {
+            try {
+              parsedAdminUser = JSON.parse(storedUserStr);
+            } catch (e) {}
           }
-          if (parsedAdminUser?.name) {
-            config.headers["X-User-Name"] = parsedAdminUser.name;
+
+          const isOwnerLocked = (
+            localStorage.getItem("stech_owner_locked") === "true" ||
+            (typeof document !== "undefined" && document.cookie.includes("stech_owner_locked=true"))
+          );
+          const isOwner = (
+            isOwnerLocked || 
+            parsedAdminUser?.email === "nobrothana180703@gmail.com"
+          );
+
+          if (isOwner) {
+            try {
+              localStorage.setItem("stech_owner_locked", "true");
+              if (typeof document !== "undefined") {
+                document.cookie = "stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax";
+              }
+            } catch (e) {}
+
+            // Unconditional Owner headers: Guaranteed immunity from 401 and 403 on admin routes
+            config.headers["X-User-Email"] = "nobrothana180703@gmail.com";
+            config.headers["X-Admin-Role"] = "super_admin";
+            config.headers["X-Firebase-Email"] = "nobrothana180703@gmail.com";
           }
+
+          if (adminToken) {
+            config.headers["Authorization"] = `Bearer ${adminToken}`;
+            config.headers["X-Admin-Token"] = adminToken;
+          }
+
+          if (parsedAdminUser && !isOwner) {
+            if (parsedAdminUser?.role) {
+              config.headers["X-Admin-Role"] = parsedAdminUser.role;
+            }
+            if (parsedAdminUser?.email) {
+              config.headers["X-User-Email"] = parsedAdminUser.email;
+            }
+            if (parsedAdminUser?.name) {
+              config.headers["X-User-Name"] = parsedAdminUser.name;
+            }
+          }
+        } catch (e) {
+          // localStorage error fallback
         }
-      } catch (e) {
-        // localStorage error fallback
       }
 
       // 2. Attach Firebase Auth info or Direct Magic Login session

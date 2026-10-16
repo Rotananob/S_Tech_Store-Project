@@ -10,7 +10,8 @@ import {
   processCardPayment, 
   checkPaymentStatus, 
   confirmManualPayment,
-  validatePromoCode
+  validatePromoCode,
+  markOrderFailed
 } from "@/lib/services/order.service";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -1032,6 +1033,7 @@ export default function CheckoutPage() {
         } catch (err: any) {
           setLoading(false);
           const errorMsg = err.response?.data?.message || err.message || "មិនអាចកាត់ប្រាក់ពីកាបូបបានទេ។ សូមពិនិត្យសមតុល្យរបស់អ្នក។";
+          markOrderFailed(newOrderId, errorMsg);
           alert(errorMsg);
         }
       } else {
@@ -1136,7 +1138,9 @@ export default function CheckoutPage() {
       setTransactionId(txn);
       await finishSuccessfulOrder(newOrderId, txn);
     } else {
-      setCardError(cardRes.error || "ការទូទាត់ត្រូវបានបដិសេធ សូមពិនិត្យកាតឡើងវិញ");
+      const errMsg = cardRes.error || "ការទូទាត់ត្រូវបានបដិសេធ សូមពិនិត្យកាតឡើងវិញ";
+      markOrderFailed(newOrderId, errMsg);
+      setCardError(errMsg);
     }
   };
 
@@ -1195,7 +1199,9 @@ export default function CheckoutPage() {
       startPaymentPolling(newOrderId);
     } else {
       setLoading(false);
-      alert(sessionRes.error || "បរាជ័យក្នុងការបង្កើត KHQR Code");
+      const errMsg = sessionRes.error || "បរាជ័យក្នុងការបង្កើត KHQR Code";
+      markOrderFailed(newOrderId, errMsg);
+      alert(errMsg);
     }
   };
 
@@ -1212,6 +1218,7 @@ export default function CheckoutPage() {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
           if (pollingRef.current) clearInterval(pollingRef.current);
+          markOrderFailed(targetOrderId, "KHQR Session Expired (15 minutes)");
           return 0;
         }
         return prev - 1;

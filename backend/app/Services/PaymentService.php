@@ -243,9 +243,52 @@ class PaymentService
 
         // Basic Luhn algorithm validation
         if (!self::validateLuhn($cardNumber)) {
+            $order->update([
+                'status' => 'failed',
+                'payment_status' => 'failed',
+                'payment_details' => json_encode(['error' => 'Invalid Card Number (Luhn Check Failed)']),
+            ]);
+            try {
+                \App\Services\TelegramService::sendFinanceAlert([
+                    'type' => '❌ ការទូទាត់កាតបរាជ័យ (Card Luhn Error)',
+                    'amount' => $order->total_amount,
+                    'method' => 'VISA/CARD',
+                    'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                    'customer' => $order->customer_name ?? 'Customer',
+                    'reason' => 'Invalid Card Number (Luhn check failed)',
+                ]);
+            } catch (\Throwable $t) {}
             return [
                 'success' => false,
                 'message' => 'លេខកាតមិនត្រឹមត្រូវ (Invalid Card Number). Please check your 16-digit card number.',
+            ];
+        }
+
+        // Validate expiration date
+        $curYear = (int)date('Y');
+        $curMonth = (int)date('m');
+        $numYear = (int)$expYear;
+        if ($numYear < 100) $numYear += 2000;
+        $numMonth = (int)$expMonth;
+        if ($numYear < $curYear || ($numYear == $curYear && $numMonth < $curMonth)) {
+            $order->update([
+                'status' => 'failed',
+                'payment_status' => 'failed',
+                'payment_details' => json_encode(['error' => 'Card Expired']),
+            ]);
+            try {
+                \App\Services\TelegramService::sendFinanceAlert([
+                    'type' => '❌ ការទូទាត់កាតបរាជ័យ (Card Expired)',
+                    'amount' => $order->total_amount,
+                    'method' => 'VISA/CARD',
+                    'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                    'customer' => $order->customer_name ?? 'Customer',
+                    'reason' => 'Card has expired',
+                ]);
+            } catch (\Throwable $t) {}
+            return [
+                'success' => false,
+                'message' => 'កាតបានផុតកំណត់សុពលភាព (Card Expired).',
             ];
         }
 

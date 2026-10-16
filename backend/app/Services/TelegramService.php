@@ -4746,6 +4746,8 @@ class TelegramService
 
         $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
         \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+        $user->magic_login_token = $token;
+        $user->save();
 
         return $token;
     }
@@ -4760,10 +4762,11 @@ class TelegramService
             return ['ok' => false, 'error' => 'No linked Telegram chat for customer'];
         }
 
-        $sessionToken = self::generateCustomerSessionToken($chatId, $order->customer_name ?? null);
-        $directUrl = "https://www.s-tech-store.tech/orders?tg_token={$sessionToken}";
-
         $orderId = $order->order_id ?: ('#ORD-' . $order->id);
+        $cleanOrderId = ltrim($orderId, '#');
+        $sessionToken = self::generateCustomerSessionToken($chatId, $order->customer_name ?? null);
+        $directUrl = "https://www.s-tech-store.tech/orders?order_id={$cleanOrderId}&chat_id={$chatId}&tg_token={$sessionToken}";
+
         $customerName = htmlspecialchars($order->customer_name ?? 'អតិថិជន');
         $total = number_format((float)($order->total_amount ?? 0), 2);
         $paymentMethod = strtoupper($order->payment_method ?? 'Cash on Delivery (COD)');
@@ -4824,7 +4827,7 @@ class TelegramService
                 ],
             ];
         } else {
-            // Status updated (processing, shipped, delivered, cancelled)
+            // Status updated (processing, shipped, delivered, cancelled, failed)
             $statusKey = strtolower($order->status ?? 'pending');
             $statusBadge = match($statusKey) {
                 'pending' => '⏳ កំពុងរង់ចាំពិនិត្យ (Pending)',
@@ -4832,6 +4835,7 @@ class TelegramService
                 'shipped', 'delivering' => '🚚 កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូន (Shipped)',
                 'completed', 'delivered' => '✅ បានដឹកជញ្ជូនដល់ដៃជោគជ័យ (Delivered)',
                 'cancelled' => '❌ ការបញ្ជាទិញត្រូវបានបោះបង់ (Cancelled)',
+                'failed' => '❌ ការបញ្ជាទិញបរាជ័យ (Failed)',
                 default => ucfirst($order->status),
             };
 
@@ -4840,6 +4844,7 @@ class TelegramService
                 'shipped', 'delivering' => '🚚 ទំនិញរបស់អ្នកកំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក។ សូមត្រៀមទទួលទូរស័ព្ទពីអ្នកដឹកជញ្ជូន!',
                 'completed', 'delivered' => '🎉 ទំនិញត្រូវបានប្រគល់ជូនរួចរាល់។ សូមអរគុណយ៉ាងជ្រាលជ្រៅសម្រាប់ការគាំទ្រ S Tech Store!',
                 'cancelled' => '⚠️ ការបញ្ជាទិញនេះត្រូវបានលុបចោល។ សូមទាក់ទងមកកាន់យើងខ្ញុំប្រសិនបើមានសំណួរ។',
+                'failed' => '⚠️ ការទូទាត់ ឬការបញ្ជាទិញមិនជោគជ័យឡើយ។ សូមពិនិត្យ ឬទាក់ទងមកកាន់យើងខ្ញុំដើម្បីទទួលបានការជួយ។',
                 default => '⚡ ស្ថានភាពកញ្ចប់ទំនិញរបស់អ្នកត្រូវបានធ្វើបច្ចុប្បន្នភាព។',
             };
 

@@ -819,14 +819,38 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         }
     }
 
-    // Auto-Logout if disconnected or not actively linked to a Telegram account
-    if ($isDisconnected || !$user || empty($user->telegram_chat_id)) {
+    // Explicitly disconnected check only
+    if ($isDisconnected) {
         return response()->json([
             'success' => true,
             'linked' => false,
             'user' => null,
-            'message' => 'Telegram account is not connected or was disconnected. Auto-logout Mini App.',
+            'message' => 'Telegram account was disconnected. Auto-logout Mini App.',
         ]);
+    }
+
+    // Resolve or auto-create active profile for this Telegram customer
+    if (!$user) {
+        $user = \App\Services\TelegramService::resolveActiveUser((string)$cleanTgId);
+    }
+
+    if (!$user) {
+        $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
+        $user = new \App\Models\UserProfile();
+        $user->firebase_uid = 'tg_' . $cleanTgId;
+        $user->telegram_chat_id = (string)$cleanTgId;
+        $user->display_name = $fullName;
+        $user->email = !empty($tgUser['username'])
+            ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
+            : ("tg_{$cleanTgId}@s-tech-store.tech");
+        $user->is_active = true;
+        $user->status = 'active';
+        $user->save();
+    } else {
+        if (empty($user->telegram_chat_id)) {
+            $user->telegram_chat_id = (string)$cleanTgId;
+            $user->save();
+        }
     }
 
     if (!($user->is_active ?? true)) {
@@ -865,6 +889,8 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
 
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+    $user->magic_login_token = $token;
+    $user->save();
 
     // Send Welcome & Companion Hub activation once
     if (!\Illuminate\Support\Facades\Cache::has("welcomed_tg_{$cleanTgId}")) {
@@ -1476,6 +1502,7 @@ Route::delete('/user/cart', [UserController::class, 'clearCart']);
 // User Orders
 Route::get('/user/orders', [UserController::class, 'getUserOrders']);
 Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:30,1');
+Route::post('/orders/{idOrOrderId}/mark-failed', [OrderController::class, 'markFailed']);
 
 // PC Builds
 Route::get('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'index']);

@@ -256,6 +256,55 @@ class OrderController extends Controller
     }
 
     /**
+     * POST /api/orders/{idOrOrderId}/mark-failed
+     * Sets order status and payment_status to 'failed' (បរាជ័យ) when checkout or payment fails
+     */
+    public function markFailed(Request $request, $idOrOrderId)
+    {
+        $cleanId = ltrim($idOrOrderId, '#');
+        $order = Order::where('order_id', $cleanId)
+            ->orWhere('order_id', '#' . $cleanId);
+        if (is_numeric($cleanId)) {
+            $order = $order->orWhere('id', (int)$cleanId);
+        }
+        $order = $order->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'error' => 'Order not found'], 404);
+        }
+
+        $reason = $request->input('reason', 'Payment or checkout failed');
+
+        $order->status = 'failed';
+        $order->payment_status = 'failed';
+        
+        $details = json_decode($order->payment_details ?: '{}', true) ?: [];
+        $details['failure_reason'] = $reason;
+        $details['failed_at'] = now()->toIso8601String();
+        $order->payment_details = json_encode($details);
+        $order->save();
+
+        try {
+            \App\Services\TelegramService::sendFinanceAlert([
+                'type' => '❌ ការបញ្ជាទិញបរាជ័យ (ORDER PAYMENT FAILED)',
+                'amount' => $order->total_amount,
+                'method' => strtoupper($order->payment_method ?? 'ONLINE'),
+                'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                'customer' => $order->customer_name ?? 'Customer',
+                'reason' => $reason,
+            ]);
+        } catch (\Throwable $t) {
+            Log::warning("Telegram finance alert on order failure: " . $t->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Order marked as failed (បរាជ័យ)',
+            'order' => $order,
+        ]);
+    }
+
+    /**
      * Resolve customer UserProfile and Target UID (supports both Web Firebase UID and Telegram Mini App tg_<chat_id>)
      */
     private function resolveCustomerAndUid(Order $order): array
@@ -295,7 +344,7 @@ class OrderController extends Controller
             $request->merge(['status' => strtolower(trim($request->input('status')))]);
         }
         $validated = $request->validate([
-            'status' => 'required|string|in:pending,processing,shipped,delivered,completed,cancelled',
+            'status' => 'required|string|in:pending,processing,shipped,delivered,completed,cancelled,failed',
         ]);
 
         $order = Order::findOrFail($id);
@@ -315,6 +364,7 @@ class OrderController extends Controller
                 'shipped' => "🚚 ទំនិញកំពុងដឹកជញ្ជូន",
                 'delivered' => "✅ ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ",
                 'cancelled' => "❌ ការបញ្ជាទិញត្រូវបានបោះបង់",
+                'failed' => "❌ ការបញ្ជាទិញបរាជ័យ (Failed)",
             ];
 
             $statusMessages = [
@@ -323,6 +373,7 @@ class OrderController extends Controller
                 'shipped' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក (Shipped)" . ($order->tracking_number ? " [កូដបញ្ញើ: {$order->tracking_number}]" : "") . "។",
                 'delivered' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដឹកជញ្ជូនដល់ជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store! (Delivered)",
                 'cancelled' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានបោះបង់ (Cancelled)។",
+                'failed' => "ការបញ្ជាទិញ #{$order->order_id} មិនបានជោគជ័យឡើយ (Failed)។",
             ];
 
             try {
@@ -366,7 +417,7 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled,failed',
             'payment_status' => 'nullable|string|in:pending,paid,failed,refunded',
             'customer_name' => 'nullable|string|max:255',
             'customer_phone' => 'nullable|string|max:50',
@@ -396,6 +447,7 @@ class OrderController extends Controller
                 'shipped' => "🚚 ទំនិញកំពុងដឹកជញ្ជូន",
                 'delivered' => "✅ ទំនិញបានដឹកជញ្ជូនដល់ជោគជ័យ",
                 'cancelled' => "❌ ការបញ្ជាទិញត្រូវបានបោះបង់",
+                'failed' => "❌ ការបញ្ជាទិញបរាជ័យ (Failed)",
             ];
 
             $statusMessages = [
@@ -404,6 +456,7 @@ class OrderController extends Controller
                 'shipped' => "ការបញ្ជាទិញ #{$order->order_id} កំពុងធ្វើដំណើរលើផ្លូវដឹកជញ្ជូនជូនលោកអ្នក (Shipped)" . ($order->tracking_number ? " [កូដបញ្ញើ: {$order->tracking_number}]" : "") . "។",
                 'delivered' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានដឹកជញ្ជូនដល់ជោគជ័យ។ សូមអរគុណសម្រាប់ការគាំទ្រ S Tech Store! (Delivered)",
                 'cancelled' => "ការបញ្ជាទិញ #{$order->order_id} ត្រូវបានបោះបង់ (Cancelled)។",
+                'failed' => "ការបញ្ជាទិញ #{$order->order_id} មិនបានជោគជ័យឡើយ (Failed)។",
             ];
 
             $title = $statusTitles[$order->status] ?? "📦 បច្ចុប្បន្នភាពការបញ្ជាទិញ #{$order->order_id}";
@@ -492,7 +545,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'title' => 'nullable|string|max:255',
             'message' => 'required|string',
-            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled',
+            'status' => 'nullable|string|in:pending,processing,shipped,delivered,completed,cancelled,failed',
             'send_email' => 'nullable|boolean',
             'send_telegram' => 'nullable|boolean',
             'send_web' => 'nullable|boolean',

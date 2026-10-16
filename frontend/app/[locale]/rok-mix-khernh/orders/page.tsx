@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import EmailDispatcherConsoleModal from "@/components/admin/EmailDispatcherConsoleModal";
 
-const STATUSES = ["All Statuses", "Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
+const STATUSES = ["All Statuses", "Pending", "Processing", "Shipped", "Delivered", "Cancelled", "Failed"];
 const ITEMS_PER_PAGE = 8;
 
 const NOTIF_TEMPLATES = [
@@ -99,6 +99,7 @@ const NOTIF_TEMPLATES = [
 
 const getStatusStyle = (status: string) => {
   const s = (status || "").toLowerCase();
+  if (s === "failed") return "bg-red-50 text-red-700 border-red-300 font-bold";
   if (s === "processing" || s === "pending") return "bg-blue-50 text-blue-700 border-blue-200";
   if (s === "shipped") return "bg-purple-50 text-purple-700 border-purple-200";
   if (s === "completed" || s === "delivered") return "bg-emerald-50 text-emerald-700 border-emerald-200";
@@ -575,7 +576,12 @@ export default function OrderManagementPage() {
                   </span>
                 </div>
 
-                {viewOrder.status.toLowerCase() === "cancelled" ? (
+                {viewOrder.status.toLowerCase() === "failed" ? (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle size={16} className="text-red-600 shrink-0" />
+                    <span>ការបញ្ជាទិញនេះមិនបានជោគជ័យឡើយ / បរាជ័យ (Order Failed)</span>
+                  </div>
+                ) : viewOrder.status.toLowerCase() === "cancelled" ? (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-xs font-semibold flex items-center gap-2">
                     <AlertCircle size={16} className="text-rose-600 shrink-0" />
                     <span>ការបញ្ជាទិញនេះត្រូវបានបោះបង់ (Order Cancelled)</span>
@@ -629,6 +635,7 @@ export default function OrderManagementPage() {
                     { key: "shipped", label: "Shipped", bg: "hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300" },
                     { key: "delivered", label: "Delivered", bg: "hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300" },
                     { key: "cancelled", label: "Cancel", bg: "hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300" },
+                    { key: "failed", label: "Failed (បរាជ័យ)", bg: "hover:bg-red-50 hover:text-red-700 hover:border-red-300" },
                   ].map((btn) => (
                     <button
                       key={btn.key}

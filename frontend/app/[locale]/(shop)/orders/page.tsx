@@ -160,17 +160,30 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-      let tgToken = urlParams?.get("tg_token") || urlParams?.get("token");
-      if (!tgToken && typeof window !== "undefined") {
-        const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
-        if (tgUser?.id) {
-          tgToken = String(tgUser.id);
-        }
+      const tgToken = urlParams?.get("tg_token") || urlParams?.get("token");
+      const targetOrderId = urlParams?.get("order_id") || urlParams?.get("id");
+      const urlChatId = urlParams?.get("chat_id");
+      
+      const tgUser = typeof window !== "undefined" ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
+      const rawChatId = urlChatId || (tgUser?.id ? String(tgUser.id) : null);
+      const cleanChatId = rawChatId ? rawChatId.replace(/\D/g, "") : null;
+
+      const queryParams: Record<string, string> = {};
+      if (tgToken) queryParams.tg_token = tgToken;
+      if (cleanChatId) queryParams.chat_id = cleanChatId;
+      if (targetOrderId) queryParams.order_id = targetOrderId;
+
+      const requestHeaders: Record<string, string> = {};
+      if (cleanChatId) {
+        requestHeaders["X-Telegram-Chat-ID"] = cleanChatId;
+      }
+      if (targetOrderId) {
+        requestHeaders["X-Order-ID"] = targetOrderId;
       }
 
       const res = await api.get("/user/orders", {
-        params: tgToken ? { tg_token: tgToken } : undefined,
-        headers: tgToken ? { "X-Telegram-Chat-ID": tgToken } : undefined,
+        params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
       });
       const list = Array.isArray(res.data) ? res.data : (res.data?.orders || []);
       setOrders(list);
@@ -178,7 +191,7 @@ export default function OrdersPage() {
 
       // Auto-retry once if list is empty and user opened via Telegram
       if (list.length === 0 && !isRetry && typeof window !== "undefined") {
-        if (tgToken || (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+        if (tgToken || cleanChatId || tgUser?.id) {
           setTimeout(() => {
             fetchOrders(true);
           }, 600);
