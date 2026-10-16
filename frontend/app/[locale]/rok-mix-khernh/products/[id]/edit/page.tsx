@@ -59,6 +59,7 @@ export default function EditProductPage(props: {
 
   // UX Modal state
   const [modalState, setModalState] = useState<"idle" | "saving" | "success" | "error">("idle");
+  const [isSaving, setIsSaving] = useState(false);
   const [savingStep, setSavingStep] = useState<number>(1);
   const [savedProduct, setSavedProduct] = useState<any>(null);
   const [modalError, setModalError] = useState<string>("");
@@ -216,8 +217,7 @@ export default function EditProductPage(props: {
       return;
     }
     
-    setModalState("saving");
-    setSavingStep(1);
+    setIsSaving(true);
 
     try {
       const cleanPrice = price.trim().replace(/[^0-9.]/g, "");
@@ -260,8 +260,6 @@ export default function EditProductPage(props: {
         }
       });
 
-      setSavingStep(2);
-
       const targetId = originalProduct?.id || productId;
       const res = await api.post(`/products/${targetId}`, formData);
       const updatedData = res.data?.data || res.data || { 
@@ -273,16 +271,17 @@ export default function EditProductPage(props: {
         stock: parseInt(stock, 10) 
       };
 
-      setSavingStep(3);
       setSavedProduct(updatedData);
       setOriginalProduct(updatedData);
       invalidateProductCache(updatedData);
+      showToast("✓ បានរក្សាទុកការកែប្រែទំនិញជោគជ័យ!", "success");
       setModalState("success");
     } catch (e: any) {
       const errorMsg = e.response?.data?.message || "បរាជ័យក្នុងការកែប្រែទំនិញ";
       setModalError(errorMsg);
-      setModalState("error");
       showToast(errorMsg, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -350,52 +349,9 @@ export default function EditProductPage(props: {
       )}
 
       {/* UX Modal for Updating Product */}
-      {modalState !== "idle" && (
+      {modalState !== "idle" && modalState !== "saving" && (
         <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 overflow-hidden relative animate-in zoom-in-95 duration-200">
-            
-            {modalState === "saving" && (
-              <div className="flex flex-col items-center text-center py-4">
-                <div className="relative mb-6">
-                  <div className="w-20 h-20 rounded-full border-4 border-red-100 border-t-[#8B1A1A] animate-spin flex items-center justify-center" />
-                  <Package size={28} className="text-[#8B1A1A] absolute inset-0 m-auto" />
-                </div>
-
-                <h3 className="text-xl font-black text-gray-900 mb-2">
-                  កំពុងត្រួតពិនិត្យ និងកែប្រែទំនិញ...
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-500 mb-6 leading-relaxed max-w-sm">
-                  សូមរង់ចាំបន្តិច ប្រព័ន្ធកំពុងផ្ទៀងផ្ទាត់ទិន្នន័យ និងធ្វើបច្ចុប្បន្នភាពស្តុកក្នុង Cloud។
-                </p>
-
-                <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-2.5 text-xs text-left">
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 1 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      <Check size={11} strokeWidth={3} />
-                    </span>
-                    <span className={savingStep >= 1 ? "font-bold text-gray-900" : "text-gray-400"}>
-                      ផ្ទៀងផ្ទាត់ទិន្នន័យ និងតម្លៃថ្មី
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 2 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      {savingStep >= 2 ? <Check size={11} strokeWidth={3} /> : "2"}
-                    </span>
-                    <span className={savingStep >= 2 ? "font-bold text-gray-900" : "text-gray-400"}>
-                      ធ្វើបច្ចុប្បន្នភាពរូបភាព និង PostgreSQL Cloud
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${savingStep >= 3 ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"}`}>
-                      {savingStep >= 3 ? <Check size={11} strokeWidth={3} /> : "3"}
-                    </span>
-                    <span className={savingStep >= 3 ? "font-bold text-gray-900" : "text-gray-400"}>
-                      ធ្វើសមកាលកម្មទិន្នន័យក្នុងប្រព័ន្ធរួចរាល់
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {modalState === "success" && (
               <div className="flex flex-col items-center text-center py-2">
@@ -1154,11 +1110,20 @@ export default function EditProductPage(props: {
             <button
               type="button"
               onClick={handleSave}
-              disabled={loadingProduct}
+              disabled={loadingProduct || isSaving}
               className="flex-1 sm:flex-none min-h-[46px] px-8 py-3 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-[#6B1010] hover:to-red-700 active:scale-98 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-900/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Package size={17} />
-              <span>រក្សាទុកការកែប្រែ (Update Product)</span>
+              {isSaving ? (
+                <>
+                  <Loader2 size={17} className="animate-spin" />
+                  <span>កំពុងរក្សាទុក...</span>
+                </>
+              ) : (
+                <>
+                  <Package size={17} />
+                  <span>រក្សាទុកការកែប្រែ (Update Product)</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1175,11 +1140,20 @@ export default function EditProductPage(props: {
             <button
               type="button"
               onClick={handleSave}
-              disabled={loadingProduct}
+              disabled={loadingProduct || isSaving}
               className="flex-1 h-11 px-4 bg-gradient-to-r from-[#8B1A1A] via-red-700 to-rose-600 hover:from-[#6B1010] hover:to-red-700 active:scale-98 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-950/25 cursor-pointer disabled:opacity-50"
             >
-              <Package size={17} />
-              <span>រក្សាទុកការកែប្រែ (Update)</span>
+              {isSaving ? (
+                <>
+                  <Loader2 size={17} className="animate-spin" />
+                  <span>កំពុងរក្សាទុក...</span>
+                </>
+              ) : (
+                <>
+                  <Package size={17} />
+                  <span>រក្សាទុកការកែប្រែ (Update)</span>
+                </>
+              )}
             </button>
           </div>
         </div>

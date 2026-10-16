@@ -3873,7 +3873,7 @@ class TelegramService
                 $payload['message_thread_id'] = $threadId;
             }
 
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $response = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
             // Fallback retry & auto-heal if thread does not exist or was closed/deleted
@@ -3899,7 +3899,7 @@ class TelegramService
                 }
 
                 unset($payload['message_thread_id']);
-                $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $response = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
             }
 
@@ -3939,7 +3939,7 @@ class TelegramService
                 $payload['message_thread_id'] = $threadId;
             }
 
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $response = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
             // Fallback retry & auto-heal if thread does not exist or was closed/deleted
@@ -3965,7 +3965,7 @@ class TelegramService
                 }
 
                 unset($payload['message_thread_id']);
-                $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $response = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
             }
 
