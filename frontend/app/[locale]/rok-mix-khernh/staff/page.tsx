@@ -2,7 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
-import { Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, CheckCircle2, AlertCircle, X, Lock, ShieldCheck } from "lucide-react";
+import { 
+  Users, UserPlus, Shield, Store, Clock, Phone, Mail, Key, Edit, Trash2, 
+  CheckCircle2, AlertCircle, X, Lock, ShieldCheck, UserCheck, UserX, RefreshCw, Sliders 
+} from "lucide-react";
 
 type StaffMember = {
   id: number;
@@ -22,6 +25,23 @@ export default function AdminStaffPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<StaffMember | null>(null);
+
+  // Staff Account Quota State (Algorithm enforcement: limit default 6)
+  const [quota, setQuota] = useState<{
+    limit: number;
+    current: number;
+    is_full: boolean;
+    remaining: number;
+  }>({
+    limit: 6,
+    current: 0,
+    is_full: false,
+    remaining: 6,
+  });
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [newQuotaLimit, setNewQuotaLimit] = useState(6);
+  const [savingQuota, setSavingQuota] = useState(false);
+  const [togglingStatusId, setTogglingStatusId] = useState<number | null>(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -46,6 +66,7 @@ export default function AdminStaffPage() {
   }, []);
 
   const isSuperAdmin = currentUser?.role === "super_admin" || currentUser?.email === "nobrothana180703@gmail.com";
+  const isAdminOrOwner = isSuperAdmin || currentUser?.role === "admin";
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -55,10 +76,18 @@ export default function AdminStaffPage() {
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/admin/staff");
-      setStaffList(res.data);
+      const res = await api.get("/admin/staff?with_quota=1");
+      if (res.data?.staff) {
+        setStaffList(res.data.staff);
+        if (res.data.quota) {
+          setQuota(res.data.quota);
+          setNewQuotaLimit(res.data.quota.limit);
+        }
+      } else if (Array.isArray(res.data)) {
+        setStaffList(res.data);
+      }
     } catch (e: any) {
-      showToast("Failed to load staff accounts.", "error");
+      showToast("បរាជ័យក្នុងការទាញយកបញ្ជីបុគ្គលិក", "error");
     } finally {
       setLoading(false);
     }
@@ -68,7 +97,55 @@ export default function AdminStaffPage() {
     fetchStaff();
   }, []);
 
+  const handleToggleStaffStatus = async (s: StaffMember) => {
+    if (s.role === "super_admin" || s.email === "nobrothana180703@gmail.com") {
+      showToast("មិនអាចផ្អាកដំណើរការគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!", "error");
+      return;
+    }
+    setTogglingStatusId(s.id);
+    try {
+      const res = await api.put(`/admin/staff/${s.id}/toggle-status`);
+      const newStatus = res.data?.status || (s.status === "active" ? "inactive" : "active");
+      setStaffList((prev) => prev.map((item) => (item.id === s.id ? { ...item, status: newStatus } : item)));
+      showToast(res.data?.message || (newStatus === "active" ? "បានបើកដំណើរការគណនីឡើងវិញ" : "បានផ្អាកដំណើរការគណនី"));
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "បរាជ័យក្នុងការផ្លាស់ប្តូរស្ថានភាពគណនី", "error");
+    } finally {
+      setTogglingStatusId(null);
+    }
+  };
+
+  const handleSaveQuota = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newQuotaLimit < 1 || newQuotaLimit > 50) {
+      showToast("កូតាបុគ្គលិកត្រូវនៅចន្លោះពី ១ ដល់ ៥០ នាក់", "error");
+      return;
+    }
+    setSavingQuota(true);
+    try {
+      const res = await api.post("/admin/staff/set-quota", { quota_limit: newQuotaLimit });
+      if (res.data?.success) {
+        showToast(res.data.message || "បានកំណត់កម្រិតកំណត់កូតាបុគ្គលិកជោគជ័យ!");
+        setQuota((prev) => ({
+          ...prev,
+          limit: res.data.quota_limit,
+          is_full: prev.current >= res.data.quota_limit,
+          remaining: Math.max(0, res.data.quota_limit - prev.current),
+        }));
+        setQuotaModalOpen(false);
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.message || "បរាជ័យក្នុងការកំណត់កូតា", "error");
+    } finally {
+      setSavingQuota(false);
+    }
+  };
+
   const openCreateModal = () => {
+    if (quota.is_full) {
+      showToast(`មិនអាចបង្កើតគណនីបុគ្គលិកលើសពីកម្រិតកំណត់ (${quota.limit} នាក់) បានឡើយ! សូមផ្អាក ឬលុបបុគ្គលិកចាស់ ឬដំឡើងកូតាជាមុនសិន។`, "error");
+      return;
+    }
     setEditTarget(null);
     setName("");
     setEmail("");
@@ -166,20 +243,24 @@ export default function AdminStaffPage() {
     }
   };
 
-  const handleDelete = async (id: number, staffName: string) => {
-    if (!isSuperAdmin) {
-      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
+  const handleDelete = async (id: number, staffName: string, s?: StaffMember) => {
+    if (s?.role === "super_admin" || s?.email === "nobrothana180703@gmail.com") {
+      showToast("មិនអាចលុបគណនីម្ចាស់ប្រព័ន្ធ (System Owner) បានដាច់ខាត!", "error");
+      return;
+    }
+    if (!isAdminOrOwner) {
+      showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែ Admin ឬ ម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចលុបគណនីបុគ្គលិកបាន។", "error");
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete staff account: "${staffName}"?`)) return;
+    if (!confirm(`តើអ្នកពិតជាចង់លុបគណនីបុគ្គលិក "${staffName}" មែនទេ?`)) return;
 
     try {
       await api.delete(`/admin/staff/${id}`);
-      showToast(`Account "${staffName}" removed.`);
+      showToast(`បានលុបគណនី "${staffName}" ដោយជោគជ័យ`);
       fetchStaff();
     } catch (err: any) {
-      const msg = err.response?.data?.message || "Failed to delete account.";
+      const msg = err.response?.data?.message || "បរាជ័យក្នុងការលុបគណនី";
       showToast(msg, "error");
     }
   };
@@ -194,7 +275,7 @@ export default function AdminStaffPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-1.5 bg-[#8B1A1A]/10 text-[#8B1A1A] rounded-lg">
@@ -210,13 +291,112 @@ export default function AdminStaffPage() {
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-[#8B1A1A]/20 transition-all cursor-pointer"
-        >
-          <UserPlus size={16} />
-          <span>+ បង្កើតបុគ្គលិកថ្មី • New Staff</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {isAdminOrOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                setNewQuotaLimit(quota.limit);
+                setQuotaModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
+            >
+              <Sliders size={15} />
+              <span>កំណត់កូតា ({quota.limit})</span>
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            disabled={quota.is_full}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer ${
+              quota.is_full
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
+                : "bg-[#8B1A1A] hover:bg-[#6B1010] active:scale-95 text-white shadow-[#8B1A1A]/20"
+            }`}
+            title={quota.is_full ? "បានដល់ចំនួនកំណត់អតិបរមាហើយ" : "បង្កើតបុគ្គលិកថ្មី"}
+          >
+            <UserPlus size={16} />
+            <span>+ បង្កើតបុគ្គលិកថ្មី</span>
+            {quota.is_full && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.2 rounded font-mono">Full</span>}
+          </button>
+        </div>
+      </div>
+
+      {/* Staff Account Quota & Limit Algorithm Card */}
+      <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold shrink-0 shadow-xs ${
+              quota.is_full ? "bg-red-50 text-red-600 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            }`}>
+              <Users size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-black text-gray-900">
+                  កូតា & កម្រិតកំណត់ចំនួនបុគ្គលិក (Staff Account Quota & Limit Algorithm)
+                </h3>
+                {quota.is_full ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-red-100 text-red-800 text-[10.5px] font-bold border border-red-300 font-mono">
+                    🚨 ពេញកម្រិតកំណត់ (Limit Reached: {quota.current}/{quota.limit})
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10.5px] font-bold border border-emerald-300 font-mono">
+                    នៅសល់កូតា {quota.remaining} នាក់
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                ប្រព័ន្ធកំណត់ចំនួនគណនីបុគ្គលិកអតិបរមាត្រឹម <b>{quota.limit} នាក់</b> ដើម្បីសុវត្ថិភាពទិន្នន័យហាង។
+              </p>
+            </div>
+          </div>
+
+          {isAdminOrOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                setNewQuotaLimit(quota.limit);
+                setQuotaModalOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Sliders size={13} />
+              <span>កែសម្រួលកូតា</span>
+            </button>
+          )}
+        </div>
+
+        {/* Quota Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs font-mono">
+            <span className="text-gray-500">
+              បុគ្គលិកបច្ចុប្បន្ន: <b className="text-gray-900">{quota.current}</b> / {quota.limit} នាក់
+            </span>
+            <span className={`font-bold ${quota.is_full ? "text-red-600" : "text-emerald-700"}`}>
+              {Math.min(100, Math.round((quota.current / Math.max(1, quota.limit)) * 100))}%
+            </span>
+          </div>
+          <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 rounded-full ${
+                quota.is_full ? "bg-red-600" : quota.current / quota.limit >= 0.75 ? "bg-amber-500" : "bg-emerald-600"
+              }`}
+              style={{ width: `${Math.min(100, Math.max(5, (quota.current / Math.max(1, quota.limit)) * 100))}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Warning Banner if quota reached */}
+        {quota.is_full && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex items-center gap-2 animate-in fade-in">
+            <AlertCircle size={16} className="text-red-600 shrink-0" />
+            <span className="font-bold">
+              ការដាស់តឿនប្រព័ន្ធ៖ បានដល់ចំនួនកំណត់អតិបរមា ({quota.current}/{quota.limit} នាក់) រួចហើយ! ប្រព័ន្ធបានចាក់សោរមិនអនុញ្ញាតឱ្យបង្កើតគណនីបុគ្គលិកថ្មីឡើយ។ សូមផ្អាក ឬលុបបុគ្គលិកចាស់ ឬដំឡើងកូតាជាមុនសិន។
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Stats Summary Cards */}
@@ -359,14 +539,40 @@ export default function AdminStaffPage() {
                     </td>
 
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        s.status === 'active' 
-                          ? 'bg-green-50 text-green-700 border border-green-200' 
-                          : 'bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${s.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        {s.status === 'active' ? 'Active' : 'Inactive'}
-                      </span>
+                      {s.role === "super_admin" || s.email === "nobrothana180703@gmail.com" ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                          <span>Active</span>
+                        </span>
+                      ) : isAdminOrOwner ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStaffStatus(s)}
+                          disabled={togglingStatusId === s.id}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                            s.status === "active"
+                              ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                              : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                          }`}
+                          title="ចុចដើម្បីផ្អាក ឬបើកដំណើរការឡើងវិញ (1-Click Toggle)"
+                        >
+                          {togglingStatusId === s.id ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.status === "active" ? "bg-green-500" : "bg-gray-400"}`} />
+                          )}
+                          <span>{s.status === "active" ? "Active" : "Inactive (ផ្អាក)"}</span>
+                        </button>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          s.status === "active" 
+                            ? "bg-green-50 text-green-700 border border-green-200" 
+                            : "bg-gray-100 text-gray-600 border border-gray-200"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.status === "active" ? "bg-green-500" : "bg-gray-400"}`} />
+                          {s.status === "active" ? "Active" : "Inactive"}
+                        </span>
+                      )}
                     </td>
 
                     <td className="p-4 text-right">
@@ -378,29 +584,52 @@ export default function AdminStaffPage() {
                         >
                           <Edit size={16} />
                         </button>
-                        {s.role === 'super_admin' || s.email === 'nobrothana180703@gmail.com' ? (
+
+                        {s.role !== "super_admin" && s.email !== "nobrothana180703@gmail.com" && isAdminOrOwner && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStaffStatus(s)}
+                            disabled={togglingStatusId === s.id}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              s.status === "active"
+                                ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                            title={s.status === "active" ? "ផ្អាកដំណើរការគណនី (Suspend)" : "បើកដំណើរការឡើងវិញ (Activate)"}
+                          >
+                            {togglingStatusId === s.id ? (
+                              <RefreshCw size={15} className="animate-spin" />
+                            ) : s.status === "active" ? (
+                              <UserX size={15} />
+                            ) : (
+                              <UserCheck size={15} />
+                            )}
+                          </button>
+                        )}
+
+                        {s.role === "super_admin" || s.email === "nobrothana180703@gmail.com" ? (
                           <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-1 rounded border border-amber-200 inline-flex items-center gap-1" title="គណនីម្ចាស់ប្រព័ន្ធត្រូវបានការពារ">
                             <Lock size={11} />
                             <span>ការពារ</span>
                           </span>
-                        ) : !isSuperAdmin ? (
+                        ) : isAdminOrOwner ? (
                           <button
-                            type="button"
-                            onClick={() => {
-                              showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះដែលមានសិទ្ធិលុបគណនីបុគ្គលិក។", "error");
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
-                            title="សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Owner Only)"
-                          >
-                            <Lock size={15} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDelete(s.id, s.name)}
+                            onClick={() => handleDelete(s.id, s.name, s)}
                             className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                             title="លុបចេញ • Delete"
                           >
                             <Trash2 size={16} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              showToast("សកម្មភាពនេះត្រូវបានការពារ! មានតែ Admin ឬ ម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចលុបគណនីបុគ្គលិកបាន។", "error");
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer"
+                            title="សិទ្ធិ Admin ឬ Owner ប៉ុណ្ណោះ"
+                          >
+                            <Lock size={15} />
                           </button>
                         )}
                       </div>
@@ -612,6 +841,102 @@ export default function AdminStaffPage() {
                   className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8B1A1A]/20 cursor-pointer"
                 >
                   {editTarget ? "រក្សាទុកការកែប្រែ • Save Changes" : "បង្កើតគណនី • Create Account"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Set Staff Quota Limit */}
+      {quotaModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-gray-100 animate-in zoom-in-95">
+            <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-[#8B1A1A]/10 text-[#8B1A1A] rounded-lg">
+                  <Sliders size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    កំណត់កូតាបុគ្គលិក • Set Staff Quota Limit
+                  </h3>
+                  <p className="text-[11px] text-gray-500">កម្រិតកំណត់អតិបរមានៃគណនីបុគ្គលិកក្នុងប្រព័ន្ធ</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setQuotaModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuota} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  ចំនួនបុគ្គលិកអតិបរមា (Staff Limit: 1 - 50 នាក់) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  required
+                  value={newQuotaLimit}
+                  onChange={(e) => setNewQuotaLimit(parseInt(e.target.value) || 1)}
+                  className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl text-base font-bold font-mono outline-none focus:ring-2 focus:ring-[#8B1A1A]/20 focus:border-[#8B1A1A]"
+                />
+              </div>
+
+              {/* Quick Select Buttons: 5, 6, 8, 10, 15 */}
+              <div>
+                <label className="block text-[11px] text-gray-500 font-semibold mb-1.5">
+                  ជ្រើសរើសរហ័ស (Quick Presets)៖
+                </label>
+                <div className="flex gap-2">
+                  {[5, 6, 8, 10, 15].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setNewQuotaLimit(preset)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                        newQuotaLimit === preset
+                          ? "bg-[#8B1A1A] text-white border-[#8B1A1A]"
+                          : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                      }`}
+                    >
+                      {preset} នាក់
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-amber-900 text-xs">
+                💡 <b>ចំណាំ៖</b> បច្ចុប្បន្នមានបុគ្គលិកចំនួន <b>{quota.current} នាក់</b> ក្នុងប្រព័ន្ធ។ ប្រសិនបើកំណត់ទាបជាង {quota.current} នាក់ នោះប្រព័ន្ធនឹងចាក់សោរមិនឱ្យបង្កើតបុគ្គលិកថ្មីរហូតដល់មានការលុប ឬផ្អាកគណនីចាស់។
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setQuotaModalOpen(false)}
+                  disabled={savingQuota}
+                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 cursor-pointer"
+                >
+                  បោះបង់
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingQuota}
+                  className="px-6 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] text-white rounded-xl text-xs font-bold shadow-md shadow-[#8B1A1A]/20 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                >
+                  {savingQuota ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>កំពុងរក្សាទុក...</span>
+                    </>
+                  ) : (
+                    <span>រក្សាទុកកូតា</span>
+                  )}
                 </button>
               </div>
             </form>

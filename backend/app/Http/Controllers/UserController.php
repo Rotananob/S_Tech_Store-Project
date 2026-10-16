@@ -164,18 +164,48 @@ class UserController extends Controller
             }
             $uniqueOrders = $matchedOrders->unique('id');
 
-            // Authentication Channel Determination (Firebase Google vs Telegram Bot vs Linked)
-            $hasRealEmail = !empty($u->email) && !str_starts_with($u->email, 'tg_') && str_contains($u->email, '@');
-            $hasTelegramId = !empty($u->telegram_chat_id) || str_starts_with($u->firebase_uid ?? '', 'tg_') || (!empty($u->telegram) && $u->telegram !== 'N/A');
+            // Accurate Multi-Provider Authentication Channel Determination
+            $uid = (string)($u->firebase_uid ?? '');
+            $rawEmail = strtolower(trim((string)($u->email ?? '')));
+            $hasRealEmail = !empty($rawEmail) && !str_starts_with($rawEmail, 'tg_') && !str_contains($rawEmail, '@s-tech-store.tech') && str_contains($rawEmail, '@');
+            $hasTelegramId = !empty($u->telegram_chat_id) || str_starts_with($uid, 'tg_') || (!empty($u->telegram) && $u->telegram !== 'N/A') || str_starts_with($rawEmail, 'tg_');
 
-            $authChannel = 'firebase';
-            $authChannelLabel = 'Firebase Google';
+            $isManualCreated = ($u->auth_provider === 'manual') 
+                || in_array($u->created_by, ['staff', 'admin'])
+                || str_starts_with($uid, 'stech_u_')
+                || str_starts_with($uid, 'usr_')
+                || str_contains($rawEmail, '@stech.com')
+                || str_contains($rawEmail, 'user@s-tech-store.tech');
+            $isTiktok = ($u->auth_provider === 'tiktok') || str_starts_with($rawEmail, 'tiktok_') || str_starts_with($uid, 'tiktok_');
+            $isFacebook = ($u->auth_provider === 'facebook') || str_contains($rawEmail, 'facebook');
+            $isMagicLink = ($u->auth_provider === 'magic_link') || (!empty($u->magic_login_token) && str_starts_with($uid, 'magic_'));
+            $isEmailPw = ($u->auth_provider === 'email');
+
             if ($hasRealEmail && $hasTelegramId) {
                 $authChannel = 'linked';
                 $authChannelLabel = 'Linked (Web + Telegram)';
+            } elseif ($isManualCreated) {
+                $authChannel = 'manual';
+                $creatorLabel = ($u->created_by === 'staff') ? 'បុគ្គលិក Staff' : 'Admin';
+                $authChannelLabel = "បង្កើតដោយដៃ ({$creatorLabel})";
             } elseif ($hasTelegramId && !$hasRealEmail) {
                 $authChannel = 'telegram';
                 $authChannelLabel = 'Telegram Bot';
+            } elseif ($isTiktok) {
+                $authChannel = 'tiktok';
+                $authChannelLabel = 'TikTok Login';
+            } elseif ($isFacebook) {
+                $authChannel = 'facebook';
+                $authChannelLabel = 'Facebook Login';
+            } elseif ($isMagicLink) {
+                $authChannel = 'magic_link';
+                $authChannelLabel = 'Magic Link';
+            } elseif ($isEmailPw) {
+                $authChannel = 'email';
+                $authChannelLabel = 'អ៊ីមែល & Password';
+            } else {
+                $authChannel = 'google';
+                $authChannelLabel = 'Google Auth';
             }
 
             $isActive = (bool)($u->is_active ?? true);
@@ -203,6 +233,8 @@ class UserController extends Controller
                 'role_label' => $roleLabel,
                 'auth_channel' => $authChannel,
                 'auth_channel_label' => $authChannelLabel,
+                'created_by' => $u->created_by ?? ($isManualCreated ? 'staff' : 'self'),
+                'has_password' => !empty($u->password),
                 'is_system_owner' => $isSystemOwner,
                 'is_staff' => ($role === 'staff'),
                 'is_admin' => ($role === 'admin' || $role === 'super_admin'),
@@ -236,9 +268,14 @@ class UserController extends Controller
 
         $totalOrdersSum = $allAccounts->sum('total_orders');
 
-        $channelFirebase = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'firebase')->count();
+        $channelGoogle = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'google')->count();
+        $channelManual = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'manual')->count();
         $channelTelegram = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'telegram')->count();
         $channelLinked = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'linked')->count();
+        $channelTiktok = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'tiktok')->count();
+        $channelFacebook = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'facebook')->count();
+        $channelEmail = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'email')->count();
+        $channelMagic = $allAccounts->filter(fn($u) => $u['auth_channel'] === 'magic_link')->count();
 
         // If caller requested raw array without pagination (e.g. all=true or paginate=false)
         if ($request->query('all') === 'true' || $request->query('paginate') === 'false') {
@@ -296,9 +333,15 @@ class UserController extends Controller
                 'active_total' => $activeTotal,
                 'disabled_total' => $disabledTotal,
                 'total_orders' => $totalOrdersSum,
-                'channel_firebase' => $channelFirebase,
+                'channel_firebase' => $channelGoogle,
+                'channel_google' => $channelGoogle,
+                'channel_manual' => $channelManual,
                 'channel_telegram' => $channelTelegram,
                 'channel_linked' => $channelLinked,
+                'channel_tiktok' => $channelTiktok,
+                'channel_facebook' => $channelFacebook,
+                'channel_email' => $channelEmail,
+                'channel_magic' => $channelMagic,
             ],
             // For backward compatibility:
             'users' => $paginated,
@@ -361,6 +404,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'display_name' => 'required|string|max:100',
             'email' => 'required|email|max:100|unique:user_profiles,email',
+            'password' => 'nullable|string|min:6',
             'phone' => 'nullable|string|max:30',
             'address' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',
@@ -369,24 +413,52 @@ class UserController extends Controller
             'points' => 'nullable|integer|min:0',
         ]);
 
+        $authUser = $request->attributes->get('auth_user');
+        $callerRole = $authUser ? ($authUser->role ?? 'staff') : ($request->header('X-Admin-Role') ?: 'staff');
+        $createdBy = in_array($callerRole, ['super_admin', 'admin']) ? 'admin' : 'staff';
+        $creatorTitle = ($createdBy === 'staff') ? 'បុគ្គលិក Staff' : 'Admin';
+
+        $rawPassword = !empty($validated['password']) ? trim($validated['password']) : null;
+        $hashedPassword = $rawPassword ? \Illuminate\Support\Facades\Hash::make($rawPassword) : null;
+
+        $magicToken = \Illuminate\Support\Str::random(60);
+
         $profile = UserProfile::create([
             'firebase_uid' => 'stech_u_' . Str::random(12),
             'display_name' => trim($validated['display_name']),
             'email' => strtolower(trim($validated['email'])),
+            'password' => $hashedPassword,
+            'auth_provider' => 'manual',
+            'created_by' => $createdBy,
             'phone' => !empty($validated['phone']) ? trim($validated['phone']) : null,
             'address' => !empty($validated['address']) ? trim($validated['address']) : null,
             'city' => !empty($validated['city']) ? trim($validated['city']) : null,
             'profession' => !empty($validated['profession']) ? trim($validated['profession']) : null,
             'delivery_notes' => !empty($validated['delivery_notes']) ? trim($validated['delivery_notes']) : null,
             'points' => (int)($validated['points'] ?? 0),
+            'magic_login_token' => $magicToken,
+            'magic_token_expires_at' => now()->addDays(7),
             'is_active' => true,
             'status' => 'active',
             'is_admin' => false,
         ]);
 
+        $frontendUrl = env('FRONTEND_URL', 'https://www.s-tech-store.tech');
+        $origin = $request->header('Origin') ?: $request->header('Referer');
+        if ($origin) {
+            $parsed = parse_url($origin);
+            if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
+                $frontendUrl = $parsed['scheme'] . '://' . $parsed['host'] . (!empty($parsed['port']) ? ':' . $parsed['port'] : '');
+            }
+        }
+        $magicLink = rtrim($frontendUrl, '/') . '/km/magic-login?token=' . $magicToken;
+
         return response()->json([
             'success' => true,
-            'message' => "បានបង្កើតគណនីអតិថិជន '{$profile->display_name}' ដោយជោគជ័យ",
+            'message' => "បានបង្កើតគណនីអតិថិជន '{$profile->display_name}' ដោយជោគជ័យ (បង្កើតដោយ {$creatorTitle})",
+            'magic_link' => $magicLink,
+            'has_password' => !empty($rawPassword),
+            'raw_password' => $rawPassword,
             'user' => [
                 'id' => $profile->id,
                 'firebase_uid' => $profile->firebase_uid,
@@ -406,7 +478,15 @@ class UserController extends Controller
                 'profession' => $profile->profession,
                 'gender' => null,
                 'birthday' => null,
+                'role' => 'customer',
+                'role_label' => 'អតិថិជន (Customer)',
+                'auth_channel' => 'manual',
+                'auth_channel_label' => "បង្កើតដោយដៃ ({$creatorTitle})",
+                'created_by' => $createdBy,
+                'has_password' => !empty($rawPassword),
                 'is_admin' => false,
+                'is_staff' => false,
+                'is_customer' => true,
                 'is_active' => true,
                 'status' => 'active',
                 'points' => $profile->points,

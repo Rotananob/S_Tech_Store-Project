@@ -284,6 +284,45 @@ export default function LoginPage() {
       await new Promise((r) => setTimeout(r, 2000));
       navigateToDestination(0);
     } catch (err: any) {
+      // Fallback: Check if account was created directly by Admin or Staff on backend
+      try {
+        const directRes = await api.post("/auth/customer-login", {
+          email: email.trim(),
+          password: password.trim(),
+        });
+
+        if (directRes.data?.success && directRes.data?.user) {
+          const userObj = {
+            ...directRes.data.user,
+            provider: directRes.data.user.provider || "manual",
+          };
+          localStorage.setItem("user_session", JSON.stringify(userObj));
+          localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+          if (directRes.data.token) {
+            localStorage.setItem("customer_token", directRes.data.token);
+            document.cookie = `customer_token=${directRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+          }
+          window.dispatchEvent(new Event("user_session_updated"));
+
+          setAuthOverlay({
+            show: true,
+            title: "ចូលគណនីបានជោគជ័យ! 🎉",
+            subtitle: `សូមស្វាគមន៍ ${userObj.display_name}! កំពុងបញ្ជូនទៅកាន់ទំព័រដើម...`,
+            isSuccess: true,
+          });
+
+          await new Promise((r) => setTimeout(r, 1500));
+          navigateToDestination(0);
+          return;
+        }
+      } catch (directErr: any) {
+        if (directErr.response?.data?.message?.includes("ផ្អាក")) {
+          setError(directErr.response.data.message);
+          setAuthOverlay({ show: false, title: "", subtitle: "" });
+          return;
+        }
+      }
+
       setError(toHumanKhmerError(err));
       setAuthOverlay({ show: false, title: "", subtitle: "" });
     } finally {

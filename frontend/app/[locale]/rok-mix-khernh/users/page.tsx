@@ -6,10 +6,10 @@ import { Link } from "@/i18n/routing";
 import { 
   Users, Search, Filter, ShieldCheck, UserCheck, UserX, 
   Key, RefreshCw, MapPin, Phone, Mail, Send, Calendar, 
-  ShoppingBag, CheckCircle2, AlertCircle, Eye, Trash2, X,
+  ShoppingBag, CheckCircle2, AlertCircle, Eye, EyeOff, Trash2, X,
   Copy, ExternalLink, MessageCircle, Check, Link2, Coins, MessageSquare, ChevronRight,
   UserPlus, Edit, AlertTriangle, ShieldAlert, Crown, Briefcase, Globe,
-  ChevronLeft, Layers, Smartphone
+  ChevronLeft, Layers, Smartphone, Sparkles
 } from "lucide-react";
 
 export interface AdminCustomerUser {
@@ -33,8 +33,11 @@ export interface AdminCustomerUser {
   birthday: string | null;
   role?: "customer" | "staff" | "admin" | "super_admin";
   role_label?: string;
-  auth_channel?: "firebase" | "telegram" | "linked";
+  auth_channel?: "manual" | "google" | "firebase" | "telegram" | "linked" | "tiktok" | "facebook" | "email" | "magic_link" | string;
   auth_channel_label?: string;
+  auth_provider?: string;
+  created_by?: string;
+  has_password?: boolean;
   is_system_owner?: boolean;
   is_staff?: boolean;
   is_customer?: boolean;
@@ -60,9 +63,15 @@ export interface UserCounts {
   active_total: number;
   disabled_total: number;
   total_orders: number;
-  channel_firebase: number;
-  channel_telegram: number;
-  channel_linked: number;
+  channel_firebase?: number;
+  channel_google?: number;
+  channel_manual?: number;
+  channel_telegram?: number;
+  channel_linked?: number;
+  channel_tiktok?: number;
+  channel_facebook?: number;
+  channel_email?: number;
+  channel_magic?: number;
 }
 
 function getPageNumbers(current: number, total: number): (number | string)[] {
@@ -158,9 +167,11 @@ export default function AdminUsersPage() {
   // Add User Modal state
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [showAddPassword, setShowAddPassword] = useState(false);
   const [addFormData, setAddFormData] = useState({
     display_name: "",
     email: "",
+    password: "",
     phone: "",
     address: "",
     city: "",
@@ -168,6 +179,22 @@ export default function AdminUsersPage() {
     delivery_notes: "",
     points: 0,
   });
+
+  // Created User Credentials Modal (Displays Gmail & Password & Magic Link to copy)
+  const [createdCredentialsModal, setCreatedCredentialsModal] = useState<{
+    user: AdminCustomerUser;
+    password?: string;
+    magic_link?: string;
+  } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
+
+  const generateRandomPassword = () => {
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    const generated = `Stech@${randomNum}`;
+    setAddFormData((prev) => ({ ...prev, password: generated }));
+    setShowAddPassword(true);
+    showToast("បានបង្កើតលេខសម្ងាត់ស្វ័យប្រវត្តិជោគជ័យ!");
+  };
 
   // Edit User Modal state (Admin only)
   const [editModalUser, setEditModalUser] = useState<AdminCustomerUser | null>(null);
@@ -581,14 +608,25 @@ export default function AdminUsersPage() {
           customers: prev.customers + 1,
           active_total: prev.active_total + 1,
           active_customers: prev.active_customers + 1,
-          channel_firebase: prev.channel_firebase + 1,
+          channel_manual: (prev.channel_manual || 0) + 1,
         }));
 
         showToast(res.data.message || "បានបង្កើតគណនីអតិថិជនថ្មីដោយជោគជ័យ");
         setIsAddUserOpen(false);
+
+        // Open credentials dialog if raw_password or magic_link was generated
+        if (res.data.raw_password || res.data.magic_link) {
+          setCreatedCredentialsModal({
+            user: newUser,
+            password: res.data.raw_password,
+            magic_link: res.data.magic_link,
+          });
+        }
+
         setAddFormData({
           display_name: "",
           email: "",
+          password: "",
           phone: "",
           address: "",
           city: "",
@@ -769,12 +807,14 @@ export default function AdminUsersPage() {
             <Globe size={16} className="text-neutral-600" />
           </div>
           <div className="text-2xl font-black text-neutral-900 font-mono tracking-tight tabular-nums">{counts.all}</div>
-          <div className="text-[10.5px] text-neutral-500 mt-1 flex items-center gap-1.5 flex-wrap font-mono">
-            <span className="font-semibold text-neutral-700">Google ({counts.channel_firebase})</span>
+          <div className="text-[10px] text-neutral-500 mt-1 flex items-center gap-1.5 flex-wrap font-mono">
+            <span className="font-semibold text-amber-800">Google ({counts.channel_google ?? counts.channel_firebase ?? 0})</span>
             <span className="text-neutral-300">•</span>
-            <span className="font-semibold text-sky-700">TG ({counts.channel_telegram})</span>
+            <span className="font-semibold text-emerald-700">ដៃ ({counts.channel_manual ?? 0})</span>
             <span className="text-neutral-300">•</span>
-            <span className="font-semibold text-neutral-700">Linked ({counts.channel_linked})</span>
+            <span className="font-semibold text-sky-700">TG ({counts.channel_telegram ?? 0})</span>
+            <span className="text-neutral-300">•</span>
+            <span className="font-semibold text-purple-700">Linked ({counts.channel_linked ?? 0})</span>
           </div>
         </div>
 
@@ -928,37 +968,53 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Auth Channels Banner: Firebase vs Telegram dual authentication explanation */}
+      {/* Auth Channels Banner: Multi-Provider Authentication System with Truthful Breakdown */}
       <div className="mb-6 p-4 bg-neutral-50/90 rounded-2xl border border-neutral-200/80 text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-neutral-900 text-white flex items-center justify-center shrink-0 border border-neutral-700">
-            <Globe size={17} />
+          <div className="w-10 h-10 rounded-2xl bg-neutral-900 text-white flex items-center justify-center shrink-0 border border-neutral-700 shadow-xs">
+            <Globe size={18} />
           </div>
           <div>
             <div className="font-bold text-neutral-900 flex items-center gap-2 flex-wrap">
-              <span>ប្រព័ន្ធបញ្ជាក់អត្តសញ្ញាណ ២ ប្រភព (Dual Authentication Architecture)</span>
+              <span>ប្រព័ន្ធបញ្ជាក់អត្តសញ្ញាណចម្រុះ (Multi-Provider Authentication System)</span>
               <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-mono">
-                Server Pagination (20 / Page)
+                Truthful Real-Time Breakdown
               </span>
             </div>
             <div className="text-[11px] text-neutral-500 mt-0.5 leading-relaxed">
-              ទិន្នន័យទាញផ្ទាល់ពី Database ដោយបែងចែកជា <b>Firebase Google ({counts.channel_firebase})</b> សម្រាប់ Web, <b>Telegram Bot ({counts.channel_telegram})</b> សម្រាប់ Mini App, និង <b>Linked ({counts.channel_linked})</b> ដែលភ្ជាប់ទាំងពីរ។
+              ទិន្នន័យត្រូវបានផ្ទៀងផ្ទាត់ និងបែងចែកប្រភពជាក់ស្តែងពី Database រួមមាន <b>Google Auth</b>, <b>បង្កើតដោយដៃ (Staff/Admin)</b>, <b>Telegram Bot</b>, <b>Linked (Web+Bot)</b>, និង <b>Email/Password</b>។
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0 text-[11px] flex-wrap font-mono">
-          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+        <div className="flex items-center gap-1.5 shrink-0 text-[10.5px] flex-wrap font-mono">
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs" title="Google OAuth Accounts">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>Google: {counts.channel_firebase}</span>
+            <span>Google: {counts.channel_google ?? counts.channel_firebase ?? 0}</span>
           </span>
-          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs" title="Created by Staff or Admin">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>បង្កើតដោយដៃ: {counts.channel_manual ?? 0}</span>
+          </span>
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs" title="Telegram Mini App Users">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-            <span>Telegram: {counts.channel_telegram}</span>
+            <span>Telegram: {counts.channel_telegram ?? 0}</span>
           </span>
-          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+          <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs" title="Connected Web and Telegram Bot">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-            <span>Linked: {counts.channel_linked}</span>
+            <span>Linked: {counts.channel_linked ?? 0}</span>
           </span>
+          {Boolean(counts.channel_tiktok) && (
+            <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+              <span>TikTok: {counts.channel_tiktok}</span>
+            </span>
+          )}
+          {Boolean(counts.channel_email) && (
+            <span className="px-2.5 py-1 rounded-xl bg-white text-neutral-800 font-semibold border border-neutral-200 flex items-center gap-1.5 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+              <span>Email: {counts.channel_email}</span>
+            </span>
+          )}
         </div>
       </div>
 
@@ -1038,8 +1094,13 @@ export default function AdminUsersPage() {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {u.auth_channel === "linked" ? (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {u.auth_channel === "manual" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-sans text-[9px] font-bold border border-emerald-300 inline-flex items-center gap-1">
+                                <span>✍️</span>
+                                <span>{u.auth_channel_label || (u.created_by === "staff" ? "បង្កើតដោយ Staff" : "បង្កើតដោយ Admin")}</span>
+                              </span>
+                            ) : u.auth_channel === "linked" ? (
                               <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 font-sans text-[9px] font-bold border border-purple-200 inline-flex items-center gap-1">
                                 <span>🔗</span>
                                 <span>Linked (Web + Bot)</span>
@@ -1048,6 +1109,26 @@ export default function AdminUsersPage() {
                               <span className="px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-sans text-[9px] font-bold border border-sky-200 inline-flex items-center gap-1">
                                 <Send size={9} />
                                 <span>Telegram Bot</span>
+                              </span>
+                            ) : u.auth_channel === "tiktok" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-pink-50 text-pink-700 font-sans text-[9px] font-bold border border-pink-200 inline-flex items-center gap-1">
+                                <span>🎵</span>
+                                <span>TikTok Login</span>
+                              </span>
+                            ) : u.auth_channel === "facebook" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-sans text-[9px] font-bold border border-blue-200 inline-flex items-center gap-1">
+                                <span>🔵</span>
+                                <span>Facebook</span>
+                              </span>
+                            ) : u.auth_channel === "email" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 font-sans text-[9px] font-bold border border-slate-300 inline-flex items-center gap-1">
+                                <span>🔑</span>
+                                <span>អ៊ីមែល & Password</span>
+                              </span>
+                            ) : u.auth_channel === "magic_link" ? (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-sans text-[9px] font-bold border border-amber-300 inline-flex items-center gap-1">
+                                <span>🔗</span>
+                                <span>Magic Link</span>
                               </span>
                             ) : (
                               <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 font-sans text-[9px] font-bold border border-amber-200 inline-flex items-center gap-1">
@@ -2062,6 +2143,41 @@ export default function AdminUsersPage() {
                 />
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-gray-700">
+                    ពាក្យសម្ងាត់ (Password) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-[11px] font-bold text-[#8B1A1A] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles size={12} />
+                    <span>បង្កើតស្វ័យប្រវត្តិ (Auto-generate)</span>
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showAddPassword ? "text" : "password"}
+                    value={addFormData.password}
+                    onChange={(e) => setAddFormData({ ...addFormData, password: e.target.value })}
+                    placeholder="បញ្ចូលពាក្យសម្ងាត់ (យ៉ាងតិច ៦ ខ្ទង់) ឬចុចបង្កើតស្វ័យប្រវត្តិ"
+                    className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-xs sm:text-sm outline-none focus:border-[#8B1A1A] focus:bg-white transition-all font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(!showAddPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
+                  >
+                    {showAddPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-[10.5px] text-gray-500 mt-1">
+                  💡 អតិថិជនអាចប្រើប្រាស់អ៊ីមែល និងពាក្យសម្ងាត់នេះ ដើម្បី Login ចូលគេហទំព័រ ឬ Mini App បានភ្លាមៗ។
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">
@@ -2323,6 +2439,136 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Created Customer Account Credentials with 1-click Copy */}
+      {createdCredentialsModal && (
+        <div className="fixed inset-0 z-[999999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 animate-in zoom-in-95 relative">
+            <button
+              onClick={() => setCreatedCredentialsModal(null)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <CheckCircle2 size={32} />
+            </div>
+
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-black text-gray-900 mb-1">
+                បង្កើតគណនីអតិថិជនជោគជ័យ!
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500">
+                គណនីត្រូវបានបង្កើតដោយជោគជ័យ។ សូមចម្លងព័ត៌មានខាងក្រោមប្រគល់ជូនអតិថិជន។
+              </p>
+            </div>
+
+            <div className="space-y-3.5 bg-gray-50 p-4 rounded-2xl border border-gray-200/80 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                <span className="text-gray-500 font-medium">ឈ្មោះពេញ:</span>
+                <span className="font-bold text-gray-900">{createdCredentialsModal.user.display_name}</span>
+              </div>
+
+              <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                <span className="text-gray-500 font-medium">អ៊ីមែល (Gmail):</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900 font-mono">{createdCredentialsModal.user.email}</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(createdCredentialsModal.user.email);
+                      showToast("បានចម្លងអ៊ីមែលរួចរាល់!");
+                    }}
+                    className="p-1 hover:bg-gray-200 rounded text-gray-500 cursor-pointer"
+                    title="ចម្លងអ៊ីមែល"
+                  >
+                    <Copy size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {createdCredentialsModal.password && (
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+                  <span className="text-gray-500 font-medium">ពាក្យសម្ងាត់ (Password):</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-emerald-700 font-mono text-sm px-2 py-0.5 rounded bg-emerald-100/70 border border-emerald-300">
+                      {createdCredentialsModal.password}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(createdCredentialsModal.password || "");
+                        showToast("បានចម្លងពាក្យសម្ងាត់រួចរាល់!");
+                      }}
+                      className="p-1 hover:bg-gray-200 rounded text-gray-500 cursor-pointer"
+                      title="ចម្លងពាក្យសម្ងាត់"
+                    >
+                      <Copy size={13} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {createdCredentialsModal.magic_link && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-gray-500 font-medium">Magic Login Link (ចូលដោយផ្ទាល់):</span>
+                    <a
+                      href={createdCredentialsModal.magic_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#8B1A1A] hover:underline flex items-center gap-0.5 text-[11px] font-bold"
+                    >
+                      <span>សាកល្បង</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl p-2 font-mono text-[11px]">
+                    <span className="truncate flex-1 text-gray-700">{createdCredentialsModal.magic_link}</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(createdCredentialsModal.magic_link || "");
+                        showToast("បានចម្លង Magic Link រួចរាល់!");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-sans font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <Copy size={12} />
+                      <span>Copy</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const text = `🎉 ព័ត៌មានគណនី S Tech Store របស់អ្នក៖\n👤 ឈ្មោះ: ${createdCredentialsModal.user.display_name}\n📧 អ៊ីមែល: ${createdCredentialsModal.user.email}\n🔑 ពាក្យសម្ងាត់: ${createdCredentialsModal.password || "N/A"}${createdCredentialsModal.magic_link ? `\n🔗 តំណចូលផ្ទាល់: ${createdCredentialsModal.magic_link}` : ""}`;
+                  await navigator.clipboard.writeText(text);
+                  setCopiedCreds(true);
+                  showToast("បានចម្លងព័ត៌មានគណនីទាំងអស់រួចរាល់!");
+                  setTimeout(() => setCopiedCreds(false), 3000);
+                }}
+                className="py-2.5 px-4 rounded-xl bg-[#8B1A1A] hover:bg-[#6e1414] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
+              >
+                {copiedCreds ? <Check size={14} /> : <Copy size={14} />}
+                <span>{copiedCreds ? "បានចម្លងរួចរាល់!" : "ចម្លងព័ត៌មានទាំងអស់"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCreatedCredentialsModal(null)}
+                className="py-2.5 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs cursor-pointer transition-colors"
+              >
+                បិទផ្ទាំង
+              </button>
+            </div>
           </div>
         </div>
       )}

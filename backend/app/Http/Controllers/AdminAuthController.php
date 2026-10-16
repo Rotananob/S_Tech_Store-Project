@@ -308,6 +308,20 @@ class AdminAuthController extends Controller
     }
 
     /**
+     * Get maximum allowed staff limit
+     */
+    public static function getStaffQuotaLimit(): int
+    {
+        try {
+            $setting = \App\Models\SystemSetting::where('key', 'staff_quota_limit')->first();
+            if ($setting && isset($setting->value['limit'])) {
+                return max(1, (int)$setting->value['limit']);
+            }
+        } catch (\Throwable $e) {}
+        return 6; // Default maximum 6 staff accounts (៥ ឬ ៦ នាក់)
+    }
+
+    /**
      * List all staff accounts (Admin Only)
      */
     public function staffList(Request $request)
@@ -321,7 +335,96 @@ class AdminAuthController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
+        $limit = self::getStaffQuotaLimit();
+        $current = User::whereIn('role', ['staff', 'manager'])->count();
+
+        if ($request->query('with_quota') === '1' || $request->header('X-With-Quota') === '1') {
+            return response()->json([
+                'staff' => $staff,
+                'quota' => [
+                    'limit' => $limit,
+                    'current' => $current,
+                    'is_full' => $current >= $limit,
+                    'remaining' => max(0, $limit - $current),
+                ],
+            ]);
+        }
+
         return response()->json($staff);
+    }
+
+    /**
+     * Get Staff Quota information
+     */
+    public function staffQuota(Request $request)
+    {
+        $limit = self::getStaffQuotaLimit();
+        $current = User::whereIn('role', ['staff', 'manager'])->count();
+        return response()->json([
+            'limit' => $limit,
+            'current' => $current,
+            'is_full' => $current >= $limit,
+            'remaining' => max(0, $limit - $current),
+        ]);
+    }
+
+    /**
+     * Update Staff Quota limit (Admin Only)
+     */
+    public function setStaffQuota(Request $request)
+    {
+        $currentUser = $request->attributes->get('auth_user');
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
+            return response()->json(['message' => 'Forbidden: Only administrators can set staff quota limits.'], 403);
+        }
+
+        $validated = $request->validate([
+            'limit' => 'required|integer|min:1|max:50',
+        ]);
+
+        \App\Models\SystemSetting::updateOrCreate(
+            ['key' => 'staff_quota_limit'],
+            ['value' => ['limit' => (int)$validated['limit']]]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "បានកំណត់កម្រិតបុគ្គលិកថ្មីត្រឹម {$validated['limit']} នាក់ជោគជ័យ!",
+            'limit' => (int)$validated['limit'],
+        ]);
+    }
+
+    /**
+     * Toggle Staff status (Suspend / Activate)
+     */
+    public function toggleStaffStatus(Request $request, $id)
+    {
+        $currentUser = $request->attributes->get('auth_user');
+        if ($currentUser && !in_array($currentUser->role, ['admin', 'super_admin'])) {
+            return response()->json(['message' => 'Forbidden: Only administrators can change staff status.'], 403);
+        }
+
+        $user = User::findOrFail($id);
+        if ($user->role === 'super_admin' || $user->email === 'nobrothana180703@gmail.com') {
+            return response()->json(['message' => 'Forbidden: Cannot suspend System Owner.'], 403);
+        }
+
+        $newStatus = ($user->status === 'active') ? 'inactive' : 'active';
+        $user->status = $newStatus;
+        $user->save();
+
+        if ($newStatus === 'inactive' && !empty($user->api_token)) {
+            Cache::forget("admin_token_{$user->api_token}");
+        }
+
+        $statusKh = ($newStatus === 'active') ? 'បើកដំណើរការឡើងវិញ' : 'ផ្អាកដំណើរការ (Suspended)';
+
+        return response()->json([
+            'success' => true,
+            'message' => "បាន{$statusKh}គណនីបុគ្គលិក '{$user->name}' ដោយជោគជ័យ",
+            'status' => $newStatus,
+            'user' => $user,
+        ]);
     }
 
     /**
@@ -346,6 +449,18 @@ class AdminAuthController extends Controller
 
         if ($validated['role'] === 'super_admin' && ($currentUser->role ?? '') !== 'super_admin') {
             return response()->json(['message' => 'Forbidden: Only Super-Admin / System Owner can create another Super-Admin.'], 403);
+        }
+
+        // Enforce staff account quota limit algorithm (default 6)
+        $staffLimit = self::getStaffQuotaLimit();
+        $currentStaffCount = User::whereIn('role', ['staff', 'manager'])->count();
+        if (in_array($validated['role'], ['staff', 'manager']) && $currentStaffCount >= $staffLimit) {
+            return response()->json([
+                'success' => false,
+                'message' => "⚠️ មិនអាចបង្កើតគណនីបុគ្គលិកថ្មីបានឡើយ! ចំនួនបុគ្គលិកបច្ចុប្បន្នបានដល់កម្រិតកំណត់អតិបរមាហើយ ({$currentStaffCount}/{$staffLimit} នាក់)។ សូមលុប ឬផ្អាកដំណើរការ (Suspend) គណនីបុគ្គលិកចាស់ជាមុនសិន ឬទាក់ទង Admin ដើម្បីបង្កើនកម្រិតកំណត់ (Staff Limit Reached)។",
+                'limit' => $staffLimit,
+                'current' => $currentStaffCount,
+            ], 422);
         }
 
         // Enforce tiered password complexity by role

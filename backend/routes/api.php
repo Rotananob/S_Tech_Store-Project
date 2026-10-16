@@ -256,6 +256,53 @@ Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $i
     ]);
 })->middleware([AdminMiddleware::class, 'throttle:10,1']);
 
+// Direct Email & Password Customer Login (for accounts created by staff/admin or email register)
+Route::post('/auth/customer-login', function (Request $request) {
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string',
+    ]);
+
+    $email = strtolower(trim($request->email));
+    $password = $request->password;
+
+    $user = \App\Models\UserProfile::where('email', $email)->first();
+    if (!$user || !$user->password || !\Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវឡើយ (Invalid email or password)',
+        ], 401);
+    }
+
+    if (!($user->is_active ?? true)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ក្រុមការងារ Admin។',
+        ], 403);
+    }
+
+    $token = \Illuminate\Support\Str::random(60);
+    \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+
+    return response()->json([
+        'success' => true,
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'firebase_uid' => $user->firebase_uid,
+            'uid' => $user->firebase_uid,
+            'display_name' => $user->display_name,
+            'name' => $user->display_name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'avatar_url' => $user->photo_url ?: $user->avatar_url,
+            'photo_url' => $user->photo_url ?: $user->avatar_url,
+            'provider' => 'manual',
+            'auth_provider' => $user->auth_provider ?? 'manual',
+        ],
+    ]);
+})->middleware('throttle:15,1');
+
 // Real Telegram OAuth Signature Handshake & Automatic Account Login (Public)
 Route::post('/auth/telegram/verify', function (Request $request) {
     $data = $request->validate([
@@ -1542,8 +1589,11 @@ Route::middleware(AdminMiddleware::class)->group(function () {
 
     // Staff & Account Management (Admin Role Only)
     Route::get('/admin/staff', [AdminAuthController::class, 'staffList']);
+    Route::get('/admin/staff/quota', [AdminAuthController::class, 'staffQuota']);
+    Route::post('/admin/staff/set-quota', [AdminAuthController::class, 'setStaffQuota']);
     Route::post('/admin/staff', [AdminAuthController::class, 'createStaff']);
     Route::put('/admin/staff/{id}', [AdminAuthController::class, 'updateStaff']);
+    Route::put('/admin/staff/{id}/toggle-status', [AdminAuthController::class, 'toggleStaffStatus']);
     Route::delete('/admin/staff/{id}', [AdminAuthController::class, 'deleteStaff']);
 
     // Branch Management (សាខាហាង)

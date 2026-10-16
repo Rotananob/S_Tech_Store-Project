@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class UserProfile extends Model
 {
     protected $fillable = [
-        'firebase_uid', 'display_name', 'username', 'email', 'photo_url',
+        'firebase_uid', 'display_name', 'username', 'email', 'password', 'auth_provider', 'created_by', 'photo_url',
         'phone', 'address', 'city', 'delivery_notes',
         'gps_lat', 'gps_lng', 'telegram', 'telegram_chat_id', 'notif_telegram', 'profession', 'gender', 'birthday',
         'two_fa_enabled', 'notif_orders', 'notif_promos', 'notif_builds',
@@ -16,6 +16,10 @@ class UserProfile extends Model
         'magic_login_token', 'magic_token_expires_at',
         'has_claimed_welcome_gift', 'welcome_gift_claimed_at',
         'wallet_balance', 'last_daily_coin_at', 'daily_streak', 'lifetime_free_coins',
+    ];
+
+    protected $hidden = [
+        'password',
     ];
 
     protected $casts = [
