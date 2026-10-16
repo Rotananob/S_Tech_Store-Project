@@ -11,8 +11,8 @@ import {
 import { 
   getTelegramStatus, generateTelegramLink, testTelegramNotification, 
   disconnectTelegram, updateTelegramSettings, setupTelegramTopics, 
-  pairTelegramGroup, setupCustomerBot, triggerDailyReport, triggerWeeklyReport,
-  scanLowStock, TelegramStatus, TelegramPairLink 
+  pairTelegramGroup, setupCustomerBot, setupStaffBot, generateAdminMiniAppLink,
+  triggerDailyReport, triggerWeeklyReport, scanLowStock, TelegramStatus, TelegramPairLink 
 } from "@/lib/services/admin.service";
 
 // =============================================================================
@@ -32,7 +32,10 @@ export default function TelegramBotCard() {
   const [settingUpTopics, setSettingUpTopics] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [syncingCustomerBot, setSyncingCustomerBot] = useState(false);
+  const [syncingStaffBot, setSyncingStaffBot] = useState(false);
+  const [generatingMiniApp, setGeneratingMiniApp] = useState(false);
   const [showBotFatherGuide, setShowBotFatherGuide] = useState(false);
+  const [showStaffBotFatherGuide, setShowStaffBotFatherGuide] = useState(false);
   const [pairData, setPairData] = useState<TelegramPairLink | null>(null);
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -140,6 +143,52 @@ export default function TelegramBotCard() {
       showToast(e.response?.data?.error || "បរាជ័យក្នុងការធ្វើសមកាលកម្ម Bot", "error");
     } finally {
       setSyncingCustomerBot(false);
+    }
+  };
+
+  const handleSyncStaffBot = async () => {
+    setSyncingStaffBot(true);
+    try {
+      const res = await setupStaffBot();
+      if (res.success) {
+        showToast("បានកំណត់ Commands & Mini App Menu សម្រាប់ Staff Bot ជោគជ័យ!");
+        fetchStatus(false);
+      } else {
+        showToast(res.error || res.message || "បរាជ័យក្នុងការកំណត់ Staff Bot", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.error || "បរាជ័យក្នុងការកំណត់ Staff Bot", "error");
+    } finally {
+      setSyncingStaffBot(false);
+    }
+  };
+
+  const handleLaunchStaffMiniApp = async (destination: "chat" | "orders" | "dashboard" = "chat") => {
+    setGeneratingMiniApp(true);
+    try {
+      const res = await generateAdminMiniAppLink(destination);
+      if (res.success && res.miniapp_url) {
+        window.open(res.miniapp_url, "_blank");
+        showToast(`⚡ បានបើក ${destination === 'chat' ? 'Live Chat' : 'Orders'} Mini App ជោគជ័យ!`);
+      } else {
+        showToast("បរាជ័យក្នុងការបង្កើតតំណភ្ជាប់", "error");
+      }
+    } catch (e: any) {
+      showToast(e.response?.data?.message || "បរាជ័យក្នុងការបង្កើតតំណភ្ជាប់", "error");
+    } finally {
+      setGeneratingMiniApp(false);
+    }
+  };
+
+  const handleCopyStaffMiniAppLink = async (destination: "chat" | "orders" = "chat") => {
+    try {
+      const res = await generateAdminMiniAppLink(destination);
+      if (res.success && res.miniapp_url) {
+        await navigator.clipboard.writeText(res.miniapp_url);
+        showToast("✓ បានចម្លងតំណភ្ជាប់ 1-Click Mini App ជោគជ័យ! (អាចផ្ញើជូន Staff ក្នុង Telegram)");
+      }
+    } catch (e) {
+      showToast("បរាជ័យក្នុងការចម្លង", "error");
     }
   };
 
@@ -569,6 +618,193 @@ export default function TelegramBotCard() {
               </div>
             </div>
           )}
+
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          {/* ⚡ NEW ENTERPRISE FEATURE: ADMIN & STAFF TELEGRAM MINI APP OPTION */}
+          {/* ═══════════════════════════════════════════════════════════════════ */}
+          <div className="relative rounded-3xl border-2 border-sky-200 hover:border-sky-400 bg-gradient-to-br from-white via-sky-50/30 to-indigo-50/20 p-6 sm:p-7 shadow-sm hover:shadow-md transition-all space-y-6 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600" />
+
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-sky-100">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-black uppercase text-sky-800 bg-sky-100 px-3 py-1 rounded-lg border border-sky-200">
+                    ⚡ NEW OPTION • ADMIN &amp; STAFF MINI APP
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> 1-Click Instant Access
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight m-0 pt-1">
+                  Telegram Mini App សម្រាប់ Admin &amp; Staff (Live Chat &amp; Hub)
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 max-w-3xl leading-relaxed m-0">
+                  ផ្តល់ជម្រើសឱ្យ Admin និងបុគ្គលិកអាចចុច ១-Click ដើម្បីបើក Live Chat ឆ្លើយតបអតិថិជន ឬគ្រប់គ្រង Orders ផ្ទាល់ក្នុង Telegram ដោយស្វ័យប្រវត្តិនូវ Authenticated Session មិនចាំបាច់ Log in ឡើយ!
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSyncStaffBot}
+                  disabled={syncingStaffBot}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white transition-all shadow-md shadow-sky-600/20 active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  <Bot size={15} />
+                  <span>{syncingStaffBot ? "កំពុង Sync..." : "Sync Staff Mini App Menu"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowStaffBotFatherGuide(!showStaffBotFatherGuide)}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Terminal size={14} />
+                  <span>{showStaffBotFatherGuide ? "បិទ Guide" : "BotFather Guide"}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick 1-Click Launchers Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Launcher 1: Live Chat Mini App */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-sky-100/90 shadow-2xs hover:border-sky-300 transition-all flex flex-col justify-between gap-4 group">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                    <MessageSquare size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 m-0">Live Chat Mini App</h4>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      បើកផ្ទាំងឆ្លើយតបអតិថិជន Real-time ភ្លាមៗក្នុង Telegram (Auto-Select Conversation)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchStaffMiniApp("chat")}
+                    disabled={generatingMiniApp}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <Zap size={13} className="text-amber-300" />
+                    <span>បើក Live Chat ភ្លាម</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyStaffMiniAppLink("chat")}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer active:scale-95"
+                    title="ចម្លងតំណភ្ជាប់ 1-Click"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Launcher 2: Orders Mini App */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-sky-100/90 shadow-2xs hover:border-sky-300 transition-all flex flex-col justify-between gap-4 group">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-blue-600/20">
+                    <ShoppingBag size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 m-0">Orders Management Mini App</h4>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      ពិនិត្យការបញ្ជាទិញថ្មីៗ វិក្កយបត្រ និងរៀបចំការដឹកជញ្ជូនរហ័សក្នុង Telegram
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchStaffMiniApp("orders")}
+                    disabled={generatingMiniApp}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <PackageCheck size={14} />
+                    <span>បើក Orders ភ្លាម</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyStaffMiniAppLink("orders")}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer active:scale-95"
+                    title="ចម្លងតំណភ្ជាប់ 1-Click"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Launcher 3: Telegram Staff Bot Launcher */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-sky-100/90 shadow-2xs hover:border-sky-300 transition-all flex flex-col justify-between gap-4 group">
+                <div className="space-y-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0088cc] to-sky-700 text-white flex items-center justify-center shadow-md shadow-sky-600/20">
+                    <Smartphone size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 m-0">Telegram Staff Bot Direct</h4>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                      បើកកម្មវិធី Telegram ផ្ទាល់ទៅកាន់ Staff Bot (@{botUsername}) ជាមួយ Mini App Menu
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <a
+                    href={`https://t.me/${botUsername}?start=miniapp_chat`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black bg-[#0088cc] hover:bg-[#0077b5] text-white transition-all shadow-sm active:scale-95 no-underline"
+                  >
+                    <ExternalLink size={14} />
+                    <span>បើកក្នុង Telegram</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff BotFather Guide */}
+            {showStaffBotFatherGuide && (
+              <div className="p-5 rounded-2xl bg-[#090e1a] text-slate-200 border-2 border-sky-900/50 space-y-3.5 shadow-xl animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Terminal size={17} className="text-sky-400" />
+                    <h4 className="text-xs font-mono font-black text-white uppercase tracking-wider m-0">
+                      Staff Bot BotFather Commands Reference (@{botUsername})
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowStaffBotFatherGuide(false)}
+                    className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] font-mono">
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                    <div className="font-bold text-sky-400">1. /setmenubutton (Menu Button)</div>
+                    <div className="bg-black/70 p-2.5 rounded-lg border border-slate-800 space-y-1 text-slate-300 select-all">
+                      <div>URL: <span className="text-emerald-400 font-bold">https://www.s-tech-store.tech/km/rok-mix-khernh/chat</span></div>
+                      <div>Button Text: <span className="text-sky-300 font-bold">⚡ S Tech Live Chat</span></div>
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
+                    <div className="font-bold text-sky-400">2. /setcommands (Staff Commands)</div>
+                    <div className="bg-black/70 p-2.5 rounded-lg border border-slate-800 text-slate-300 select-all leading-relaxed max-h-24 overflow-y-auto">
+                      chat - Live Chat Support Mini App<br/>
+                      orders - Manage Orders Mini App<br/>
+                      dashboard - Admin Dashboard Mini App<br/>
+                      stock - Scan Low Stock Items<br/>
+                      report - Daily Business Summary Report<br/>
+                      start - Staff Menu and Mini App Hub
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* CASE 1: GROUP CONNECTED */}
           {status?.connected ? (

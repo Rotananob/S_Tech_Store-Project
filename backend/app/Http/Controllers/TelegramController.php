@@ -351,6 +351,53 @@ class TelegramController extends Controller
     }
 
     /**
+     * Setup Staff Bot Commands & Native Telegram Mini App Menu Button for Admin & Staff
+     */
+    public function setupStaffBot(Request $request)
+    {
+        $res = TelegramService::setupStaffBotCommandsAndMenu();
+        return response()->json($res);
+    }
+
+    /**
+     * Generate 1-Click Direct Token Link for Admin & Staff Telegram Mini App
+     */
+    public function generateMiniAppLink(Request $request)
+    {
+        $destination = $request->input('destination', 'chat');
+        $chatId = $request->input('chat_id');
+        
+        $bypassToken = \Illuminate\Support\Str::random(40);
+        $user = $request->user();
+        $userName = $user ? $user->name : 'Staff Member';
+
+        \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
+            'chat_id' => $chatId ?: 'staff_session',
+            'user_name' => $userName,
+            'uses' => 15,
+            'destination' => $destination,
+            'created_at' => now()->toIso8601String(),
+        ], 1440 * 60); // 24 hours validity
+
+        $baseUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh";
+        $path = $destination === 'orders' ? '/orders' : ($destination === 'dashboard' ? '' : '/chat');
+        $miniAppUrl = "{$baseUrl}{$path}?token={$bypassToken}" . ($chatId ? "&chat_id=" . urlencode($chatId) : "");
+        $settings = TelegramService::getSettings();
+        $staffBot = $settings['bot_username'] ?? TelegramService::OFFICIAL_STAFF_BOT_USERNAME;
+        $tgDeepLink = "https://t.me/{$staffBot}?start=miniapp_{$destination}";
+
+        return response()->json([
+            'success' => true,
+            'token' => $bypassToken,
+            'miniapp_url' => $miniAppUrl,
+            'tg_deep_link' => $tgDeepLink,
+            'destination' => $destination,
+            'expires_in' => 86400,
+            'message' => 'បានបង្កើតតំណភ្ជាប់ 1-Click Telegram Mini App សម្រាប់ Admin & Staff ជោគជ័យ!',
+        ]);
+    }
+
+    /**
      * Public Telegram Webhook Endpoint
      * Handles /start <PAIR_CODE>, customer commands, FAQ inquiries, and callback buttons
      */

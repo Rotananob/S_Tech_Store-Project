@@ -73,6 +73,19 @@ export default function AdminRealtimeChatPage() {
   const [activeChatMeta, setActiveChatMeta] = useState<{ ai_paused?: boolean; paused_by?: string; status?: string } | null>(null);
   const [bypassNotice, setBypassNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
+  const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false);
+
+  // Auto-detect Telegram Mini App environment
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      try {
+        tg.ready();
+        tg.expand();
+        setIsTelegramMiniApp(true);
+      } catch (e) {}
+    }
+  }, []);
 
   const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
     setToast({ msg, type });
@@ -392,6 +405,29 @@ export default function AdminRealtimeChatPage() {
             className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer"
           >
             បិទ
+          </button>
+        </div>
+      )}
+
+      {/* Telegram Mini App Top Status Bar */}
+      {isTelegramMiniApp && (
+        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-md border border-sky-800/60 text-xs font-bold flex items-center justify-between animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-mono text-sky-300 font-black">TELEGRAM MINI APP</span>
+            <span className="text-slate-500">•</span>
+            <span className="text-slate-200">ឆ្លើយតប Live Chat ផ្ទាល់ក្នុង Telegram</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                window.Telegram?.WebApp?.close();
+              } catch (_) {}
+            }}
+            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold cursor-pointer transition-all active:scale-95"
+          >
+            បិទ Mini App
           </button>
         </div>
       )}

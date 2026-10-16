@@ -343,6 +343,24 @@ export const setupCustomerBot = async (): Promise<{ success: boolean; bot_userna
   return res.data;
 };
 
+export const setupStaffBot = async (): Promise<{ success: boolean; bot_username?: string; commands_count?: number; message?: string; details?: any; error?: string }> => {
+  const res = await api.post("/admin/telegram/setup-staff-bot");
+  return res.data;
+};
+
+export const generateAdminMiniAppLink = async (destination: "chat" | "orders" | "dashboard" = "chat", chatId?: string): Promise<{
+  success: boolean;
+  token: string;
+  miniapp_url: string;
+  tg_deep_link: string;
+  destination: string;
+  expires_in: number;
+  message: string;
+}> => {
+  const res = await api.post("/admin/telegram/generate-miniapp-link", { destination, chat_id: chatId });
+  return res.data;
+};
+
 export const triggerDailyReport = async (date?: string): Promise<{ success: boolean; message: string; details?: any }> => {
   const res = await api.post("/admin/telegram/trigger-daily-report", { date });
   return res.data;

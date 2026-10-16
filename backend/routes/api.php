@@ -1562,6 +1562,8 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::post('/admin/telegram/settings', [\App\Http\Controllers\TelegramController::class, 'updateSettings']);
     Route::post('/admin/telegram/broadcast', [\App\Http\Controllers\TelegramController::class, 'broadcast']);
     Route::match(['get', 'post'], '/admin/telegram/setup-customer-bot', [\App\Http\Controllers\TelegramController::class, 'setupCustomerBot']);
+    Route::match(['get', 'post'], '/admin/telegram/setup-staff-bot', [\App\Http\Controllers\TelegramController::class, 'setupStaffBot']);
+    Route::post('/admin/telegram/generate-miniapp-link', [\App\Http\Controllers\TelegramController::class, 'generateMiniAppLink']);
     Route::post('/admin/telegram/trigger-daily-report', [\App\Http\Controllers\TelegramController::class, 'triggerDailyReport']);
     Route::post('/admin/telegram/trigger-weekly-report', [\App\Http\Controllers\TelegramController::class, 'triggerWeeklyReport']);
     Route::post('/admin/telegram/scan-low-stock', [\App\Http\Controllers\TelegramController::class, 'scanLowStock']);

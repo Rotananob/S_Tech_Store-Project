@@ -1481,13 +1481,57 @@ class TelegramService
         }
 
         // ── STRICT ISOLATION: BOT 1 (@s_tech_storeBot) STRICTLY GUARDS ADMIN/STAFF GROUP ONLY ──
-        // If ANY private message or handshake arrives at Bot 1, strictly redirect them to Customer Bot (@S_TECH_ASSISTANTBOT)
+        // If ANY private message or handshake arrives at Bot 1, check if staff requests Mini App or redirect customers
         if ($chatType === 'private' && $botParam === 'main') {
             $customerBotUser = self::getCustomerBotUsername();
             
             $extractedCode = '';
             if (preg_match('/^\/start(?:@\w+)?\s*(.*)$/i', $text, $matches)) {
                 $extractedCode = trim($matches[1] ?? '');
+            }
+
+            $lowerText = strtolower($text);
+            $isStaffAction = in_array($lowerText, ['/chat', '/admin', '/staff', '/orders', '/miniapp', '/dashboard', 'chat', 'admin', 'staff', 'orders', 'miniapp'])
+                || str_starts_with(strtolower($extractedCode), 'miniapp')
+                || str_starts_with(strtolower($extractedCode), 'chat')
+                || str_starts_with(strtolower($extractedCode), 'staff');
+
+            if ($isStaffAction) {
+                // Generate instant 1-Click bypass token for staff
+                $bypassToken = \Illuminate\Support\Str::random(40);
+                \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
+                    'chat_id' => 'tg_staff_' . $chatId,
+                    'user_name' => $fromName ?: 'Admin/Staff',
+                    'uses' => 15,
+                    'created_at' => now()->toIso8601String(),
+                ], 1440 * 60);
+
+                $chatUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/chat?token={$bypassToken}";
+                $ordersUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/orders?token={$bypassToken}";
+                $dashUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh?token={$bypassToken}";
+
+                $staffMsg = "⚡ <b>S TECH STORE — ADMIN & STAFF MINI APP HUB</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "សួស្តី <b>" . htmlspecialchars($fromName) . "</b> (Admin / Staff)!\n\n"
+                    . "លោកអ្នកអាចបើកផ្ទាំងគ្រប់គ្រង និងឆ្លើយតប Live Chat ផ្ទាល់ក្នុង Telegram ភ្លាមៗ (1-Click Auto-Login) ដោយចុចលើប៊ូតុងខាងក្រោម៖";
+
+                $staffKb = [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '💬 បើក Live Chat Mini App (ឆ្លើយតបភ្លាមៗ)', 'web_app' => ['url' => $chatUrl]],
+                        ],
+                        [
+                            ['text' => '📦 បើក Orders Mini App', 'web_app' => ['url' => $ordersUrl]],
+                            ['text' => '📊 Dashboard Mini App', 'web_app' => ['url' => $dashUrl]],
+                        ],
+                        [
+                            ['text' => '🌐 បើកក្នុង Web Browser', 'url' => $chatUrl],
+                        ]
+                    ]
+                ];
+
+                self::sendMessageWithKeyboard($chatId, $staffMsg, $staffKb, 'HTML', null, $staffBotToken);
+                return;
             }
 
             $redirectUrl = !empty($extractedCode)
@@ -1501,6 +1545,7 @@ class TelegramService
             $redirectKb = [
                 'inline_keyboard' => [
                     [['text' => '🚀 បើកផ្ទៀងផ្ទាត់ជាមួយ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                    [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
                     [['text' => '🛍️ ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
                 ]
             ];
@@ -3803,6 +3848,86 @@ class TelegramService
     }
 
     /**
+     * Setup official Staff Bot commands, native Admin Mini App chat menu button, and descriptions
+     */
+    public static function setupStaffBotCommandsAndMenu(?string $token = null): array
+    {
+        $settings = self::getSettings();
+        $botToken = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+        if (empty($botToken)) {
+            return ['success' => false, 'error' => 'Staff Bot token is missing (សូមកំណត់ Bot Token ក្នុង Settings ជាមុនសិន)'];
+        }
+
+        $results = [];
+
+        // 1. Set commands (Interactive admin & staff commands)
+        $commands = [
+            ['command' => 'chat', 'description' => '💬 បើក Live Chat Mini App (ឆ្លើយតបអតិថិជន)'],
+            ['command' => 'orders', 'description' => '📦 បើក Orders Mini App (គ្រប់គ្រងការកុម្ម៉ង់)'],
+            ['command' => 'dashboard', 'description' => '📊 បើក Admin Dashboard Mini App'],
+            ['command' => 'stock', 'description' => '⚠️ ស្កេនទំនិញជិតអស់ពីស្តុក (Low Stock)'],
+            ['command' => 'report', 'description' => '📈 របាយការណ៍សង្ខេបអាជីវកម្ម (Daily Report)'],
+            ['command' => 'start', 'description' => '🏠 មឺនុយមេ Admin/Staff & Mini App Hub'],
+        ];
+
+        try {
+            $cmdResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyCommands", [
+                'commands' => $commands,
+            ]);
+            $results['setMyCommands'] = $cmdResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyCommands'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 2. Set native Mini App chat menu button (persistent in lower-left corner)
+        try {
+            $menuResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setChatMenuButton", [
+                'menu_button' => [
+                    'type' => 'web_app',
+                    'text' => '⚡ S Tech Live Chat',
+                    'web_app' => [
+                        'url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat',
+                    ],
+                ],
+            ]);
+            $results['setChatMenuButton'] = $menuResp->json();
+        } catch (\Throwable $e) {
+            $results['setChatMenuButton'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 3. Set bot description
+        try {
+            $descResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyDescription", [
+                'description' => "💼 ប្រព័ន្ធជំនួយការ និងផ្ញើដំណឹងផ្លូវការសម្រាប់ Admin & Staff ហាង S Tech Store\n\n• 💬 ឆ្លើយតប Live Chat ផ្ទាល់ជាមួយអតិថិជន (Mini App)\n• 📦 ទទួលដំណឹង និងគ្រប់គ្រងការកុម្ម៉ង់ (Orders)\n• 🔧 តាមដានសំបុត្រជួសជុល (Repairs)\n• 📊 របាយការណ៍អាជីវកម្មស្វ័យប្រវត្តិ\n\n👉 ចុច Start ឬចុចលើប៊ូតុង Menu ខាងក្រោម ដើម្បីបើក Mini App ភ្លាមៗ!",
+            ]);
+            $results['setMyDescription'] = $descResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyDescription'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        // 4. Set bot short description
+        try {
+            $shortResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyShortDescription", [
+                'short_description' => "⚡ S Tech Admin & Staff Hub — Live Chat, Orders, និង Mini App ផ្លូវការ",
+            ]);
+            $results['setMyShortDescription'] = $shortResp->json();
+        } catch (\Throwable $e) {
+            $results['setMyShortDescription'] = ['ok' => false, 'error' => $e->getMessage()];
+        }
+
+        $allOk = (($results['setMyCommands']['ok'] ?? false) === true)
+            && (($results['setChatMenuButton']['ok'] ?? false) === true);
+
+        return [
+            'success' => $allOk,
+            'bot_username' => $settings['bot_username'] ?? self::OFFICIAL_STAFF_BOT_USERNAME,
+            'commands_count' => count($commands),
+            'message' => 'បានកំណត់ Commands និង Mini App Menu Button សម្រាប់ Staff Bot ជោគជ័យ!',
+            'details' => $results,
+        ];
+    }
+
+    /**
      * Fetch user's genuine profile photo directly from Telegram Bot API
      */
     public static function getUserAvatarUrl(string $tgUserId, ?string $botToken = null): ?string
@@ -5290,7 +5415,10 @@ class TelegramService
         $keyboard = [
             'inline_keyboard' => [
                 [
-                    ['text' => '📋 មើលការកុម្ម៉ង់ក្នុង Admin', 'url' => 'https://www.s-tech-store.tech/rok-mix-khernh/orders'],
+                    ['text' => '⚡ បើក Orders ក្នុង Mini App (1-Click)', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/orders']],
+                ],
+                [
+                    ['text' => '📋 មើលការកុម្ម៉ង់ក្នុង Browser', 'url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/orders'],
                 ]
             ]
         ];
@@ -5340,7 +5468,7 @@ class TelegramService
             \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
                 'chat_id' => $effectiveChatId,
                 'user_name' => $name,
-                'uses' => 3, // Allow up to 3 uses
+                'uses' => 5, // Allow up to 5 uses
                 'created_at' => now()->toIso8601String(),
             ], 120 * 60); // 2 hours validity
         } else {
@@ -5349,14 +5477,17 @@ class TelegramService
 
         $directLink = "https://www.s-tech-store.tech/km/rok-mix-khernh/chat?token={$bypassToken}" . ($effectiveChatId ? "&chat_id=" . urlencode($effectiveChatId) : "");
 
-        $text .= "⚡ <b>ចូលឆ្លើយតបឆាតបន្ទាន់ (1-Click Direct Access):</b>\n"
+        $text .= "⚡ <b>ចូលឆ្លើយតបឆាតបន្ទាន់ (1-Click Mini App Access):</b>\n"
             . "👉 <a href=\"{$directLink}\">ចុចទីនេះដើម្បីបើកផ្ទាំងឆាតផ្ទាល់ភ្លាមៗ (Bypass Login)</a>\n\n"
-            . "<i>💡 Admin & Staff គ្រាន់តែចុចលើប៊ូតុងខាងក្រោម នឹងចូលដល់ផ្ទាំងឆាតផ្ទាល់ភ្លាមៗដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ!</i>";
+            . "<i>💡 Admin & Staff អាចចុចលើប៊ូតុង Mini App ខាងក្រោម ដើម្បីបើកឆ្លើយតបឆាតភ្លាមៗក្នុង Telegram ដោយមិនបាច់ចាកចេញឡើយ!</i>";
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => '💬 ឆ្លើយតបឆាតផ្ទាល់ (1-Click Login)', 'url' => $directLink]
+                    ['text' => '⚡ បើកក្នុង Telegram Mini App (1-Click)', 'web_app' => ['url' => $directLink]],
+                ],
+                [
+                    ['text' => '💬 បើកក្នុង Web Browser', 'url' => $directLink],
                 ]
             ]
         ];
