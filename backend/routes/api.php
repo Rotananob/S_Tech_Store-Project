@@ -1509,6 +1509,11 @@ Route::get('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, '
 Route::post('/user/pc-builds', [\App\Http\Controllers\PcBuildController::class, 'store']);
 Route::delete('/user/pc-builds/{id}', [\App\Http\Controllers\PcBuildController::class, 'destroy']);
 
+// Public Repair & Warranty Tracking
+Route::get('/repairs/track/{code?}', [\App\Http\Controllers\RepairController::class, 'track']);
+Route::get('/repairs/lookup', [\App\Http\Controllers\RepairController::class, 'track']);
+Route::get('/warranty/check', [\App\Http\Controllers\RepairController::class, 'track']);
+
 
 
 // Admin & Staff Protected Routes (Guarded by AdminMiddleware)

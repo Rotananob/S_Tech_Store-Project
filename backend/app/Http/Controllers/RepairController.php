@@ -410,4 +410,162 @@ class RepairController extends Controller
             return false;
         }
     }
+
+    /**
+     * GET /api/repairs/track
+     * GET /api/repairs/track/{code}
+     * Public endpoint to look up a repair ticket or warranty status by code/phone/serial
+     */
+    public function track(Request $request, $code = null)
+    {
+        $queryCode = trim((string)($code ?: $request->query('ticket') ?: $request->query('code') ?: $request->query('q') ?: ''));
+        $phone = trim((string)$request->query('phone', ''));
+        $cleanCode = ltrim($queryCode, '#');
+
+        $repair = null;
+
+        if (!empty($cleanCode)) {
+            $repair = Repair::where(function ($q) use ($cleanCode) {
+                $q->where('ticket_code', $cleanCode)
+                  ->orWhere('ticket_code', '#' . $cleanCode)
+                  ->orWhere('ticket_code', 'REP-' . $cleanCode);
+
+                if (is_numeric($cleanCode)) {
+                    $q->orWhere('id', (int)$cleanCode)
+                      ->orWhere('ticket_code', 'REP-' . $cleanCode);
+                }
+
+                // If customer typed their phone number into the search box
+                if (strlen($cleanCode) >= 8 && preg_match('/^\+?\d+$/', $cleanCode)) {
+                    $cleanPhone = preg_replace('/\D/', '', $cleanCode);
+                    $q->orWhere('customer_phone', 'LIKE', "%{$cleanPhone}%");
+                }
+            })->latest()->first();
+        }
+
+        // If not found yet and phone was provided separately
+        if (!$repair && !empty($phone)) {
+            $cleanPhone = preg_replace('/\D/', '', $phone);
+            $repair = Repair::where('customer_phone', 'LIKE', "%{$cleanPhone}%")->latest()->first();
+        }
+
+        // Also check if customer has a Telegram chat ID or user profile linked
+        $chatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
+        $token = $request->header('X-Customer-Token') ?: $request->query('tg_token');
+
+        $user = null;
+        if (!empty($token)) {
+            $sessUserId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+            if ($sessUserId) {
+                $user = UserProfile::find($sessUserId);
+            }
+            if (!$user) {
+                $user = UserProfile::where('magic_login_token', $token)->first();
+            }
+        }
+        if (!$user && !empty($chatId)) {
+            $user = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
+        }
+
+        // If no specific code was passed, or user wants their list of active tickets
+        $customerTickets = collect();
+        if ($user) {
+            $customerTickets = Repair::where(function ($q) use ($user) {
+                if (!empty($user->phone)) {
+                    $cleanP = preg_replace('/\D/', '', $user->phone);
+                    $q->where('customer_phone', 'LIKE', "%{$cleanP}%");
+                }
+                if (!empty($user->email)) {
+                    $q->orWhere('customer_email', $user->email);
+                }
+            })->latest()->get();
+
+            if (!$repair && $customerTickets->isNotEmpty()) {
+                $repair = $customerTickets->first();
+            }
+        }
+
+        if ($repair) {
+            $statusKh = match($repair->status) {
+                'Ready' => 'រួចរាល់អាចមកទទួលយកបាន (Ready for Pickup)',
+                'In Progress' => 'កំពុងជួសជុល (In Progress)',
+                'Completed' => 'បានប្រគល់ជូនរួចរាល់ (Completed)',
+                default => 'កំពុងពិនិត្យរោគសញ្ញា (Pending Assessment)',
+            };
+
+            $stepIndex = match($repair->status) {
+                'Pending Assessment' => 0,
+                'In Progress' => 1,
+                'Ready' => 2,
+                'Completed' => 3,
+                default => 0,
+            };
+
+            return response()->json([
+                'success' => true,
+                'found' => true,
+                'type' => 'repair',
+                'ticket' => [
+                    'id' => $repair->id,
+                    'ticket_code' => $repair->ticket_code,
+                    'customer_name' => $repair->customer_name,
+                    'customer_phone' => $repair->customer_phone,
+                    'customer_email' => $repair->customer_email,
+                    'device_name' => $repair->device_name,
+                    'issue_description' => $repair->issue_description,
+                    'technician_name' => $repair->technician_name ?: 'ជាងជំនាញ (S Tech Lab)',
+                    'estimated_cost' => (float)($repair->estimated_cost ?? 0),
+                    'status' => $repair->status,
+                    'status_kh' => $statusKh,
+                    'step_index' => $stepIndex,
+                    'notes' => $repair->notes,
+                    'created_at' => $repair->created_at ? $repair->created_at->toIso8601String() : null,
+                    'updated_at' => $repair->updated_at ? $repair->updated_at->toIso8601String() : null,
+                ],
+                'other_tickets' => $customerTickets->where('id', '!=', $repair->id)->values(),
+            ]);
+        }
+
+        // Fallback: Check Order Invoice / Serial number for warranty if it's not a repair ticket
+        if (!empty($cleanCode)) {
+            $cleanOrderCode = ltrim($cleanCode, '#');
+            $order = \App\Models\Order::where('order_id', $cleanOrderCode)
+                ->orWhere('order_id', '#' . $cleanOrderCode)
+                ->orWhere('order_id', 'ORD-' . $cleanOrderCode)
+                ->with('items.product')
+                ->first();
+
+            if ($order) {
+                $created = $order->created_at ?: now();
+                $expires = (clone $created)->addMonths(6);
+                $isExpired = now()->greaterThan($expires);
+
+                $productNames = $order->items->map(function ($it) {
+                    return $it->product->name ?? 'Product';
+                })->join(', ');
+
+                return response()->json([
+                    'success' => true,
+                    'found' => true,
+                    'type' => 'warranty',
+                    'warranty' => [
+                        'order_id' => $order->order_id,
+                        'customer_name' => $order->customer_name,
+                        'product' => $productNames ?: 'ទំនិញ S Tech Store',
+                        'purchased' => $created->format('M d, Y'),
+                        'expires' => $expires->format('M d, Y'),
+                        'status' => $isExpired ? 'expired' : 'active',
+                        'period' => '6 ខែ (6 Months Coverage)',
+                        'items_count' => $order->items->count(),
+                    ],
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'found' => false,
+            'message' => "រកមិនឃើញទិន្នន័យសម្រាប់លេខកូដ \"{$queryCode}\" ឡើយ។ សូមពិនិត្យលេខកូដសំបុត្រ ឬវិក្កយបត្រឡើងវិញ។",
+        ], 404);
+    }
 }

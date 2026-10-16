@@ -995,7 +995,8 @@ class TelegramService
                 });
 
                 $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-                $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+                $latestCode = $repairs->isNotEmpty() ? ltrim($repairs->first()->ticket_code ?? ('REP-' . $repairs->first()->id), '#') : '';
+                $repairAppUrl = "https://www.s-tech-store.tech/repairs?" . ($latestCode ? "ticket=" . urlencode($latestCode) . "&" : "") . "chat_id={$chatId}&tg_token={$sessionToken}";
                 $storeAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
                 if ($repairs->isEmpty()) {
@@ -2658,7 +2659,8 @@ class TelegramService
             })->latest()->take(3)->get();
 
             $sessionToken = self::generateCustomerSessionToken((string)$chatId, $fromName);
-            $repairAppUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+            $latestCode = $repairs->isNotEmpty() ? ltrim($repairs->first()->ticket_code ?? ('REP-' . $repairs->first()->id), '#') : '';
+            $repairAppUrl = "https://www.s-tech-store.tech/repairs?" . ($latestCode ? "ticket=" . urlencode($latestCode) . "&" : "") . "chat_id={$chatId}&tg_token={$sessionToken}";
 
             if ($repairs->isEmpty()) {
                 $repairText = "🔧 <b>សេវាកម្មជួសជុល & សំបុត្រជួសជុល (Repair Tickets):</b>\n\n"
@@ -4993,7 +4995,9 @@ class TelegramService
         }
 
         $sessionToken = self::generateCustomerSessionToken($chatId, $repair->customer_name ?? null);
-        $directUrl = "https://www.s-tech-store.tech/warranty?tg_token={$sessionToken}";
+        $rawTicket = $repair->ticket_code ?? ('REP-' . $repair->id);
+        $cleanTicketCode = ltrim($rawTicket, '#');
+        $directUrl = "https://www.s-tech-store.tech/repairs?ticket=" . urlencode($cleanTicketCode) . "&chat_id={$chatId}&tg_token={$sessionToken}";
 
         $ticketCode = htmlspecialchars($repair->ticket_code ?? ('#REP-' . $repair->id));
         $name = htmlspecialchars($repair->customer_name ?? 'អតិថិជន');
