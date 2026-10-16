@@ -104,7 +104,11 @@ class MasterSystemController extends Controller
             }
         }
 
-        $cambodiaNow = \Carbon\Carbon::now('Asia/Phnom Penh');
+        try {
+            $cambodiaNow = \Carbon\Carbon::now('Asia/Phnom_Penh');
+        } catch (\Throwable $e) {
+            $cambodiaNow = \Carbon\Carbon::now();
+        }
         $enabled = isset($state['night_lock_enabled']) ? (bool)$state['night_lock_enabled'] : true;
         $forced = !empty($state['night_lock_forced']);
         $startStr = !empty($state['night_lock_start']) ? $state['night_lock_start'] : '02:00';
@@ -693,7 +697,7 @@ class MasterSystemController extends Controller
                 'type' => $statusKh,
                 'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
                 'action' => 'Cybersecurity Night Lock Configured',
-                'details' => "ស្ថានភាព: " . ($nightLockInfo['active'] ? 'LOCKED' : 'STANDBY/OFF') . " | ម៉ោងកំណត់: {$nightLockInfo['start_time']} - {$nightLockInfo['end_time']} (Asia/Phnom Penh)",
+                'details' => "ស្ថានភាព: " . ($nightLockInfo['active'] ? 'LOCKED' : 'STANDBY/OFF') . " | ម៉ោងកំណត់: {$nightLockInfo['start_time']} - {$nightLockInfo['end_time']} (Asia/Phnom_Penh)",
             ]);
         } catch (\Throwable $t) {}
 
