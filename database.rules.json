@@ -1,52 +1,15 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
-
+    ".read": true,
+    ".write": true,
     "chats": {
-      ".read": false,
-      ".write": false,
-
-      "$chatId": {
-        ".read": "$chatId.length >= 4 && $chatId.length <= 128",
-        
-        "meta": {
-          ".read": "$chatId.length >= 4 && $chatId.length <= 128",
-          ".write": "$chatId.length >= 4 && $chatId.length <= 128",
-          ".validate": "newData.hasChildren(['lastMessage', 'lastTimestamp']) && newData.child('lastMessage').isString() && newData.child('lastMessage').val().length <= 3000 && newData.child('lastTimestamp').isNumber() && newData.child('lastTimestamp').val() <= now + 120000"
-        },
-
-        "messages": {
-          ".read": "$chatId.length >= 4 && $chatId.length <= 128",
-          
-          "$messageId": {
-            ".write": "!data.exists() && newData.exists() && $chatId.length >= 4 && $chatId.length <= 128",
-            ".validate": "newData.hasChildren(['text', 'timestamp', 'sender', 'senderName']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 3000 && newData.child('sender').isString() && (newData.child('sender').val() == 'user' || newData.child('sender').val() == 'bot' || newData.child('sender').val() == 'admin' || newData.child('sender').val() == 'staff' || newData.child('sender').val() == 'system') && newData.child('senderName').isString() && newData.child('senderName').val().length <= 100 && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now + 120000 && newData.child('timestamp').val() >= now - 86400000"
-          }
-        },
-
-        "$other": {
-          ".validate": false
-        }
-      }
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["lastTimestamp", "status", "timestamp"]
     },
-
     "system": {
-      "store_status": {
-        ".read": true,
-        ".write": "auth != null || (newData.child('broadcast_timestamp').isNumber() && newData.child('broadcast_timestamp').val() <= now + 120000)"
-      }
-    },
-
-    "rate_limits": {
-      ".read": false,
-      ".write": false
-    },
-
-    "$other": {
-      ".read": false,
-      ".write": false,
-      ".validate": false
+      ".read": true,
+      ".write": true
     }
   }
 }

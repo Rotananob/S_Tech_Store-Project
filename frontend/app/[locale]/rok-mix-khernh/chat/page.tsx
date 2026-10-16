@@ -74,6 +74,7 @@ export default function AdminRealtimeChatPage() {
   const [bypassNotice, setBypassNotice] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
   const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(false);
 
   // Auto-detect Telegram Mini App environment
   useEffect(() => {
@@ -167,6 +168,16 @@ export default function AdminRealtimeChatPage() {
 
     return () => unsub();
   }, [selectedChatId]);
+
+  const handleRefreshChats = () => {
+    setLoadingChats(true);
+    const unsub = subscribeToAllChats((incomingChats) => {
+      setChats(incomingChats);
+      setLoadingChats(false);
+      showToast(`បានទាញយកទិន្នន័យឆាតជោគជ័យ (សរុប ${incomingChats.length} បន្ទប់សន្ទនា)`);
+    });
+    setTimeout(() => setLoadingChats(false), 2000);
+  };
 
   // Subscribe to active chat messages in real-time
   useEffect(() => {
@@ -483,16 +494,29 @@ export default function AdminRealtimeChatPage() {
           </div>
         </div>
 
-        {/* Current Staff Badge */}
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3.5 py-2 rounded-xl self-start sm:self-auto shadow-xs">
-          {currentStaff.role === "admin" ? (
-            <ShieldCheck size={16} className="text-amber-500" />
-          ) : (
-            <ShieldCheck size={16} className="text-blue-500" />
-          )}
-          <span className="text-xs font-bold text-gray-800">
-            ឆ្លើយតបជា៖ <span className="text-[#8B1A1A]">{currentStaff.name}</span>
-          </span>
+        {/* Actions & Current Staff Badge */}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleRefreshChats}
+            disabled={loadingChats}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 active:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            title="ទាញយកទិន្នន័យឡើងវិញ (Refresh)"
+          >
+            <RefreshCw size={14} className={loadingChats ? "animate-spin text-[#8B1A1A]" : "text-gray-500"} />
+            <span className="hidden sm:inline">{loadingChats ? "កំពុងទាញយក..." : "ទាញយកឡើងវិញ"}</span>
+          </button>
+
+          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3.5 py-2 rounded-xl shadow-xs">
+            {currentStaff.role === "admin" ? (
+              <ShieldCheck size={16} className="text-amber-500" />
+            ) : (
+              <ShieldCheck size={16} className="text-blue-500" />
+            )}
+            <span className="text-xs font-bold text-gray-800">
+              ឆ្លើយតបជា៖ <span className="text-[#8B1A1A]">{currentStaff.name}</span>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -604,8 +628,31 @@ export default function AdminRealtimeChatPage() {
                 <Inbox size={34} className="text-gray-300 mb-2 stroke-1" />
                 <p className="text-xs font-bold text-gray-600">មិនមានការសន្ទនាក្នុងថតនេះទេ</p>
                 <p className="text-[11px] text-gray-400 mt-0.5">
-                  ជ្រើសរើសផ្ទាំង &quot;ទាំងអស់&quot; ឬរង់ចាំអតិថិជនផ្ញើសារថ្មីមកកាន់ហាង
+                  {chats.length > 0
+                    ? `មាន ${chats.length} ការសន្ទនានៅក្នុងថតផ្សេងទៀត`
+                    : "ជ្រើសរើសផ្ទាំង \"ទាំងអស់\" ឬរង់ចាំអតិថិជនផ្ញើសារថ្មីមកកាន់ហាង"}
                 </p>
+
+                <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                  {chats.length > 0 && filter !== "all" && (
+                    <button
+                      type="button"
+                      onClick={() => setFilter("all")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-800 text-white hover:bg-gray-900 transition-all cursor-pointer shadow-xs"
+                    >
+                      បង្ហាញការសន្ទនាទាំងអស់ ({chats.length})
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleRefreshChats}
+                    disabled={loadingChats}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw size={12} className={loadingChats ? "animate-spin" : ""} />
+                    <span>ទាញយកទិន្នន័យឡើងវិញ</span>
+                  </button>
+                </div>
               </div>
             ) : (
               filteredChats.map((chat) => {
