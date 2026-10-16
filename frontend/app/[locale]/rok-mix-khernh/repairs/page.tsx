@@ -5,7 +5,8 @@ import { sendRepairAlert } from "@/lib/services/admin.service";
 import { 
   Search, Plus, Eye, Edit2, ChevronDown, User, Trash2, X, Wrench, 
   CheckCircle2, Mail, Send, Bell, Globe, Smartphone, Phone, DollarSign,
-  Users, UserCheck, RefreshCw, MapPin, Sparkles, Laptop, ShieldCheck, Check
+  Users, UserCheck, RefreshCw, MapPin, Sparkles, Laptop, ShieldCheck, Check,
+  Loader2
 } from "lucide-react";
 
 export type AdminUser = {
@@ -71,6 +72,14 @@ export default function RepairManagementPage() {
   const [editForm, setEditForm] = useState<EditTicketForm | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingTicketId, setDeletingTicketId] = useState<number | null>(null);
+  const [actionLoading, setActionLoading] = useState<{
+    active: boolean;
+    title: string;
+    subtitle: string;
+    icon?: 'save' | 'create' | 'delete' | 'bell';
+  } | null>(null);
   const [sendingEmailId, setSendingEmailId] = useState<number | null>(null);
 
   // Multi-Channel Alert Modal state
@@ -153,6 +162,12 @@ export default function RepairManagementPage() {
     }
     try {
       setSendingAlert(true);
+      setActionLoading({
+        active: true,
+        title: "កំពុងបញ្ជូនការជូនដំណឹង (Sending Alert)...",
+        subtitle: `ប្រព័ន្ធកំពុងផ្ញើដំណឹងបច្ចុប្បន្នភាពជូន ${alertTicket.customer} តាម Telegram, Email, ឬ Web...`,
+        icon: "bell",
+      });
       const res = await sendRepairAlert(alertTicket.id, {
         send_email: alertEmail,
         send_telegram: alertTelegram,
@@ -172,6 +187,7 @@ export default function RepairManagementPage() {
       showToast(e?.response?.data?.message || "បរាជ័យក្នុងការបញ្ជូនការជូនដំណឹង", "error");
     } finally {
       setSendingAlert(false);
+      setActionLoading(null);
     }
   };
 
@@ -206,6 +222,13 @@ export default function RepairManagementPage() {
 
   const handleEditSave = async () => {
     if (!editForm) return;
+    setSavingEdit(true);
+    setActionLoading({
+      active: true,
+      title: `កំពុងរក្សាទុកប័ណ្ណ #${editForm.ticket_code}...`,
+      subtitle: "ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពទិន្នន័យ និងបញ្ជូនដំណឹងជូនអតិថិជន (Updating database & sending notifications)... សូមមេត្តារង់ចាំ!",
+      icon: "save",
+    });
     try {
       await api.put(`/admin/repairs/${editForm.id}`, {
         status: editForm.status,
@@ -219,8 +242,12 @@ export default function RepairManagementPage() {
       setEditTicket(null);
       setEditForm(null);
       showToast("បច្ចុប្បន្នភាពប័ណ្ណជួសជុលបានជោគជ័យ! • Ticket updated!");
-    } catch (e) {
-      showToast("បរាជ័យក្នុងការកែប្រែព័ត៌មាន", "error");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "បរាជ័យក្នុងការកែប្រែព័ត៌មាន";
+      showToast(msg, "error");
+    } finally {
+      setSavingEdit(false);
+      setActionLoading(null);
     }
   };
 
@@ -312,6 +339,12 @@ export default function RepairManagementPage() {
     }
 
     setCreatingTicket(true);
+    setActionLoading({
+      active: true,
+      title: "កំពុងបង្កើតប័ណ្ណជួសជុលថ្មី...",
+      subtitle: "ប្រព័ន្ធកំពុងបង្កើត Ticket Code, រក្សាទុកក្នុង Database និងផ្ញើដំណឹងជូនអតិថិជន...",
+      icon: "create",
+    });
     try {
       await api.post("/admin/repairs", newForm);
       await fetchRepairs();
@@ -338,18 +371,30 @@ export default function RepairManagementPage() {
       showToast(err, "error");
     } finally {
       setCreatingTicket(false);
+      setActionLoading(null);
     }
   };
 
   const handleDeleteTicket = async (id: number) => {
     if (!confirm("តើអ្នកពិតជាចង់លុបប័ណ្ណជួសជុលនេះមែនទេ?")) return;
+    setDeletingTicketId(id);
+    setActionLoading({
+      active: true,
+      title: "កំពុងលុបប័ណ្ណជួសជុល...",
+      subtitle: "ប្រព័ន្ធកំពុងសម្អាតទិន្នន័យពី Database... សូមមេត្តារង់ចាំ!",
+      icon: "delete",
+    });
     try {
       await api.delete(`/admin/repairs/${id}`);
       setRepairs(prev => prev.filter(r => r.id !== id));
       if (viewTicket?.id === id) setViewTicket(null);
       showToast("បានលុបប័ណ្ណជួសជុលដោយជោគជ័យ! • Ticket deleted");
-    } catch (e) {
-      showToast("បរាជ័យក្នុងការលុបប័ណ្ណជួសជុល", "error");
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || "បរាជ័យក្នុងការលុបប័ណ្ណជួសជុល";
+      showToast(msg, "error");
+    } finally {
+      setDeletingTicketId(null);
+      setActionLoading(null);
     }
   };
 
@@ -358,6 +403,50 @@ export default function RepairManagementPage() {
       {toast && (
         <div className={`fixed top-6 right-6 z-[9999] px-5 py-3 rounded-lg shadow-lg font-medium text-sm text-white ${toast.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'} transition-opacity`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* ─── Universal Processing / Action Loading Popup Modal ─── */}
+      {actionLoading?.active && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 space-y-4">
+            
+            {/* Animated Icon Ring */}
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+              <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-inner">
+                {actionLoading.icon === 'bell' ? (
+                  <Bell size={24} className="text-purple-600 animate-bounce" />
+                ) : actionLoading.icon === 'delete' ? (
+                  <Trash2 size={24} className="text-red-600 animate-pulse" />
+                ) : actionLoading.icon === 'create' ? (
+                  <Wrench size={24} className="text-[#8B1A1A] animate-pulse" />
+                ) : (
+                  <RefreshCw size={24} className="text-blue-600 animate-spin" />
+                )}
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <div className="space-y-1.5">
+              <h4 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                {actionLoading.title}
+              </h4>
+              <p className="text-xs text-gray-500 leading-relaxed font-normal">
+                {actionLoading.subtitle}
+              </p>
+            </div>
+
+            {/* Live Progress Bar Animation */}
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-full w-2/3 animate-[pulse_1s_ease-in-out_infinite]" />
+            </div>
+
+            <p className="text-[11px] font-semibold text-gray-400">
+              ⚡ ប្រព័ន្ធកំពុងដំណើរការ សូមកុំបិទផ្ទាំងនេះ...
+            </p>
+          </div>
         </div>
       )}
 
@@ -1074,16 +1163,27 @@ export default function RepairManagementPage() {
             
             <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
               <button 
+                type="button"
+                disabled={savingEdit}
                 onClick={() => { setEditTicket(null); setEditForm(null); }} 
-                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer"
+                className="flex-1 py-2.5 border border-gray-300 rounded-xl bg-white text-gray-700 font-medium hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button 
+                type="button"
+                disabled={savingEdit}
                 onClick={handleEditSave} 
-                className="flex-1 py-2.5 border-none rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors cursor-pointer shadow-md"
+                className="flex-1 py-2.5 border-none rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-medium transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                Save
+                {savingEdit ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>កំពុងរក្សាទុក...</span>
+                  </>
+                ) : (
+                  <span>Save</span>
+                )}
               </button>
             </div>
           </div>
