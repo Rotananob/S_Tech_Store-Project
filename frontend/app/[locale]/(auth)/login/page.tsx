@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
 import { toHumanKhmerError } from "@/lib/error-translator";
 import api from "@/lib/api";
+import { getEffectiveUser } from "@/lib/auth-user";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -66,6 +67,47 @@ export default function LoginPage() {
     setLoading(false);
     setAuthOverlay({ show: false, title: "", subtitle: "", isSuccess: false, canCancel: false, deepLink: "" });
   };
+
+  // Auto-redirect if already logged in (ensures logged-in users are not trapped on login screen)
+  useEffect(() => {
+    // If incoming OAuth or handshake tokens, allow their verification effect to run first
+    if (
+      searchParams?.get("tg_token") ||
+      searchParams?.get("tiktok_token") ||
+      searchParams?.get("hash") ||
+      searchParams?.get("magic_token")
+    ) {
+      return;
+    }
+
+    const checkAndRedirect = () => {
+      const existingUser = getEffectiveUser();
+      if (existingUser) {
+        const fromQuery = searchParams?.get("redirect") || searchParams?.get("return_to");
+        const target =
+          fromQuery && fromQuery.startsWith("/") && fromQuery !== "/login" && fromQuery !== "/register"
+            ? fromQuery
+            : "/account/profile";
+        router.replace(target);
+      }
+    };
+
+    checkAndRedirect();
+
+    const unsub = onAuthStateChanged(auth, (fbUser) => {
+      if (fbUser) {
+        checkAndRedirect();
+      }
+    });
+
+    const handleSessionUpdate = () => checkAndRedirect();
+    window.addEventListener("user_session_updated", handleSessionUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener("user_session_updated", handleSessionUpdate);
+    };
+  }, [searchParams, router]);
 
   // Load official Telegram Login Widget SDK dynamically
   useEffect(() => {

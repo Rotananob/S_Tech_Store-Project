@@ -1383,17 +1383,89 @@ export function BestSellers({ products: initialProducts = [] }: { products?: any
 
 export function PromoCTA() {
   const tNav = useTranslations("Navigation");
-  const [user, setUser] = useState<any>(undefined);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    if (typeof window !== "undefined") {
+      return getEffectiveUser();
+    }
+    return null;
+  });
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsub();
+    const syncUser = () => {
+      const eff = getEffectiveUser();
+      setCurrentUser(eff);
+    };
+
+    syncUser();
+    window.addEventListener("user_session_updated", syncUser);
+
+    const unsub = onAuthStateChanged(auth, (u) => {
+      if (u) {
+        setCurrentUser(u);
+      } else {
+        const eff = getEffectiveUser();
+        setCurrentUser(eff);
+      }
+    });
+
+    return () => {
+      unsub();
+      window.removeEventListener("user_session_updated", syncUser);
+    };
   }, []);
 
-  if (user !== null) return null;
+  // 1. If user is authenticated: Render VIP Member Lounge Banner with Profile & Wallet Links
+  if (currentUser) {
+    const displayName = currentUser.displayName || currentUser.display_name || currentUser.name || "VIP Member";
+    return (
+      <section className="bg-white dark:bg-[#0c0e12] py-8 sm:py-12 border-t border-gray-100 dark:border-white/5 transition-colors">
+        <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
+          <div className="bg-gradient-to-r from-[#141a29] via-[#1a2236] to-[#0f1422] rounded-3xl p-6 sm:p-8 lg:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 shadow-xl relative overflow-hidden text-white border border-white/10">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
+            <div className="flex flex-col sm:flex-row items-center sm:items-start lg:items-center gap-5 text-center sm:text-left z-10 max-w-xl xl:max-w-2xl">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center shrink-0 border border-white/20 shadow-lg shadow-amber-500/25 text-gray-950 font-black">
+                <Sparkles size={30} className="text-gray-950" />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2 font-khmer">
+                  <Sparkles size={13} className="text-amber-300" />
+                  <span>S-Tech VIP Member • សមាជិក VIP ផ្លូវការ</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-normal font-khmer leading-tight m-0">
+                  ស្វាគមន៍មកកាន់ក្លឹប VIP, {displayName}! 🎉
+                </h2>
+                <p className="text-gray-300 text-sm sm:text-base mt-2 leading-relaxed font-khmer">
+                  អ្នកកំពុងរីករាយជាមួយសិទ្ធិពិសេស តម្លៃបញ្ចុះតម្លៃសមាជិក VIP ការធានាផ្លូវការ និងការសន្សំកាក់ Coins លើរាល់ការទិញ។
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto z-10 shrink-0">
+              <Link
+                href="/account/profile"
+                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-[#8B1A1A] hover:from-red-700 hover:to-[#6b1111] text-white text-sm sm:text-base font-extrabold py-3.5 px-7 rounded-2xl shadow-lg shadow-red-900/30 transition-all duration-200 text-center no-underline hover:scale-105 shrink-0 whitespace-nowrap font-khmer flex items-center justify-center gap-2 border-none"
+              >
+                <span>គណនីរបស់ខ្ញុំ</span>
+                <ChevronRight size={16} />
+              </Link>
+              <Link
+                href="/account/wallet"
+                className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border border-white/20 text-sm sm:text-base font-bold py-3.5 px-6 rounded-2xl backdrop-blur-md transition-all text-center no-underline shrink-0 whitespace-nowrap font-khmer flex items-center justify-center gap-2"
+              >
+                <span>កាបូបលុយ & Coins</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 2. If guest: Render Join S Tech VIP Club Registration Banner
   return (
-    <section className="bg-white py-10 sm:py-14">
+    <section className="bg-white dark:bg-[#0c0e12] py-8 sm:py-12 border-t border-gray-100 dark:border-white/5 transition-colors">
       <div className="max-w-[1536px] 2xl:max-w-[1620px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10">
         <div className="bg-gradient-to-r from-[#8B1A1A] via-[#a32222] to-[#1a4fa0] rounded-3xl p-6 sm:p-8 lg:p-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 sm:gap-8 shadow-xl relative overflow-hidden text-white border border-[#8B1A1A]/30">
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
@@ -1404,15 +1476,15 @@ export function PromoCTA() {
               <Sparkles size={30} className="text-amber-300" />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-bold text-amber-300 uppercase tracking-wider mb-2 font-khmer">
                 <Sparkles size={13} className="text-amber-300" />
-                <span>Member Privilege</span>
+                <span>Member Privilege • សិទ្ធិសមាជិក</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight m-0">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-normal font-khmer leading-tight m-0">
                 Join S Tech VIP Club
               </h2>
-              <p className="text-white/85 text-sm sm:text-base mt-2 leading-relaxed">
-                Enjoy exclusive member pricing, priority official warranty, order tracking, and genuine tech support across Cambodia.
+              <p className="text-white/85 text-sm sm:text-base mt-2 leading-relaxed font-khmer">
+                ចុះឈ្មោះជាសមាជិក VIP ឥតគិតថ្លៃ ដើម្បីទទួលបានការបញ្ចុះតម្លៃពិសេស ការធានាផ្លូវការ និងការសន្សំ Coins។
               </p>
             </div>
           </div>
@@ -1420,13 +1492,13 @@ export function PromoCTA() {
           <div className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 w-full sm:w-auto z-10 shrink-0">
             <Link
               href="/register"
-              className="w-full sm:w-auto bg-white hover:bg-gray-100 !text-[#8B1A1A] text-[#8B1A1A] text-sm sm:text-base font-black py-3.5 px-7 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-center no-underline hover:scale-105 shrink-0 whitespace-nowrap"
+              className="w-full sm:w-auto bg-white hover:bg-gray-100 !text-[#8B1A1A] text-[#8B1A1A] text-sm sm:text-base font-black py-3.5 px-7 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 text-center no-underline hover:scale-105 shrink-0 whitespace-nowrap font-khmer"
             >
               {tNav('register')} Free
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto bg-white/15 hover:bg-white/25 !text-white text-white border border-white/30 text-sm sm:text-base font-bold py-3.5 px-6 rounded-xl backdrop-blur-md transition-all text-center no-underline shrink-0 whitespace-nowrap"
+              className="w-full sm:w-auto bg-white/15 hover:bg-white/25 !text-white text-white border border-white/30 text-sm sm:text-base font-bold py-3.5 px-6 rounded-2xl backdrop-blur-md transition-all text-center no-underline shrink-0 whitespace-nowrap font-khmer"
             >
               {tNav('signIn')}
             </Link>
