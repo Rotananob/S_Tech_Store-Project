@@ -486,11 +486,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Check for Standard Spam Limit: > 7 requests in last 60 seconds
-    if (record.timestamps.length >= 7) {
+    // Check for Standard Spam Limit: > 10 requests in last 60 seconds
+    if (record.timestamps.length >= 10) {
       return NextResponse.json({
         success: true,
-        reply: `បងអើយ! ផ្ញើសារលឿនពេកហើយបង 😂 អូនអានតាមមិនទាន់ទេ! ជួយសម្រាកម្រាមដៃ ឬរង់ចាំបន្តិចសិនណា៎បង... កុំទាន់អាលប្រញាប់ពេក! ☕`,
+        reply: `បងអើយ! ផ្ញើសារញាប់ពេកហើយបង (លើសពី ១០ ដងក្នុង ១ នាទី) 😂 អូនអានតាមមិនទាន់ទេ! ជួយសម្រាកម្រាមដៃ ឬរង់ចាំបន្តិចសិនណា៎បង... កុំទាន់អាលប្រញាប់ពេក! ☕✨`,
         suggestAgent: false,
       });
     }

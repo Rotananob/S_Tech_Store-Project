@@ -44,7 +44,8 @@ import {
 import { useRouter } from "next/navigation";
 
 // ─── Rate limiting constants ─────────────────────────────────────────────────
-const RATE_LIMIT_PER_MINUTE = 5; // max 5 messages per 60 seconds
+const RATE_LIMIT_PER_MINUTE = 10; // max 10 messages per 60 seconds
+const RATE_LIMIT_DEFAULT_ANSWER_PER_MINUTE = 10; // max 10 default FAQ answers per 60 seconds
 const RATE_LIMIT_PER_HOUR = 150; // max 150 messages per 3600 seconds
 const ONE_MINUTE_MS = 60 * 1000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -531,8 +532,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const toastCounter = useRef(0);
 
-  // ─── Rate limiting: store timestamps of sent messages ─────────────────────
+  // ─── Rate limiting: store timestamps of sent messages & default prompts ─────
   const messageTimes = useRef<number[]>([]);
+  const defaultPromptTimes = useRef<number[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -1446,6 +1448,42 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     }
 
     if (!item.text) return;
+
+    const now = Date.now();
+
+    // ─── Anti-Spam Defense: Max 10 default answers per 1 minute ─────────────
+    defaultPromptTimes.current = defaultPromptTimes.current.filter((t) => now - t < ONE_MINUTE_MS);
+
+    if (defaultPromptTimes.current.length >= RATE_LIMIT_DEFAULT_ANSWER_PER_MINUTE) {
+      triggerHaptic("heavy");
+      showToast("⏱️ បងបានចុចសំណួរលំនាំដើមលើស ១០ ដងក្នុង ១ នាទីហើយ! សូមរង់ចាំបន្តិចសិនណា៎ ☕", "error");
+
+      const limitMsg: ChatItem = {
+        sender: "bot",
+        senderName: "S Tech AI",
+        text: `🚨 បងអើយ! ចុចសំណួរលំនាំដើមញាប់ពេកហើយបង 😂 អូនឆ្លើយតាមមិនទាន់ទេ! ដើម្បីការពារការ Spam យើងកំណត់ការឆ្លើយសំណួរលំនាំដើមត្រឹមតែ ១០ ដងក្នុង ១ នាទីប៉ុណ្ណោះ។ សូមបងរង់ចាំបន្តិចសិនណា៎បង! ☕✨`,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: now,
+        suggestAgent: false,
+      };
+
+      setMessages((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].text?.includes("ចុចសំណួរលំនាំដើមញាប់ពេកហើយបង")) {
+          return prev;
+        }
+        return [...prev, limitMsg];
+      });
+      return;
+    }
+
+    // Debounce: prevent rapid multi-clicks on the same prompt within 1.2 seconds
+    const lastPromptTime = defaultPromptTimes.current[defaultPromptTimes.current.length - 1] || 0;
+    if (now - lastPromptTime < 1200) {
+      showToast("⚠️ សូមកុំចុចញាប់ពេកបង! ជួយរង់ចាំមួយភ្លែត ☕", "warning");
+      return;
+    }
+
+    defaultPromptTimes.current.push(now);
 
     // Check if we have an instant official local FAQ response
     const instantAnswer = STATIC_FAQ_ANSWERS[item.text];
