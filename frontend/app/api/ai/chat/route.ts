@@ -228,6 +228,80 @@ function generateSmartFallback(
     };
   }
 
+  // Greetings & Friendly Politeness
+  if (
+    /^(hi|hello|hey|yo|good morning|good afternoon|good evening|salut|hola|សួស្តី|ជំរាបសួរ|ហាឡូ|ហេឡូ)[\s!.,?]*$/i.test(lower.trim()) ||
+    lower.includes("សួស្តី") ||
+    lower.includes("ជំរាបសួរ")
+  ) {
+    return {
+      reply: `សួស្តីបង ${userName}! ខ្ញុំបាទគឺ S Tech AI (ជំនួយការឆ្លាតវៃផ្លូវការរបស់ S Tech Store) 💻🚀។ ខ្ញុំត្រៀមខ្លួនជួយបងក្នុងការស្វែងរក Laptop, ដំឡើង PC, ពិនិត្យគ្រឿងបន្លាស់ ឬឆ្លើយសំណួរបច្ចេកវិទ្យាគ្រប់យ៉ាងបាទ! តើថ្ងៃនេះបងចង់ពិគ្រោះរឿងអ្វីដែរ? ✨👍`,
+      suggestAgent: false,
+    };
+  }
+
+  // "What are you doing" / General conversation queries
+  if (
+    lower.includes("what are you doing") ||
+    lower.includes("what are u doing") ||
+    lower.includes("what r u doing") ||
+    lower.includes("what do you do") ||
+    lower.includes("what you do") ||
+    lower.includes("កំពុងធ្វើអី") ||
+    lower.includes("ធ្វើអី") ||
+    lower.includes("ធ្វើអ្វី") ||
+    lower.trim() === "waht" ||
+    lower.trim() === "what" ||
+    lower.trim() === "what?" ||
+    lower.trim() === "waht?"
+  ) {
+    return {
+      reply: `បាទបង ${userName}! អូន S Tech AI កំពុងអង្គុយត្រៀមខ្លួនជួយប្រឹក្សាយោបល់ ឆ្លើយសំណួរ និងរៀបចំ Specs កុំព្យូទ័រជូនបង និងអតិថិជនទាំងអស់បាទ! 💻🚀 តើបងមានសំណួរ ឬត្រូវការជំនួយទាក់ទងនឹង Laptop, PC ឬគ្រឿងបន្លាស់ណាមួយដែរទេបង? ⚙️✨`,
+      suggestAgent: false,
+    };
+  }
+
+  // "Who are you" / Identity queries
+  if (
+    lower.includes("who are you") ||
+    lower.includes("who r u") ||
+    lower.includes("អ្នកណា") ||
+    lower.includes("ឯងជាអ្នកណា") ||
+    lower.includes("តើអ្នកជាអ្វី") ||
+    lower.includes("who made you")
+  ) {
+    return {
+      reply: `បាទបង ${userName}! ខ្ញុំបាទគឺជា "S Tech AI" — ជំនួយការឆ្លាតវៃផ្លូវការរបស់ហាង S Tech Store Cambodia ត្រូវបានបង្កើតឡើងដោយលោក Rotana NOB (Lead Architect) បាទ! 💻🚀 ខ្ញុំជំនាញខាង Hardware, PC Builder, Laptop និងដោះស្រាយបញ្ហាបច្ចេកវិទ្យាជូនបងបាទ! ⚙️✨`,
+      suggestAgent: false,
+    };
+  }
+
+  // "How are you" / Well-being queries
+  if (
+    lower.includes("how are you") ||
+    lower.includes("how r u") ||
+    lower.includes("how are u") ||
+    lower.includes("សុខសប្បាយ") ||
+    lower.includes("សុខទេ")
+  ) {
+    return {
+      reply: `បាទបង ${userName}! អូនសុខសប្បាយ និងត្រៀមថាមពលពេញ ១០០% ជានិច្ចដើម្បីជួយបងបាទ! ⚡💻 សង្ឃឹមថាបងក៏មានថ្ងៃដ៏ស្រស់ស្រាយ និងជោគជ័យផងដែរណា៎! តើថ្ងៃនេះបងចង់ឱ្យអូនជួយពិនិត្យមើល Laptop ឬរៀប Specs PC អីដែរ? ✨🤝`,
+      suggestAgent: false,
+    };
+  }
+
+  // Acknowledgements & Thanks
+  if (
+    /^(ok|okay|k|yes|no|បាទ|ចាស|អរគុណ|thanks|thank you|ty)[\s!.,?]*$/i.test(lower.trim()) ||
+    lower.includes("អរគុណ") ||
+    lower.includes("thank you")
+  ) {
+    return {
+      reply: `បាទបង ${userName}! រីករាយណាស់ដែលបានជួយបង! ✨🤝 បើបងមានចម្ងល់ ឬត្រូវការជំនួយបច្ចេកវិទ្យាបន្ថែមពេលណា កុំភ្លេចឆាតមកកាន់ S Tech AI ណា៎បង! 💻🚀`,
+      suggestAgent: false,
+    };
+  }
+
   // If user asks about the $5 Welcome Voucher or uploads the voucher modal:
   if (
     lower.includes("មានន័យ") ||
@@ -335,36 +409,12 @@ function generateSmartFallback(
     };
   }
 
-  // Human agent / Live staff / Admin / Teamwork / Telegram / Hotline inquiries
+  // Human agent / Live staff / Admin / Telegram / Hotline inquiries
   if (
-    lower.includes("human") ||
-    lower.includes("agent") ||
-    lower.includes("staff") ||
-    lower.includes("admin") ||
-    lower.includes("team") ||
-    lower.includes("teamwork") ||
-    lower.includes("team work") ||
-    lower.includes("បុគ្គលិក") ||
-    lower.includes("អាតមីន") ||
-    lower.includes("អេដមីន") ||
-    lower.includes("ក្រុមការងារ") ||
-    lower.includes("ជាង") ||
-    lower.includes("អ្នកលក់") ||
-    lower.includes("អ្នកគ្រប់គ្រង") ||
-    lower.includes("មនុស្ស") ||
-    lower.includes("support") ||
-    lower.includes("contact") ||
-    lower.includes("ទាក់ទង") ||
-    lower.includes("ជជែកផ្ទាល់") ||
-    lower.includes("តេឡេក្រាម") ||
-    lower.includes("telegram") ||
-    lower.includes("alert") ||
-    lower.includes("call") ||
-    lower.includes("ខល") ||
-    lower.includes("ទូរស័ព្ទ") ||
-    lower.includes("hotline") ||
-    lower.includes("លេខទូរស័ព្ទ") ||
-    lower.includes("ជួបមនុស្ស")
+    /(?:សុំ|ចង់|ត្រូវការ|ជួប|ឆាត|ខល|ទាក់ទង)?\s*(?:admin|អាតមីន|អេដមីន|human\s*support|human\s*agent|staff|បុគ្គលិក|agent|team\s*work|teamwork|មនុស្សពិត|hotline|telegram\s*bot|តេឡេក្រាម|ជួបមនុស្ស)/i.test(
+      lower
+    ) &&
+    !/(?:specs|pc|laptop|តម្លៃ|ទិញ|price|ram|ssd|cpu|gpu)/i.test(lower)
   ) {
     return {
       reply: `បាទបង ${userName}! បងអាចទាក់ទង និង Alert ទៅកាន់ក្រុមការងារ Admin & Staff របស់ S Tech Store ផ្ទាល់បានយ៉ាងងាយស្រួលបាទ! 🤝🚀\n\nបងអាចជ្រើសរើសជម្រើសទាំង ៣ ខាងក្រោមបានភ្លាមៗ៖\n1. 📢 ចុច "Alert ទៅ Telegram ក្រុមការងារ" ដើម្បីបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញ\n2. 💬 ចុច "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)" ដើម្បីឆាតផ្ទាល់ ១ ទល់នឹង ១\n3. 📞 ឬខលមកកាន់ Hotline 012 345 678 ដើម្បីទទួលការប្រឹក្សាភ្លាមៗបាទ! 📱✨`,
@@ -372,10 +422,10 @@ function generateSmartFallback(
     };
   }
 
-  // Default busy fallback with friendly message and Human Agent button
+  // Default friendly fallback (DO NOT force suggestAgent by default)
   return {
-    reply: `បាទបង! S Tech AI ត្រៀមខ្លួនជួយបងជានិច្ចបាទ! 💻🚀 បងអាចសួរតម្លៃ Laptop, PC, សេវាដឹក ឬប្រសិនបើចង់ជជែកផ្ទាល់ជាមួយក្រុមការងារបច្ចេកទេស សូមចុចប៊ូតុងខាងក្រោមបានភ្លាមៗបាទ! 🤝✨`,
-    suggestAgent: true,
+    reply: `បាទបង ${userName}! S Tech AI ត្រៀមខ្លួនជួយបងជានិច្ចបាទ! 💻🚀 បងអាចសួរតម្លៃ Laptop, ដំឡើង PC, សេវាដឹក, គ្រឿងបន្លាស់ ឬព័ត៌មានផ្សេងៗបានគ្រប់ពេលបាទ! ✨👍`,
+    suggestAgent: false,
   };
 }
 
@@ -586,19 +636,19 @@ ${userContextSection}
 
     // Fast candidate models prioritized by verified availability & low latency
     const CANDIDATE_MODELS = [
-      "gemini-3.5-flash-lite", // Priority 1: Verified 200 OK, ultra-fast <2s, multimodal image vision supported!
-      "gemini-3.7-flash",      // Priority 2: Verified 200 OK, deep reasoning & multimodal image vision
-      "gemini-3.5-flash",      // Priority 3: Fallback (in case quota resets)
-      "gemini-3.8-flash",      // Priority 4: Flagship multimodal fallback
-      "gemini-flash-latest",   // Priority 5: Dynamic flash alias fallback
+      "gemini-3.1-flash-lite",    // Priority 1: Verified 200 OK, ultra-fast (~900ms), low-latency, multimodal vision
+      "gemini-flash-lite-latest", // Priority 2: Verified 200 OK, ultra-fast (~900ms) alias
+      "gemini-3.5-flash-lite",    // Priority 3: Verified 200 OK, flagship fast (~1.2s), deep understanding
+      "gemini-3.5-flash",         // Priority 4: High capability fallback (~3.5s)
+      "gemini-flash-latest",      // Priority 5: Dynamic flash alias fallback
     ];
 
     keyLoop: for (const activeKey of keyPool) {
       for (const model of CANDIDATE_MODELS) {
         try {
           const controller = new AbortController();
-          // Give vision calls 15000ms (gemini-3.7-flash takes ~7.7s, flash-lite <2s), 5000ms for pure text
-          const timeoutMs = hasImages ? 15000 : (model.includes("flash-lite") ? 4000 : 6000);
+          // Give vision calls 20000ms, text calls 12000ms to guarantee completion without premature timeout
+          const timeoutMs = hasImages ? 20000 : 12000;
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
           const res = await fetch(
@@ -630,38 +680,13 @@ ${userContextSection}
       }
     }
 
-    // Auto-detect human agent / admin / staff / team work intent
+    // Auto-detect explicit human agent / admin / staff / team work intent
     const lowerMessage = (message || "").toLowerCase();
     const indicatesHumanHelp =
-      lowerMessage.includes("human") ||
-      lowerMessage.includes("agent") ||
-      lowerMessage.includes("staff") ||
-      lowerMessage.includes("admin") ||
-      lowerMessage.includes("team") ||
-      lowerMessage.includes("teamwork") ||
-      lowerMessage.includes("team work") ||
-      lowerMessage.includes("បុគ្គលិក") ||
-      lowerMessage.includes("អាតមីន") ||
-      lowerMessage.includes("អេដមីន") ||
-      lowerMessage.includes("ក្រុមការងារ") ||
-      lowerMessage.includes("ជាង") ||
-      lowerMessage.includes("អ្នកលក់") ||
-      lowerMessage.includes("អ្នកគ្រប់គ្រង") ||
-      lowerMessage.includes("មនុស្ស") ||
-      lowerMessage.includes("support") ||
-      lowerMessage.includes("contact") ||
-      lowerMessage.includes("ទាក់ទង") ||
-      lowerMessage.includes("ជជែកផ្ទាល់") ||
-      lowerMessage.includes("តេឡេក្រាម") ||
-      lowerMessage.includes("telegram") ||
-      lowerMessage.includes("alert") ||
-      lowerMessage.includes("call") ||
-      lowerMessage.includes("ខល") ||
-      lowerMessage.includes("ទូរស័ព្ទ") ||
-      lowerMessage.includes("hotline") ||
-      lowerMessage.includes("លេខទូរស័ព្ទ") ||
-      lowerMessage.includes("ជួបមនុស្ស") ||
-      lowerMessage.includes("ប្តូរទំនិញ");
+      /(?:សុំ|ចង់|ត្រូវការ|ជួប|ឆាត|ខល|ទាក់ទង)?\s*(?:admin|អាតមីន|អេដមីន|human\s*support|human\s*agent|staff|បុគ្គលិក|agent|team\s*work|teamwork|មនុស្សពិត|ជាងជំនាញ|hotline|telegram\s*bot|តេឡេក្រាម|ជួបមនុស្ស)/i.test(
+        lowerMessage
+      ) &&
+      !/(?:specs|pc|laptop|តម្លៃ|ទិញ|price|ram|ssd|cpu|gpu|motherboard|ddr)/i.test(lowerMessage);
 
     if (indicatesHumanHelp) {
       suggestAgent = true;
@@ -674,21 +699,15 @@ ${userContextSection}
       suggestAgent = fallback.suggestAgent;
     }
 
-    // If the reply itself references human agent, staff, admin, team or telegram, flag suggestAgent
+    // If the reply explicitly advises contacting human support or shows telegram/hotline details:
     const lowerReply = (geminiText || "").toLowerCase();
     if (
-      lowerReply.includes("ក្រុមការងារ") ||
-      lowerReply.includes("បុគ្គលិក") ||
-      lowerReply.includes("អាតមីន") ||
-      lowerReply.includes("អេដមីន") ||
-      lowerReply.includes("admin") ||
-      lowerReply.includes("staff") ||
-      lowerReply.includes("agent") ||
-      lowerReply.includes("team work") ||
-      lowerReply.includes("teamwork") ||
-      lowerReply.includes("telegram") ||
-      lowerReply.includes("hotline") ||
-      lowerReply.includes("012 345 678")
+      lowerReply.includes("@s_tech_assistantbot") ||
+      lowerReply.includes("012 345 678") ||
+      lowerReply.includes("alert ទៅ telegram") ||
+      lowerReply.includes("alert ទៅក្រុមការងារ") ||
+      lowerReply.includes("ឆាតផ្ទាល់ telegram bot") ||
+      lowerReply.includes("ទាក់ទងក្រុមការងារផ្ទាល់")
     ) {
       suggestAgent = true;
     }

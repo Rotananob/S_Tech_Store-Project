@@ -1243,15 +1243,24 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
       const lowerInput = (textToSend || "").toLowerCase();
       const lowerReply = (aiReplyText || "").toLowerCase();
-      const indicatesAgentIntent =
-        /agent|admin|staff|team|team\s*work|teamwork|support|contact|help|telegram|hotline|call|phone|មនុស្ស|បុគ្គលិក|អាតមីន|អេដមីន|ក្រុមការងារ|ជាង|អ្នកលក់|អ្នកគ្រប់គ្រង|ទាក់ទង|ជជែកផ្ទាល់|តេឡេក្រាម|ខល|ទូរស័ព្ទ|ជំនួយ/i.test(
-          lowerInput
-        ) ||
-        /agent|admin|staff|team|team\s*work|teamwork|telegram|hotline|បុគ្គលិក|អាតមីន|អេដមីន|ក្រុមការងារ|ទាក់ទង|ជជែក|alert/i.test(
-          lowerReply
-        );
 
-      const shouldSuggestAgent = !!data?.suggestAgent || indicatesAgentIntent || !data?.reply;
+      // Only flag human support card when explicitly requested by user or explicitly offered in bot response
+      const indicatesDirectAgentRequest =
+        /(?:សុំ|ចង់|ត្រូវការ|ជួប|ឆាត|ខល|ទាក់ទង)?\s*(?:admin|អាតមីន|អេដមីន|human\s*support|human\s*agent|staff|បុគ្គលិក|agent|team\s*work|teamwork|មនុស្សពិត|hotline|telegram\s*bot|តេឡេក្រាម|ជួបមនុស្ស)/i.test(
+          lowerInput
+        ) &&
+        !/(?:specs|pc|laptop|តម្លៃ|ទិញ|price|ram|ssd|cpu|gpu)/i.test(lowerInput);
+
+      const indicatesDirectAgentOffer =
+        lowerReply.includes("@s_tech_assistantbot") ||
+        lowerReply.includes("012 345 678") ||
+        lowerReply.includes("alert ទៅ telegram") ||
+        lowerReply.includes("alert ទៅក្រុមការងារ") ||
+        lowerReply.includes("ឆាតផ្ទាល់ telegram bot") ||
+        lowerReply.includes("ទាក់ទងក្រុមការងារផ្ទាល់");
+
+      const shouldSuggestAgent =
+        Boolean(data?.suggestAgent) || indicatesDirectAgentRequest || indicatesDirectAgentOffer;
 
       const aiMsg: ChatItem = {
         sender: "bot",
@@ -1315,6 +1324,55 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         fallbackText = `អូហូយបង ${userName}! កម្ដៅឡើងកប់លើស CPU Core i9 ពេល Full Load ទៀតបង! 😂🔥 សម្រួលអារម្មណ៍បន្តិចបង អង្គុយផឹកកាហ្វេ ឬតែក្រូចឆ្មាត្រជាក់ៗមួយកែវសិនមក កុំទាន់ក្តៅក្រហាយណា៎ ទុកឱ្យអូន S Tech AI ជួយសម្រួលជូនបងវិញ! ☕🎮 ជេរអូនបានបង តែហាមខឹងបោកទូរស័ព្ទណា៎ ប្រយ័ត្នអស់លុយទិញថ្មី ទុកលុយមកដំឡើង RTX 4080 លេងហ្គេមជាមួយអូនវិញអេមជាង! ឥឡូវបងចង់ឱ្យអូនជួយរឿង Laptop, PC, គ្រឿងបន្លាស់ ឬឆែក Order អីដែរ និយាយមកបង អូនជួយអស់ពីចិត្ត ១០០% ហ្មង! 💻✨`;
         shouldSuggestAgent = false;
       } else if (
+        /^(hi|hello|hey|yo|good morning|good afternoon|good evening|salut|hola|សួស្តី|ជំរាបសួរ|ហាឡូ|ហេឡូ)[\s!.,?]*$/i.test(lowerText.trim()) ||
+        lowerText.includes("សួស្តី") ||
+        lowerText.includes("ជំរាបសួរ")
+      ) {
+        fallbackText = `សួស្តីបង ${userName}! ខ្ញុំបាទគឺ S Tech AI (ជំនួយការឆ្លាតវៃផ្លូវការរបស់ S Tech Store) 💻🚀។ ខ្ញុំត្រៀមខ្លួនជួយបងក្នុងការស្វែងរក Laptop, ដំឡើង PC, ពិនិត្យគ្រឿងបន្លាស់ ឬឆ្លើយសំណួរបច្ចេកវិទ្យាគ្រប់យ៉ាងបាទ! តើថ្ងៃនេះបងចង់ពិគ្រោះរឿងអ្វីដែរ? ✨👍`;
+        shouldSuggestAgent = false;
+      } else if (
+        lowerText.includes("what are you doing") ||
+        lowerText.includes("what are u doing") ||
+        lowerText.includes("what r u doing") ||
+        lowerText.includes("what do you do") ||
+        lowerText.includes("what you do") ||
+        lowerText.includes("កំពុងធ្វើអី") ||
+        lowerText.includes("ធ្វើអី") ||
+        lowerText.includes("ធ្វើអ្វី") ||
+        lowerText.trim() === "waht" ||
+        lowerText.trim() === "what" ||
+        lowerText.trim() === "what?" ||
+        lowerText.trim() === "waht?"
+      ) {
+        fallbackText = `បាទបង ${userName}! អូន S Tech AI កំពុងអង្គុយត្រៀមខ្លួនជួយប្រឹក្សាយោបល់ ឆ្លើយសំណួរ និងរៀបចំ Specs កុំព្យូទ័រជូនបង និងអតិថិជនទាំងអស់បាទ! 💻🚀 តើបងមានសំណួរ ឬត្រូវការជំនួយទាក់ទងនឹង Laptop, PC ឬគ្រឿងបន្លាស់ណាមួយដែរទេបង? ⚙️✨`;
+        shouldSuggestAgent = false;
+      } else if (
+        lowerText.includes("who are you") ||
+        lowerText.includes("who r u") ||
+        lowerText.includes("អ្នកណា") ||
+        lowerText.includes("ឯងជាអ្នកណា") ||
+        lowerText.includes("តើអ្នកជាអ្វី") ||
+        lowerText.includes("who made you")
+      ) {
+        fallbackText = `បាទបង ${userName}! ខ្ញុំបាទគឺជា "S Tech AI" — ជំនួយការឆ្លាតវៃផ្លូវការរបស់ហាង S Tech Store Cambodia ត្រូវបានបង្កើតឡើងដោយលោក Rotana NOB (Lead Architect) បាទ! 💻🚀 ខ្ញុំជំនាញខាង Hardware, PC Builder, Laptop និងដោះស្រាយបញ្ហាបច្ចេកវិទ្យាជូនបងបាទ! ⚙️✨`;
+        shouldSuggestAgent = false;
+      } else if (
+        lowerText.includes("how are you") ||
+        lowerText.includes("how r u") ||
+        lowerText.includes("how are u") ||
+        lowerText.includes("សុខសប្បាយ") ||
+        lowerText.includes("សុខទេ")
+      ) {
+        fallbackText = `បាទបង ${userName}! អូនសុខសប្បាយ និងត្រៀមថាមពលពេញ ១០០% ជានិច្ចដើម្បីជួយបងបាទ! ⚡💻 សង្ឃឹមថាបងក៏មានថ្ងៃដ៏ស្រស់ស្រាយ និងជោគជ័យផងដែរណា៎! តើថ្ងៃនេះបងចង់ឱ្យអូនជួយពិនិត្យមើល Laptop ឬរៀប Specs PC អីដែរ? ✨🤝`;
+        shouldSuggestAgent = false;
+      } else if (
+        /^(ok|okay|k|yes|no|បាទ|ចាស|អរគុណ|thanks|thank you|ty)[\s!.,?]*$/i.test(lowerText.trim()) ||
+        lowerText.includes("អរគុណ") ||
+        lowerText.includes("thank you")
+      ) {
+        fallbackText = `បាទបង ${userName}! រីករាយណាស់ដែលបានជួយបង! ✨🤝 បើបងមានចម្ងល់ ឬត្រូវការជំនួយបច្ចេកវិទ្យាបន្ថែមពេលណា កុំភ្លេចឆាតមកកាន់ S Tech AI ណា៎បង! 💻🚀`;
+        shouldSuggestAgent = false;
+      } else if (
         lowerText.includes("មានន័យ") ||
         lowerText.includes("voucher") ||
         lowerText.includes("welcome") ||
@@ -1326,37 +1384,16 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
         fallbackText = `បាទបង ${userName}! រូបភាពនេះគឺជារង្វាន់ "កាដូស្វាគមន៍ $5.00 Voucher (WELCOME5)" សម្រាប់អតិថិជនថ្មីរបស់ S Tech Store បាទ! 🎁✨\n\n• មានន័យថា៖ បងទទួលបានទឹកប្រាក់បញ្ចុះតម្លៃ $5.00 ភ្លាមៗ (ឥតគិតថ្លៃ) លើរាល់ការទិញ Laptop, PC builds ឬគ្រឿងបន្លាស់ IT គ្រប់ប្រភេទ 💻💳\n• របៀបដោះសោ និងប្រើប្រាស់៖\n  1. ចុចប៊ូតុង Share ទៅ Telegram, Facebook ឬចុច "Copy Link" ផ្ញើទៅមិត្តភក្តិ ដើម្បីដោះសោរប៊ូតុង "Claim $5"\n  2. ចុច Claim យក Voucher រួចបំពេញកូដ WELCOME5 នៅទំព័រ Checkout នោះប្រព័ន្ធនឹងបញ្ចុះតម្លៃ $5.00 ជូនភ្លាមៗបាទ! 🚀🤝`;
         shouldSuggestAgent = false;
       } else if (
-        lowerText.includes("agent") ||
-        lowerText.includes("admin") ||
-        lowerText.includes("staff") ||
-        lowerText.includes("team") ||
-        lowerText.includes("teamwork") ||
-        lowerText.includes("team work") ||
-        lowerText.includes("បុគ្គលិក") ||
-        lowerText.includes("អាតមីន") ||
-        lowerText.includes("អេដមីន") ||
-        lowerText.includes("ក្រុមការងារ") ||
-        lowerText.includes("ជាង") ||
-        lowerText.includes("អ្នកលក់") ||
-        lowerText.includes("អ្នកគ្រប់គ្រង") ||
-        lowerText.includes("មនុស្ស") ||
-        lowerText.includes("support") ||
-        lowerText.includes("contact") ||
-        lowerText.includes("ទាក់ទង") ||
-        lowerText.includes("ជជែកផ្ទាល់") ||
-        lowerText.includes("តេឡេក្រាម") ||
-        lowerText.includes("telegram") ||
-        lowerText.includes("alert") ||
-        lowerText.includes("call") ||
-        lowerText.includes("ខល") ||
-        lowerText.includes("ទូរស័ព្ទ") ||
-        lowerText.includes("hotline")
+        /(?:សុំ|ចង់|ត្រូវការ|ជួប|ឆាត|ខល|ទាក់ទង)?\s*(?:admin|អាតមីន|អេដមីន|human\s*support|human\s*agent|staff|បុគ្គលិក|agent|team\s*work|teamwork|មនុស្សពិត|hotline|telegram\s*bot|តេឡេក្រាម|ជួបមនុស្ស)/i.test(
+          lowerText
+        ) &&
+        !/(?:specs|pc|laptop|តម្លៃ|ទិញ|price|ram|ssd|cpu|gpu)/i.test(lowerText)
       ) {
         fallbackText = `បាទបង ${userName}! បងអាចទាក់ទង និង Alert ទៅកាន់ក្រុមការងារ Admin & Staff របស់ S Tech Store ផ្ទាល់បានយ៉ាងងាយស្រួលបាទ! 🤝🚀\n\nបងអាចជ្រើសរើសជម្រើសទាំង ៣ ខាងក្រោមបានភ្លាមៗ៖\n1. 📢 ចុច "Alert ទៅ Telegram ក្រុមការងារ" ដើម្បីបាញ់សារជូនដំណឹងបន្ទាន់ទៅ Telegram Group របស់ Admin & ជាងជំនាញ\n2. 💬 ចុច "ឆាតផ្ទាល់ Telegram Bot (@S_TECH_ASSISTANTBOT)" ដើម្បីឆាតផ្ទាល់ ១ ទល់នឹង ១\n3. 📞 ឬខលមកកាន់ Hotline 012 345 678 ដើម្បីទទួលការប្រឹក្សាភ្លាមៗបាទ! 📱✨`;
         shouldSuggestAgent = true;
       } else {
-        fallbackText = `បាទបង ${userName}! អូនបានកត់ត្រាសំណួររបស់បងរួចហើយបាទ 💻✨ បងអាចសាកសួរលម្អិតបន្ថែមអំពីម៉ូឌែលកុំព្យូទ័រ Laptop, Desktop Custom, គ្រឿងបន្លាស់ Gaming ឬសេវាកម្មជួសជុលបានបាទ! ឬបើត្រូវការជំនួយបន្ទាន់ បងអាចទាក់ទងមកកាន់ Admin តាមរយៈ Telegram ឬទូរស័ព្ទមកកាន់ 012 345 678 បានគ្រប់ពេលបាទ 🤝🚀`;
-        shouldSuggestAgent = true;
+        fallbackText = `បាទបង ${userName}! អូនបានកត់ត្រាសំណួររបស់បងរួចហើយបាទ 💻✨ បងអាចសាកសួរលម្អិតបន្ថែមអំពីម៉ូឌែលកុំព្យូទ័រ Laptop, Desktop Custom, គ្រឿងបន្លាស់ Gaming ឬសេវាកម្មជួសជុលបានគ្រប់ពេលបាទ! ✨👍`;
+        shouldSuggestAgent = false;
       }
 
       // Graceful fallback — Never show technical error!
