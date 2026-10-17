@@ -481,6 +481,8 @@ class WalletController extends Controller
             !empty($txMeta['khqr_string']) ? md5($txMeta['khqr_string']) : null,
             !empty($txMeta['khqr_usd']) ? md5($txMeta['khqr_usd']) : null,
             !empty($txMeta['khqr_khr']) ? md5($txMeta['khqr_khr']) : null,
+            md5(PaymentService::generateKHQRString((float)$tx->amount, $depositId, 'USD')),
+            md5(PaymentService::generateKHQRString($amountKhr, $depositId, 'KHR')),
         ])));
 
         $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
@@ -496,7 +498,7 @@ class WalletController extends Controller
 
                 if ($response->successful()) {
                     $json = $response->json();
-                    if (($json['responseCode'] ?? -1) === 0 && !empty($json['data'])) {
+                    if (($json['responseCode'] == 0 || ($json['status'] ?? '') === 'SUCCESS') && !empty($json['data'])) {
                         return [
                             'verified' => true,
                             'data' => $json['data'],
@@ -520,7 +522,7 @@ class WalletController extends Controller
 
             if ($response->successful()) {
                 $json = $response->json();
-                if (($json['responseCode'] ?? -1) === 0 && !empty($json['data'])) {
+                if (($json['responseCode'] == 0 || ($json['status'] ?? '') === 'SUCCESS') && !empty($json['data'])) {
                     return [
                         'verified' => true,
                         'data' => $json['data'],
@@ -697,15 +699,11 @@ class WalletController extends Controller
                         ]
                     ];
                 } else {
-                    // For customers (e.g. paying via ABA Mobile On-Us), dispatch instant 1-Click Telegram Approval to Admin!
-                    try {
-                        \App\Services\TelegramService::sendTopupPendingAdminAlert($tx, $user);
-                    } catch (\Throwable $t) {}
-
                     return response()->json([
                         'success' => false,
-                        'pending_admin' => true,
-                        'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការពី Bakong ទេ។ ប្រព័ន្ធបានបញ្ជូនដំណឹងទៅ Telegram Admin រួចរាល់! ប្រសិនបើអ្នកបានផ្ទេរតាម ABA Mobile សូមរង់ចាំ Admin ចុចអនុម័តក្នុង Telegram Bot ក្នុងរយៈពេលពីរបីវិនាទី...',
+                        'paid' => false,
+                        'status' => 'pending',
+                        'message' => 'មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (មិនទាន់បានបង់ប្រាក់)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។',
                     ], 200);
                 }
             }

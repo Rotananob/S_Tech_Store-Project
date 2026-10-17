@@ -32,7 +32,7 @@ interface SuccessReceipt {
 
 const STORAGE_KEY = "stech_pending_wallet_topup";
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes validity
-const MAX_VERIFY_ATTEMPTS = 25; // Generous verification quota with debouncing
+const MAX_VERIFY_ATTEMPTS = 5; // Exactly 5 verification attempts allowed
 const PRESET_AMOUNTS = [0.01, 5, 10, 20, 50, 100];
 
 // Only keep Bakong KHQR, ABA PAY, and Credit / Debit Card (Wing & ACLEDA removed per user request)
@@ -308,12 +308,12 @@ export default function WalletTopupModal({
     }
   };
 
-  // Manual payment verification
+  // Manual payment verification — Strict 5 attempts limit
   const handleConfirmPayment = async () => {
     if (!session) return;
 
     if (checkAttempts >= MAX_VERIFY_ATTEMPTS) {
-      setErrorMsg("លោកអ្នកបានចុចផ្ទៀងផ្ទាត់ច្រើនដងហើយ។ ប្រសិនបើអ្នកបានផ្ទេរប្រាក់តាម ABA Mobile សូមចុចប៊ូតុង 'ផ្ញើដំណឹងទៅ Admin ពិនិត្យ' ខាងក្រោម ដើម្បីឱ្យ Admin អនុម័តជូនភ្លាមៗ។");
+      setErrorMsg("លោកអ្នកបានពិនិត្យគ្រប់ចំនួន 5/5 ដងហើយ។ ប្រសិនបើលោកអ្នកបានផ្ទេរប្រាក់រួចរាល់ សូមចុចប៊ូតុង 'ផ្ញើដំណឹងទៅ Admin ពិនិត្យ' ខាងក្រោម ដើម្បីឱ្យ Admin ជួយពិនិត្យអនុម័តជូនភ្លាមៗ។");
       return;
     }
 
@@ -336,12 +336,8 @@ export default function WalletTopupModal({
     try {
       const res = await confirmTopup(session.deposit_id);
       if (!res.success) {
-        const respData = res as any;
-        if (respData?.pending_admin) {
-          setIsPendingAdmin(true);
-          setAdminAlertSent(true);
-        }
-        const errMsg = res.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។";
+        const remaining = Math.max(0, MAX_VERIFY_ATTEMPTS - nextAttempts);
+        const errMsg = `${res.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។"} (នៅសល់ ${remaining}/${MAX_VERIFY_ATTEMPTS} ដង)`;
         setErrorMsg(errMsg);
         return;
       }
@@ -359,11 +355,8 @@ export default function WalletTopupModal({
       onSuccess(res.new_balance);
     } catch (err: any) {
       const respData = err.response?.data;
-      if (respData?.pending_admin) {
-        setIsPendingAdmin(true);
-        setAdminAlertSent(true);
-      }
-      const errMsg = respData?.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ (Awaiting Real Bank Payment)។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។";
+      const remaining = Math.max(0, MAX_VERIFY_ATTEMPTS - nextAttempts);
+      const errMsg = `${respData?.message || "មិនទាន់រកឃើញប្រតិបត្តិការផ្ទេរប្រាក់ពីធនាគារ Bakong នៅឡើយទេ។ សូមពិនិត្យមើលកម្មវិធីធនាគាររបស់អ្នក ឬស្កេនទូទាត់ឱ្យបានជោគជ័យជាមុនសិន។"} (នៅសល់ ${remaining}/${MAX_VERIFY_ATTEMPTS} ដង)`;
       setErrorMsg(errMsg);
     } finally {
       setConfirming(false);
@@ -966,7 +959,7 @@ export default function WalletTopupModal({
                     </div>
                     <div className="text-gray-400 flex items-center gap-1">
                       <ShieldCheck size={12} className="text-emerald-400" />
-                      <span>Single-Use KHQR</span>
+                      <span>សិទ្ធិឆែក: {Math.max(0, MAX_VERIFY_ATTEMPTS - checkAttempts)}/{MAX_VERIFY_ATTEMPTS} ដង</span>
                     </div>
                   </div>
 
@@ -974,18 +967,31 @@ export default function WalletTopupModal({
                   <button
                     type="button"
                     onClick={handleConfirmPayment}
-                    disabled={confirming || timeLeft <= 0}
-                    className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white text-sm font-extrabold shadow-xl shadow-emerald-950/70 hover:brightness-110 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={confirming || timeLeft <= 0 || checkAttempts >= MAX_VERIFY_ATTEMPTS}
+                    className={`w-full py-4 px-4 rounded-2xl text-white text-sm font-extrabold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer border ${
+                      checkAttempts >= MAX_VERIFY_ATTEMPTS
+                        ? "bg-gray-800/90 border-gray-700 text-gray-400 opacity-60 cursor-not-allowed"
+                        : "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 border-emerald-400/30 shadow-emerald-950/70 hover:brightness-110 active:scale-[0.99]"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {confirming ? (
                       <>
-                        <Loader2 size={18} className="animate-spin" />
-                        <span>កំពុងផ្ទៀងផ្ទាត់ការផ្ទេរប្រាក់...</span>
+                        <Loader2 size={18} className="animate-spin text-emerald-300" />
+                        <span>កំពុងផ្ទៀងផ្ទាត់ជាមួយធនាគារ Bakong...</span>
+                      </>
+                    ) : checkAttempts >= MAX_VERIFY_ATTEMPTS ? (
+                      <>
+                        <Lock size={16} />
+                        <span>អស់ចំនួនដងពិនិត្យហើយ (5/5 ដង)</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 size={18} />
-                        <span>ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់ (Verify & Confirm)</span>
+                        <span>
+                          {checkAttempts === 0
+                            ? "ខ្ញុំបានផ្ទេរប្រាក់រួចរាល់ (ពិនិត្យ 5/5 ដង)"
+                            : `ពិនិត្យស្ថានភាពទូទាត់ (នៅសល់ ${MAX_VERIFY_ATTEMPTS - checkAttempts}/${MAX_VERIFY_ATTEMPTS} ដង)`}
+                        </span>
                       </>
                     )}
                   </button>
