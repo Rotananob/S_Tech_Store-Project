@@ -245,6 +245,11 @@ export default function CheckoutPage() {
   const [savingCheckoutQR, setSavingCheckoutQR] = useState(false);
   const [savedCheckoutQR, setSavedCheckoutQR] = useState(false);
   const [showCheckoutQRTip, setShowCheckoutQRTip] = useState(false);
+  const [checkingPaymentStatus, setCheckingPaymentStatus] = useState(false);
+  const [checkPaymentMessage, setCheckPaymentMessage] = useState<{
+    type: "error" | "info" | "success";
+    text: string;
+  } | null>(null);
 
   // Telegram Real-time Phone Sync States (Mini App & Web)
   const [phoneSyncLoading, setPhoneSyncLoading] = useState(false);
@@ -1187,6 +1192,8 @@ export default function CheckoutPage() {
       setKhqrSession(sessionRes.data);
       setShowKHQRModal(true);
       setTimeLeft(900); // 15 mins
+      setPollStatus("idle");
+      setCheckPaymentMessage(null);
       startPaymentPolling(newOrderId);
     } else {
       setLoading(false);
@@ -1196,42 +1203,65 @@ export default function CheckoutPage() {
     }
   };
 
-  // ─── Start Real-time Bank Settlement Polling ──────────────────────────────────
+  // ─── Start KHQR 15-Minute Countdown (Client-side Timer Only - No Auto Polling) ──
   const startPaymentPolling = (targetOrderId: string) => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
+    if (pollingRef.current) clearInterval(pollingRef.current);
 
-    setPollStatus("checking");
+    setPollStatus("idle");
 
-    // 15-minute countdown
+    // 15-minute countdown (purely local client-side UI timer, ZERO background network calls)
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
-          if (pollingRef.current) clearInterval(pollingRef.current);
           markOrderFailed(targetOrderId, "KHQR Session Expired (15 minutes)");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+  };
 
-    // Poll every 3 seconds
-    pollingRef.current = setInterval(async () => {
+  // ─── Check Payment Status (On Demand - Only When User Clicks!) ───────────────
+  const handleCheckPaymentStatus = async () => {
+    const targetOrderId = orderId || khqrSession?.order_id;
+    if (!targetOrderId) return;
+
+    setCheckingPaymentStatus(true);
+    setCheckPaymentMessage(null);
+
+    try {
       const statusRes = await checkPaymentStatus(targetOrderId);
       if (statusRes.success && statusRes.data?.paid) {
-        if (pollingRef.current) clearInterval(pollingRef.current);
         if (timerRef.current) clearInterval(timerRef.current);
-
         setPollStatus("paid");
-        setTransactionId(statusRes.data.transaction_id || `TXN_${Date.now()}`);
+        setCheckPaymentMessage({
+          type: "success",
+          text: "ការទូទាត់ទទួលបានជោគជ័យ! (Payment Verified)",
+        });
+
+        const txn = statusRes.data.transaction_id || `TXN_${Date.now()}`;
+        setTransactionId(txn);
 
         setTimeout(async () => {
           setShowKHQRModal(false);
-          await finishSuccessfulOrder(targetOrderId, statusRes.data.transaction_id || "BKG_VERIFIED");
-        }, 1200);
+          await finishSuccessfulOrder(targetOrderId, txn);
+        }, 1000);
+      } else {
+        setCheckPaymentMessage({
+          type: "error",
+          text: "មិនទាន់រកឃើញការទូទាត់ពីធនាគារនៅឡើយទេ។ សូមពិនិត្យមើល App ធនាគាររបស់អ្នក រួចចុច \u201cពិនិត្យការទូទាត់\u201d ម្តងទៀត។",
+        });
       }
-    }, 3000);
+    } catch (e: any) {
+      setCheckPaymentMessage({
+        type: "error",
+        text: "មានបញ្ហាក្នុងការតភ្ជាប់ទៅកាន់ប្រព័ន្ធធនាគារ សូមសាកល្បងម្តងទៀត។",
+      });
+    } finally {
+      setCheckingPaymentStatus(false);
+    }
   };
 
   // ─── Customer Manual Confirmation Handler ────────────────────────────────────
@@ -2545,6 +2575,8 @@ export default function CheckoutPage() {
                 onClick={() => {
                   setShowKHQRModal(false);
                   if (pollingRef.current) clearInterval(pollingRef.current);
+                  if (timerRef.current) clearInterval(timerRef.current);
+                  setCheckPaymentMessage(null);
                 }}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer p-1 rounded-lg hover:bg-gray-100"
               >
@@ -2729,29 +2761,85 @@ export default function CheckoutPage() {
                 );
               })()}
 
-              {/* Polling Radar Indicator */}
-              <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                  {pollStatus === "checking" ? "កំពុងរង់ចាំការទូទាត់ពីធនាគារ Real-time..." : "ការទូទាត់ទទួលបានជោគជ័យ!"}
-                </span>
-              </div>
+              {/* Payment Instruction / Status Banner */}
+              {pollStatus === "paid" ? (
+                <div className="py-2.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center gap-2 mb-3 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                  <span className="text-xs font-bold">
+                    ការទូទាត់ទទួលបានជោគជ័យ! (Payment Verified)
+                  </span>
+                </div>
+              ) : (
+                <div className="py-2 px-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 flex items-center justify-center gap-2 mb-3">
+                  <Smartphone size={13} className="text-gray-500 shrink-0" />
+                  <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                    សូមស្កេនទូទាត់ក្នុង App ធនាគារ រួចចុច &ldquo;ពិនិត្យការទូទាត់&rdquo; ខាងក្រោម
+                  </span>
+                </div>
+              )}
+
+              {/* Feedback Alert when user clicks check but payment not found yet */}
+              {checkPaymentMessage && (
+                <div
+                  className={`p-2.5 rounded-xl text-xs mb-3 flex items-start gap-2 text-left leading-relaxed ${
+                    checkPaymentMessage.type === "error"
+                      ? "bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300"
+                      : "bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300"
+                  }`}
+                >
+                  {checkPaymentMessage.type === "error" ? (
+                    <AlertCircle size={15} className="text-rose-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="text-[11px] font-medium">{checkPaymentMessage.text}</span>
+                </div>
+              )}
 
               {/* Confirmation Actions */}
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={handleManualConfirmPayment}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={handleCheckPaymentStatus}
+                  disabled={checkingPaymentStatus || pollStatus === "paid"}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <CheckCircle2 size={16} />
-                  <span>ខ្ញុំបានទូទាត់រួចរាល់ (I Have Paid)</span>
+                  {checkingPaymentStatus ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>កំពុងត្រួតពិនិត្យការទូទាត់... (Checking...)</span>
+                    </>
+                  ) : pollStatus === "paid" ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>ការទូទាត់ជោគជ័យ! (Paid)</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>ខ្ញុំបានទូទាត់រួចរាល់ (ពិនិត្យការទូទាត់)</span>
+                    </>
+                  )}
                 </button>
+
+                {checkPaymentMessage?.type === "error" && (
+                  <button
+                    type="button"
+                    onClick={handleManualConfirmPayment}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold text-[11px] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Send size={12} />
+                    <span>បានផ្ទេររួចហើយ? ចុចបញ្ជាក់ការផ្ទេរដោយដៃ (Manual Confirmation)</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
                     setShowKHQRModal(false);
                     if (pollingRef.current) clearInterval(pollingRef.current);
+                    if (timerRef.current) clearInterval(timerRef.current);
+                    setCheckPaymentMessage(null);
                   }}
                   className="w-full py-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
                 >
