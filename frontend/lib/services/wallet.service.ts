@@ -188,6 +188,7 @@ export interface CardTopupPayload {
 
 export interface CardTopupResponse {
   success: boolean;
+  status?: string;
   message: string;
   amount_added: number;
   new_balance: number;

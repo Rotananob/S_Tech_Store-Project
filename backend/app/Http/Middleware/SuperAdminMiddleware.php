@@ -16,16 +16,7 @@ class SuperAdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 1. Direct Owner Email Recognition (Guaranteed Unconditional Bypass)
-        $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
-        $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
-
-        $isOwnerRequest = (
-            $userEmail === 'nobrothana180703@gmail.com' ||
-            $fbEmail === 'nobrothana180703@gmail.com'
-        );
-
-        // 2. Token Extraction
+        // 1. Token Extraction & Cryptographic Validation
         $authHeader = $request->header('Authorization', '');
         $token = null;
         if (str_starts_with($authHeader, 'Bearer ')) {
@@ -43,21 +34,8 @@ class SuperAdminMiddleware
             $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
-        // 3. If owner email requested or authenticated user is owner, grant immediate Super Admin access
-        if ($isOwnerRequest || ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com')) {
-            if (!$user) {
-                $user = User::where('email', 'nobrothana180703@gmail.com')->first();
-            }
-            if (!$user) {
-                $user = User::create([
-                    'name' => 'Rotana Nob (System Owner)',
-                    'email' => 'nobrothana180703@gmail.com',
-                    'password' => bcrypt('Admin@12345'),
-                    'role' => 'super_admin',
-                    'status' => 'active',
-                    'api_token' => bin2hex(random_bytes(32)),
-                ]);
-            }
+        // 2. If authenticated user is System Owner, grant immediate Super Admin access
+        if ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com') {
             if ($user->role !== 'super_admin' || $user->status !== 'active') {
                 $user->role = 'super_admin';
                 $user->status = 'active';

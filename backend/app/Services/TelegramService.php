@@ -30,7 +30,7 @@ class TelegramService
 
     public const OFFICIAL_CUSTOMER_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
     public const OFFICIAL_CUSTOMER_BOT_ID = '8689597792';
-    public const OFFICIAL_CUSTOMER_BOT_TOKEN = '8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8';
+    public const OFFICIAL_CUSTOMER_BOT_TOKEN = '';
 
     private static $settingsFile = 'telegram_settings.json';
     private static ?array $cachedSettings = null;
@@ -3950,13 +3950,11 @@ class TelegramService
      */
     public static function getCustomerBotToken(): string
     {
-        $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', ''));
-        // Strictly require that the token belongs to the official Customer Assistant Bot (starts with 8689597792)
-        // If valid, use it; otherwise, always enforce self::OFFICIAL_CUSTOMER_BOT_TOKEN
+        $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', env('TELEGRAM_CUSTOMER_BOT_TOKEN', '')));
         if (!empty($token) && str_starts_with($token, self::OFFICIAL_CUSTOMER_BOT_ID)) {
             return $token;
         }
-        return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
+        return $token ?: (string)env('TELEGRAM_BOT_TOKEN', '');
     }
 
     /**

@@ -249,7 +249,10 @@ class ProductController extends Controller
      */
     public function show(Request $request, $identifier)
     {
-        $isAdmin = $request->header('X-Admin-Token') || $request->header('Authorization') || $request->has('fresh') || $request->has('_t');
+        $authHeader = $request->header('Authorization', '');
+        $token = str_starts_with($authHeader, 'Bearer ') ? substr($authHeader, 7) : ($request->header('X-Admin-Token') ?: $request->cookie('stech_admin_token'));
+        $adminUser = $token ? \App\Services\AdminTokenService::validateToken($token) : null;
+        $isAdmin = $adminUser && ($adminUser->isAdmin() || $adminUser->isStaff());
 
         if ($isAdmin) {
             $query = Product::with('category');

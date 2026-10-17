@@ -824,42 +824,47 @@ class WalletController extends Controller
             ], 422);
         }
 
-        $currentCoins = (int)($user->points ?? 0);
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($user, $coinsToRedeem) {
+            $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
+            $currentCoins = (int)($lockedUser->points ?? 0);
 
-        if ($coinsToRedeem > $currentCoins) {
+            if ($coinsToRedeem > $currentCoins) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "លោកអ្នកមានកាក់ត្រឹមតែ {$currentCoins} Coins ប៉ុណ្ណោះ មិនគ្រប់គ្រាន់ដើម្បីប្តូរឡើយ!",
+                ], 422);
+            }
+
+            // Conversion rate: 200 coins = $1.00 USD (Max 1,000 coins = $5.00 USD)
+            $usdAmount = round($coinsToRedeem / 200, 2);
+
+            // Deduct coins and credit wallet balance
+            $lockedUser->points = $currentCoins - $coinsToRedeem;
+            $lockedUser->wallet_balance = ((float)($lockedUser->wallet_balance ?? 0.00)) + $usdAmount;
+            $lockedUser->save();
+
+            // Record transaction
+            $tx = WalletTransaction::create([
+                'firebase_uid' => $lockedUser->firebase_uid,
+                'type' => 'coin_redeem',
+                'amount' => $usdAmount,
+                'coins' => -$coinsToRedeem,
+                'description' => "ប្តូរកាក់ {$coinsToRedeem} Coins ទៅជាសាច់ប្រាក់ $" . number_format($usdAmount, 2),
+                'payment_method' => 'coins_conversion',
+                'status' => 'completed',
+            ]);
+
+            \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$lockedUser->firebase_uid}");
+
             return response()->json([
-                'success' => false,
-                'message' => "លោកអ្នកមានកាក់ត្រឹមតែ {$currentCoins} Coins ប៉ុណ្ណោះ មិនគ្រប់គ្រាន់ដើម្បីប្តូរឡើយ!",
-            ], 422);
-        }
-
-        // Conversion rate: 200 coins = $1.00 USD (Max 1,000 coins = $5.00 USD)
-        $usdAmount = round($coinsToRedeem / 200, 2);
-
-        // Deduct coins and credit wallet balance
-        $user->points = $currentCoins - $coinsToRedeem;
-        $user->wallet_balance = ((float)($user->wallet_balance ?? 0.00)) + $usdAmount;
-        $user->save();
-
-        // Record transaction
-        $tx = WalletTransaction::create([
-            'firebase_uid' => $user->firebase_uid,
-            'type' => 'coin_redeem',
-            'amount' => $usdAmount,
-            'coins' => -$coinsToRedeem,
-            'description' => "ប្តូរកាក់ {$coinsToRedeem} Coins ទៅជាសាច់ប្រាក់ $" . number_format($usdAmount, 2),
-            'payment_method' => 'coins_conversion',
-            'status' => 'completed',
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => "បានប្តូរ {$coinsToRedeem} Coins ទៅជាទឹកប្រាក់ $" . number_format($usdAmount, 2) . " ក្នុងកាបូបដោយជោគជ័យ! 🎉",
-            'converted_usd' => $usdAmount,
-            'new_wallet_balance' => (float)$user->wallet_balance,
-            'remaining_coins' => (int)$user->points,
-            'transaction' => $tx,
-        ]);
+                'success' => true,
+                'message' => "បានប្តូរ {$coinsToRedeem} Coins ទៅជាទឹកប្រាក់ $" . number_format($usdAmount, 2) . " ក្នុងកាបូបដោយជោគជ័យ! 🎉",
+                'converted_usd' => $usdAmount,
+                'new_wallet_balance' => (float)$lockedUser->wallet_balance,
+                'remaining_coins' => (int)$lockedUser->points,
+                'transaction' => $tx,
+            ]);
+        });
     }
 
     /**
@@ -1112,26 +1117,97 @@ class WalletController extends Controller
         $maskedCard = '•••• •••• •••• ' . $last4;
         $depositId = 'DEP_CARD_' . strtoupper(Str::random(8));
         $authCode = 'AUTH_' . strtoupper(Str::random(10));
-        $gatewayMode = config('payment.visa.mode', 'sandbox');
+        $gatewayMode = config('payment.visa.mode', env('CARD_GATEWAY_MODE', 'sandbox'));
+        $stripeSecret = config('services.stripe.secret') ?: env('STRIPE_SECRET_KEY');
 
-        // Atomically credit user's wallet
+        // If Stripe secret is configured, charge via Stripe API
+        if (!empty($stripeSecret)) {
+            try {
+                $stripeResponse = \Illuminate\Support\Facades\Http::withToken($stripeSecret)
+                    ->asForm()
+                    ->timeout(15)
+                    ->post('https://api.stripe.com/v1/charges', [
+                        'amount' => (int)round($amount * 100),
+                        'currency' => 'usd',
+                        'source' => [
+                            'object' => 'card',
+                            'number' => $cleanNumber,
+                            'exp_month' => $month,
+                            'exp_year' => $year,
+                            'cvc' => $cleanCvv,
+                            'name' => strtoupper(trim($validated['cardholder_name'])),
+                        ],
+                        'description' => "S-Tech Wallet Topup: {$user->email} ({$depositId})",
+                    ]);
+
+                if (!$stripeResponse->successful()) {
+                    $err = $stripeResponse->json('error.message') ?? 'ការកាត់ប្រាក់តាមកាតមិនជោគជ័យឡើយ (Card declined by bank)';
+                    return response()->json(['success' => false, 'message' => $err], 402);
+                }
+            } catch (\Throwable $e) {
+                return response()->json(['success' => false, 'message' => 'ធនាគារកាតមិនអាចតភ្ជាប់បានឡើយ សូមព្យាយាមម្តងទៀត'], 502);
+            }
+
+            // Real charge succeeded: credit wallet
+            return \Illuminate\Support\Facades\DB::transaction(function () use (
+                $user, $amount, $brand, $maskedCard, $depositId, $authCode, $gatewayMode, $validated, $month, $year
+            ) {
+                $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
+                $lockedUser->wallet_balance = ((float)($lockedUser->wallet_balance ?? 0.00)) + $amount;
+                $lockedUser->save();
+
+                WalletTransaction::create([
+                    'firebase_uid' => $lockedUser->firebase_uid,
+                    'type' => 'deposit',
+                    'amount' => $amount,
+                    'coins' => 0,
+                    'description' => "បញ្ចូលទឹកប្រាក់តាមកាត {$brand} ({$maskedCard})",
+                    'payment_method' => 'card',
+                    'reference_id' => $depositId,
+                    'status' => 'completed',
+                    'metadata' => [
+                        'card_brand' => $brand,
+                        'masked_card' => $maskedCard,
+                        'cardholder_name' => strtoupper(trim($validated['cardholder_name'])),
+                        'exp_month' => str_pad((string)$month, 2, '0', STR_PAD_LEFT),
+                        'exp_year' => $year,
+                        'auth_code' => $authCode,
+                        'security_badge' => 'PCI-DSS Level 1 / 3D-Secure 2.0',
+                        'gateway_mode' => 'live',
+                        'processed_at' => now()->toIso8601String(),
+                    ],
+                ]);
+
+                \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$lockedUser->firebase_uid}");
+
+                return response()->json([
+                    'success' => true,
+                    'amount_added' => $amount,
+                    'new_balance' => (float)$lockedUser->wallet_balance,
+                    'deposit_id' => $depositId,
+                    'card_brand' => $brand,
+                    'masked_card' => $maskedCard,
+                    'auth_code' => $authCode,
+                    'message' => "ការកាត់ប្រាក់តាមកាត {$brand} ចំនួន $" . number_format($amount, 2) . " ទទួលបានជោគជ័យ 100%! 🎉",
+                ]);
+            });
+        }
+
+        // When live Stripe gateway is not configured, hold as pending manual verification (prevent free money exploit)
         return \Illuminate\Support\Facades\DB::transaction(function () use (
             $user, $amount, $brand, $maskedCard, $depositId, $authCode, $gatewayMode, $validated, $month, $year
         ) {
             $lockedUser = UserProfile::where('id', $user->id)->lockForUpdate()->first();
-            $lockedUser->wallet_balance = ((float)($lockedUser->wallet_balance ?? 0.00)) + $amount;
-            $lockedUser->save();
 
-            // Record transaction in ledger
             WalletTransaction::create([
                 'firebase_uid' => $lockedUser->firebase_uid,
                 'type' => 'deposit',
                 'amount' => $amount,
                 'coins' => 0,
-                'description' => "បញ្ចូលទឹកប្រាក់តាមកាត {$brand} ({$maskedCard})",
+                'description' => "សំណើបញ្ចូលទឹកប្រាក់តាមកាត {$brand} ({$maskedCard}) — រង់ចាំការផ្ទៀងផ្ទាត់ពី Admin",
                 'payment_method' => 'card',
                 'reference_id' => $depositId,
-                'status' => 'completed',
+                'status' => 'pending',
                 'metadata' => [
                     'card_brand' => $brand,
                     'masked_card' => $maskedCard,
@@ -1139,31 +1215,17 @@ class WalletController extends Controller
                     'exp_month' => str_pad((string)$month, 2, '0', STR_PAD_LEFT),
                     'exp_year' => $year,
                     'auth_code' => $authCode,
-                    'security_badge' => 'PCI-DSS Level 1 / 3D-Secure 2.0',
+                    'security_badge' => 'PCI-DSS Manual Review Required',
                     'gateway_mode' => $gatewayMode,
                     'processed_at' => now()->toIso8601String(),
                 ],
             ]);
 
-            \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$lockedUser->firebase_uid}");
-
-            // Customer in-app notification
-            try {
-                UserNotification::create([
-                    'firebase_uid' => $lockedUser->firebase_uid,
-                    'title' => "💳 បញ្ចូលទឹកប្រាក់តាមកាត {$brand} ជោគជ័យ!",
-                    'message' => "លោកអ្នកបានបញ្ចូលទឹកប្រាក់ចំនួន $" . number_format($amount, 2) . " តាមរយៈកាត {$brand} ({$maskedCard}) ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($lockedUser->wallet_balance, 2),
-                    'type' => 'system',
-                    'read' => false,
-                ]);
-            } catch (\Throwable $t) {}
-
-            // Telegram Finance alert
             try {
                 \App\Services\TelegramService::sendFinanceAlert([
-                    'type' => "Card Topup ({$brand})",
+                    'type' => "💳 សំណើបញ្ចូលលុយតាមកាត ({$brand}) - Pending Review",
                     'amount' => $amount,
-                    'method' => "CARD - {$brand}",
+                    'method' => "CARD - {$brand} ({$maskedCard})",
                     'order_id' => $depositId,
                     'customer' => $lockedUser->display_name ?: 'S-Tech Customer',
                 ]);
@@ -1171,13 +1233,14 @@ class WalletController extends Controller
 
             return response()->json([
                 'success' => true,
-                'amount_added' => $amount,
+                'status' => 'pending',
+                'amount_added' => 0,
                 'new_balance' => (float)$lockedUser->wallet_balance,
                 'deposit_id' => $depositId,
                 'card_brand' => $brand,
                 'masked_card' => $maskedCard,
                 'auth_code' => $authCode,
-                'message' => "ការកាត់ប្រាក់តាមកាត {$brand} ចំនួន $" . number_format($amount, 2) . " ទទួលបានជោគជ័យ 100%! 🎉",
+                'message' => "ព័ត៌មានកាត {$brand} ({$maskedCard}) ត្រូវបានផ្ទៀងផ្ទាត់! សំណើបញ្ចូលប្រាក់ចំនួន $" . number_format($amount, 2) . " ត្រូវបានបញ្ជូនទៅ Admin ដើម្បី Approve មុនពេលបញ្ចូលលុយ។",
             ]);
         });
     }

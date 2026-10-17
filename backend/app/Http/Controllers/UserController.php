@@ -953,27 +953,119 @@ class UserController extends Controller
             ], 401);
         }
 
-        $user = UserProfile::where('firebase_uid', $uid)->first();
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'រកមិនឃើញគណនីរបស់អ្នកទេ សូមព្យាយាមចូលគណនីម្ដងទៀត',
-            ], 404);
-        }
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($uid) {
+            $user = UserProfile::where('firebase_uid', $uid)->lockForUpdate()->first();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'រកមិនឃើញគណនីរបស់អ្នកទេ សូមព្យាយាមចូលគណនីម្ដងទៀត',
+                ], 404);
+            }
 
-        if (!($user->is_active ?? true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ Admin ដើម្បីដោះស្រាយ។',
-            ], 403);
-        }
+            if (!($user->is_active ?? true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'គណនីនេះត្រូវបានផ្អាកដំណើរការបណ្ដោះអាសន្ន។ សូមទាក់ទងមកកាន់ Admin ដើម្បីដោះស្រាយ។',
+                ], 403);
+            }
 
-        if ($user->has_claimed_welcome_gift) {
+            if ($user->has_claimed_welcome_gift) {
+                return response()->json([
+                    'success' => true,
+                    'already_claimed' => true,
+                    'message' => 'លោកអ្នកបានទទួលកាដូស្វាគមន៍ $5.00 USD ចូលកាបូប S-Tech Wallet នេះរួចរាល់ហើយ!',
+                    'wallet_balance' => (float)($user->wallet_balance ?? 0.00),
+                    'voucher' => [
+                        'code' => 'WELCOME5',
+                        'value' => 5.00,
+                        'type' => 'fixed',
+                        'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
+                    ],
+                ]);
+            }
+
+            // Ensure WELCOME5 promo code exists in database
+            $promo = \App\Models\PromoCode::where('code', 'WELCOME5')->first();
+            if (!$promo) {
+                \App\Models\PromoCode::create([
+                    'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
+                    'code' => 'WELCOME5',
+                    'type' => 'fixed',
+                    'value' => 5.00,
+                    'status' => 'active',
+                    'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $5.00 ភ្លាមៗលើរាល់ការទិញទំនិញ',
+                    'usage_max' => 99999,
+                    'usage_count' => 0,
+                ]);
+            } else {
+                if ($promo->status !== 'active') {
+                    $promo->status = 'active';
+                    $promo->save();
+                }
+            }
+
+            // Credit $5.00 USD directly to user's S-Tech wallet balance (Spendable only in S Tech Store)
+            $giftAmount = 5.00;
+            $user->wallet_balance = ((float)($user->wallet_balance ?? 0.00)) + $giftAmount;
+            $user->has_claimed_welcome_gift = true;
+            $user->welcome_gift_claimed_at = now();
+            $user->points = ($user->points ?? 0) + 50;
+            $user->save();
+
+            // Record official wallet ledger deposit transaction
+            $giftTxId = 'GIFT_' . strtoupper(Str::random(8));
+            try {
+                WalletTransaction::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'type' => 'deposit',
+                    'amount' => $giftAmount,
+                    'coins' => 50,
+                    'description' => "កាដូស្វាគមន៍អតិថិជនថ្មី (+$5.00 USD ក្នុងកាបូប) • ចាយបានក្នុង S Tech Store",
+                    'payment_method' => 'welcome_gift',
+                    'reference_id' => $giftTxId,
+                    'status' => 'completed',
+                    'metadata' => [
+                        'type' => 'welcome_gift',
+                        'amount_usd' => $giftAmount,
+                        'spendable_scope' => 's_tech_store_only',
+                        'credited_at' => now()->toIso8601String(),
+                    ],
+                ]);
+            } catch (\Throwable $t) {
+                Log::warning("Welcome gift wallet transaction record warning: " . $t->getMessage());
+            }
+
+            // Invalidate wallet cached statistics
+            \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
+
+            // In-app Notification
+            try {
+                UserNotification::create([
+                    'firebase_uid' => $user->firebase_uid,
+                    'title' => '🎉 ទទួលបានកាដូស្វាគមន៍ $5.00 USD ចូលកាបូបជោគជ័យ!',
+                    'message' => 'អបអរសាទរ! ទឹកប្រាក់កាដូ $5.00 USD ត្រូវបានបញ្ចូលទៅកាន់កាបូប S-Tech Wallet របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចប្រើប្រាស់សមតុល្យនេះដើម្បីទិញទំនិញគ្រប់មុខក្នុង S Tech Store។',
+                    'type' => 'promo',
+                    'read' => false,
+                ]);
+            } catch (\Throwable $t) {}
+
+            // Telegram Finance / Bonus Alert
+            try {
+                \App\Services\TelegramService::sendFinanceAlert([
+                    'type' => 'Welcome Gift ($5.00 Credited to Wallet)',
+                    'amount' => $giftAmount,
+                    'method' => 'WELCOME_GIFT_BONUS',
+                    'order_id' => $giftTxId,
+                    'customer' => $user->display_name ?: 'S-Tech Customer',
+                ]);
+            } catch (\Throwable $t) {}
+
             return response()->json([
                 'success' => true,
-                'already_claimed' => true,
-                'message' => 'លោកអ្នកបានទទួលកាដូស្វាគមន៍ $5.00 USD ចូលកាបូប S-Tech Wallet នេះរួចរាល់ហើយ!',
-                'wallet_balance' => (float)($user->wallet_balance ?? 0.00),
+                'message' => 'អបអរសាទរ! លោកអ្នកទទួលបានកាដូ $5.00 USD ចូលទៅក្នុងកាបូប S-Tech Wallet ដោយជោគជ័យ 🎉 (អាចចាយបានក្នុង S Tech Store)',
+                'amount_credited' => $giftAmount,
+                'new_wallet_balance' => (float)$user->wallet_balance,
+                'points_bonus' => 50,
                 'voucher' => [
                     'code' => 'WELCOME5',
                     'value' => 5.00,
@@ -981,97 +1073,7 @@ class UserController extends Controller
                     'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
                 ],
             ]);
-        }
-
-        // Ensure WELCOME5 promo code exists in database
-        $promo = \App\Models\PromoCode::where('code', 'WELCOME5')->first();
-        if (!$promo) {
-            \App\Models\PromoCode::create([
-                'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
-                'code' => 'WELCOME5',
-                'type' => 'fixed',
-                'value' => 5.00,
-                'status' => 'active',
-                'description' => 'កាដូស្វាគមន៍អតិថិជនថ្មី បញ្ចុះ $5.00 ភ្លាមៗលើរាល់ការទិញទំនិញ',
-                'usage_max' => 99999,
-                'usage_count' => 0,
-            ]);
-        } else {
-            if ($promo->status !== 'active') {
-                $promo->status = 'active';
-                $promo->save();
-            }
-        }
-
-        // Credit $5.00 USD directly to user's S-Tech wallet balance (Spendable only in S Tech Store)
-        $giftAmount = 5.00;
-        $user->wallet_balance = ((float)($user->wallet_balance ?? 0.00)) + $giftAmount;
-        $user->has_claimed_welcome_gift = true;
-        $user->welcome_gift_claimed_at = now();
-        $user->points = ($user->points ?? 0) + 50;
-        $user->save();
-
-        // Record official wallet ledger deposit transaction
-        $giftTxId = 'GIFT_' . strtoupper(Str::random(8));
-        try {
-            WalletTransaction::create([
-                'firebase_uid' => $user->firebase_uid,
-                'type' => 'deposit',
-                'amount' => $giftAmount,
-                'coins' => 50,
-                'description' => "កាដូស្វាគមន៍អតិថិជនថ្មី (+$5.00 USD ក្នុងកាបូប) • ចាយបានក្នុង S Tech Store",
-                'payment_method' => 'welcome_gift',
-                'reference_id' => $giftTxId,
-                'status' => 'completed',
-                'metadata' => [
-                    'type' => 'welcome_gift',
-                    'amount_usd' => $giftAmount,
-                    'spendable_scope' => 's_tech_store_only',
-                    'credited_at' => now()->toIso8601String(),
-                ],
-            ]);
-        } catch (\Throwable $t) {
-            Log::warning("Welcome gift wallet transaction record warning: " . $t->getMessage());
-        }
-
-        // Invalidate wallet cached statistics
-        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$user->firebase_uid}");
-
-        // In-app Notification
-        try {
-            UserNotification::create([
-                'firebase_uid' => $user->firebase_uid,
-                'title' => '🎉 ទទួលបានកាដូស្វាគមន៍ $5.00 USD ចូលកាបូបជោគជ័យ!',
-                'message' => 'អបអរសាទរ! ទឹកប្រាក់កាដូ $5.00 USD ត្រូវបានបញ្ចូលទៅកាន់កាបូប S-Tech Wallet របស់អ្នករួចរាល់ហើយ។ លោកអ្នកអាចប្រើប្រាស់សមតុល្យនេះដើម្បីទិញទំនិញគ្រប់មុខក្នុង S Tech Store។',
-                'type' => 'promo',
-                'read' => false,
-            ]);
-        } catch (\Throwable $t) {}
-
-        // Telegram Finance / Bonus Alert
-        try {
-            \App\Services\TelegramService::sendFinanceAlert([
-                'type' => 'Welcome Gift ($5.00 Credited to Wallet)',
-                'amount' => $giftAmount,
-                'method' => 'WELCOME_GIFT_BONUS',
-                'order_id' => $giftTxId,
-                'customer' => $user->display_name ?: 'S-Tech Customer',
-            ]);
-        } catch (\Throwable $t) {}
-
-        return response()->json([
-            'success' => true,
-            'message' => 'អបអរសាទរ! លោកអ្នកទទួលបានកាដូ $5.00 USD ចូលទៅក្នុងកាបូប S-Tech Wallet ដោយជោគជ័យ 🎉 (អាចចាយបានក្នុង S Tech Store)',
-            'amount_credited' => $giftAmount,
-            'new_wallet_balance' => (float)$user->wallet_balance,
-            'points_bonus' => 50,
-            'voucher' => [
-                'code' => 'WELCOME5',
-                'value' => 5.00,
-                'type' => 'fixed',
-                'name' => 'កាដូស្វាគមន៍អតិថិជនថ្មី $5 OFF',
-            ],
-        ]);
+        });
     }
 
     /**

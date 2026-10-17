@@ -37,31 +37,8 @@ class AdminMiddleware
             $user = \App\Services\AdminTokenService::validateToken($token);
         }
 
-        // 2. Direct Owner Email Recognition & Fallback
-        $fbEmail = strtolower(trim((string)$request->header('X-Firebase-Email', '')));
-        $fbUid = trim((string)$request->header('X-Firebase-UID', ''));
-        $userEmail = strtolower(trim((string)$request->header('X-User-Email', '')));
-
-        $isOwnerRequest = (
-            $userEmail === 'nobrothana180703@gmail.com' ||
-            $fbEmail === 'nobrothana180703@gmail.com'
-        );
-
-        // Immediate System Owner bypass: Guaranteed access on all routes
-        if ($isOwnerRequest || ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com')) {
-            if (!$user) {
-                $user = User::where('email', 'nobrothana180703@gmail.com')->first();
-            }
-            if (!$user) {
-                $user = User::create([
-                    'name' => 'Rotana Nob (System Owner)',
-                    'email' => 'nobrothana180703@gmail.com',
-                    'password' => bcrypt('Admin@12345'),
-                    'role' => 'super_admin',
-                    'status' => 'active',
-                    'api_token' => bin2hex(random_bytes(32)),
-                ]);
-            }
+        // Guaranteed access for authenticated System Owner
+        if ($user && strtolower(trim((string)$user->email)) === 'nobrothana180703@gmail.com') {
             if ($user->role !== 'super_admin' || $user->status !== 'active') {
                 $user->role = 'super_admin';
                 $user->status = 'active';
@@ -77,36 +54,6 @@ class AdminMiddleware
             }
 
             return $response;
-        }
-
-        if (!$user) {
-            $targetEmail = $fbEmail ?: $userEmail;
-
-            if ($targetEmail || $fbUid) {
-
-                if (!$user && $targetEmail) {
-                    $user = User::where('email', $targetEmail)->where('status', 'active')->first();
-                }
-
-                if (!$user && $fbUid) {
-                    $uProf = UserProfile::where('firebase_uid', $fbUid)->where('is_admin', true)->first();
-                    if ($uProf && !empty($uProf->email)) {
-                        $user = User::where('email', strtolower($uProf->email))->where('status', 'active')->first();
-                    }
-                }
-
-                if (!$user && $targetEmail) {
-                    $uProf = UserProfile::where('email', $targetEmail)->where('is_admin', true)->first();
-                    if ($uProf) {
-                        $user = User::where('email', $targetEmail)->where('status', 'active')->first();
-                    }
-                }
-
-                // If user authenticated via fallback, ensure they have an active signed token
-                if ($user && (empty($user->api_token) || !str_starts_with($user->api_token, 'sat_'))) {
-                    \App\Services\AdminTokenService::createToken($user);
-                }
-            }
         }
 
         if ($user) {

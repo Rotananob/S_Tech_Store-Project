@@ -81,20 +81,6 @@ api.interceptors.request.use(
             parsedAdminUser?.email === "nobrothana180703@gmail.com"
           );
 
-          if (isOwner) {
-            try {
-              localStorage.setItem("stech_owner_locked", "true");
-              if (typeof document !== "undefined") {
-                document.cookie = "stech_owner_locked=true; path=/; max-age=315360000; SameSite=Lax";
-              }
-            } catch (e) {}
-
-            // Unconditional Owner headers: Guaranteed immunity from 401 and 403 on admin routes
-            config.headers["X-User-Email"] = "nobrothana180703@gmail.com";
-            config.headers["X-Admin-Role"] = "super_admin";
-            config.headers["X-Firebase-Email"] = "nobrothana180703@gmail.com";
-          }
-
           if (adminToken) {
             config.headers["Authorization"] = `Bearer ${adminToken}`;
             config.headers["X-Admin-Token"] = adminToken;

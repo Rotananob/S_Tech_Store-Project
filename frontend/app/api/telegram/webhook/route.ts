@@ -8,7 +8,11 @@ const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "https://stech-backend-xz6j.onrender.com";
 
-const CUSTOMER_BOT_TOKEN = "8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8";
+const CUSTOMER_BOT_TOKEN =
+  process.env.TELEGRAM_CUSTOMER_BOT_TOKEN ||
+  process.env.TELEGRAM_AUTH_BOT_TOKEN ||
+  process.env.TELEGRAM_BOT_TOKEN ||
+  "";
 
 interface TelegramUpdate {
   update_id: number;

@@ -18,8 +18,8 @@ return [
         : array_filter(array_map('trim', explode(',', env('ALLOWED_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,https://www.s-tech-store.tech,https://s-tech-store.tech')))),
 
     'allowed_origins_patterns' => [
-        '#^https?://.*\.s-tech-store\.tech$#',
-        '#^https?://.*\.vercel\.app$#',
+        '#^https?://(.*\.)?s-tech-store\.tech$#',
+        '#^https?://(s-tech-store|stech-store|stech-frontend)[a-z0-9-]*\.vercel\.app$#',
     ],
 
     'allowed_headers' => [

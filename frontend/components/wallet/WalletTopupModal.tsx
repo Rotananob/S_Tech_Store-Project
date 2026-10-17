@@ -292,15 +292,24 @@ export default function WalletTopupModal({
         cvv: cleanCvv,
       });
 
-      playCelebrationFanfare();
-      setShowConfetti(true);
-      setSuccessReceipt({
-        amount: res.amount_added,
-        deposit_id: res.deposit_id,
-        method: `${res.card_brand} (${res.masked_card})`,
-      });
-      setStep("success");
-      onSuccess(res.new_balance);
+      if (res.status === "pending") {
+        setSuccessReceipt({
+          amount: getEffectiveAmount(),
+          deposit_id: res.deposit_id,
+          method: `${res.card_brand} (${res.masked_card}) — រង់ចាំការផ្ទៀងផ្ទាត់ (Pending)`,
+        });
+        setStep("success");
+      } else {
+        playCelebrationFanfare();
+        setShowConfetti(true);
+        setSuccessReceipt({
+          amount: res.amount_added,
+          deposit_id: res.deposit_id,
+          method: `${res.card_brand} (${res.masked_card})`,
+        });
+        setStep("success");
+        onSuccess(res.new_balance);
+      }
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || "ការកាត់ប្រាក់តាមកាតមិនជោគជ័យទេ។ សូមពិនិត្យព័ត៌មានកាតឡើងវិញ។");
     } finally {

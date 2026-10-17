@@ -59,14 +59,13 @@ Route::post('/chat/request-agent', function (Request $request) {
     $validated['bypass_token'] = $bypassToken;
     $validated['chat_id'] = $chatId;
 
-    $res = \App\Services\TelegramService::sendCustomerChatAlert($validated);
+    \App\Services\TelegramService::sendCustomerChatAlert($validated);
     return response()->json([
         'success' => true,
         'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
         'chat_id' => $chatId,
-        'telegram_result' => $res,
     ]);
-});
+})->middleware('throttle:6,1');
 
 // Admin Live Chat Real-Time Reply Alert to Customer Telegram (Bot 2 Companion)
 Route::post('/chat/admin-reply-alert', function (Request $request) {
@@ -177,10 +176,7 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         ->first();
 
     if ($adminUser) {
-        $apiToken = bin2hex(random_bytes(32));
-        // Multi-Session Token Cache: Cache bypass session token for 7 days without overwriting
-        // $adminUser->api_token in the database, preserving desktop browser sessions!
-        \Illuminate\Support\Facades\Cache::put("admin_token_{$apiToken}", $adminUser->id, 86400 * 7);
+        $apiToken = \App\Services\AdminTokenService::createToken($adminUser, 7);
         $adminUser->last_login_at = now();
         $adminUser->save();
 

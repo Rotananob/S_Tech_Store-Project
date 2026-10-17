@@ -259,15 +259,32 @@ class OrderController extends Controller
      * GET /api/orders/{idOrOrderId}
      * Public order & invoice lookup endpoint
      */
-    public function show($idOrOrderId)
+    public function show(Request $request, $idOrOrderId)
     {
         $cleanId = ltrim($idOrOrderId, '#');
-        $order = Order::where('order_id', $cleanId)
-            ->orWhere('order_id', '#' . $cleanId);
+
+        // Check if caller is authenticated admin or staff
+        $authHeader = $request->header('Authorization', '');
+        $token = str_starts_with($authHeader, 'Bearer ') ? substr($authHeader, 7) : ($request->header('X-Admin-Token') ?: $request->cookie('stech_admin_token'));
+        $adminUser = $token ? \App\Services\AdminTokenService::validateToken($token) : null;
+        $isAdmin = $adminUser && ($adminUser->isAdmin() || $adminUser->isStaff());
+
+        // Numeric incremental ID (1, 2, 3...) is STRICTLY restricted to Admin/Staff to prevent enumeration IDOR attacks
         if (is_numeric($cleanId)) {
-            $order = $order->orWhere('id', (int)$cleanId);
+            if (!$isAdmin) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'ការស្វែងរកតាមលេខសម្គាល់លេខ (Numeric ID) ត្រូវបានហាមឃាត់! សូមប្រើប្រាស់កូដ Order ID (ឧ. ORD-XXXX) ដែលមានលើវិក្កយបត្រ។',
+                ], 403);
+            }
+            $order = Order::where('id', (int)$cleanId)->with('items.product')->first();
+        } else {
+            // Public / Customer lookup via secure alphanumeric Order ID (e.g. ORD-1718293...)
+            $order = Order::where('order_id', $cleanId)
+                ->orWhere('order_id', '#' . $cleanId)
+                ->with('items.product')
+                ->first();
         }
-        $order = $order->with('items.product')->first();
 
         if (!$order) {
             return response()->json(['success' => false, 'error' => 'Order not found'], 404);
@@ -286,15 +303,38 @@ class OrderController extends Controller
     public function markFailed(Request $request, $idOrOrderId)
     {
         $cleanId = ltrim($idOrOrderId, '#');
+
+        // Check Admin privilege
+        $authHeader = $request->header('Authorization', '');
+        $token = str_starts_with($authHeader, 'Bearer ') ? substr($authHeader, 7) : ($request->header('X-Admin-Token') ?: $request->cookie('stech_admin_token'));
+        $adminUser = $token ? \App\Services\AdminTokenService::validateToken($token) : null;
+        $isAdmin = $adminUser && ($adminUser->isAdmin() || $adminUser->isStaff());
+
+        // Prohibit numeric ID manipulation for non-admins
+        if (is_numeric($cleanId) && !$isAdmin) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Forbidden: Invalid order identifier',
+            ], 403);
+        }
+
         $order = Order::where('order_id', $cleanId)
             ->orWhere('order_id', '#' . $cleanId);
-        if (is_numeric($cleanId)) {
+        if ($isAdmin && is_numeric($cleanId)) {
             $order = $order->orWhere('id', (int)$cleanId);
         }
         $order = $order->first();
 
         if (!$order) {
             return response()->json(['success' => false, 'error' => 'Order not found'], 404);
+        }
+
+        // Integrity Protection: Never allow marking an already paid, processing, or completed order as failed
+        if (in_array($order->payment_status, ['paid', 'completed']) || in_array($order->status, ['processing', 'completed', 'delivered'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់ ឬកំពុងរៀបចំរួចរាល់ហើយ មិនអាចកំណត់ថាបរាជ័យបានឡើយ (Order already paid/processed).',
+            ], 422);
         }
 
         $reason = $request->input('reason', 'Payment or checkout failed');

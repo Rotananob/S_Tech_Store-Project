@@ -154,14 +154,17 @@ class PaymentController extends Controller
     {
         Log::info('Payment Webhook received: ', $request->all());
 
-        // Secret / Signature Verification
-        $webhookSecret = env('PAYMENT_WEBHOOK_SECRET');
-        if (!empty($webhookSecret)) {
-            $headerSecret = $request->header('X-Webhook-Secret') ?: $request->header('X-Signature');
-            if ($headerSecret !== $webhookSecret) {
-                Log::warning("Unauthorized payment webhook invocation from IP: " . $request->ip());
-                return response()->json(['error' => 'Unauthorized'], 403);
-            }
+        // Secret / Signature Verification — Reject by default if secret is missing or mismatched
+        $webhookSecret = (string)env('PAYMENT_WEBHOOK_SECRET', '');
+        if (empty($webhookSecret)) {
+            Log::error("Payment webhook rejected: PAYMENT_WEBHOOK_SECRET is not configured in environment.");
+            return response()->json(['error' => 'Payment webhook receiver is not configured'], 503);
+        }
+
+        $headerSecret = (string)($request->header('X-Webhook-Secret') ?: $request->header('X-Signature') ?: $request->input('webhook_secret', ''));
+        if (!hash_equals($webhookSecret, $headerSecret)) {
+            Log::warning("Unauthorized payment webhook invocation attempt from IP: " . $request->ip());
+            return response()->json(['error' => 'Forbidden: Invalid or missing webhook signature'], 403);
         }
 
         $tranId = $request->input('tran_id') ?: $request->input('transaction_id') ?: $request->input('hash');
