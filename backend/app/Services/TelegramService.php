@@ -3130,7 +3130,11 @@ class TelegramService
                     ->where('image_url', '!=', '')
                     ->where(function($q) {
                         $q->where('is_featured', true)
-                          ->orWhere('sale_price', '>', 0)
+                          ->orWhere(function($sq) {
+                              $sq->whereNotNull('sale_price')
+                                 ->where('sale_price', '!=', '')
+                                 ->where('sale_price', '!=', '0');
+                          })
                           ->orWhereNotNull('badge');
                     })
                     ->latest()

@@ -46,12 +46,7 @@ class ProductController extends Controller
                 $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
             }
 
-            $products = $query
-                ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
-                ->orderByRaw('CASE WHEN sale_price IS NOT NULL AND sale_price > 0 AND sale_price < price THEN 1 ELSE 0 END DESC')
-                ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
-                ->orderBy('id', 'desc')
-                ->get();
+            $products = $this->applyProductOrdering($query)->get();
 
             return response()->json($products)
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
@@ -91,12 +86,7 @@ class ProductController extends Controller
                 $query->where('is_featured', filter_var($request->featured, FILTER_VALIDATE_BOOLEAN));
             }
 
-            return $query
-                ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
-                ->orderByRaw('CASE WHEN sale_price IS NOT NULL AND sale_price > 0 AND sale_price < price THEN 1 ELSE 0 END DESC')
-                ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
-                ->orderBy('id', 'desc')
-                ->get();
+            return $this->applyProductOrdering($query)->get();
         });
 
         return response()->json($products)
@@ -671,5 +661,42 @@ class ProductController extends Controller
             'image_url' => $primaryUrl,
             'images' => $urls
         ];
+    }
+
+    /**
+     * Apply robust product ordering compatible with PostgreSQL and MySQL.
+     * 1. Pinned to top
+     * 2. Active discounted products (sale_price > 0 and sale_price < price)
+     * 3. Bumped or updated / created timestamp
+     * 4. ID descending
+     */
+    private function applyProductOrdering($query)
+    {
+        $isPg = config('database.default') === 'pgsql';
+        $saleOrderRaw = $isPg
+            ? "CASE 
+                WHEN sale_price IS NOT NULL 
+                 AND sale_price != '' 
+                 AND price IS NOT NULL 
+                 AND price != '' 
+                 AND sale_price ~ '^[0-9]+(\\.[0-9]+)?$' 
+                 AND price ~ '^[0-9]+(\\.[0-9]+)?$' 
+                 AND CAST(sale_price AS NUMERIC) > 0 
+                 AND CAST(sale_price AS NUMERIC) < CAST(price AS NUMERIC) 
+                THEN 1 ELSE 0 END DESC"
+            : "CASE 
+                WHEN sale_price IS NOT NULL 
+                 AND sale_price != '' 
+                 AND price IS NOT NULL 
+                 AND price != '' 
+                 AND CAST(sale_price AS DECIMAL(10,2)) > 0 
+                 AND CAST(sale_price AS DECIMAL(10,2)) < CAST(price AS DECIMAL(10,2)) 
+                THEN 1 ELSE 0 END DESC";
+
+        return $query
+            ->orderByRaw('CASE WHEN pinned_to_top = true THEN 1 ELSE 0 END DESC')
+            ->orderByRaw($saleOrderRaw)
+            ->orderByRaw('COALESCE(bumped_at, created_at, updated_at) DESC')
+            ->orderBy('id', 'desc');
     }
 }
