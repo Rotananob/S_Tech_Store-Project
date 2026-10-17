@@ -273,6 +273,22 @@ export default function LoginPage() {
       });
       useNotificationStore.getState().fetchNotifications();
 
+      // Persist genuine customer session
+      if (cred?.user) {
+        const userObj = {
+          id: cred.user.uid,
+          uid: cred.user.uid,
+          firebase_uid: cred.user.uid,
+          display_name: cred.user.displayName || email.split("@")[0] || "Customer",
+          name: cred.user.displayName || email.split("@")[0] || "Customer",
+          email: cred.user.email || email,
+          provider: "email",
+        };
+        localStorage.setItem("user_session", JSON.stringify(userObj));
+        localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+        window.dispatchEvent(new Event("user_session_updated"));
+      }
+
       setAuthOverlay({
         show: true,
         title: "ចូលគណនីបានជោគជ័យ! 🎉",
@@ -360,6 +376,23 @@ export default function LoginPage() {
           setAuthOverlay({ show: false, title: "", subtitle: "" });
           return;
         }
+      }
+
+      // Persist genuine customer session
+      if (cred?.user) {
+        const userObj = {
+          id: cred.user.uid,
+          uid: cred.user.uid,
+          firebase_uid: cred.user.uid,
+          display_name: cred.user.displayName || cred.user.email?.split("@")[0] || "Customer",
+          name: cred.user.displayName || cred.user.email?.split("@")[0] || "Customer",
+          email: cred.user.email,
+          photo_url: cred.user.photoURL,
+          provider: "google",
+        };
+        localStorage.setItem("user_session", JSON.stringify(userObj));
+        localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+        window.dispatchEvent(new Event("user_session_updated"));
       }
 
       setAuthOverlay({

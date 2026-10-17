@@ -8,6 +8,8 @@ import {
   ExternalLink, ShoppingBag, ArrowRight, Lock, Award, Heart, ShieldCheck, Wallet, LogIn 
 } from "lucide-react";
 import { getEffectiveUser } from "@/lib/auth-user";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import api from "@/lib/api";
 import { updateCachedWallet } from "@/lib/services/wallet.service";
 import { playCelebrationSound } from "@/lib/celebration-audio";
@@ -48,6 +50,7 @@ export default function WelcomeGiftModal() {
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isPillDismissed, setIsPillDismissed] = useState(false);
   const [hasShared, setHasShared] = useState(false);
   const [hasClaimed, setHasClaimed] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -58,11 +61,69 @@ export default function WelcomeGiftModal() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [shareUrl, setShareUrl] = useState("https://stech-store.tech/?gift=welcome5");
 
+  const checkEligibility = async (passedUser?: any) => {
+    let user = passedUser || getEffectiveUser();
+    if (!user && auth.currentUser) {
+      user = {
+        id: auth.currentUser.uid,
+        uid: auth.currentUser.uid,
+        firebase_uid: auth.currentUser.uid,
+        name: auth.currentUser.displayName || auth.currentUser.email?.split("@")[0] || "Customer",
+        display_name: auth.currentUser.displayName || auth.currentUser.email?.split("@")[0] || "Customer",
+        displayName: auth.currentUser.displayName || auth.currentUser.email?.split("@")[0] || "Customer",
+        email: auth.currentUser.email || null,
+        photo_url: auth.currentUser.photoURL || null,
+        photoURL: auth.currentUser.photoURL || null,
+        provider: "google",
+      };
+    }
+    if (!user && typeof window !== "undefined") {
+      const storedSess = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+      if (storedSess) {
+        try {
+          user = JSON.parse(storedSess);
+        } catch (_) {}
+      }
+    }
+
+    setCurrentUser(user);
+
+    const uid = user ? (user.uid || user.firebase_uid || user.id || "guest") : "guest";
+    const localShared = localStorage.getItem(`stech_shared_gift_${uid}`) === "true";
+    if (localShared) setHasShared(true);
+
+    const localClaimed = localStorage.getItem(`stech_claimed_gift_${uid}`) === "true";
+    if (localClaimed) {
+      setHasClaimed(true);
+      return;
+    }
+
+    // Query cloud profile if logged in
+    if (user) {
+      try {
+        const res = await api.get("/user/profile");
+        const profile = res.data?.profile;
+        if (profile?.has_claimed_welcome_gift) {
+          setHasClaimed(true);
+          localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
+        }
+      } catch (err) {
+        // Gracefully fallback to localStorage
+      }
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
 
     if (typeof window !== "undefined") {
       setShareUrl(`${window.location.origin}/?gift=welcome5`);
+
+      try {
+        if (sessionStorage.getItem("stech_dismissed_floating_gift_pill") === "true") {
+          setIsPillDismissed(true);
+        }
+      } catch (_) {}
 
       // Open only if URL explicitly requests opening the gift modal
       const urlParams = new URLSearchParams(window.location.search);
@@ -71,39 +132,36 @@ export default function WelcomeGiftModal() {
       }
     }
 
-    const checkEligibility = async () => {
-      const user = getEffectiveUser();
-      setCurrentUser(user);
-
-      const uid = user ? (user.uid || user.firebase_uid || user.id || "guest") : "guest";
-      const localShared = localStorage.getItem(`stech_shared_gift_${uid}`) === "true";
-      if (localShared) setHasShared(true);
-
-      const localClaimed = localStorage.getItem(`stech_claimed_gift_${uid}`) === "true";
-      if (localClaimed) {
-        setHasClaimed(true);
-        return;
-      }
-
-      // Query cloud profile if logged in
-      if (user) {
-        try {
-          const res = await api.get("/user/profile");
-          const profile = res.data?.profile;
-          if (profile?.has_claimed_welcome_gift) {
-            setHasClaimed(true);
-            localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
-          }
-        } catch (err) {
-          // Gracefully fallback to localStorage
-        }
-      }
-    };
-
     checkEligibility();
 
+    // Listen to Firebase Auth state change in real-time
+    let unsubAuth: (() => void) | null = null;
+    try {
+      unsubAuth = onAuthStateChanged(auth, (fbUser) => {
+        if (fbUser) {
+          checkEligibility({
+            id: fbUser.uid,
+            uid: fbUser.uid,
+            firebase_uid: fbUser.uid,
+            name: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
+            display_name: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
+            displayName: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
+            email: fbUser.email || null,
+            photo_url: fbUser.photoURL || null,
+            photoURL: fbUser.photoURL || null,
+            provider: "google",
+          });
+        } else {
+          checkEligibility();
+        }
+      });
+    } catch (_) {}
+
     // Listen to custom open event from any button or component
-    const handleOpenModal = () => setIsOpen(true);
+    const handleOpenModal = () => {
+      checkEligibility();
+      setIsOpen(true);
+    };
     window.addEventListener("stech:open-welcome-gift", handleOpenModal);
 
     // Listen to login/logout events
@@ -112,6 +170,7 @@ export default function WelcomeGiftModal() {
     };
     window.addEventListener("user_session_updated", handleAuthChange);
     return () => {
+      if (unsubAuth) unsubAuth();
       window.removeEventListener("stech:open-welcome-gift", handleOpenModal);
       window.removeEventListener("user_session_updated", handleAuthChange);
     };
@@ -182,7 +241,21 @@ export default function WelcomeGiftModal() {
 
   // Action: Claim the $5 USD Welcome Gift directly into S-Tech Wallet
   const handleClaimGift = async () => {
-    if (!currentUser) {
+    let user = currentUser || getEffectiveUser();
+    if (!user && auth.currentUser) {
+      user = {
+        id: auth.currentUser.uid,
+        uid: auth.currentUser.uid,
+        firebase_uid: auth.currentUser.uid,
+        name: auth.currentUser.displayName || auth.currentUser.email?.split("@")[0] || "Customer",
+        display_name: auth.currentUser.displayName || auth.currentUser.email?.split("@")[0] || "Customer",
+        email: auth.currentUser.email || null,
+        provider: "google",
+      };
+      setCurrentUser(user);
+    }
+
+    if (!user) {
       handleClose();
       router.push("/login?redirect=/?gift=welcome5");
       return;
@@ -192,7 +265,7 @@ export default function WelcomeGiftModal() {
     setIsClaiming(true);
     try {
       const res = await api.post("/user/claim-welcome-gift");
-      const uid = currentUser.uid || currentUser.firebase_uid || currentUser.id || "guest";
+      const uid = user.uid || user.firebase_uid || user.id || "guest";
       localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
       setHasClaimed(true);
 
@@ -212,7 +285,7 @@ export default function WelcomeGiftModal() {
       window.dispatchEvent(new CustomEvent("stech_wallet_updated", { detail: { balance: newBal } }));
     } catch (err: any) {
       // Even if already claimed, show success view
-      const uid = currentUser.uid || currentUser.firebase_uid || currentUser.id || "guest";
+      const uid = user.uid || user.firebase_uid || user.id || "guest";
       localStorage.setItem(`stech_claimed_gift_${uid}`, "true");
       setHasClaimed(true);
       playCelebrationSound();
@@ -246,38 +319,60 @@ export default function WelcomeGiftModal() {
       {/* ── Full Screen Confetti Particle Shower ── */}
       {showConfetti && <ConfettiShower duration={7000} />}
 
-      {/* ── Floating Gift Pill (Small button for user to click when they want) ── */}
-      {!isOpen && !hasClaimed && (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setIsOpen(true)}
-          data-welcome-gift="true"
-          className="welcome-gift-floating-btn fixed bottom-20 left-3.5 sm:bottom-7 sm:left-7 z-[7000] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-red-600/35 border-2 border-amber-300 ring-2 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all group backdrop-blur-md"
-          aria-label="បើកកាដូស្វាគមន៍ $5 USD"
-        >
-          <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 border border-amber-300 shadow-xs">
-            <Image
-              src="/logo.jpg"
-              alt="S Tech Store"
-              width={32}
-              height={32}
-              className="w-full h-full object-contain p-0.5"
-            />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
-          </div>
-          <div className="text-left">
-            <div className="leading-tight font-black flex items-center gap-1 text-[11px] sm:text-xs">
-              <span>កាដូ $5.00 ក្នុង Wallet</span>
-              <Sparkles size={11} className="text-amber-200" />
+      {/* ── Floating Gift Pill (Small button for user to click when they want, dismissible with X) ── */}
+      {!isOpen && !hasClaimed && !isPillDismissed && (
+        <div className="fixed bottom-20 left-3.5 sm:bottom-7 sm:left-7 z-[7000] flex items-center group">
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              checkEligibility();
+              setIsOpen(true);
+            }}
+            data-welcome-gift="true"
+            className="welcome-gift-floating-btn px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 via-red-600 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl shadow-red-600/35 border-2 border-amber-300 ring-2 ring-amber-400/25 flex items-center gap-2.5 cursor-pointer hover:brightness-110 active:scale-95 transition-all backdrop-blur-md"
+            aria-label="បើកកាដូស្វាគមន៍ $5 USD"
+          >
+            <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 border border-amber-300 shadow-xs">
+              <Image
+                src="/logo.jpg"
+                alt="S Tech Store"
+                width={32}
+                height={32}
+                className="w-full h-full object-contain p-0.5"
+              />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
             </div>
-            <div className="text-[9.5px] sm:text-[10px] text-amber-100 font-medium leading-none mt-0.5">
-              ចុចបើកយក $5
+            <div className="text-left">
+              <div className="leading-tight font-black flex items-center gap-1 text-[11px] sm:text-xs">
+                <span>កាដូ $5.00 ក្នុង Wallet</span>
+                <Sparkles size={11} className="text-amber-200" />
+              </div>
+              <div className="text-[9.5px] sm:text-[10px] text-amber-100 font-medium leading-none mt-0.5">
+                ចុចបើកយក $5
+              </div>
             </div>
-          </div>
-        </motion.button>
+          </motion.button>
+
+          {/* Close / Dismiss Floating Pill Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsPillDismissed(true);
+              try {
+                sessionStorage.setItem("stech_dismissed_floating_gift_pill", "true");
+              } catch (_) {}
+            }}
+            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-black/85 hover:bg-black text-white flex items-center justify-center text-xs shadow-md border border-white/40 cursor-pointer transition-all hover:scale-110 z-10"
+            aria-label="Close gift button"
+            title="បិទ (Close)"
+          >
+            <X size={12} strokeWidth={3} />
+          </button>
+        </div>
       )}
 
       {/* ── Master Welcome Gift Modal ── */}

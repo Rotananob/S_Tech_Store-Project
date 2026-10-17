@@ -34,6 +34,9 @@ const USD_TO_KHR = 4060;
 const fmtUSD = (n: number) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtKHR = (n: number) => `~ ${(Math.round(Number(n || 0) * USD_TO_KHR / 1000) * 1000).toLocaleString()} KHR`;
 
+// Active KHQR Checkout Session Storage Key (persists across tab reload & page close)
+const CHECKOUT_KHQR_STORAGE_KEY = "stech_active_khqr_checkout_session";
+
 // ─── Quick Delivery Note Suggestions ──────────────────────────────────────────
 const DELIVERY_NOTE_SUGGESTIONS = [
   { id: "call_before", label: "📞 ខលមកមុន 10 នាទី", text: "សូមខលមកមុនពេលមកដល់ 10 នាទី" },
@@ -1188,13 +1191,28 @@ export default function CheckoutPage() {
     const sessionRes = await createPaymentSession(newOrderId, payment, "USD");
 
     if (sessionRes.success && sessionRes.data) {
+      const expiresAt = Date.now() + 900 * 1000; // 15 mins timestamp
       setLoading(false);
       setKhqrSession(sessionRes.data);
       setShowKHQRModal(true);
       setTimeLeft(900); // 15 mins
       setPollStatus("idle");
       setCheckPaymentMessage(null);
-      startPaymentPolling(newOrderId);
+
+      // Persist active KHQR session so if user backs out or closes tab and comes back, it resumes with exact countdown!
+      try {
+        localStorage.setItem(
+          CHECKOUT_KHQR_STORAGE_KEY,
+          JSON.stringify({
+            orderId: newOrderId,
+            khqrSession: sessionRes.data,
+            payment,
+            expiresAt,
+          })
+        );
+      } catch (_) {}
+
+      startPaymentPolling(newOrderId, expiresAt);
     } else {
       setLoading(false);
       const errMsg = sessionRes.error || "បរាជ័យក្នុងការបង្កើត KHQR Code";
@@ -1204,24 +1222,51 @@ export default function CheckoutPage() {
   };
 
   // ─── Start KHQR 15-Minute Countdown (Client-side Timer Only - No Auto Polling) ──
-  const startPaymentPolling = (targetOrderId: string) => {
+  const startPaymentPolling = (targetOrderId: string, expiresTimestamp?: number) => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (pollingRef.current) clearInterval(pollingRef.current);
 
     setPollStatus("idle");
 
-    // 15-minute countdown (purely local client-side UI timer, ZERO background network calls)
+    const targetExpiresAt = expiresTimestamp || (Date.now() + 900 * 1000);
+    const initialRem = Math.max(0, Math.floor((targetExpiresAt - Date.now()) / 1000));
+    setTimeLeft(initialRem);
+
+    // 15-minute countdown based on exact wall-clock timestamp
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          markOrderFailed(targetOrderId, "KHQR Session Expired (15 minutes)");
-          return 0;
-        }
-        return prev - 1;
-      });
+      const rem = Math.max(0, Math.floor((targetExpiresAt - Date.now()) / 1000));
+      setTimeLeft(rem);
+      if (rem <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        try {
+          localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+        } catch (_) {}
+        markOrderFailed(targetOrderId, "KHQR Session Expired (15 minutes)");
+      }
     }, 1000);
   };
+
+  // ─── Restore Active KHQR Session on Page Mount / Revisit ──────────────────────
+  useEffect(() => {
+    try {
+      const rawSession = localStorage.getItem(CHECKOUT_KHQR_STORAGE_KEY);
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        const now = Date.now();
+        const remSecs = Math.max(0, Math.floor((Number(parsed.expiresAt) - now) / 1000));
+        if (remSecs > 0 && parsed.khqrSession && parsed.orderId) {
+          setOrderId(parsed.orderId);
+          setKhqrSession(parsed.khqrSession);
+          if (parsed.payment) setPayment(parsed.payment);
+          setTimeLeft(remSecs);
+          setShowKHQRModal(true);
+          startPaymentPolling(parsed.orderId, parsed.expiresAt);
+        } else {
+          localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+        }
+      }
+    } catch (_) {}
+  }, []);
 
   // ─── Check Payment Status (On Demand - Only When User Clicks!) ───────────────
   const handleCheckPaymentStatus = async () => {
@@ -1235,6 +1280,10 @@ export default function CheckoutPage() {
       const statusRes = await checkPaymentStatus(targetOrderId);
       if (statusRes.success && statusRes.data?.paid) {
         if (timerRef.current) clearInterval(timerRef.current);
+        try {
+          localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+        } catch (_) {}
+
         setPollStatus("paid");
         setCheckPaymentMessage({
           type: "success",
@@ -1272,6 +1321,9 @@ export default function CheckoutPage() {
 
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
+    try {
+      localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+    } catch (_) {}
 
     const res = await confirmManualPayment(orderId, payment);
     setLoading(false);
@@ -1336,6 +1388,10 @@ export default function CheckoutPage() {
 
   // ─── Finish Order & Show Done Screen ─────────────────────────────────────────
   const finishSuccessfulOrder = async (finalOrderId: string, txn: string) => {
+    try {
+      localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+    } catch (_) {}
+
     const currentPayment = payment;
     const isCOD = currentPayment === "cod";
     const fullAddress = deliveryNote.trim() 
@@ -2840,6 +2896,9 @@ export default function CheckoutPage() {
                     if (pollingRef.current) clearInterval(pollingRef.current);
                     if (timerRef.current) clearInterval(timerRef.current);
                     setCheckPaymentMessage(null);
+                    try {
+                      localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
+                    } catch (_) {}
                   }}
                   className="w-full py-1.5 text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
                 >

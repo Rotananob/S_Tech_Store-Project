@@ -118,19 +118,28 @@ export function getEffectiveUser(): EffectiveUser | null {
   try {
     const fbUser = auth.currentUser;
     if (fbUser) {
-      return {
+      const fbSession: EffectiveUser = {
         id: fbUser.uid,
         uid: fbUser.uid,
         firebase_uid: fbUser.uid,
-        name: fbUser.displayName || "Customer",
-        display_name: fbUser.displayName || "Customer",
-        displayName: fbUser.displayName || "Customer",
+        name: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
+        display_name: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
+        displayName: fbUser.displayName || fbUser.email?.split("@")[0] || "Customer",
         email: fbUser.email || null,
         phone: fbUser.phoneNumber || null,
         photo_url: fbUser.photoURL || null,
         photoURL: fbUser.photoURL || null,
         provider: "google",
       };
+
+      try {
+        if (!localStorage.getItem("stech_user_session")) {
+          localStorage.setItem("stech_user_session", JSON.stringify(fbSession));
+          localStorage.setItem("user_session", JSON.stringify(fbSession));
+        }
+      } catch (_) {}
+
+      return fbSession;
     }
   } catch (e) {}
 
