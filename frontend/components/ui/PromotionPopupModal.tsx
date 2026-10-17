@@ -436,7 +436,7 @@ export default function PromotionPopupModal() {
                 {/* Action Buttons */}
                 <div className="w-full mt-4 flex flex-col sm:flex-row items-center gap-2.5">
                   <Link
-                    href={promo.target_url || "/category/all"}
+                    href={resolvePromoTargetUrl(promo.target_url)}
                     onClick={handleManualClose}
                     className="w-full sm:flex-1 py-3 px-5 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-600 to-[#c0392b] hover:from-[#a62222] hover:to-[#d63031] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-red-900/40 hover:shadow-xl transition-all no-underline active:scale-98"
                   >
@@ -512,3 +512,16 @@ export default function PromotionPopupModal() {
     </>
   );
 }
+
+function resolvePromoTargetUrl(url?: string | null): string {
+  if (!url) return "/category/all";
+  let clean = url.trim();
+  if (!clean || clean === "#") return "/category/all";
+  if (/^https?:\/\//i.test(clean)) return clean;
+  if (!clean.startsWith("/")) clean = `/${clean}`;
+  if (clean === "/category" || clean === "/category/" || clean === "/all" || clean === "/all/") {
+    return "/category/all";
+  }
+  return clean;
+}
+

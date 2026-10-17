@@ -68,6 +68,18 @@ const dropCardVariants: Variants = {
   },
 };
 
+function resolvePromoTargetUrl(url?: string | null): string {
+  if (!url) return "/category/all";
+  let clean = url.trim();
+  if (!clean || clean === "#") return "/category/all";
+  if (/^https?:\/\//i.test(clean)) return clean;
+  if (!clean.startsWith("/")) clean = `/${clean}`;
+  if (clean === "/category" || clean === "/category/" || clean === "/all" || clean === "/all/") {
+    return "/category/all";
+  }
+  return clean;
+}
+
 const DEFAULT_HERO_SLIDES = [
   {
     title: "🎉 មហាប្រូម៉ូសិន ភ្ជុំបិណ្ឌ & Mega Deals",
@@ -151,7 +163,7 @@ export function HeroSection() {
             isGrandFestival: (p.name || "").includes("ភ្ជុំ") || (p.name || "").toLowerCase().includes("pchum"),
             isPromo: true,
             promoCode: p.code || null,
-            link: p.target_url || "/category/all",
+            link: resolvePromoTargetUrl(p.target_url),
             ctaText: "ទិញឥឡូវនេះ (Shop Now)",
           }));
           const nonPromoDefaults = DEFAULT_HERO_SLIDES.filter(s => !(s as any).isPromo);
@@ -171,7 +183,7 @@ export function HeroSection() {
                 isGrandFestival: (p.name || "").includes("ភ្ជុំ") || (p.name || "").toLowerCase().includes("pchum"),
                 isPromo: true,
                 promoCode: p.code || null,
-                link: p.target_url || "/category/all",
+                link: resolvePromoTargetUrl(p.target_url),
                 ctaText: "ទិញឥឡូវនេះ (Shop Now)",
               };
               const nonPromoDefaults = DEFAULT_HERO_SLIDES.filter(s => !(s as any).isPromo);

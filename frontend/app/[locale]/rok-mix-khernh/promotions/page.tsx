@@ -68,6 +68,18 @@ export default function PromotionManagementPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  const cleanTargetUrl = (url?: string | null): string | null => {
+    if (!url) return null;
+    let clean = url.trim();
+    if (!clean || clean === "#") return "/category/all";
+    if (/^https?:\/\//i.test(clean)) return clean;
+    if (!clean.startsWith("/")) clean = `/${clean}`;
+    if (clean === "/category" || clean === "/category/" || clean === "/all" || clean === "/all/") {
+      return "/category/all";
+    }
+    return clean;
+  };
+
   const fetchPromos = async () => {
     try {
       setLoading(true);
@@ -177,7 +189,7 @@ export default function PromotionManagementPage() {
         image_url: newPromo.image_url ? newPromo.image_url.trim() : null,
         show_popup: Boolean(newPromo.show_popup),
         description: newPromo.description ? newPromo.description.trim() : null,
-        target_url: newPromo.target_url ? newPromo.target_url.trim() : null,
+        target_url: cleanTargetUrl(newPromo.target_url),
       });
 
       await fetchPromos();
@@ -217,7 +229,7 @@ export default function PromotionManagementPage() {
         image_url: editPromo.image_url ? editPromo.image_url.trim() : null,
         show_popup: Boolean(editPromo.show_popup),
         description: editPromo.description ? editPromo.description.trim() : null,
-        target_url: editPromo.target_url ? editPromo.target_url.trim() : null,
+        target_url: cleanTargetUrl(editPromo.target_url),
       });
 
       await fetchPromos();
