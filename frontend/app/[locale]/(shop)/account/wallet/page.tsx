@@ -228,10 +228,10 @@ export default function WalletAndCoinsPage() {
         )}
       </AnimatePresence>
 
-      <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-[#07090e] text-gray-100 pb-32 sm:pb-24 pt-3 sm:pt-6 px-3.5 sm:px-6">
-        <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
+      <div className="w-full min-h-screen bg-[#07090e] text-gray-100 pb-32 sm:pb-24 pt-4 sm:pt-6 px-3.5 sm:px-6 lg:px-8">
+        <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto space-y-6">
           {/* Top Bar Navigation */}
-          <div className="flex items-center justify-between gap-3 bg-white/[0.02] border border-white/[0.06] p-2.5 sm:p-3 rounded-2xl backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3 bg-white/[0.02] border border-white/[0.06] p-3 sm:p-4 rounded-2xl backdrop-blur-md">
             <div className="flex items-center gap-2.5 min-w-0">
               <Link
                 href="/account/profile"
@@ -265,8 +265,12 @@ export default function WalletAndCoinsPage() {
             </button>
           </div>
 
-          {/* ── Section 1: Hero Balances (Cash Wallet & S-Coins Loyalty) ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-5">
+          {/* ── Main Responsive Grid: 1 Col on Mobile/Tablet, 2 Columns (7 cols + 5 cols) on Desktop ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Balances, Daily Check-in Streak, and Earn More Coins (7 cols on lg:) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* ── Section 1: Hero Balances (Cash Wallet & S-Coins Loyalty) ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
             {/* Card 1: Real USD Cash Wallet */}
             <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#1c0f11] via-[#120a0c] to-[#090b10] p-4.5 sm:p-6 border border-red-500/25 shadow-xl shadow-red-950/20 flex flex-col justify-between gap-4">
               {/* Subtle ambient light */}
@@ -318,10 +322,10 @@ export default function WalletAndCoinsPage() {
                 <button
                   type="button"
                   onClick={() => setShowTopupModal(true)}
-                  className="flex-1 py-2 sm:py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:brightness-110 text-white text-xs font-bold shadow-md shadow-red-950/50 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer"
+                  className="flex-1 min-w-0 py-2 sm:py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:brightness-110 text-white text-xs font-bold shadow-md shadow-red-950/50 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer"
                 >
-                  <Plus size={14} strokeWidth={2.5} />
-                  <span>បញ្ចូលលុយ (Top Up)</span>
+                  <Plus size={14} strokeWidth={2.5} className="shrink-0" />
+                  <span className="truncate">បញ្ចូលលុយ (Top Up)</span>
                 </button>
 
                 <button
@@ -332,7 +336,7 @@ export default function WalletAndCoinsPage() {
                   }}
                   className="py-2 sm:py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 text-xs font-semibold transition-all border border-white/[0.08] flex items-center gap-1 cursor-pointer shrink-0"
                 >
-                  <History size={13} />
+                  <History size={13} className="shrink-0" />
                   <span>ប្រវត្តិ</span>
                 </button>
               </div>
@@ -390,10 +394,10 @@ export default function WalletAndCoinsPage() {
                   type="button"
                   onClick={() => setShowConvertModal(true)}
                   disabled={(wallet?.coins ?? 0) < 50}
-                  className="flex-1 py-2 sm:py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:brightness-105 text-black text-xs font-bold shadow-md shadow-amber-950/40 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 min-w-0 py-2 sm:py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:brightness-105 text-black text-xs font-bold shadow-md shadow-amber-950/40 transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw size={12} />
-                  <span>ប្តូរកាក់ជាលុយ (Redeem)</span>
+                  <RefreshCw size={12} className="shrink-0" />
+                  <span className="truncate">ប្តូរកាក់ជាលុយ (Redeem)</span>
                 </button>
 
                 <Link
@@ -401,7 +405,7 @@ export default function WalletAndCoinsPage() {
                   className="py-2 sm:py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-gray-300 text-xs font-semibold transition-all border border-white/[0.08] flex items-center gap-1 no-underline shrink-0"
                 >
                   <span>ចាយកាក់</span>
-                  <ArrowRight size={12} />
+                  <ArrowRight size={12} className="shrink-0" />
                 </Link>
               </div>
             </div>
@@ -617,152 +621,157 @@ export default function WalletAndCoinsPage() {
               </div>
             </div>
           </div>
-
-          {/* ── Section 4: Transactions History (Ledger with Search, Delete & See More) ── */}
-          <div id="transaction-history" className="rounded-2xl sm:rounded-3xl bg-[#0d1017] p-4 sm:p-5.5 border border-white/[0.08] shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-                  <span>ប្រវត្តិប្រតិបត្តិការ (Transaction Ledger)</span>
-                  <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-gray-300 text-[10px] font-mono font-bold">
-                    {filteredTransactions.length}
-                  </span>
-                </h3>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  បង្ហាញត្រឹមតែ ១០ ប្រតិបត្តិការចុងក្រោយ (អាចស្វែងរកតាមកាលបរិច្ឆេទ ឬចុចមើលបន្ថែម)
-                </p>
-              </div>
-
-              {/* Action: Clear All if transactions exist */}
-              {transactions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllTransactions}
-                  disabled={clearing}
-                  className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                  title="សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់"
-                >
-                  {clearing ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                  <span>សម្អាតប្រវត្តិ (Clear All)</span>
-                </button>
-              )}
             </div>
+            {/* End Left Column */}
 
-            {/* Date Search & Preset Chips Bar */}
-            <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                {/* Date Picker Input */}
-                <div className="relative flex-1">
-                  <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    type="date"
-                    value={searchDate}
-                    onChange={(e) => {
-                      setSearchDate(e.target.value);
-                      setDatePreset("all");
-                      setVisibleCount(10);
-                    }}
-                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none font-mono"
-                    title="ជ្រើសរើសថ្ងៃជាក់លាក់ (Search by exact date)"
-                  />
-                  {searchDate && (
+            {/* Right Column: Sticky Transaction History Ledger (5 cols on desktop lg:) */}
+            <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
+              {/* ── Section 4: Transactions History (Ledger with Search, Delete & See More) ── */}
+              <div id="transaction-history" className="rounded-2xl sm:rounded-3xl bg-[#0d1017] p-4 sm:p-5.5 border border-white/[0.08] shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                      <span>ប្រវត្តិប្រតិបត្តិការ (Transaction Ledger)</span>
+                      <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-gray-300 text-[10px] font-mono font-bold">
+                        {filteredTransactions.length}
+                      </span>
+                    </h3>
+                    <p className="text-[10px] text-gray-400 mt-0.5">
+                      បង្ហាញត្រឹមតែ ១០ ប្រតិបត្តិការចុងក្រោយ (អាចស្វែងរកតាមកាលបរិច្ឆេទ ឬចុចមើលបន្ថែម)
+                    </p>
+                  </div>
+
+                  {/* Action: Clear All if transactions exist */}
+                  {transactions.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSearchDate("");
-                        setVisibleCount(10);
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
-                      title="សម្អាតថ្ងៃ (Clear date)"
+                      onClick={handleClearAllTransactions}
+                      disabled={clearing}
+                      className="self-start sm:self-auto px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 text-[10px] font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      title="សម្អាតប្រវត្តិប្រតិបត្តិការទាំងអស់"
                     >
-                      <X size={12} />
+                      {clearing ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                      <span>សម្អាតប្រវត្តិ (Clear All)</span>
                     </button>
                   )}
                 </div>
 
-                {/* Keyword search input */}
-                <div className="relative flex-1">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={searchKeyword}
-                    onChange={(e) => {
-                      setSearchKeyword(e.target.value);
-                      setVisibleCount(10);
-                    }}
-                    placeholder="ស្វែងរកតាមឈ្មោះ, Ref, ចំនួនទឹកប្រាក់..."
-                    className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
-                  />
-                  {searchKeyword && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchKeyword("");
-                        setVisibleCount(10);
-                      }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
-                      title="សម្អាតពាក្យស្វែងរក"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              </div>
+                {/* Date Search & Preset Chips Bar */}
+                <div className="p-3 rounded-2xl bg-white/[0.02] border border-white/[0.05] space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2">
+                    {/* Date Picker Input */}
+                    <div className="relative">
+                      <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="date"
+                        value={searchDate}
+                        onChange={(e) => {
+                          setSearchDate(e.target.value);
+                          setDatePreset("all");
+                          setVisibleCount(10);
+                        }}
+                        className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none font-mono"
+                        title="ជ្រើសរើសថ្ងៃជាក់លាក់ (Search by exact date)"
+                      />
+                      {searchDate && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchDate("");
+                            setVisibleCount(10);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                          title="សម្អាតថ្ងៃ (Clear date)"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
 
-              {/* Quick Presets & Category Filters */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/[0.04]">
-                {/* Date Presets */}
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px]">
-                  <span className="text-gray-500 mr-1 hidden sm:inline">កាលបរិច្ឆេទ:</span>
-                  {(
-                    [
-                      { id: "all", label: "ទាំងអស់ (All)" },
-                      { id: "today", label: "ថ្ងៃនេះ (Today)" },
-                      { id: "7days", label: "៧ ថ្ងៃ (7 Days)" },
-                      { id: "30days", label: "ខែនេះ (30 Days)" },
-                    ] as const
-                  ).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setDatePreset(p.id);
-                        setSearchDate("");
-                        setVisibleCount(10);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer whitespace-nowrap border ${
-                        datePreset === p.id && !searchDate
-                          ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                          : "bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] border-white/[0.04]"
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
+                    {/* Keyword search input */}
+                    <div className="relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={searchKeyword}
+                        onChange={(e) => {
+                          setSearchKeyword(e.target.value);
+                          setVisibleCount(10);
+                        }}
+                        placeholder="ស្វែងរកតាមឈ្មោះ, Ref..."
+                        className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder-gray-500 focus:border-red-500 focus:outline-none"
+                      />
+                      {searchKeyword && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchKeyword("");
+                            setVisibleCount(10);
+                          }}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-0.5 cursor-pointer bg-transparent border-none"
+                          title="សម្អាតពាក្យស្វែងរក"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                {/* Type Filter Buttons */}
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px]">
-                  {(["all", "deposit", "reward", "purchase"] as const).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => {
-                        setTxFilter(f);
-                        setVisibleCount(10);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg font-semibold transition-all border cursor-pointer whitespace-nowrap ${
-                        txFilter === f
-                          ? "bg-red-600 text-white border-red-500 shadow-xs"
-                          : "bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 border-white/[0.04]"
-                      }`}
-                    >
-                      {f === "all" ? "គ្រប់ប្រភេទ" : f === "deposit" ? "បញ្ចូលលុយ" : f === "reward" ? "កាក់" : "ការទិញ"}
-                    </button>
-                  ))}
+                  {/* Quick Presets & Category Filters */}
+                  <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                    {/* Date Presets */}
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px] pb-0.5">
+                      <span className="text-gray-500 mr-1 text-[10px] shrink-0">កាលបរិច្ឆេទ:</span>
+                      {(
+                        [
+                          { id: "all", label: "ទាំងអស់" },
+                          { id: "today", label: "ថ្ងៃនេះ" },
+                          { id: "7days", label: "៧ ថ្ងៃ" },
+                          { id: "30days", label: "ខែនេះ" },
+                        ] as const
+                      ).map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setDatePreset(p.id);
+                            setSearchDate("");
+                            setVisibleCount(10);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer whitespace-nowrap border text-[10px] ${
+                            datePreset === p.id && !searchDate
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                              : "bg-white/[0.03] text-gray-400 hover:bg-white/[0.06] border-white/[0.04]"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Type Filter Buttons */}
+                    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar text-[10px] pb-0.5">
+                      <span className="text-gray-500 mr-1 text-[10px] shrink-0">ប្រភេទ:</span>
+                      {(["all", "deposit", "reward", "purchase"] as const).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => {
+                            setTxFilter(f);
+                            setVisibleCount(10);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg font-semibold transition-all border cursor-pointer whitespace-nowrap text-[10px] ${
+                            txFilter === f
+                              ? "bg-red-600 text-white border-red-500 shadow-xs"
+                              : "bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 border-white/[0.04]"
+                          }`}
+                        >
+                          {f === "all" ? "គ្រប់ប្រភេទ" : f === "deposit" ? "បញ្ចូលលុយ" : f === "reward" ? "កាក់" : "ការទិញ"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
             {/* List */}
             {filteredTransactions.length === 0 ? (
@@ -793,7 +802,7 @@ export default function WalletAndCoinsPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="divide-y divide-white/[0.04]">
+                <div className="divide-y divide-white/[0.04] max-h-[560px] lg:max-h-[640px] overflow-y-auto pr-1">
                   {displayedTransactions.map((tx) => {
                     const isDeposit = tx.type === "deposit";
                     const isReward = tx.type === "coin_reward";
@@ -943,8 +952,15 @@ export default function WalletAndCoinsPage() {
               </div>
             )}
           </div>
+          {/* End Section 4 */}
         </div>
+        {/* End Right Column */}
       </div>
+      {/* End Main Responsive Grid */}
+    </div>
+    {/* End max-w-7xl */}
+  </div>
+  {/* End min-h-screen */}
 
       {/* Topup Modal */}
       <WalletTopupModal
