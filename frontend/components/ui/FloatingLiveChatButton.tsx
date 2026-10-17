@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { MessageSquare, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChatStore } from "@/store/chatStore";
 import { getActiveCustomerChatId, subscribeToChatMeta, markChatReadByUser } from "@/lib/services/chat.service";
 
 export default function FloatingLiveChatButton() {
+  const pathname = usePathname();
   const { isOpen, openChat } = useChatStore();
   const [unreadCount, setUnreadCount] = useState(0);
   const [dismissBubble, setDismissBubble] = useState(false);
@@ -44,8 +46,8 @@ export default function FloatingLiveChatButton() {
     openChat();
   };
 
-  // If already open or on mobile (handled by BottomNav), hide button
-  if (isOpen) return null;
+  // If already open, on checkout, or on mobile (handled by BottomNav), hide button
+  if (isOpen || pathname?.includes("/checkout")) return null;
 
   return (
     <div className="hidden lg:flex fixed bottom-7 right-7 z-[8000] flex-col items-end pointer-events-auto">

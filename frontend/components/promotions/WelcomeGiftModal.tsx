@@ -21,10 +21,12 @@ export default function WelcomeGiftModal() {
 
   // Check if current page is any part of the Admin / Staff Portal
   const isClient = typeof window !== "undefined";
-  const browserPath = isClient ? window.location.pathname.toLowerCase() : "";
   const currentPath = (pathname || "").toLowerCase();
+  const browserPath = isClient ? window.location.pathname.toLowerCase() : "";
+  const isCheckoutRoute = currentPath.includes("checkout") || browserPath.includes("checkout");
 
   const isAdminRoute = 
+    isCheckoutRoute ||
     currentPath.includes("rok-mix-khernh") ||
     currentPath.includes("admin") ||
     currentPath.includes("master-control") ||

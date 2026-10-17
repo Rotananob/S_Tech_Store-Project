@@ -195,7 +195,7 @@ export default function PromotionPopupModal() {
     setIsOpen(true);
   };
 
-  if (isAdminRoute || !promo) return null;
+  if (isAdminRoute || pathname?.includes("/checkout") || !promo) return null;
 
   const promoCode = promo.code || "";
 

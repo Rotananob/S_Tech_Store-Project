@@ -167,6 +167,8 @@ export default function RealtimeCoinRewardPopup() {
     router.push("/account/wallet");
   };
 
+  if (pathname?.includes("/checkout")) return null;
+
   return (
     <>
       {showConfetti && <ConfettiShower durationMs={5000} />}

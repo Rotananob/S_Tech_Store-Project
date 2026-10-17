@@ -20,7 +20,7 @@ import {
   Clock, Check, RefreshCw, AlertCircle, Sparkles, Tag, Ticket, Printer, FileText,
   Truck, MapPin, User, Phone, ChevronRight, ArrowLeft, Shield, Award, HelpCircle,
   Building, CheckSquare, Zap, BadgePercent, Store, Navigation, Crosshair, Send,
-  LocateFixed, Globe, Map, Wallet, Plus
+  LocateFixed, Globe, Map, Wallet, Plus, ShoppingBag
 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -107,45 +107,45 @@ function StepBar({ step }: { step: number }) {
   ];
 
   return (
-    <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar py-1">
+    <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto no-scrollbar py-1.5">
       {steps.map((s, idx) => {
         const isActive = s.num === step;
         const isDone = s.num < step;
 
         return (
-          <div key={s.num} className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <div className="flex items-center gap-2">
+          <div key={s.num} className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all border ${
+              isActive
+                ? "bg-red-500/10 border-red-500/35 text-red-600 dark:text-red-400 shadow-xs"
+                : isDone
+                ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
+                : "bg-gray-100/60 dark:bg-white/[0.03] border-gray-200/60 dark:border-white/[0.06] text-gray-400"
+            }`}>
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 transition-all shadow-xs ${
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-black shrink-0 transition-all ${
                   isActive
-                    ? "bg-[#8B1A1A] text-white ring-4 ring-red-100 dark:ring-red-950/60 scale-105"
+                    ? "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs"
                     : isDone
                     ? "bg-emerald-600 text-white"
-                    : "bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-gray-500"
+                    : "bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-400"
                 }`}
               >
-                {isDone ? <Check size={14} strokeWidth={3} /> : s.num}
+                {isDone ? <Check size={12} strokeWidth={3} /> : s.num}
               </div>
-              <div className="flex flex-col">
-                <span
-                  className={`text-xs font-extrabold transition-colors leading-tight ${
-                    isActive
-                      ? "text-[#8B1A1A] dark:text-red-400"
-                      : isDone
-                      ? "text-emerald-700 dark:text-emerald-400"
-                      : "text-gray-400 dark:text-gray-500"
-                  }`}
-                >
+              <div className="flex items-baseline gap-1.5">
+                <span className={`text-xs font-bold leading-tight ${
+                  isActive ? "text-gray-900 dark:text-white" : isDone ? "text-gray-800 dark:text-gray-200" : "text-gray-400"
+                }`}>
                   {s.labelKm}
                 </span>
                 <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
-                  {s.label}
+                  • {s.label}
                 </span>
               </div>
             </div>
 
             {idx < steps.length - 1 && (
-              <ChevronRight size={14} className="text-gray-300 dark:text-gray-700 shrink-0 mx-1" />
+              <ChevronRight size={13} className="text-gray-300 dark:text-gray-700 shrink-0" />
             )}
           </div>
         );
@@ -1466,9 +1466,9 @@ export default function CheckoutPage() {
   return (
     <div className="bg-[#f8f9fa] dark:bg-[#090a0f] min-h-screen text-gray-900 dark:text-gray-100 pb-36 lg:pb-20 font-sans">
       {/* ── Top Header & Trust Banner ── */}
-      <div className="bg-white dark:bg-[#12151e] border-b border-gray-200/80 dark:border-white/10 pt-6 pb-4 shadow-2xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+      <div className="bg-white/90 dark:bg-[#12151e]/90 backdrop-blur-xl border-b border-gray-200/80 dark:border-white/10 pt-6 pb-4 shadow-xs sticky top-0 z-30">
+        <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-3.5">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-gray-500 mb-1">
                 <Link href="/cart" className="hover:text-[#8B1A1A] flex items-center gap-1 transition-colors no-underline">
@@ -1484,7 +1484,8 @@ export default function CheckoutPage() {
             </div>
 
             {/* Trust Assurance Pill */}
-            <div className="inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-800 dark:text-emerald-300 self-start sm:self-auto shadow-2xs">
+            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 px-3.5 py-1.5 rounded-full text-xs font-bold text-emerald-700 dark:text-emerald-300 self-start sm:self-auto shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <Lock size={13} className="text-emerald-600 dark:text-emerald-400" />
               <span>256-Bit SSL Encrypted & Bank Guaranteed</span>
             </div>
@@ -1494,24 +1495,24 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-28 lg:pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_430px] gap-8 items-start">
+      <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-28 lg:pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           
-          {/* ── LEFT COLUMN: Shipping & Payment ─────────────────────────────── */}
-          <div className="space-y-6">
+          {/* ── LEFT COLUMN: Shipping & Payment (7 cols on lg, 8 on xl) ─────────────────────────────── */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
 
             {/* 1. DELIVERY OPTIONS SECTION */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+            <section className="bg-white dark:bg-[#12151e] border border-gray-200/80 dark:border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
-                    <Truck size={19} />
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-600 text-white flex items-center justify-center font-bold shadow-md shadow-red-950/40 shrink-0">
+                    <Truck size={20} />
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                    <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
                       តំបន់ដឹកជញ្ជូន • Delivery Options
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       ជ្រើសរើសទីតាំងដើម្បីទទួលបានរយៈពេល និងថ្លៃដឹកជញ្ជូនច្បាស់លាស់
                     </p>
                   </div>
@@ -1519,7 +1520,7 @@ export default function CheckoutPage() {
               </div>
 
               {/* Delivery Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-2">
                 {[
                   { 
                     id: "pnompenh", 
@@ -1544,21 +1545,25 @@ export default function CheckoutPage() {
                       key={opt.id}
                       type="button"
                       onClick={() => setDelivery(opt.id as typeof delivery)}
-                      className={`p-4 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3 ${
+                      className={`p-4.5 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3.5 group ${
                         isSelected
-                          ? "border-[#8B1A1A] bg-red-50/25 dark:bg-red-950/20 dark:border-red-500/80 ring-1 ring-[#8B1A1A]/20 shadow-xs"
-                          : "border-gray-200/90 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20"
+                          ? "border-red-500/90 bg-gradient-to-br from-red-500/[0.06] via-red-500/[0.02] to-transparent dark:from-red-950/40 dark:via-red-950/15 dark:to-transparent ring-2 ring-red-500/25 shadow-md shadow-red-950/10"
+                          : "border-gray-200/90 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20 hover:shadow-xs"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{opt.icon}</span>
-                          <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300">
+                          <span className="text-2xl group-hover:scale-110 transition-transform">{opt.icon}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                            opt.tag === "Express"
+                              ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                              : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                          }`}>
                             {opt.tag}
                           </span>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white shadow-xs" : "border-gray-300 dark:border-white/20"
+                          isSelected ? "border-red-600 bg-red-600 text-white shadow-xs" : "border-gray-300 dark:border-white/25"
                         }`}>
                           {isSelected && <Check size={11} strokeWidth={3} />}
                         </div>
@@ -1568,14 +1573,14 @@ export default function CheckoutPage() {
                         <div className="text-sm font-black text-gray-900 dark:text-white">
                           {opt.label}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
                           {opt.sub}
                         </div>
                       </div>
 
-                      <div className="pt-2.5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-xs text-gray-500 font-medium">ថ្លៃដឹកជញ្ជូន Fee</span>
-                        <span className="text-sm font-black text-[#8B1A1A] dark:text-red-400 font-mono">
+                      <div className="pt-3 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                        <span className="text-xs text-gray-500 font-semibold">ថ្លៃសេវាដឹកជញ្ជូន Fee</span>
+                        <span className="text-sm font-black text-red-600 dark:text-red-400 font-mono px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20">
                           ${opt.fee.toFixed(2)}
                         </span>
                       </div>
@@ -1586,31 +1591,31 @@ export default function CheckoutPage() {
             </section>
 
             {/* 2. RECIPIENT INFORMATION FORM */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+            <section className="bg-white dark:bg-[#12151e] border border-gray-200/80 dark:border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
-                    <User size={18} />
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-950/40 shrink-0">
+                    <User size={20} />
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                    <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
                       ព័ត៌មានអ្នកទទួលទំនិញ • Recipient Details
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       បំពេញឈ្មោះ លេខទូរស័ព្ទ និងអាសយដ្ឋានដឹកជញ្ជូនឱ្យបានច្បាស់លាស់
                     </p>
                   </div>
                 </div>
                 {profileAutoFilled && (
-                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0">
-                    <CheckCircle2 size={12} />
+                  <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full flex items-center gap-1.5 shrink-0 shadow-2xs">
+                    <CheckCircle2 size={13} className="text-emerald-500" />
                     <span className="hidden sm:inline">Auto-filled from profile</span>
                     <span className="sm:hidden">Auto-filled</span>
                   </span>
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 sm:space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -1626,7 +1631,7 @@ export default function CheckoutPage() {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="ឧ. សុខា ចាន់ (Sokha Chan)"
-                        className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all placeholder:text-gray-400"
+                        className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-gray-50/70 dark:bg-white/[0.03] border border-gray-200/90 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white dark:focus:bg-[#151922] focus:ring-4 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all placeholder:text-gray-400"
                       />
                     </div>
                   </div>
@@ -1640,20 +1645,20 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={handleGetTelegramPhone}
                         disabled={phoneSyncLoading}
-                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-md transition-all active:scale-95 disabled:opacity-60"
+                        className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5 cursor-pointer bg-blue-500/10 hover:bg-blue-500/15 border border-blue-500/20 px-2.5 py-1 rounded-xl transition-all active:scale-95 disabled:opacity-60"
                         title="យកលេខទូរស័ព្ទពី Telegram ដោយស្វ័យប្រវត្តិ"
                       >
                         {phoneSyncLoading ? (
-                          <Loader2 size={11} className="animate-spin text-blue-600 dark:text-blue-400" />
+                          <Loader2 size={12} className="animate-spin text-blue-600 dark:text-blue-400" />
                         ) : (
-                          <Smartphone size={11} />
+                          <Smartphone size={12} />
                         )}
                         <span>{phoneSyncLoading ? "កំពុងចាប់..." : "យកពី Telegram"}</span>
                       </button>
                     </div>
 
                     {phoneSyncSuccessMsg && (
-                      <div className="mb-2 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+                      <div className="mb-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
                         <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
                         <span>{phoneSyncSuccessMsg}</span>
                       </div>
@@ -1668,14 +1673,14 @@ export default function CheckoutPage() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="012 345 678"
-                        className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all font-mono placeholder:text-gray-400"
+                        className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-gray-50/70 dark:bg-white/[0.03] border border-gray-200/90 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white dark:focus:bg-[#151922] focus:ring-4 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all font-mono placeholder:text-gray-400"
                       />
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
                     <label className="block text-xs font-bold text-gray-700 dark:text-gray-300">
                       អាសយដ្ឋានដឹកជញ្ជូនលម្អិត (Delivery Address) *
                     </label>
@@ -1688,7 +1693,7 @@ export default function CheckoutPage() {
                           setActiveLocationMode("google");
                           setGpsError("");
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                           activeLocationMode === "google"
                             ? "bg-white dark:bg-[#181d28] text-emerald-600 dark:text-emerald-400 shadow-xs border border-emerald-500/30"
                             : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
@@ -1704,7 +1709,7 @@ export default function CheckoutPage() {
                           setActiveLocationMode("telegram");
                           setGpsError("");
                         }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                           activeLocationMode === "telegram"
                             ? "bg-white dark:bg-[#181d28] text-sky-600 dark:text-sky-400 shadow-xs border border-sky-500/30"
                             : "text-gray-500 hover:text-gray-800 dark:text-gray-400"
@@ -1718,7 +1723,7 @@ export default function CheckoutPage() {
 
                   {/* ── Option 1: Google Maps Sub-bar ── */}
                   {activeLocationMode === "google" && (
-                    <div className="mb-2.5 p-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+                    <div className="mb-3 p-2.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 flex flex-wrap items-center justify-between gap-2.5 animate-fadeIn">
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Browser GPS button with Watchdog */}
                         <button
@@ -1730,7 +1735,7 @@ export default function CheckoutPage() {
                             triggerBrowserGPS();
                           }}
                           disabled={gpsLoading}
-                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm shadow-emerald-950/30 disabled:opacity-60"
                           title="ចាប់យកទីតាំងតាម Browser GPS"
                         >
                           {gpsLoading ? (
@@ -1746,7 +1751,7 @@ export default function CheckoutPage() {
                           href="https://www.google.com/maps"
                           target="_blank"
                           rel="noreferrer"
-                          className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#12151e] border border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 text-emerald-800 dark:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer no-underline"
+                          className="px-3 py-2 rounded-xl bg-white dark:bg-[#12151e] border border-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer no-underline"
                           title="បើកគេហទំព័រ Google Maps ដើម្បីរើស និងចម្លង Link ទីតាំង"
                         >
                           <Globe size={13} className="text-emerald-600 dark:text-emerald-400" />
@@ -1759,7 +1764,7 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setShowManualPasteInput((prev) => !prev)}
-                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 underline cursor-pointer px-1 py-0.5"
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 underline cursor-pointer px-2 py-1"
                       >
                         {showManualPasteInput ? "បិទ" : "📋 បិទភ្ជាប់ Link Maps"}
                       </button>
@@ -1768,14 +1773,14 @@ export default function CheckoutPage() {
 
                   {/* ── Option 2: Telegram Location Sub-bar ── */}
                   {activeLocationMode === "telegram" && (
-                    <div className="mb-2.5 p-2 rounded-xl bg-sky-50/80 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40 flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+                    <div className="mb-3 p-2.5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40 flex flex-wrap items-center justify-between gap-2.5 animate-fadeIn">
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* Telegram Sync Button */}
                         <button
                           type="button"
                           onClick={handleGetTelegramLocation}
                           disabled={telegramLocLoading}
-                          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-xs disabled:opacity-60"
+                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm shadow-sky-950/30 disabled:opacity-60"
                           title={isInsideMiniApp ? "ចាប់យកទីតាំងផ្ទាល់ក្នុង Mini App ដោយមិនបាច់បិទកម្មវិធី" : "យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"}
                         >
                           {telegramLocLoading ? (
@@ -1802,7 +1807,7 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setShowManualPasteInput((prev) => !prev)}
-                        className="text-[11px] font-bold text-sky-700 hover:text-sky-900 dark:text-sky-300 underline cursor-pointer px-1 py-0.5"
+                        className="text-[11px] font-bold text-sky-700 hover:text-sky-900 dark:text-sky-300 underline cursor-pointer px-2 py-1"
                       >
                         {showManualPasteInput ? "បិទ" : "📋 បិទភ្ជាប់ Pin Link"}
                       </button>
@@ -1811,22 +1816,22 @@ export default function CheckoutPage() {
 
                   {/* Optional Inline Paste Input (Zero Intrusive Popup) */}
                   {showManualPasteInput && (
-                    <div className="mb-2.5 p-3 rounded-xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 animate-fadeIn">
+                    <div className="mb-3 p-3 rounded-2xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 animate-fadeIn">
                       <div className="relative flex-1">
-                        <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-500" />
+                        <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sky-500" />
                         <input
                           type="text"
                           value={manualLinkInput}
                           onChange={(e) => setManualLinkInput(e.target.value)}
                           placeholder="បិទភ្ជាប់ Link Google Maps ឬ Telegram Pin ឬ Coordinates..."
-                          className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-white dark:bg-[#12151e] border border-sky-200 dark:border-sky-800 text-xs outline-none text-gray-900 dark:text-white font-mono placeholder:text-gray-400"
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-[#12151e] border border-sky-200 dark:border-sky-800 text-xs outline-none text-gray-900 dark:text-white font-mono placeholder:text-gray-400"
                         />
                       </div>
                       <button
                         type="button"
                         onClick={handleManualPasteSubmit}
                         disabled={manualPasteLoading || !manualLinkInput.trim()}
-                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs cursor-pointer disabled:opacity-50 shrink-0"
+                        className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs cursor-pointer disabled:opacity-50 shrink-0"
                       >
                         {manualPasteLoading ? "កំពុងទាញ..." : "បំពេញ"}
                       </button>
@@ -1843,12 +1848,12 @@ export default function CheckoutPage() {
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="ផ្ទះលេខ, ផ្លូវលេខ, សង្កាត់/ឃុំ, ខណ្ឌ/ស្រុក, រាជធានី ឬ ខេត្ត..."
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all resize-none shadow-2xs placeholder:text-gray-400"
+                      className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-gray-50/70 dark:bg-white/[0.03] border border-gray-200/90 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white dark:focus:bg-[#151922] focus:ring-4 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all resize-none shadow-2xs placeholder:text-gray-400"
                     />
                   </div>
 
                   {gpsCoords && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200 shadow-2xs">
+                    <div className="mt-2.5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200 shadow-2xs">
                       <div className="flex items-center gap-2 truncate">
                         <Crosshair size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span className="font-mono font-bold">
@@ -1871,15 +1876,15 @@ export default function CheckoutPage() {
                   )}
 
                   {gpsError && (
-                    <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-900/40">
+                    <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5 bg-red-500/10 p-3 rounded-2xl border border-red-500/20">
                       <AlertCircle size={14} className="shrink-0" />
                       <span>{gpsError}</span>
                     </div>
                   )}
 
                   {locationSuccessMsg && !gpsError && (
-                    <div className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 size={12} />
+                    <div className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 size={13} />
                       <span>{locationSuccessMsg}</span>
                     </div>
                   )}
@@ -1897,14 +1902,14 @@ export default function CheckoutPage() {
                       type="text"
                       value={deliveryNote}
                       onChange={(e) => setDeliveryNote(e.target.value)}
-                      placeholder="ឧ. ផ្ទះរបងពណ៌ស ក្បែរផ្សារទួលទំពូង ឬ ហៅទូរស័ព្ទមុនមកដល់..."
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50/70 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm focus:border-[#8B1A1A] focus:bg-white dark:focus:bg-[#12151e] focus:ring-2 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all shadow-2xs placeholder:text-gray-400"
+                      placeholder="ឧ. ផ្ទះរបងពណ៌ស ក្បែរផ្សារ ឬ ហៅទូរស័ព្ទមុនមកដល់..."
+                      className="w-full pl-11 pr-4 py-3 sm:py-3.5 rounded-2xl bg-gray-50/70 dark:bg-white/[0.03] border border-gray-200/90 dark:border-white/10 text-sm focus:border-red-500 focus:bg-white dark:focus:bg-[#151922] focus:ring-4 focus:ring-red-500/10 outline-none text-gray-900 dark:text-white transition-all shadow-2xs placeholder:text-gray-400"
                     />
                   </div>
 
-                  {/* Horizontal Scrollable Clean Chips (Taobao / Meituan style) */}
-                  <div className="mt-2.5">
-                    <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                  {/* Horizontal Scrollable Clean Chips */}
+                  <div className="mt-3">
+                    <div className="text-[11px] font-bold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-1.5">
                       <Sparkles size={12} className="text-amber-500 shrink-0" />
                       <span>កំណត់ចំណាំរហ័ស (Quick Tap Suggestions):</span>
                     </div>
@@ -1916,9 +1921,9 @@ export default function CheckoutPage() {
                             key={sug.id}
                             type="button"
                             onClick={() => handleToggleNoteSuggestion(sug.text)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 active:scale-95 border ${
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 active:scale-95 border ${
                               isSelected
-                                ? "bg-[#8B1A1A] text-white border-[#8B1A1A] shadow-xs"
+                                ? "bg-red-600 text-white border-red-600 shadow-xs"
                                 : "bg-gray-100/80 dark:bg-white/5 hover:bg-gray-200/80 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 border-gray-200/60 dark:border-white/10"
                             }`}
                           >
@@ -1934,24 +1939,24 @@ export default function CheckoutPage() {
             </section>
 
             {/* 3. PAYMENT METHOD SELECTOR */}
-            <section className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-sm overflow-hidden">
+            <section className="bg-white dark:bg-[#12151e] border border-gray-200/80 dark:border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 flex items-center justify-center font-bold shadow-2xs shrink-0">
-                    <CreditCard size={18} />
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-rose-600 to-red-600 text-white flex items-center justify-center font-bold shadow-md shadow-red-950/40 shrink-0">
+                    <CreditCard size={20} />
                   </div>
                   <div>
-                    <h2 className="text-base font-black text-gray-900 dark:text-white">
+                    <h2 className="text-base sm:text-lg font-black text-gray-900 dark:text-white">
                       វិធីសាស្ត្រទូទាត់ប្រាក់ • Payment Method
                     </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                       ទូទាត់រហ័សតាមធនាគារក្នុងស្រុក កាតអន្តរជាតិ ឬសាច់ប្រាក់សុទ្ធ
                     </p>
                   </div>
                 </div>
 
-                <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-800/40 px-3 py-1 rounded-full font-bold">
-                  <Lock size={12} />
+                <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full font-bold shadow-2xs">
+                  <Lock size={12} className="text-emerald-500" />
                   <span>256-Bit SSL Protected</span>
                 </div>
               </div>
@@ -1967,18 +1972,18 @@ export default function CheckoutPage() {
                     setPayment("wallet");
                   }
                 }}
-                className={`p-4 sm:p-5 rounded-2xl mb-5 transition-all border cursor-pointer select-none text-left relative ${
+                className={`p-4.5 sm:p-5 rounded-2xl mb-5 transition-all border cursor-pointer select-none text-left relative group ${
                   payment === "wallet"
-                    ? "bg-emerald-50/60 dark:bg-emerald-950/25 border-emerald-500 ring-2 ring-emerald-500/50 shadow-md"
-                    : "bg-gray-50/70 dark:bg-white/[0.03] border-gray-200/90 dark:border-white/10 hover:border-emerald-400 dark:hover:border-emerald-600/50 hover:bg-emerald-50/20"
+                    ? "border-emerald-500/90 bg-gradient-to-br from-emerald-500/[0.08] via-teal-500/[0.04] to-transparent dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-transparent ring-2 ring-emerald-500/25 shadow-md shadow-emerald-950/20"
+                    : "border-gray-200/90 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.02] hover:border-emerald-500/40 hover:bg-emerald-500/[0.02]"
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 transition-all ${
                       payment === "wallet"
-                        ? "bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-950/40"
-                        : "bg-gradient-to-tr from-[#8B1A1A] to-red-600 shadow-red-950/50"
+                        ? "bg-gradient-to-tr from-emerald-600 to-teal-600 shadow-emerald-950/40 scale-105"
+                        : "bg-gradient-to-tr from-[#8B1A1A] to-red-600 shadow-red-950/40"
                     }`}>
                       <Wallet size={20} />
                     </div>
@@ -1987,16 +1992,17 @@ export default function CheckoutPage() {
                         <h4 className="text-sm font-black text-gray-900 dark:text-white">
                           កាបូបលុយ S-Tech Real Wallet
                         </h4>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold flex items-center gap-1 ${
                           payment === "wallet"
-                            ? "bg-emerald-500 text-white"
-                            : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                            ? "bg-emerald-600 text-white shadow-2xs"
+                            : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                         }`}>
-                          1-Click Instant Pay
+                          <Sparkles size={10} />
+                          <span>1-Click Instant Pay</span>
                         </span>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        សមតុល្យបច្ចុប្បន្ន: <strong className="text-gray-900 dark:text-white font-mono">${walletBalance.toFixed(2)} USD</strong> (~ {Math.round(walletBalance * USD_TO_KHR).toLocaleString()} KHR)
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        សមតុល្យបច្ចុប្បន្ន: <strong className="text-gray-900 dark:text-white font-mono text-sm">${walletBalance.toFixed(2)} USD</strong> (~ {Math.round(walletBalance * USD_TO_KHR).toLocaleString()} KHR)
                       </p>
                     </div>
                   </div>
@@ -2009,14 +2015,14 @@ export default function CheckoutPage() {
                           e.stopPropagation();
                           setShowWalletTopupModal(true);
                         }}
-                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:brightness-110 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-md shadow-red-950/40 active:scale-95 transition-all"
+                        className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black cursor-pointer flex items-center gap-1.5 shadow-sm shadow-emerald-950/30 active:scale-95 transition-all"
                       >
                         <Plus size={13} strokeWidth={3} />
                         <span>បញ្ចូលលុយ (Top Up)</span>
                       </button>
                     )}
 
-                    {/* Radio Check Circle matching ABA / Bakong */}
+                    {/* Radio Check Circle */}
                     <div className="flex items-center gap-2">
                       <span className={`text-xs font-bold ${
                         payment === "wallet" ? "text-emerald-600 dark:text-emerald-400" : "text-gray-400"
@@ -2035,7 +2041,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {payment === "wallet" && (
-                  <div className="mt-3 pt-3 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+                  <div className="mt-3.5 pt-3.5 border-t border-emerald-500/20 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                     <div className="flex items-center gap-1.5">
                       <CheckCircle2 size={15} />
                       <span>
@@ -2057,18 +2063,18 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 {payment !== "wallet" && walletBalance < Number(total) && (
-                  <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                  <div className="mt-2.5 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                     ⚠️ សមតុល្យខ្វះ ${(Number(total) - walletBalance).toFixed(2)} USD — ចុចទីនេះដើម្បីជ្រើសរើស ឬចុចបញ្ចូលលុយ Top Up
                   </div>
                 )}
               </div>
 
-              <div className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+              <div className="text-xs font-bold text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-1.5">
                 <span>វិធីសាស្ត្រទូទាត់តាមធនាគារ & កាត (Bank & Card Methods):</span>
               </div>
 
               {/* Payment Method Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
                 {PAYMENT_METHODS.map((pm) => {
                   const isSelected = payment === pm.id;
                   return (
@@ -2076,10 +2082,10 @@ export default function CheckoutPage() {
                       key={pm.id}
                       type="button"
                       onClick={() => setPayment(pm.id)}
-                      className={`p-4 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3 ${
+                      className={`p-4.5 rounded-2xl text-left transition-all relative border cursor-pointer flex flex-col justify-between gap-3.5 group ${
                         isSelected
-                          ? "border-[#8B1A1A] bg-red-50/25 dark:bg-red-950/20 dark:border-red-500/80 ring-1 ring-[#8B1A1A]/20 shadow-xs"
-                          : "border-gray-200/90 dark:border-white/10 bg-gray-50/40 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20"
+                          ? "border-red-500/90 bg-gradient-to-br from-red-500/[0.06] via-red-500/[0.02] to-transparent dark:from-red-950/40 dark:via-red-950/15 dark:to-transparent ring-2 ring-red-500/25 shadow-md shadow-red-950/10"
+                          : "border-gray-200/90 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.02] hover:border-gray-300 dark:hover:border-white/20 hover:shadow-xs"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -2089,7 +2095,7 @@ export default function CheckoutPage() {
                             {pm.badge}
                           </span>
                           <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                            isSelected ? "border-[#8B1A1A] bg-[#8B1A1A] text-white shadow-xs" : "border-gray-300 dark:border-white/20"
+                            isSelected ? "border-red-600 bg-red-600 text-white shadow-xs" : "border-gray-300 dark:border-white/20"
                           }`}>
                             {isSelected && <Check size={11} strokeWidth={3} />}
                           </div>
@@ -2227,8 +2233,8 @@ export default function CheckoutPage() {
 
               {/* KHQR Info Note Banner */}
               {(payment === "aba" || payment === "bakong") && (
-                <div className="mt-4 p-4 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/40 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent dark:from-blue-950/40 dark:via-indigo-950/20 dark:to-transparent border border-blue-500/20 flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
                     <QrCode size={18} />
                   </div>
                   <div className="text-xs text-blue-950 dark:text-blue-300 leading-relaxed">
@@ -2240,16 +2246,21 @@ export default function CheckoutPage() {
             </section>
           </div>
 
-          {/* ── RIGHT COLUMN: Order Summary & Review ────────────────────────── */}
-          <div className="space-y-4 sticky top-24">
-            <div className="bg-white dark:bg-[#151922] border border-gray-200/90 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100 dark:border-white/5">
-                <h2 className="text-base font-black text-gray-900 dark:text-white flex items-center gap-2">
-                  <span>បញ្ជីទំនិញកុម្ម៉ង់ • Summary</span>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400">
-                    {items.length} មុខ
-                  </span>
-                </h2>
+          {/* ── RIGHT COLUMN: Order Summary & Review (5 cols on lg, 4 on xl) ────────────────────────── */}
+          <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-24 space-y-5">
+            <div className="bg-white dark:bg-[#12151e] border border-gray-200/80 dark:border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between mb-5 pb-3.5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-red-600 text-white flex items-center justify-center font-bold shadow-xs">
+                    <ShoppingBag size={16} />
+                  </div>
+                  <h2 className="text-base font-black text-gray-900 dark:text-white">
+                    បញ្ជីទំនិញកុម្ម៉ង់ • Summary
+                  </h2>
+                </div>
+                <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                  {items.length} មុខ
+                </span>
               </div>
 
               {/* Items List with Real Images */}
@@ -2258,21 +2269,21 @@ export default function CheckoutPage() {
                   const itemImg = item.image_url || item.product?.image || item.product?.image_url || (Array.isArray(item.product?.images) ? item.product?.images[0] : null) || "/logo.jpg";
 
                   return (
-                    <div key={item.id} className="flex items-center gap-3 text-xs py-1">
-                      <div className="relative w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden shrink-0 border border-gray-200 dark:border-white/10">
+                    <div key={item.id} className="flex items-center gap-3 text-xs py-1 group">
+                      <div className="relative w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden shrink-0 border border-gray-200 dark:border-white/10 group-hover:scale-105 transition-transform">
                         <img 
                           src={itemImg} 
                           alt={item.name} 
                           className="w-full h-full object-cover"
                           onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                         />
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#8B1A1A] text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
                           {item.quantity}
                         </span>
                       </div>
 
                       <div className="truncate flex-1 min-w-0">
-                        <div className="font-bold text-gray-900 dark:text-white truncate text-xs mb-0.5">
+                        <div className="font-bold text-gray-900 dark:text-white truncate text-xs mb-0.5 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
                           {item.name}
                         </div>
                         <div className="text-[11px] text-gray-400 font-medium">
@@ -2292,18 +2303,18 @@ export default function CheckoutPage() {
               <div className="border-t border-gray-100 dark:border-white/10 pt-4 pb-4">
                 <label className="block text-xs font-black text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-2 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Ticket size={14} className="text-[#8B1A1A]" />
+                    <Ticket size={14} className="text-red-600" />
                     <span>កូដប្រូម៉ូសិន • Promo Code</span>
                   </span>
                   {appliedPromo && (
-                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                       Applied!
                     </span>
                   )}
                 </label>
 
                 {appliedPromo ? (
-                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 flex items-center justify-between">
+                  <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
                         ✓
@@ -2320,7 +2331,7 @@ export default function CheckoutPage() {
                     <button
                       type="button"
                       onClick={handleRemovePromo}
-                      className="p-1.5 rounded-lg text-emerald-700 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
+                      className="p-1.5 rounded-xl text-emerald-700 hover:text-red-600 hover:bg-red-500/10 dark:hover:bg-red-950/50 transition-colors cursor-pointer"
                       title="Remove Promo Code"
                     >
                       <X size={16} />
@@ -2336,14 +2347,14 @@ export default function CheckoutPage() {
                           setPromoInput(e.target.value.toUpperCase());
                           setPromoError("");
                         }}
-                        placeholder="បញ្ចូលកូដប្រូម៉ូសិន (Enter promo code)"
-                        className="flex-1 px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
+                        placeholder="បញ្ចូលកូដប្រូម៉ូសិន (Enter promo)"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-gray-50/70 dark:bg-white/[0.03] border border-gray-200/90 dark:border-white/10 text-xs font-mono font-bold uppercase tracking-wider focus:border-red-500 outline-none text-gray-900 dark:text-white"
                       />
                       <button
                         type="button"
                         onClick={() => handleApplyPromo()}
                         disabled={promoLoading || !promoInput.trim()}
-                        className="px-4 py-2 rounded-xl bg-[#8B1A1A] hover:bg-[#6B1010] text-white font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-40 shrink-0"
+                        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-40 shrink-0 active:scale-95"
                       >
                         {promoLoading ? "..." : "Apply"}
                       </button>
@@ -2363,7 +2374,7 @@ export default function CheckoutPage() {
                               type="button"
                               onClick={() => handleApplyPromo(item.code)}
                               disabled={promoLoading}
-                              className="px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-[#8B1A1A] dark:text-red-400 text-[10px] font-extrabold border border-red-200 dark:border-red-800/40 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                              className="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-extrabold border border-red-500/20 transition-all cursor-pointer flex items-center gap-1 active:scale-95"
                             >
                               <Tag size={10} />
                               <span>{item.code} ({item.type === "percentage" ? `${item.value}%` : `$${item.value}`})</span>
@@ -2409,58 +2420,95 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 
+                {/* Total Highlighted Card */}
                 <div className="pt-3 border-t border-gray-100 dark:border-white/10">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-sm font-black text-gray-900 dark:text-white">ទឹកប្រាក់ត្រូវទូទាត់សរុប</span>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-[#8B1A1A] dark:text-red-400 font-mono tracking-tight">
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500/[0.07] via-red-500/[0.02] to-transparent dark:from-red-950/35 dark:via-red-950/15 dark:to-transparent border border-red-500/20 flex items-baseline justify-between gap-2">
+                    <div>
+                      <span className="text-[11px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-0.5">
+                        ទឹកប្រាក់ត្រូវទូទាត់សរុប
+                      </span>
+                      <span className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                        Total Amount
+                      </span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-2xl sm:text-3xl font-black text-red-600 dark:text-red-400 font-mono tracking-tight leading-tight">
                         {fmtUSD(total)}
                       </div>
-                      <div className="text-xs font-bold text-gray-500 font-mono mt-0.5">
-                        {fmtKHR(total)}
+                      <div className="text-xs font-bold text-gray-500 dark:text-gray-400 font-mono mt-0.5">
+                        ~ {fmtKHR(total)}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Primary Place Order CTA */}
+              {/* ── Primary Place Order CTA with Glowing Shimmer & 3D Depth ("buttonស្អាតៗ") ── */}
               <button
                 type="button"
                 onClick={handlePlaceOrderClick}
                 disabled={loading || items.length === 0}
-                className="mt-6 w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-[#8B1A1A] via-red-700 to-red-600 hover:from-[#721515] hover:to-[#9E2020] text-white font-black text-sm sm:text-base shadow-xl shadow-red-600/25 hover:shadow-2xl hover:shadow-red-600/35 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer disabled:opacity-50 active:scale-[0.98] border border-red-500/30 group"
+                className="mt-6 w-full relative group overflow-hidden rounded-2xl p-[1px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-300 shadow-[0_12px_35px_-5px_rgba(220,38,38,0.45),0_4px_12px_-2px_rgba(220,38,38,0.25)] hover:shadow-[0_18px_45px_-4px_rgba(220,38,38,0.65),0_8px_18px_-2px_rgba(220,38,38,0.35)]"
               >
-                <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                  <ShieldCheck size={18} className="text-white" />
+                {/* Ambient Animated Gradient Border */}
+                <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 rounded-2xl opacity-80 group-hover:opacity-100 transition-opacity blur-[1px]" />
+
+                {/* Inner Glowing Body */}
+                <div className="relative px-4 sm:px-5 py-4 rounded-[15px] bg-gradient-to-r from-red-600 via-[#8B1A1A] to-red-600 bg-[length:200%_auto] group-hover:bg-right transition-all duration-500 flex items-center justify-between gap-3 text-white overflow-hidden">
+                  
+                  {/* Shimmer Light Beam Effect */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/25 to-transparent pointer-events-none" />
+
+                  {/* Left Icon Pill */}
+                  <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
+                    <ShieldCheck size={22} className="text-white drop-shadow-sm" />
+                  </div>
+
+                  {/* Center Content */}
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-[10px] sm:text-[11px] uppercase tracking-wider font-extrabold text-white/80 flex items-center gap-1.5 mb-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>256-Bit SSL Secured</span>
+                    </div>
+                    <div className="text-sm sm:text-base font-black tracking-tight truncate leading-tight drop-shadow-xs">
+                      {payment === "wallet"
+                        ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Wallet`
+                        : payment === "aba"
+                        ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ ABA PAY`
+                        : payment === "bakong"
+                        ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Bakong KHQR`
+                        : payment === "visa"
+                        ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Card`
+                        : `បញ្ជាក់ការកុម្ម៉ង់ ${fmtUSD(total)} (COD)`}
+                    </div>
+                  </div>
+
+                  {/* Right Arrow Action */}
+                  <div className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shrink-0 group-hover:translate-x-1 transition-all">
+                    <ArrowRight size={18} className="text-white drop-shadow-sm" />
+                  </div>
                 </div>
-                <span className="tracking-wide">
-                  {payment === "wallet"
-                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ S-Tech Wallet (កាត់លុយភ្លាមៗ)`
-                    : payment === "aba"
-                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ ABA PAY`
-                    : payment === "bakong"
-                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Bakong KHQR`
-                    : payment === "visa"
-                    ? `ទូទាត់ ${fmtUSD(total)} ជាមួយ Card`
-                    : "បញ្ជាក់ការបញ្ជាទិញ • Place Order COD"}
-                </span>
-                <ArrowRight size={18} className="shrink-0 group-hover:translate-x-1 transition-transform opacity-90" />
               </button>
             </div>
 
             {/* Store Assurances Trust Box */}
-            <div className="bg-white dark:bg-[#151922] border border-gray-200/80 dark:border-white/10 rounded-2xl p-4 shadow-2xs space-y-2.5">
-              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
-                <Shield size={16} className="text-[#8B1A1A] shrink-0" />
+            <div className="bg-white dark:bg-[#12151e] border border-gray-200/80 dark:border-white/[0.08] rounded-2xl sm:rounded-3xl p-5 shadow-2xs space-y-3">
+              <div className="flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0 border border-red-500/20">
+                  <Shield size={16} />
+                </div>
                 <span>ធានាផលិតផលសុទ្ធ ១០០% ជាមួយការធានាផ្លូវការ ១ ឆ្នាំពេញ</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
-                <RefreshCw size={16} className="text-blue-600 shrink-0" />
+              <div className="flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+                  <RefreshCw size={16} />
+                </div>
                 <span>គោលការណ៍ប្តូរទំនិញថ្មីក្នុង ៧ ថ្ងៃ ប្រសិនបើមានបញ្ហាបច្ចេកទេស</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-gray-700 dark:text-gray-300">
-                <Smartphone size={16} className="text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-3 text-xs text-gray-700 dark:text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+                  <Smartphone size={16} />
+                </div>
                 <span>ទទួលវិក្កយបត្រ & ដំណឹងតាម Telegram និង SMS Real-time</span>
               </div>
             </div>
@@ -2868,35 +2916,43 @@ export default function CheckoutPage() {
       </AnimatePresence>
 
       {/* ── Mobile Sticky Bottom Checkout Bar (Taobao / Amazon standard) ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#151922]/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/10 p-3 px-4 shadow-[0_-8px_30px_rgba(0,0,0,0.12)]">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#12151e]/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/10 p-3 px-4 shadow-[0_-10px_35px_rgba(0,0,0,0.12)] pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
         <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
           <div>
-            <div className="text-[11px] text-gray-500 font-medium leading-none mb-1">ទឹកប្រាក់សរុប Total</div>
-            <div className="text-xl font-black text-[#8B1A1A] dark:text-red-400 font-mono leading-none">
+            <div className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400 leading-none mb-1 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>ទឹកប្រាក់សរុប</span>
+            </div>
+            <div className="text-xl font-black text-red-600 dark:text-red-400 font-mono leading-none">
               {fmtUSD(total)}
             </div>
-            <div className="text-[10px] text-gray-400 font-mono mt-0.5">
-              {fmtKHR(total)}
+            <div className="text-[10px] font-bold text-gray-400 font-mono mt-0.5">
+              ~ {fmtKHR(total)}
             </div>
           </div>
+
           <button
             type="button"
             onClick={handlePlaceOrderClick}
             disabled={loading || items.length === 0}
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] via-red-700 to-red-600 hover:brightness-110 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+            className="relative group overflow-hidden rounded-xl p-[1px] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all shadow-[0_8px_25px_-4px_rgba(220,38,38,0.45)] hover:shadow-[0_12px_30px_-3px_rgba(220,38,38,0.6)]"
           >
-            <span>
-              {payment === "wallet"
-                ? `ទូទាត់ ${fmtUSD(total)} (Wallet)`
-                : payment === "aba"
-                ? `ទូទាត់ ${fmtUSD(total)} (ABA PAY)`
-                : payment === "bakong"
-                ? `ទូទាត់ ${fmtUSD(total)} (Bakong KHQR)`
-                : payment === "visa"
-                ? `ទូទាត់ ${fmtUSD(total)} (Card)`
-                : "បញ្ជាក់ការកុម្ម៉ង់ (COD)"}
-            </span>
-            <ArrowRight size={15} />
+            <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 rounded-xl opacity-90 blur-[1px]" />
+            <div className="relative px-4 py-2.5 rounded-[11px] bg-gradient-to-r from-red-600 via-[#8B1A1A] to-red-600 text-white font-black text-xs sm:text-sm flex items-center gap-2 overflow-hidden">
+              <ShieldCheck size={16} className="text-white shrink-0 drop-shadow-sm" />
+              <span className="tracking-wide">
+                {payment === "wallet"
+                  ? `ទូទាត់ ${fmtUSD(total)} (Wallet)`
+                  : payment === "aba"
+                  ? `ទូទាត់ ${fmtUSD(total)} (ABA)`
+                  : payment === "bakong"
+                  ? `ទូទាត់ ${fmtUSD(total)} (KHQR)`
+                  : payment === "visa"
+                  ? `ទូទាត់ ${fmtUSD(total)} (Card)`
+                  : "បញ្ជាក់ការកុម្ម៉ង់ (COD)"}
+              </span>
+              <ArrowRight size={14} className="shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </div>
           </button>
         </div>
       </div>
