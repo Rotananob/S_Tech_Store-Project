@@ -632,14 +632,14 @@ export default function CheckoutPage() {
         const humanAddr = parts.length > 0 ? parts.join(", ") : data.display_name;
 
         setAddress(humanAddr);
-        setLocationSuccessMsg(`📍 បានកំណត់ទីតាំងជោគជ័យ (${sourceLabel}): ${isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : (city || "បណ្តាខេត្ត") + " ($3.00)"}`);
+        setLocationSuccessMsg(`✓ បានចាប់យកទីតាំងរួច (${sourceLabel}): ${isPhnomPenh ? "រាជធានីភ្នំពេញ ($2.00)" : (city || "បណ្តាខេត្ត") + " ($3.00)"}`);
       } else {
         setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        setLocationSuccessMsg(`📍 បានចាប់យកកូអរដោនេ (${lat.toFixed(4)}, ${lng.toFixed(4)}) ជោគជ័យ`);
+        setLocationSuccessMsg(`✓ បានចាប់យកទីតាំងរួច (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
       }
     } catch {
       setAddress(`ទីតាំង GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-      setLocationSuccessMsg(`📍 បានកំណត់កូអរដោនេ GPS ជោគជ័យ`);
+      setLocationSuccessMsg(`✓ បានចាប់យកទីតាំងរួច`);
     } finally {
       if (gpsWatchdogRef.current) clearTimeout(gpsWatchdogRef.current);
       setGpsLoading(false);
@@ -1735,15 +1735,27 @@ export default function CheckoutPage() {
                             triggerBrowserGPS();
                           }}
                           disabled={gpsLoading}
-                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm shadow-emerald-950/30 disabled:opacity-60"
-                          title="ចាប់យកទីតាំងតាម Browser GPS"
+                          className={`px-3.5 py-2 rounded-xl text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 ${
+                            gpsCoords
+                              ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 shadow-emerald-950/40 ring-2 ring-emerald-400/40"
+                              : "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-950/30"
+                          }`}
+                          title={gpsCoords ? "បានចាប់យកទីតាំងរួច — ចុចម្តងទៀតដើម្បីចាប់ទីតាំងឡើងវិញ" : "ចាប់យកទីតាំងតាម Browser GPS"}
                         >
                           {gpsLoading ? (
                             <Loader2 size={13} className="animate-spin text-white" />
+                          ) : gpsCoords ? (
+                            <CheckCircle2 size={14} className="text-white drop-shadow-xs" />
                           ) : (
                             <LocateFixed size={13} className="text-white animate-pulse" />
                           )}
-                          <span>{gpsLoading ? "កំពុងចាប់ទីតាំង..." : "📍 ចាប់យកទីតាំង (GPS 1-Click)"}</span>
+                          <span>
+                            {gpsLoading
+                              ? "កំពុងចាប់ទីតាំង..."
+                              : gpsCoords
+                              ? "✓ បានចាប់យកទីតាំងរួច"
+                              : "📍 ចាប់យកទីតាំង (GPS 1-Click)"}
+                          </span>
                         </button>
 
                         {/* Open Google Maps in new tab to pick pin */}
@@ -1780,17 +1792,25 @@ export default function CheckoutPage() {
                           type="button"
                           onClick={handleGetTelegramLocation}
                           disabled={telegramLocLoading}
-                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm shadow-sky-950/30 disabled:opacity-60"
-                          title={isInsideMiniApp ? "ចាប់យកទីតាំងផ្ទាល់ក្នុង Mini App ដោយមិនបាច់បិទកម្មវិធី" : "យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"}
+                          className={`px-3.5 py-2 rounded-xl text-white text-xs font-black transition-all flex items-center gap-2 cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 ${
+                            gpsCoords
+                              ? "bg-gradient-to-r from-sky-600 via-blue-600 to-sky-700 shadow-sky-950/40 ring-2 ring-sky-400/40"
+                              : "bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 shadow-sky-950/30"
+                          }`}
+                          title={gpsCoords ? "បានចាប់យកទីតាំងរួច — ចុចម្តងទៀតដើម្បីទាញសារជាថ្មី" : isInsideMiniApp ? "ចាប់យកទីតាំងផ្ទាល់ក្នុង Mini App ដោយមិនបាច់បិទកម្មវិធី" : "យកទីតាំងពី Profile Telegram ឬបើក Bot ដើម្បីផ្ញើ Pin ទីតាំង"}
                         >
                           {telegramLocLoading ? (
                             <Loader2 size={13} className="animate-spin text-white" />
+                          ) : gpsCoords ? (
+                            <CheckCircle2 size={14} className="text-white drop-shadow-xs" />
                           ) : (
                             <Send size={13} className="text-white rotate-[-20deg]" />
                           )}
                           <span>
                             {telegramLocLoading
                               ? "កំពុងចាប់ទីតាំង..."
+                              : gpsCoords
+                              ? "✓ បានចាប់យកទីតាំងរួច"
                               : isInsideMiniApp
                               ? "📍 ចាប់យកទីតាំងផ្ទាល់ (In-App Live GPS)"
                               : "✈️ យកទីតាំងពី Telegram (1-Click)"}
@@ -1853,11 +1873,14 @@ export default function CheckoutPage() {
                   </div>
 
                   {gpsCoords && (
-                    <div className="mt-2.5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200 shadow-2xs">
+                    <div className="mt-2.5 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-xs text-emerald-950 dark:text-emerald-200 shadow-2xs">
                       <div className="flex items-center gap-2 truncate">
-                        <Crosshair size={14} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                          ✓ បានចាប់យកទីតាំងរួច:
+                        </span>
                         <span className="font-mono font-bold">
-                          GPS: {gpsCoords.lat.toFixed(5)}, {gpsCoords.lng.toFixed(5)}
+                          GPS {gpsCoords.lat.toFixed(5)}, {gpsCoords.lng.toFixed(5)}
                         </span>
                         <span className="text-[11px] text-emerald-700 dark:text-emerald-400 hidden sm:inline">
                           (បានផ្ទៀងផ្ទាត់កូអរដោនេសម្រាប់អ្នកដឹក)
