@@ -42,10 +42,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  // 2. Add dynamic products from backend database
+  // 2. Add Category Filter Pages for enhanced Google search ranking
+  const categories = ['laptops', 'desktops', 'parts', 'gaming', 'monitors', 'accessories'];
+  categories.forEach((cat) => {
+    locales.forEach((locale) => {
+      sitemapEntries.push({
+        url: `${baseUrl}/${locale}/products?category=${cat}`,
+        lastModified: new Date(),
+        changeFrequency: 'daily',
+        priority: 0.9,
+      });
+    });
+  });
+
+  // 3. Add dynamic products from backend database
   try {
-    const apiUrl = process.env.INTERNAL_API_URL 
-      || (process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/api` : 'https://www.s-tech-store.tech/api');
+    const backend = process.env.BACKEND_URL 
+      || process.env.NEXT_PUBLIC_BACKEND_URL 
+      || 'https://stech-backend-xz6j.onrender.com';
+    const apiUrl = process.env.INTERNAL_API_URL || `${backend}/api`;
       
     const res = await fetch(`${apiUrl}/products`, {
       next: { revalidate: 3600 },

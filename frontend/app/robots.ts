@@ -25,6 +25,17 @@ export default function robots(): MetadataRoute.Robots {
           '/checkout',
         ],
       },
+      {
+        userAgent: 'Bingbot',
+        allow: '/',
+        disallow: [
+          '/rok-mix-khernh/',
+          '/api/',
+          '/account/',
+          '/cart',
+          '/checkout',
+        ],
+      },
     ],
     sitemap: 'https://www.s-tech-store.tech/sitemap.xml',
     host: 'https://www.s-tech-store.tech',
