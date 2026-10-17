@@ -181,7 +181,7 @@ class PaymentService
             try {
                 $apiUrl = rtrim(config('payment.bakong.api_url'), '/');
                 $dRes = Http::withToken($bakongToken)
-                    ->timeout(4)
+                    ->timeout(1.2)
                     ->post($apiUrl . '/generate_deeplink_by_qr', [
                         'qr' => $activeKhqr,
                     ]);
@@ -528,6 +528,26 @@ class PaymentService
             TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'paid');
         } catch (\Throwable $e) {
             Log::warning("Customer direct telegram payment alert failed: " . $e->getMessage());
+        }
+
+        // Send full Order Invoice card to Telegram order topic
+        try {
+            TelegramService::sendOrderNotification($order->load('items.product'));
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send order notification on payment verification: " . $e->getMessage());
+        }
+
+        // Send Finance notification to Finance topic
+        try {
+            TelegramService::sendFinanceAlert([
+                'type' => '✅ Order Payment Received (' . strtoupper($method) . ')',
+                'amount' => $order->total_amount,
+                'method' => strtoupper($method),
+                'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                'customer' => $order->customer_name ?? 'Customer',
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send finance alert on payment verification: " . $e->getMessage());
         }
 
         return $order;

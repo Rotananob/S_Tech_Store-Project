@@ -211,24 +211,24 @@ class OrderController extends Controller
                 \App\Models\UserCartItem::where('firebase_uid', $uid)->delete();
             }
 
-            // Dispatch instant notification to connected Telegram group (ABA Merchant Style)
-            try {
-                \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
-                if ($order->payment_method !== 'wallet') {
+            // Only dispatch Telegram notifications on order creation if payment is COD (Cash on Delivery).
+            // For online payments (Bakong KHQR, ABA PAY, Card), notifications MUST ONLY be sent
+            // AFTER the customer has actually completed payment, preventing premature alerts and speeding up checkout!
+            $isCod = in_array(strtolower($order->payment_method ?? 'cod'), ['cod', 'cash', 'cash_on_delivery']);
+            if ($isCod) {
+                try {
+                    \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
                     \App\Services\TelegramService::sendFinanceAlert([
-                        'type' => 'New Order Payment (' . strtoupper($order->payment_method ?? 'COD') . ')',
+                        'type' => 'New Order (COD - Pending Payment on Delivery)',
                         'amount' => $order->total_amount,
-                        'method' => strtoupper($order->payment_method ?? 'COD'),
+                        'method' => 'COD',
                         'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
                         'customer' => $order->customer_name ?? 'Customer',
                     ]);
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Telegram order notification non-critical error: " . $t->getMessage());
                 }
-            } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Telegram order notification non-critical error: " . $t->getMessage());
-            }
 
-            // Dispatch instant personalized alert directly to Customer Telegram (Bot 2 Companion)
-            if ($order->payment_method !== 'wallet') {
                 try {
                     \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'created');
                 } catch (\Throwable $t) {

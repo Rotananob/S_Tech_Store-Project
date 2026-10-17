@@ -1183,15 +1183,6 @@ export default function CheckoutPage() {
     const sessionRes = await createPaymentSession(newOrderId, payment, "USD");
 
     if (sessionRes.success && sessionRes.data) {
-      if (sessionRes.data.qr_image_url) {
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.src = sessionRes.data.qr_image_url;
-          setTimeout(resolve, 2000);
-        });
-      }
       setLoading(false);
       setKhqrSession(sessionRes.data);
       setShowKHQRModal(true);

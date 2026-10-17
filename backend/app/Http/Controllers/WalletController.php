@@ -1019,6 +1019,13 @@ class WalletController extends Controller
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Customer direct telegram wallet payment alert failed: " . $e->getMessage());
                 }
+
+                // Send full Order Invoice card to Telegram order topic
+                try {
+                    \App\Services\TelegramService::sendOrderNotification($paidOrder->load('items.product'));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Order notification on wallet payment failed: " . $e->getMessage());
+                }
             }
         } catch (\Throwable $t) {
             \Illuminate\Support\Facades\Log::warning("Post-wallet payment notification error: " . $t->getMessage());
