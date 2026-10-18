@@ -657,16 +657,10 @@ class TelegramService
             $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $fromUsername = $from['username'] ?? '';
 
-            // Accurate Multi-Bot Token Routing:
-            // Bot 1 (Staff Alert Bot): Used for staff group, staff actions, and any callback with bot=main or from staff bot ID.
-            // Bot 2 (Customer Companion Bot): Used for customer private chats, Mini App, customer menus.
-            $msgBotId = (string)($callbackQuery['message']['from']['id'] ?? '');
-            $isStaffBot = ($botParam === 'main' || $msgBotId === self::OFFICIAL_STAFF_BOT_ID || $msgBotId === '8899300323');
-
-            if ($isStaffBot) {
-                $activeToken = self::getStaffBotToken();
-                $activeBotUsername = self::OFFICIAL_STAFF_BOT_USERNAME;
-            } elseif ($botParam === 'auth' || $msgBotId === self::OFFICIAL_CUSTOMER_BOT_ID || $chatType === 'private') {
+            // Clean Token Routing:
+            // Private chats strictly route to Customer Assistant Bot.
+            // Group chats strictly route to Staff Forum Notification Bot.
+            if ($chatType === 'private') {
                 $activeToken = self::getCustomerBotToken();
                 $activeBotUsername = self::getCustomerBotUsername();
             } else {
@@ -1515,7 +1509,7 @@ class TelegramService
         $customerBotToken = self::getCustomerBotToken();
         $customerBotUsername = self::getCustomerBotUsername();
 
-        $isStaffBotMsg = ($botParam === 'main' || $chatType !== 'private' || str_contains($text, '@' . $staffBotUsername));
+        $isStaffBotMsg = ($chatType !== 'private');
 
         if ($isStaffBotMsg) {
             $activeToken = $staffBotToken;
@@ -1531,6 +1525,7 @@ class TelegramService
         }
 
         // ── STRICT ISOLATION: Only legacy bot (@s_tech_storeBot) redirects to official assistant ──
+        $msgBotId = (string)($message['via_bot']['id'] ?? '');
         $isLegacyOldBotMsg = ($msgBotId === '8899300323' || str_contains($text, '@s_tech_storeBot'));
         if ($chatType === 'private' && $isLegacyOldBotMsg) {
             $customerBotUser = $customerBotUsername;
@@ -2381,22 +2376,6 @@ class TelegramService
         }
 
         // 6. PRIVATE CHAT COMMANDS (Customers & Normal Users — STRICTLY NO ADMIN FEATURES)
-
-        // If a customer messages Bot 1 (Staff & Store Notification Bot) privately, politely guide them to Customer Bot (@S_TECH_ASSISTANTBOT)
-        if (($botParam === 'main' || $isStaffBotMsg) && !str_contains($text, 'tgauth_') && !str_contains($text, 'tglink_')) {
-            $customerBotUser = self::getCustomerBotUsername();
-            $staffBotUser = self::OFFICIAL_STAFF_BOT_USERNAME;
-            $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
-                . "គណនី Bot នេះ (@{$staffBotUser}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff Notifications) ប៉ុណ្ណោះ។\n\n"
-                . "សម្រាប់ការបញ្ជាទិញទំនិញ, ពិនិត្យកាបូបលុយ, មើលពិន្ទុ, និងតាមដាន Orders សូមចុចទៅកាន់ <b>Customer Assistant Bot</b> ផ្លូវការរបស់យើងខ្ញុំ៖";
-            $redirectKb = [
-                'inline_keyboard' => [
-                    [['text' => '🛍️ ចូលទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => 'https://t.me/' . $customerBotUser]],
-                ]
-            ];
-            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, self::getStaffBotToken());
-            return;
-        }
 
         // Protect Admin commands in private chat
         if (preg_match('/^\/(?:setup_topics|topics|status)(?:@\w+)?/i', $text)) {

@@ -636,11 +636,11 @@ ${userContextSection}
 
     // Fast candidate models prioritized by verified availability & low latency
     const CANDIDATE_MODELS = [
-      "gemini-3.1-flash-lite",    // Priority 1: Verified 200 OK, ultra-fast (~900ms), low-latency, multimodal vision
-      "gemini-flash-lite-latest", // Priority 2: Verified 200 OK, ultra-fast (~900ms) alias
-      "gemini-3.5-flash-lite",    // Priority 3: Verified 200 OK, flagship fast (~1.2s), deep understanding
-      "gemini-3.5-flash",         // Priority 4: High capability fallback (~3.5s)
-      "gemini-flash-latest",      // Priority 5: Dynamic flash alias fallback
+      "gemini-2.5-flash",              // Priority 1: Verified 200 OK, ultra-fast (~800ms), low-latency, multimodal vision
+      "gemini-3-flash-preview",         // Priority 2: Verified 200 OK, next-gen fast intelligence & vision
+      "gemini-flash-latest",            // Priority 3: Dynamic fast alias
+      "gemini-3.1-flash-lite-preview",  // Priority 4: Verified low-latency preview
+      "gemini-3.1-pro-preview",         // Priority 5: Deep reasoning flagship fallback
     ];
 
     keyLoop: for (const activeKey of keyPool) {

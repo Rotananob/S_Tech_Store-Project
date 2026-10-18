@@ -418,16 +418,9 @@ class TelegramController extends Controller
         // Auto-detect bot param if not explicitly passed in query
         if (empty($botParam)) {
             $chatType = $update['message']['chat']['type'] ?? $update['callback_query']['message']['chat']['type'] ?? '';
-            $msgBotId = (string)($update['callback_query']['message']['from']['id'] ?? '');
-            $text = (string)($update['message']['text'] ?? '');
-
-            if ($chatType === 'group' || $chatType === 'supergroup' || $msgBotId === TelegramService::OFFICIAL_STAFF_BOT_ID || str_contains($text, '@' . TelegramService::OFFICIAL_STAFF_BOT_USERNAME)) {
-                $botParam = 'main';
-            } elseif ($msgBotId === TelegramService::OFFICIAL_CUSTOMER_BOT_ID || str_contains($text, '@' . TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME)) {
-                $botParam = 'auth';
-            } else {
-                $botParam = ($chatType === 'private') ? 'auth' : 'main';
-            }
+            // If chat is a group, it is store staff notifications ('main').
+            // If chat is private, it is customer assistant & shopping portal ('auth').
+            $botParam = ($chatType === 'group' || $chatType === 'supergroup') ? 'main' : 'auth';
         }
 
         // ⚡ INSTANT LOCAL-FIRST CALLBACK ACKNOWLEDGMENT:
@@ -445,8 +438,8 @@ class TelegramController extends Controller
             $cbMessageId = $callbackQuery['message']['message_id'] ?? null;
             $fromName = trim(($callbackQuery['from']['first_name'] ?? '') . ' ' . ($callbackQuery['from']['last_name'] ?? '')) ?: 'អតិថិជន';
 
-            // Customer order hub interactive menu is strictly for Customer Bot (bot !== 'main')
-            if ($callbackData === 'cust_my_orders' && $cbChatId && $cbMessageId && $botParam !== 'main') {
+            // Customer order hub interactive menu (Instant Interactive UX)
+            if ($callbackData === 'cust_my_orders' && $cbChatId && $cbMessageId) {
                 $orderMenuText = "📦 <b>ការពិនិត្យមើលប្រវត្តិបញ្ជាទិញ (My Orders Hub):</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n"
                     . "ជម្រាបសួរ <b>" . htmlspecialchars($fromName) . "</b>!\n"
