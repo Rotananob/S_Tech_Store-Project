@@ -3747,7 +3747,7 @@ export default function UserProfilePage() {
                       <div className="pt-2 flex items-center justify-between border-t border-gray-200/60 dark:border-white/5">
                         <span className="text-[11px] text-gray-400">S Tech Official Support</span>
                         <a
-                          href="https://t.me/stechstore"
+                          href="https://t.me/S_TECH_ASSISTANTBOT"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-[11px] text-[#8B1A1A] font-bold hover:underline flex items-center gap-1 no-underline"
@@ -5048,7 +5048,7 @@ export default function UserProfilePage() {
                         <span>Call Driver</span>
                       </a>
                       <a
-                        href="https://t.me/stechstore"
+                        href="https://t.me/S_TECH_ASSISTANTBOT"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 no-underline shadow-sm cursor-pointer"

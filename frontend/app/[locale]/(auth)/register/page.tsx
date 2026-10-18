@@ -578,18 +578,19 @@ export default function RegisterPage() {
       stopTelegramPolling();
 
       const isHidden = typeof document !== "undefined" && document.hidden;
+      // Ultra-responsive polling: 1000ms if tab is backgrounded, 500ms-1200ms when visible
       const delay = isHidden 
-        ? 6000 
-        : attempts < 2 
-          ? 1500 
-          : attempts < 8 
-            ? 2500 
-            : 4000;
+        ? 1000 
+        : attempts < 4 
+          ? 500 
+          : attempts < 12 
+            ? 800 
+            : 1200;
 
       telegramPollTimeoutRef.current = setTimeout(async () => {
         if (isPollingCompletedRef.current) return;
         attempts++;
-        if (attempts > 35) { // 35 smart intervals (~2.5 minutes)
+        if (attempts > 80) { // ~1.5 - 2 minutes
           stopTelegramPolling();
           setAuthOverlay((prev) => ({
             ...prev,
@@ -610,19 +611,18 @@ export default function RegisterPage() {
     scheduleNext();
   };
 
-  // Mount & Visibility listener: When user returns to tab, INSTANTLY check in 0ms (Throttled against duplicate bursts)
-  const lastResumeTimeRef = useRef<number>(0);
+  // Mount & Visibility listener: When user returns to tab, INSTANTLY check in 0ms!
   useEffect(() => {
     const resumeIfPending = (isReturning = true) => {
       if (isPollingCompletedRef.current) return;
-      if (Date.now() - lastResumeTimeRef.current < 1500) return; // Prevent focus + visibility double bursts
-      lastResumeTimeRef.current = Date.now();
+      if (isCheckingRef.current) return; // Prevent concurrent checks
 
       try {
         const saved = localStorage.getItem("stech_pending_tg_handshake") || sessionStorage.getItem("stech_pending_tg_handshake");
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.token && (Date.now() - (parsed.createdAt || 0)) < 600000) {
+            stopTelegramPolling();
             startOrResumeTelegramPolling(parsed.token, isReturning, parsed.deepLink);
           } else {
             localStorage.removeItem("stech_pending_tg_handshake");
@@ -678,17 +678,8 @@ export default function RegisterPage() {
     });
 
     try {
-      // 1. Initialize instant App Handshake from backend (Bypasses Bot domain invalid!)
-      let clientIp = "";
-      try {
-        const ipRes = await Promise.race([
-          fetch("https://api.ipify.org?format=json").then((r) => r.json()),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1000)),
-        ]) as any;
-        if (ipRes?.ip) clientIp = String(ipRes.ip).trim();
-      } catch {}
-
-      const res = await api.post("/auth/telegram/handshake-init", clientIp ? { client_ip: clientIp } : {});
+      // 1. Initialize instant App Handshake directly in 0ms (No blocking ipify network call!)
+      const res = await api.post("/auth/telegram/handshake-init", {});
       if (res.data?.success && res.data?.handshake_token) {
         const token = res.data.handshake_token;
         const deepLink = res.data.deep_link || `https://t.me/S_TECH_ASSISTANTBOT?start=${token}`;

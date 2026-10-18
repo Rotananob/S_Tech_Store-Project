@@ -1509,70 +1509,78 @@ class TelegramService
             $extractedCode = '';
             if (preg_match('/^\/start(?:@\w+)?\s*(.*)$/i', $text, $matches)) {
                 $extractedCode = trim($matches[1] ?? '');
+            } elseif (preg_match('/\b(ST[A-Za-z0-9]{4,12}|tgauth_[A-Za-z0-9_-]+|tglink_[A-Za-z0-9_-]+)\b/i', $text, $matches)) {
+                $extractedCode = trim($matches[1] ?? '');
             }
 
-            $lowerText = strtolower($text);
-            $isStaffAction = in_array($lowerText, ['/chat', '/admin', '/staff', '/orders', '/miniapp', '/dashboard', 'chat', 'admin', 'staff', 'orders', 'miniapp'])
-                || str_starts_with(strtolower($extractedCode), 'miniapp')
-                || str_starts_with(strtolower($extractedCode), 'chat')
-                || str_starts_with(strtolower($extractedCode), 'staff');
+            // CRITICAL FIX: If customer is performing a login handshake (tgauth_...) or account link (tglink_...),
+            // DO NOT intercept or redirect! Let it pass directly to Handshake Authentication below!
+            if (str_starts_with(strtolower($extractedCode), 'tgauth_') || str_starts_with(strtolower($extractedCode), 'tglink_')) {
+                // Bypass redirect so customer can log in immediately without friction or delay!
+            } else {
+                $lowerText = strtolower($text);
+                $isStaffAction = in_array($lowerText, ['/chat', '/admin', '/staff', '/orders', '/miniapp', '/dashboard', 'chat', 'admin', 'staff', 'orders', 'miniapp'])
+                    || str_starts_with(strtolower($extractedCode), 'miniapp')
+                    || str_starts_with(strtolower($extractedCode), 'chat')
+                    || str_starts_with(strtolower($extractedCode), 'staff');
 
-            if ($isStaffAction) {
-                // Generate instant 1-Click bypass token for staff
-                $bypassToken = \Illuminate\Support\Str::random(40);
-                \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
-                    'chat_id' => 'tg_staff_' . $chatId,
-                    'user_name' => $fromName ?: 'Admin/Staff',
-                    'uses' => 15,
-                    'created_at' => now()->toIso8601String(),
-                ], 1440 * 60);
+                if ($isStaffAction) {
+                    // Generate instant 1-Click bypass token for staff
+                    $bypassToken = \Illuminate\Support\Str::random(40);
+                    \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
+                        'chat_id' => 'tg_staff_' . $chatId,
+                        'user_name' => $fromName ?: 'Admin/Staff',
+                        'uses' => 15,
+                        'created_at' => now()->toIso8601String(),
+                    ], 1440 * 60);
 
-                $chatUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/chat?token={$bypassToken}";
-                $ordersUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/orders?token={$bypassToken}";
-                $dashUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh?token={$bypassToken}";
+                    $chatUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/chat?token={$bypassToken}";
+                    $ordersUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh/orders?token={$bypassToken}";
+                    $dashUrl = "https://www.s-tech-store.tech/km/rok-mix-khernh?token={$bypassToken}";
 
-                $staffMsg = "⚡ <b>S TECH STORE — ADMIN & STAFF MINI APP HUB</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n"
-                    . "សួស្តី <b>" . htmlspecialchars($fromName) . "</b> (Admin / Staff)!\n\n"
-                    . "លោកអ្នកអាចបើកផ្ទាំងគ្រប់គ្រង និងឆ្លើយតប Live Chat ផ្ទាល់ក្នុង Telegram ភ្លាមៗ (1-Click Auto-Login) ដោយចុចលើប៊ូតុងខាងក្រោម៖";
+                    $staffMsg = "⚡ <b>S TECH STORE — ADMIN & STAFF MINI APP HUB</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n"
+                        . "សួស្តី <b>" . htmlspecialchars($fromName) . "</b> (Admin / Staff)!\n\n"
+                        . "លោកអ្នកអាចបើកផ្ទាំងគ្រប់គ្រង និងឆ្លើយតប Live Chat ផ្ទាល់ក្នុង Telegram ភ្លាមៗ (1-Click Auto-Login) ដោយចុចលើប៊ូតុងខាងក្រោម៖";
 
-                $staffKb = [
-                    'inline_keyboard' => [
-                        [
-                            ['text' => '💬 បើក Live Chat Mini App (ឆ្លើយតបភ្លាមៗ)', 'web_app' => ['url' => $chatUrl]],
-                        ],
-                        [
-                            ['text' => '📦 បើក Orders Mini App', 'web_app' => ['url' => $ordersUrl]],
-                            ['text' => '📊 Dashboard Mini App', 'web_app' => ['url' => $dashUrl]],
-                        ],
-                        [
-                            ['text' => '🌐 បើកក្នុង Web Browser', 'url' => $chatUrl],
+                    $staffKb = [
+                        'inline_keyboard' => [
+                            [
+                                ['text' => '💬 បើក Live Chat Mini App (ឆ្លើយតបភ្លាមៗ)', 'web_app' => ['url' => $chatUrl]],
+                            ],
+                            [
+                                ['text' => '📦 បើក Orders Mini App', 'web_app' => ['url' => $ordersUrl]],
+                                ['text' => '📊 Dashboard Mini App', 'web_app' => ['url' => $dashUrl]],
+                            ],
+                            [
+                                ['text' => '🌐 បើកក្នុង Web Browser', 'url' => $chatUrl],
+                            ]
                         ]
+                    ];
+
+                    self::sendMessageWithKeyboard($chatId, $staffMsg, $staffKb, 'HTML', null, $staffBotToken);
+                    return;
+                }
+
+                $redirectUrl = !empty($extractedCode)
+                    ? "https://t.me/{$customerBotUser}?start={$extractedCode}"
+                    : "https://t.me/{$customerBotUser}";
+
+                $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
+                    . "គណនី Bot នេះ (@{$staffBotUsername}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាងជូនក្រុមការងារ (Admin & Staff Notifications) ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
+                    . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ភ្ជាប់ Profile, បញ្ជាទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោមដើម្បីទៅកាន់ Customer Assistant Bot ផ្លូវការរបស់យើងខ្ញុំ៖</b>";
+
+                $redirectKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🚀 បើកផ្ទៀងផ្ទាត់ជាមួយ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                        [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
+                        [['text' => '🛍️ ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
                     ]
                 ];
 
-                self::sendMessageWithKeyboard($chatId, $staffMsg, $staffKb, 'HTML', null, $staffBotToken);
+                self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, $staffBotToken);
                 return;
             }
-
-            $redirectUrl = !empty($extractedCode)
-                ? "https://t.me/{$customerBotUser}?start={$extractedCode}"
-                : "https://t.me/{$customerBotUser}";
-
-            $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
-                . "គណនី Bot នេះ (@{$staffBotUsername}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាងជូនក្រុមការងារ (Admin & Staff Notifications) ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
-                . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ភ្ជាប់ Profile, បញ្ជាទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោមដើម្បីទៅកាន់ Customer Assistant Bot ផ្លូវការរបស់យើងខ្ញុំ៖</b>";
-
-            $redirectKb = [
-                'inline_keyboard' => [
-                    [['text' => '🚀 បើកផ្ទៀងផ្ទាត់ជាមួយ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
-                    [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
-                    [['text' => '🛍️ ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
-                ]
-            ];
-
-            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, $staffBotToken);
-            return;
         }
 
         // ── FOR ALL PRIVATE CHATS: STRICTLY ENFORCE CUSTOMER BOT TOKEN & USERNAME ──
@@ -1726,7 +1734,13 @@ class TelegramService
         if ($extractedCode && (str_starts_with($extractedCode, 'tgauth_') || str_starts_with($extractedCode, 'TGAUTH_'))) {
             $cleanToken = strtolower(trim($extractedCode));
             $handshakeKey = "tg_handshake_{$cleanToken}";
-            $handshake = Cache::get($handshakeKey);
+            $handshake = null;
+            try {
+                $handshake = Cache::store('file')->get($handshakeKey);
+            } catch (\Throwable $t) {}
+            if (!$handshake) {
+                $handshake = Cache::get($handshakeKey);
+            }
             if (!$handshake) {
                 try {
                     $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', $handshakeKey)->first();
@@ -1834,6 +1848,9 @@ class TelegramService
             ];
 
             // ⚡ ZERO-DELAY INSTANT SYNC (< 3ms): Complete handshake in cache & DB BEFORE any external network calls
+            try {
+                Cache::store('file')->put($handshakeKey, $completedHandshake, 600);
+            } catch (\Throwable $e) {}
             Cache::put($handshakeKey, $completedHandshake, 600);
             try {
                 \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
@@ -2337,7 +2354,7 @@ class TelegramService
         // 6. PRIVATE CHAT COMMANDS (Customers & Normal Users — STRICTLY NO ADMIN FEATURES)
 
         // If a customer messages Bot 1 (Staff & Store Notification Bot) privately, politely guide them to Customer Bot (@S_TECH_ASSISTANTBOT)
-        if ($botParam === 'main' || $isStaffBotMsg) {
+        if (($botParam === 'main' || $isStaffBotMsg) && !str_contains($text, 'tgauth_') && !str_contains($text, 'tglink_')) {
             $customerBotUser = self::getCustomerBotUsername();
             $staffBotUser = self::OFFICIAL_STAFF_BOT_USERNAME;
             $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
@@ -3524,7 +3541,10 @@ class TelegramService
                         continue;
                     }
 
-                    self::processUpdate($up, 'main');
+                    $upText = (string)($up['message']['text'] ?? '');
+                    $upChatType = (string)($up['message']['chat']['type'] ?? '');
+                    $isCustomerAuth = str_contains($upText, 'tgauth_') || str_contains($upText, 'tglink_') || $upChatType === 'private';
+                    self::processUpdate($up, $isCustomerAuth ? 'auth' : 'main');
                 }
 
                 $settings = self::getSettings();

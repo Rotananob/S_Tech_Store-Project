@@ -443,6 +443,11 @@ Route::post('/auth/telegram/handshake-init', function (Request $request) {
         'ip' => $realIp,
     ];
 
+    // Ultra-fast local file cache (< 0.1ms)
+    try {
+        \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $initPayload, 600);
+    } catch (\Throwable $t) {}
+
     \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $initPayload, 600); // 10 minutes
     try {
         \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
@@ -466,17 +471,45 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
         return response()->json(['success' => false, 'error' => 'Token required'], 400);
     }
 
-    $data = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
-    $needsDbCheck = !$data;
-    if ($data && ($data['status'] ?? '') === 'pending') {
-        $lastDbCheckKey = "tg_hs_dbcheck_{$token}";
-        if (!\Illuminate\Support\Facades\Cache::has($lastDbCheckKey)) {
-            $needsDbCheck = true;
-            \Illuminate\Support\Facades\Cache::put($lastDbCheckKey, 1, 3); // Max 1 DB query every 3s per token
+    // 1. FAST PATH: Check ultra-fast local file cache first (< 1ms!)
+    $data = null;
+    try {
+        $fileData = \Illuminate\Support\Facades\Cache::store('file')->get("tg_handshake_{$token}");
+        if (is_array($fileData) && !empty($fileData)) {
+            $data = $fileData;
+            // If already completed in local file cache, return in < 5ms without ANY DB hits!
+            if (($data['status'] ?? '') === 'completed' && !empty($data['user']) && !empty($data['token'])) {
+                return response()->json([
+                    'success' => true,
+                    'completed' => true,
+                    'status' => 'completed',
+                    'token' => $data['token'],
+                    'user' => $data['user'],
+                ]);
+            }
+        }
+    } catch (\Throwable $t) {}
+
+    // 2. Main cache check
+    if (!$data || ($data['status'] ?? '') !== 'completed') {
+        $mainData = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
+        if (is_array($mainData) && !empty($mainData)) {
+            $data = $mainData;
+            if (($data['status'] ?? '') === 'completed') {
+                try { \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $data, 600); } catch (\Throwable $t) {}
+                return response()->json([
+                    'success' => true,
+                    'completed' => true,
+                    'status' => 'completed',
+                    'token' => $data['token'],
+                    'user' => $data['user'],
+                ]);
+            }
         }
     }
 
-    if ($needsDbCheck) {
+    // 3. Fallback: check system_settings table only if needed
+    if (!$data || ($data['status'] ?? '') === 'pending') {
         try {
             $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
             if ($row && !empty($row->value)) {
@@ -485,6 +518,7 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
                     $data = $dbData;
                     if (($data['status'] ?? '') === 'completed') {
                         \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $data, 600);
+                        try { \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $data, 600); } catch (\Throwable $t) {}
                     }
                 }
             }

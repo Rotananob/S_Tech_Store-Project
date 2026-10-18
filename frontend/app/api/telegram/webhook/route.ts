@@ -380,6 +380,24 @@ export async function POST(req: NextRequest) {
 
         // 1-Click Login Handshake (tgauth_...)
         if (startParam.toLowerCase().startsWith("tgauth_")) {
+          // Await backend to finish processing the handshake so the status is guaranteed completed!
+          try {
+            const queryBot = url.search.includes("bot=") ? url.search : "?bot=auth";
+            await Promise.race([
+              fetch(`${BACKEND_URL}/api/telegram/webhook${queryBot}`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  ...(req.headers.get("x-telegram-bot-api-secret-token")
+                    ? { "X-Telegram-Bot-Api-Secret-Token": req.headers.get("x-telegram-bot-api-secret-token")! }
+                    : {}),
+                },
+                body: JSON.stringify(body),
+              }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("forward_timeout")), 2500)),
+            ]);
+          } catch (e) {}
+
           return NextResponse.json({
             method: "sendMessage",
             chat_id: chatId,

@@ -206,7 +206,7 @@ const organizationSchema = {
         }
       ],
       "sameAs": [
-        "https://t.me/s_tech_storeBot",
+        "https://t.me/S_TECH_ASSISTANTBOT",
         "https://t.me/COMPUTERSTOREBUY",
         "https://t.me/PCANDGAMESTORE",
         "https://www.s-tech-store.tech"

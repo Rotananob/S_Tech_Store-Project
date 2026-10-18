@@ -20,7 +20,7 @@ const footerLinks = {
     { label: "Warranty Info", href: "/warranty" },
     { label: "FAQs", href: "/faqs" },
     { label: "Contact Us", href: "/contact" },
-    { label: "Order via Telegram", href: "https://t.me/stechstore" },
+    { label: "Order via Telegram", href: "https://t.me/S_TECH_ASSISTANTBOT" },
   ],
   company: [
     { label: "About Us", href: "/about" },
@@ -78,7 +78,7 @@ export default function Footer() {
                 { icon: Phone, text: "+855 12 345 678" },
                 { icon: Mail, text: "support@stechstore.com.kh" },
                 { icon: MapPin, text: "Phnom Penh, Cambodia" },
-                { icon: MessageSquare, text: "Telegram: @stechstore" },
+                { icon: MessageSquare, text: "Telegram: @S_TECH_ASSISTANTBOT" },
               ].map(({ icon: Icon, text }) => (
                 <div key={text} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>
                   <Icon size={13} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />

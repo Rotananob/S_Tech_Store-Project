@@ -504,8 +504,12 @@ class TelegramController extends Controller
 
                 // STRICT ISOLATION: When webhook is for Staff Bot (bot=main),
                 // NEVER return customer store welcome or store menus in the HTTP response!
+                // BUT if customer provides a handshake (tgauth_...) or link (tglink_...),
+                // DO NOT intercept with redirect! Allow processUpdate to authenticate the customer immediately!
+                $isHandshake = str_starts_with(strtolower($startParam), 'tgauth_') || str_starts_with(strtolower($startParam), 'tglink_');
+
                 if ($botParam === 'main') {
-                    if ($msgChatType === 'private') {
+                    if ($msgChatType === 'private' && !$isHandshake) {
                         $customerBotUser = TelegramService::getCustomerBotUsername();
                         $staffBotUser = TelegramService::OFFICIAL_STAFF_BOT_USERNAME;
                         $redirectUrl = !empty($startParam)

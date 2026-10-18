@@ -177,7 +177,7 @@ export default async function HomePage({ params }: Props) {
           "reviewCount": "128"
         },
         "sameAs": [
-          "https://t.me/s_tech_storeBot",
+          "https://t.me/S_TECH_ASSISTANTBOT",
           "https://t.me/COMPUTERSTOREBUY",
           "https://t.me/PCANDGAMESTORE",
           "https://www.s-tech-store.tech"
@@ -226,8 +226,8 @@ export default async function HomePage({ params }: Props) {
             "acceptedAnswer": {
               "@type": "Answer",
               "text": isKm 
-                ? "ហាង S Tech Store មានទីតាំងនៅរាជធានីភ្នំពេញ ផ្លូវ ២៧១។ ទំនាក់ទំនងទូរស័ព្ទ៖ 012 345 678 / 087 948 370 ឬតាម Telegram: @s_tech_storeBot និង @PCANDGAMESTORE។"
-                : "S Tech Store is located at Street 271, Phnom Penh, Cambodia. Contact us via phone at +855 12 345 678 or Telegram: @s_tech_storeBot."
+                ? "ហាង S Tech Store មានទីតាំងនៅរាជធានីភ្នំពេញ ផ្លូវ ២៧១។ ទំនាក់ទំនងទូរស័ព្ទ៖ 012 345 678 / 087 948 370 ឬតាម Telegram: @S_TECH_ASSISTANTBOT និង @PCANDGAMESTORE។"
+                : "S Tech Store is located at Street 271, Phnom Penh, Cambodia. Contact us via phone at +855 12 345 678 or Telegram: @S_TECH_ASSISTANTBOT."
             }
           },
           {
