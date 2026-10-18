@@ -62,3 +62,4 @@ cloudflared.exe
 *.sqlite
 *.sqlite3
 .agent_tasks/
+GEMINI.md
