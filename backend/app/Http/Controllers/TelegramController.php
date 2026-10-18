@@ -415,12 +415,15 @@ class TelegramController extends Controller
         $update = $request->all();
         $botParam = trim((string)$request->query('bot', ''));
 
-        // Auto-detect bot param if not explicitly passed in query
-        if (empty($botParam)) {
-            $chatType = $update['message']['chat']['type'] ?? $update['callback_query']['message']['chat']['type'] ?? '';
-            // If chat is a group, it is store staff notifications ('main').
-            // If chat is private, it is customer assistant & shopping portal ('auth').
-            $botParam = ($chatType === 'group' || $chatType === 'supergroup') ? 'main' : 'auth';
+        $chatType = $update['message']['chat']['type'] ?? $update['callback_query']['message']['chat']['type'] ?? '';
+        // If chat is private, it is ALWAYS customer assistant & 1-on-1 portal ('auth').
+        // If chat is a group, it is store staff notifications ('main').
+        if ($chatType === 'private') {
+            $botParam = 'auth';
+        } elseif ($chatType === 'group' || $chatType === 'supergroup') {
+            $botParam = 'main';
+        } elseif (empty($botParam)) {
+            $botParam = 'auth';
         }
 
         // ⚡ INSTANT LOCAL-FIRST CALLBACK ACKNOWLEDGMENT:
@@ -495,12 +498,9 @@ class TelegramController extends Controller
             if ($msgChatId && preg_match('/^\/start(?:@\w+)?(?:\s+(.*))?$/i', $msgText, $matches)) {
                 $startParam = trim($matches[1] ?? '');
 
-                // STRICT ISOLATION: When webhook is for Staff Bot (bot=main),
-                // NEVER return customer store welcome or store menus in the HTTP response!
-                // BUT if customer provides a handshake (tgauth_...) or link (tglink_...),
-                // DO NOT intercept with redirect! Allow processUpdate to authenticate the customer immediately!
                 $isHandshake = str_starts_with(strtolower($startParam), 'tgauth_') || str_starts_with(strtolower($startParam), 'tglink_');
 
+                $msgBotId = (string)($update['message']['via_bot']['id'] ?? '');
                 $isLegacyOldBot = ($msgBotId === '8899300323' || str_contains($msgText, '@s_tech_storeBot'));
                 if ($isLegacyOldBot && $msgChatType === 'private' && !$isHandshake) {
                     $customerBotUser = TelegramService::getCustomerBotUsername();
@@ -523,7 +523,7 @@ class TelegramController extends Controller
                         ]
                     ];
                 } else {
-                    // Dedicated Customer Companion Bot (bot=auth)
+                    // Dedicated Customer Companion Bot
                     if (str_starts_with(strtolower($startParam), 'syncloc_')) {
                         $responsePayload = [
                             'method' => 'sendMessage',
@@ -550,24 +550,9 @@ class TelegramController extends Controller
                             'chat_id' => $msgChatId,
                             'text' => $welcomeText,
                             'parse_mode' => 'HTML',
-                            'reply_markup' => [
-                                'inline_keyboard' => [
-                                    [['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => "https://www.s-tech-store.tech/?tg_token={$msgChatId}"]]],
-                                    [
-                                        ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
-                                        ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
-                                    ],
-                                    [
-                                        ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
-                                        ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
-                                    ],
-                                    [
-                                        ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
-                                        ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
-                                    ],
-                                ],
-                            ],
+                            'reply_markup' => TelegramService::getCustomerMainMenuKeyboard((string)$msgChatId),
                         ];
+                        app()->instance('tg_start_welcome_sent_' . $msgChatId, true);
                     }
                 }
             }
@@ -579,11 +564,19 @@ class TelegramController extends Controller
         if (function_exists('fastcgi_finish_request')) {
             response()->json($responsePayload)->send();
             fastcgi_finish_request();
-            TelegramService::processUpdate($update, $botParam);
+            try {
+                TelegramService::processUpdate($update, $botParam);
+            } catch (\Throwable $e) {
+                Log::error("Telegram processUpdate error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+            }
             return response()->json($responsePayload);
         }
 
-        TelegramService::processUpdate($update, $botParam);
+        try {
+            TelegramService::processUpdate($update, $botParam);
+        } catch (\Throwable $e) {
+            Log::error("Telegram processUpdate error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+        }
 
         return response()->json($responsePayload);
     }

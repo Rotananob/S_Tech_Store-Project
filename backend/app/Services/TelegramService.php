@@ -394,10 +394,16 @@ class TelegramService
                     'allowed_updates' => ['message', 'edited_message', 'callback_query', 'my_chat_member', 'chat_member'],
                 ]);
                 $allOk = $allOk && (($resp->json()['ok'] ?? false) === true);
+
+                // Auto-sync customer commands, menu button, and descriptions
+                if (!Cache::has('tg_customer_bot_synced_v2')) {
+                    self::setupCustomerBotCommandsAndMenu($token);
+                    Cache::put('tg_customer_bot_synced_v2', 1, 86400);
+                }
             } catch (\Throwable $e) {}
         }
 
-        // 2. Register Customer / Auth Bot Webhook with ?bot=auth
+        // 2. Register Customer / Auth Bot Webhook if separate bot is used
         if ($authBotToken && $authBotToken !== $token && !str_contains($authBotToken, 'Placeholder')) {
             try {
                 $resp = Http::timeout(4)->post("https://api.telegram.org/bot{$authBotToken}/setWebhook", [
@@ -407,11 +413,7 @@ class TelegramService
                 ]);
                 $allOk = $allOk && (($resp->json()['ok'] ?? false) === true);
 
-                // Auto-sync commands, menu button, and descriptions once a day (or on webhook refresh)
-                if (!Cache::has('tg_customer_bot_synced_v1')) {
-                    self::setupCustomerBotCommandsAndMenu($authBotToken);
-                    Cache::put('tg_customer_bot_synced_v1', 1, 86400);
-                }
+                self::setupCustomerBotCommandsAndMenu($authBotToken);
             } catch (\Throwable $e) {}
         }
 
@@ -2469,6 +2471,10 @@ class TelegramService
             $user->is_active = true;
             $user->status = 'active';
             $user->save();
+
+            if (app()->bound('tg_start_welcome_sent_' . $chatId)) {
+                return;
+            }
 
             $directToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
             $directUrl = !empty($directToken) ? "https://www.s-tech-store.tech/?tg_token={$directToken}" : "https://www.s-tech-store.tech";
