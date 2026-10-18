@@ -17,10 +17,9 @@ import {
 
 // =============================================================================
 // TELEGRAM BOT ARCHITECTURE:
-// 1. STAFF BOT (@s_tech_storeBot): Used exclusively for Admin/Staff group forum alerts.
-// 2. CUSTOMER BOT (@S_TECH_ASSISTANTBOT): Used exclusively for Customer Mini App, Chat, Orders, & Auth.
+// UNIFIED BOT: @S_TECH_ASSISTANTBOT (Customer Mini App, Chat, Orders, Auth & Staff Alerts)
 // =============================================================================
-const OFFICIAL_STAFF_BOT_USERNAME = "s_tech_storeBot";
+const OFFICIAL_STAFF_BOT_USERNAME = "S_TECH_ASSISTANTBOT";
 const OFFICIAL_BOT_USERNAME = OFFICIAL_STAFF_BOT_USERNAME;
 const OFFICIAL_CUSTOMER_BOT_USERNAME = "S_TECH_ASSISTANTBOT";
 

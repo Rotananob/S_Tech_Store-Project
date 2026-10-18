@@ -508,29 +508,27 @@ class TelegramController extends Controller
                 // DO NOT intercept with redirect! Allow processUpdate to authenticate the customer immediately!
                 $isHandshake = str_starts_with(strtolower($startParam), 'tgauth_') || str_starts_with(strtolower($startParam), 'tglink_');
 
-                if ($botParam === 'main') {
-                    if ($msgChatType === 'private' && !$isHandshake) {
-                        $customerBotUser = TelegramService::getCustomerBotUsername();
-                        $staffBotUser = TelegramService::OFFICIAL_STAFF_BOT_USERNAME;
-                        $redirectUrl = !empty($startParam)
-                            ? "https://t.me/{$customerBotUser}?start={$startParam}"
-                            : "https://t.me/{$customerBotUser}";
+                $isLegacyOldBot = ($msgBotId === '8899300323' || str_contains($msgText, '@s_tech_storeBot'));
+                if ($isLegacyOldBot && $msgChatType === 'private' && !$isHandshake) {
+                    $customerBotUser = TelegramService::getCustomerBotUsername();
+                    $redirectUrl = !empty($startParam)
+                        ? "https://t.me/{$customerBotUser}?start={$startParam}"
+                        : "https://t.me/{$customerBotUser}";
 
-                        $responsePayload = [
-                            'method' => 'sendMessage',
-                            'chat_id' => $msgChatId,
-                            'text' => "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
-                                . "គណនី Bot នេះ (@{$staffBotUser}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff & Store Notifications) ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
-                                . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោមដើម្បីទៅកាន់ Customer Assistant Bot ផ្លូវការ៖</b>",
-                            'parse_mode' => 'HTML',
-                            'reply_markup' => [
-                                'inline_keyboard' => [
-                                    [['text' => '🚀 ទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
-                                    [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
-                                ]
+                    $responsePayload = [
+                        'method' => 'sendMessage',
+                        'chat_id' => $msgChatId,
+                        'text' => "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
+                            . "គណនី Bot នេះ ត្រូវបានផ្លាស់ប្តូរទៅកាន់ Official Bot ថ្មី (@{$customerBotUser}) រួចរាល់ហើយ។\n\n"
+                            . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោម៖</b>",
+                        'parse_mode' => 'HTML',
+                        'reply_markup' => [
+                            'inline_keyboard' => [
+                                [['text' => '🚀 ទៅកាន់ Official Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                                [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
                             ]
-                        ];
-                    }
+                        ]
+                    ];
                 } else {
                     // Dedicated Customer Companion Bot (bot=auth)
                     if (str_starts_with(strtolower($startParam), 'syncloc_')) {

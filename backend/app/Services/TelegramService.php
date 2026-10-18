@@ -17,18 +17,20 @@ class TelegramService
     //    - Customer Telegram Login & OAuth Handshake
     //    - Telegram Mini App (Web App)
     //    - Customer Live Chat & 24/7 AI Assistant
-    //    - Order tracking, Wallet, S-Coins, Promo codes
-    //    - NEVER EVER replace this with any other bot!
-    //
-    // 2. STAFF ALERT BOT: @s_tech_storeBot (Token: TELEGRAM_BOT_TOKEN)
-    //    👉 STRICTLY FOR INTERNAL STORE ADMIN/STAFF GROUP FORUM TOPICS ONLY.
-    //    - Receives new order notifications, repair job tickets, low stock alerts.
-    //    - NEVER expose or route customer login, verification, or customer chat to this bot!
     // =========================================================================
-    public const OFFICIAL_STAFF_BOT_USERNAME = 's_tech_storeBot';
-    public const OFFICIAL_STAFF_BOT_ID = '8899300323';
-    public const OFFICIAL_STAFF_BOT_TOKEN = '8899300323:AAFYan1EcMEAEcC6E-3KvahVXKcnPHLhKOI';
-    public const OFFICIAL_BOT_USERNAME = self::OFFICIAL_STAFF_BOT_USERNAME; // Backward-compatible alias for staff bot only
+    // 🤖 TELEGRAM BOT ARCHITECTURE (SINGLE SOURCE OF TRUTH):
+    // ALL CUSTOMER AND STORE FEATURES UNIFIED UNDER:
+    // 👉 @S_TECH_ASSISTANTBOT (ID: 8689597792)
+    //    - Customer Telegram Login & OAuth Handshake
+    //    - Telegram Mini App (Web App)
+    //    - Customer Live Chat & 24/7 AI Assistant
+    //    - Order tracking, Wallet, S-Coins, Promo codes
+    //    - Store Admin/Staff Alerts & Group Forum Topics
+    // =========================================================================
+    public const OFFICIAL_STAFF_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
+    public const OFFICIAL_STAFF_BOT_ID = '8689597792';
+    public const OFFICIAL_STAFF_BOT_TOKEN = '8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8';
+    public const OFFICIAL_BOT_USERNAME = self::OFFICIAL_STAFF_BOT_USERNAME;
 
     public const OFFICIAL_CUSTOMER_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
     public const OFFICIAL_CUSTOMER_BOT_ID = '8689597792';
@@ -1501,9 +1503,9 @@ class TelegramService
             return;
         }
 
-        // ── STRICT ISOLATION: BOT 1 (@s_tech_storeBot) STRICTLY GUARDS ADMIN/STAFF GROUP ONLY ──
-        // If ANY private message or handshake arrives at Bot 1, check if staff requests Mini App or redirect customers
-        if ($chatType === 'private' && ($botParam === 'main' || $isStaffBotMsg)) {
+        // ── STRICT ISOLATION: Only legacy bot (@s_tech_storeBot) redirects to official assistant ──
+        $isLegacyOldBotMsg = ($msgBotId === '8899300323' || str_contains($text, '@s_tech_storeBot'));
+        if ($chatType === 'private' && $isLegacyOldBotMsg) {
             $customerBotUser = $customerBotUsername;
             
             $extractedCode = '';
@@ -4309,6 +4311,23 @@ class TelegramService
                 $json = $response->json();
             }
 
+            // Intelligent Group Fallback: If bot is not in the group yet (chat not found), deliver directly to Owner/Admin private chat!
+            if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'chat not found') && is_numeric($chatId) && (int)$chatId < 0) {
+                $ownerChatId = '5969566967';
+                if ((string)$chatId !== $ownerChatId) {
+                    $ownerPayload = $payload;
+                    $ownerPayload['chat_id'] = $ownerChatId;
+                    unset($ownerPayload['message_thread_id']);
+                    try {
+                        $fallbackResp = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
+                        if ($fallbackResp->successful()) {
+                            Log::info("[Telegram] Delivered alert to Owner private chat ({$ownerChatId}) as fallback for group {$chatId}.");
+                            return $fallbackResp->json() ?? ['ok' => true];
+                        }
+                    } catch (\Throwable $e) {}
+                }
+            }
+
             return $json ?? ['ok' => $response->successful()];
         } catch (\Throwable $e) {
             Log::error("Failed to send Telegram message: " . $e->getMessage());
@@ -4373,6 +4392,23 @@ class TelegramService
                 unset($payload['message_thread_id']);
                 $response = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
+            }
+
+            // Intelligent Group Fallback: If bot is not in the group yet (chat not found), deliver directly to Owner/Admin private chat!
+            if (($json['error_code'] ?? 0) === 400 && str_contains(strtolower($json['description'] ?? ''), 'chat not found') && is_numeric($chatId) && (int)$chatId < 0) {
+                $ownerChatId = '5969566967';
+                if ((string)$chatId !== $ownerChatId) {
+                    $ownerPayload = $payload;
+                    $ownerPayload['chat_id'] = $ownerChatId;
+                    unset($ownerPayload['message_thread_id']);
+                    try {
+                        $fallbackResp = Http::timeout(2.5)->connectTimeout(1.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
+                        if ($fallbackResp->successful()) {
+                            Log::info("[Telegram] Delivered keyboard alert to Owner private chat ({$ownerChatId}) as fallback for group {$chatId}.");
+                            return $fallbackResp->json() ?? ['ok' => true];
+                        }
+                    } catch (\Throwable $e) {}
+                }
             }
 
             return $json ?? ['ok' => $response->successful()];

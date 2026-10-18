@@ -594,14 +594,9 @@ export default function LoginPage() {
       stopTelegramPolling();
 
       const isHidden = typeof document !== "undefined" && document.hidden;
-      // Ultra-responsive polling: 1000ms if tab is backgrounded, 500ms-1200ms when visible
-      const delay = isHidden 
-        ? 1000 
-        : attempts < 4 
-          ? 500 
-          : attempts < 12 
-            ? 800 
-            : 1200;
+      // Ultra-responsive, queue-safe polling: 1500ms background, 1000ms-1500ms visible
+      // (When user returns to tab, visibilitychange / focus triggers instant check in 0ms)
+      const delay = isHidden ? 1500 : attempts < 2 ? 1000 : 1500;
 
       telegramPollTimeoutRef.current = setTimeout(async () => {
         if (isPollingCompletedRef.current) return;

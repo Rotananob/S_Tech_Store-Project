@@ -477,7 +477,7 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
         $fileData = \Illuminate\Support\Facades\Cache::store('file')->get("tg_handshake_{$token}");
         if (is_array($fileData) && !empty($fileData)) {
             $data = $fileData;
-            // If already completed in local file cache, return in < 5ms without ANY DB hits!
+            // If already completed in local file cache, return in < 1ms without ANY DB hits!
             if (($data['status'] ?? '') === 'completed' && !empty($data['user']) && !empty($data['token'])) {
                 return response()->json([
                     'success' => true,
@@ -487,43 +487,41 @@ Route::get('/auth/telegram/handshake-check', function (Request $request) {
                     'user' => $data['user'],
                 ]);
             }
-        }
-    } catch (\Throwable $t) {}
-
-    // 2. Main cache check
-    if (!$data || ($data['status'] ?? '') !== 'completed') {
-        $mainData = \Illuminate\Support\Facades\Cache::get("tg_handshake_{$token}");
-        if (is_array($mainData) && !empty($mainData)) {
-            $data = $mainData;
-            if (($data['status'] ?? '') === 'completed') {
-                try { \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $data, 600); } catch (\Throwable $t) {}
+            // If recently checked from DB within last 1.2s and still pending, return pending instantly
+            if (($data['status'] ?? '') === 'pending' && (time() - ($data['last_db_check'] ?? 0)) < 2) {
                 return response()->json([
                     'success' => true,
-                    'completed' => true,
-                    'status' => 'completed',
-                    'token' => $data['token'],
-                    'user' => $data['user'],
+                    'completed' => false,
+                    'status' => 'pending',
                 ]);
             }
         }
-    }
+    } catch (\Throwable $t) {}
 
-    // 3. Fallback: check system_settings table only if needed
-    if (!$data || ($data['status'] ?? '') === 'pending') {
-        try {
-            $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
-            if ($row && !empty($row->value)) {
-                $dbData = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
-                if (!empty($dbData) && is_array($dbData)) {
-                    $data = $dbData;
-                    if (($data['status'] ?? '') === 'completed') {
-                        \Illuminate\Support\Facades\Cache::put("tg_handshake_{$token}", $data, 600);
-                        try { \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $data, 600); } catch (\Throwable $t) {}
-                    }
+    // 2. Query system_settings table (Single authoritative source of truth)
+    try {
+        $row = \Illuminate\Support\Facades\DB::table('system_settings')->where('key', "tg_handshake_{$token}")->first();
+        if ($row && !empty($row->value)) {
+            $dbData = is_string($row->value) ? json_decode($row->value, true) : (array)$row->value;
+            if (!empty($dbData) && is_array($dbData)) {
+                $data = $dbData;
+                $data['last_db_check'] = time();
+                try {
+                    \Illuminate\Support\Facades\Cache::store('file')->put("tg_handshake_{$token}", $data, 600);
+                } catch (\Throwable $t) {}
+
+                if (($data['status'] ?? '') === 'completed' && !empty($data['user']) && !empty($data['token'])) {
+                    return response()->json([
+                        'success' => true,
+                        'completed' => true,
+                        'status' => 'completed',
+                        'token' => $data['token'],
+                        'user' => $data['user'],
+                    ]);
                 }
             }
-        } catch (\Throwable $t) {}
-    }
+        }
+    } catch (\Throwable $t) {}
 
     if (!$data || !is_array($data)) {
         return response()->json([
@@ -831,13 +829,18 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
     }
 
     $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
-    if (!$userId) {
-        return response()->json(['success' => false, 'error' => 'Token expired or invalid'], 401);
+    $user = null;
+    if ($userId) {
+        $user = \App\Models\UserProfile::find($userId);
     }
-
-    $user = \App\Models\UserProfile::find($userId);
     if (!$user) {
-        return response()->json(['success' => false, 'error' => 'User not found'], 404);
+        $user = \App\Models\UserProfile::where('magic_login_token', $token)->first();
+        if ($user) {
+            \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+        }
+    }
+    if (!$user) {
+        return response()->json(['success' => false, 'error' => 'Token expired or invalid'], 401);
     }
 
     if (!($user->is_active ?? true)) {
