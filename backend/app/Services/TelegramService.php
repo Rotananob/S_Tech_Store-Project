@@ -40,6 +40,32 @@ class TelegramService
     private static ?array $cachedSettings = null;
 
     /**
+     * Absolute token sanitizer: strictly strips out any legacy old bot token (8899300323)
+     * and forces official S_TECH_ASSISTANTBOT token under all circumstances.
+     */
+    public static function sanitizeBotToken(?string $token): string
+    {
+        $token = trim((string)$token);
+        if (empty($token) || str_contains($token, '8899300323') || str_contains($token, 's_tech_storeBot') || str_contains($token, 'Placeholder')) {
+            return self::OFFICIAL_STAFF_BOT_TOKEN;
+        }
+        return $token;
+    }
+
+    /**
+     * Absolute username sanitizer: strictly strips out any legacy old bot username (@s_tech_storeBot)
+     * and forces official S_TECH_ASSISTANTBOT username under all circumstances.
+     */
+    public static function sanitizeBotUsername(?string $username): string
+    {
+        $username = trim((string)$username);
+        if (empty($username) || strcasecmp($username, 's_tech_storeBot') === 0 || str_contains($username, '8899300323')) {
+            return self::OFFICIAL_STAFF_BOT_USERNAME;
+        }
+        return $username;
+    }
+
+    /**
      * Get current Telegram bot settings & pairing status
      */
     public static function getSettings(): array
@@ -50,6 +76,8 @@ class TelegramService
 
         $cached = \Illuminate\Support\Facades\Cache::get('tg_settings_cache_v2');
         if (is_array($cached) && !empty($cached)) {
+            $cached['bot_token'] = self::sanitizeBotToken($cached['bot_token'] ?? null);
+            $cached['bot_username'] = self::sanitizeBotUsername($cached['bot_username'] ?? null);
             return self::$cachedSettings = $cached;
         }
 
@@ -60,8 +88,8 @@ class TelegramService
             'chat_type' => null,
             'connected_at' => null,
             'connected_by' => null,
-            'bot_username' => env('TELEGRAM_BOT_USERNAME', self::OFFICIAL_BOT_USERNAME),
-            'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
+            'bot_username' => self::sanitizeBotUsername(env('TELEGRAM_BOT_USERNAME')),
+            'bot_token' => self::sanitizeBotToken(env('TELEGRAM_BOT_TOKEN')),
             'notify_orders' => true,
             'notify_low_stock' => true,
             'notify_repairs' => true,
@@ -80,8 +108,8 @@ class TelegramService
                 $saved = is_string($dbRow->value) ? json_decode($dbRow->value, true) : (array)$dbRow->value;
                 if (is_array($saved) && !empty($saved['chat_id'])) {
                     $merged = array_merge($default, $saved);
-                    if (empty($merged['bot_token'])) $merged['bot_token'] = env('TELEGRAM_BOT_TOKEN', '');
-                    if (empty($merged['bot_username'])) $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
+                    $merged['bot_token'] = self::sanitizeBotToken($merged['bot_token'] ?? null);
+                    $merged['bot_username'] = self::sanitizeBotUsername($merged['bot_username'] ?? null);
                     \Illuminate\Support\Facades\Cache::put('tg_settings_cache_v2', $merged, 60);
                     return self::$cachedSettings = $merged;
                 }
@@ -94,12 +122,8 @@ class TelegramService
                 $saved = json_decode(Storage::get(self::$settingsFile), true);
                 if (is_array($saved)) {
                     $merged = array_merge($default, $saved);
-                    if (empty($merged['bot_token'])) {
-                        $merged['bot_token'] = env('TELEGRAM_BOT_TOKEN', '');
-                    }
-                    if (empty($merged['bot_username'])) {
-                        $merged['bot_username'] = self::OFFICIAL_BOT_USERNAME;
-                    }
+                    $merged['bot_token'] = self::sanitizeBotToken($merged['bot_token'] ?? null);
+                    $merged['bot_username'] = self::sanitizeBotUsername($merged['bot_username'] ?? null);
                     return $merged;
                 }
             }
@@ -356,7 +380,10 @@ class TelegramService
             return false;
         }
 
-        $allOk = true;
+        // Deactivate legacy old bot webhook permanently
+        try {
+            Http::timeout(2)->get("https://api.telegram.org/bot8899300323:AAFYan1EcMEAEcC6E-3KvahVXKcnPHLhKOI/deleteWebhook?drop_pending_updates=true");
+        } catch (\Throwable $e) {}
 
         // 1. Register Main Bot Webhook with ?bot=main
         if ($token && !str_contains($token, 'Placeholder')) {
@@ -3981,13 +4008,13 @@ class TelegramService
     public static function getCustomerBotToken(): string
     {
         $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', env('TELEGRAM_CUSTOMER_BOT_TOKEN', '')));
-        if (!empty($token)) {
-            return $token;
+        if (!empty($token) && !str_contains($token, '8899300323')) {
+            return self::sanitizeBotToken($token);
         }
 
         $settings = self::getSettings();
-        if (!empty($settings['customer_bot_token'])) {
-            return (string)$settings['customer_bot_token'];
+        if (!empty($settings['customer_bot_token']) && !str_contains($settings['customer_bot_token'], '8899300323')) {
+            return self::sanitizeBotToken((string)$settings['customer_bot_token']);
         }
 
         return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
@@ -3999,13 +4026,13 @@ class TelegramService
     public static function getStaffBotToken(): string
     {
         $token = trim((string)env('TELEGRAM_BOT_TOKEN', ''));
-        if (!empty($token)) {
-            return $token;
+        if (!empty($token) && !str_contains($token, '8899300323')) {
+            return self::sanitizeBotToken($token);
         }
 
         $settings = self::getSettings();
-        if (!empty($settings['bot_token'])) {
-            return (string)$settings['bot_token'];
+        if (!empty($settings['bot_token']) && !str_contains($settings['bot_token'], '8899300323')) {
+            return self::sanitizeBotToken((string)$settings['bot_token']);
         }
 
         return self::OFFICIAL_STAFF_BOT_TOKEN;
@@ -4262,8 +4289,9 @@ class TelegramService
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock send to {$chatId} (Thread: {$threadId}): {$text}");
@@ -4345,8 +4373,9 @@ class TelegramService
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock send with keyboard to {$chatId}: {$text}");
@@ -4428,8 +4457,9 @@ class TelegramService
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock sendPhoto to {$chatId}: Caption: {$caption}");
@@ -4485,8 +4515,9 @@ class TelegramService
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
 
         if (!$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock sendDocument to {$chatId}: {$filename}");
@@ -5876,8 +5907,9 @@ HTML;
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
@@ -5904,8 +5936,9 @@ HTML;
             $isPrivateUserChat = is_numeric($chatId) && (int)$chatId > 0;
             $token = $isPrivateUserChat 
                 ? self::getCustomerBotToken() 
-                : ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
+                : self::getStaffBotToken();
         }
+        $token = self::sanitizeBotToken($token);
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
@@ -5935,7 +5968,7 @@ HTML;
 
         // Auto-fetch real group title from Telegram if not explicitly provided
         if (empty($chatTitle) || $chatTitle === 'S Tech Store Group' || $chatTitle === 'Store Group') {
-            $token = $settings['bot_token'] ?? config('services.telegram.bot_token');
+            $token = self::getStaffBotToken();
             if ($token && !str_contains($token, 'Placeholder')) {
                 try {
                     $resp = Http::timeout(3)->get("https://api.telegram.org/bot{$token}/getChat", [
