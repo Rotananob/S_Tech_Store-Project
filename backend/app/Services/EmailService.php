@@ -125,11 +125,13 @@ HTML;
 
                 // Telegram companion alert if connected
                 if (!empty($user->telegram_chat_id)) {
-                    TelegramService::sendOrderNotification([
-                        'type' => 'welcome',
-                        'chat_id' => $user->telegram_chat_id,
-                        'message' => "🎉 *សូមស្វាគមន៍មកកាន់ S Tech Store!*\n\nសួស្តី @{$cleanUsername}! គណនីរបស់អ្នកបានភ្ជាប់រួចរាល់។ កាដូស្វាគមន៍ $5 (Voucher: `WELCOME5`) អាចប្រើប្រាស់បានភ្លាមៗលើវេបសាយ https://www.s-tech-store.tech",
-                    ]);
+                    TelegramService::sendMessage(
+                        $user->telegram_chat_id,
+                        "🎉 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\nសួស្តី @{$cleanUsername}! គណនីរបស់អ្នកបានភ្ជាប់រួចរាល់។ កាដូស្វាគមន៍ $5 (Voucher: <code>WELCOME5</code>) អាចប្រើប្រាស់បានភ្លាមៗលើវេបសាយ https://www.s-tech-store.tech",
+                        'HTML',
+                        null,
+                        TelegramService::getCustomerBotToken()
+                    );
                 }
             }
         } catch (\Exception $e) {
@@ -243,11 +245,13 @@ HTML;
                 ]);
 
                 if (!empty($user->telegram_chat_id)) {
-                    TelegramService::sendOrderNotification([
-                        'type' => 'security',
-                        'chat_id' => $user->telegram_chat_id,
-                        'message' => "🔒 *ការជូនដំណឹងសុវត្ថិភាព!*\n\nសំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់សម្រាប់គណនី @{$cleanUsername} ត្រូវបានផ្ញើទៅកាន់ {$email}។ ប្រសិនបើលោកអ្នកមិនបានស្នើសុំទេ សូមទាក់ទងមកកាន់ក្រុមការងារបន្ទាន់។",
-                    ]);
+                    TelegramService::sendMessage(
+                        $user->telegram_chat_id,
+                        "🔒 <b>ការជូនដំណឹងសុវត្ថិភាព!</b>\n\nសំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់សម្រាប់គណនី @{$cleanUsername} ត្រូវបានផ្ញើទៅកាន់ {$email}។ ប្រសិនបើលោកអ្នកមិនបានស្នើសុំទេ សូមទាក់ទងមកកាន់ក្រុមការងារបន្ទាន់។",
+                        'HTML',
+                        null,
+                        TelegramService::getCustomerBotToken()
+                    );
                 }
             }
         } catch (\Exception $e) {

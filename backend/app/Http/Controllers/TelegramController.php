@@ -413,7 +413,22 @@ class TelegramController extends Controller
         }
 
         $update = $request->all();
-        $botParam = $request->query('bot', '');
+        $botParam = trim((string)$request->query('bot', ''));
+
+        // Auto-detect bot param if not explicitly passed in query
+        if (empty($botParam)) {
+            $chatType = $update['message']['chat']['type'] ?? $update['callback_query']['message']['chat']['type'] ?? '';
+            $msgBotId = (string)($update['callback_query']['message']['from']['id'] ?? '');
+            $text = (string)($update['message']['text'] ?? '');
+
+            if ($chatType === 'group' || $chatType === 'supergroup' || $msgBotId === TelegramService::OFFICIAL_STAFF_BOT_ID || str_contains($text, '@' . TelegramService::OFFICIAL_STAFF_BOT_USERNAME)) {
+                $botParam = 'main';
+            } elseif ($msgBotId === TelegramService::OFFICIAL_CUSTOMER_BOT_ID || str_contains($text, '@' . TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME)) {
+                $botParam = 'auth';
+            } else {
+                $botParam = ($chatType === 'private') ? 'auth' : 'main';
+            }
+        }
 
         // ⚡ INSTANT LOCAL-FIRST CALLBACK ACKNOWLEDGMENT:
         // When user clicks any inline button in Telegram, respond with method 'answerCallbackQuery'
@@ -430,7 +445,8 @@ class TelegramController extends Controller
             $cbMessageId = $callbackQuery['message']['message_id'] ?? null;
             $fromName = trim(($callbackQuery['from']['first_name'] ?? '') . ' ' . ($callbackQuery['from']['last_name'] ?? '')) ?: 'អតិថិជន';
 
-            if ($callbackData === 'cust_my_orders' && $cbChatId && $cbMessageId) {
+            // Customer order hub interactive menu is strictly for Customer Bot (bot !== 'main')
+            if ($callbackData === 'cust_my_orders' && $cbChatId && $cbMessageId && $botParam !== 'main') {
                 $orderMenuText = "📦 <b>ការពិនិត្យមើលប្រវត្តិបញ្ជាទិញ (My Orders Hub):</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n"
                     . "ជម្រាបសួរ <b>" . htmlspecialchars($fromName) . "</b>!\n"
@@ -480,54 +496,84 @@ class TelegramController extends Controller
         } elseif (isset($update['message']['text'])) {
             $msgText = trim($update['message']['text']);
             $msgChatId = $update['message']['chat']['id'] ?? null;
+            $msgChatType = $update['message']['chat']['type'] ?? 'private';
             $msgFromName = trim(($update['message']['from']['first_name'] ?? '') . ' ' . ($update['message']['from']['last_name'] ?? '')) ?: 'អតិថិជន';
 
             if ($msgChatId && preg_match('/^\/start(?:@\w+)?(?:\s+(.*))?$/i', $msgText, $matches)) {
                 $startParam = trim($matches[1] ?? '');
-                if (str_starts_with(strtolower($startParam), 'syncloc_')) {
-                    $responsePayload = [
-                        'method' => 'sendMessage',
-                        'chat_id' => $msgChatId,
-                        'text' => "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n━━━━━━━━━━━━━━━━━━━━\n\nសួស្តី <b>" . htmlspecialchars($msgFromName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។",
-                        'parse_mode' => 'HTML',
-                        'reply_markup' => [
-                            'keyboard' => [
-                                [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
-                            ],
-                            'resize_keyboard' => true,
-                            'one_time_keyboard' => true,
-                        ],
-                    ];
-                } elseif (empty($startParam)) {
-                    $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
-                        . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
-                        . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
-                        . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
-                        . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
 
-                    $responsePayload = [
-                        'method' => 'sendMessage',
-                        'chat_id' => $msgChatId,
-                        'text' => $welcomeText,
-                        'parse_mode' => 'HTML',
-                        'reply_markup' => [
-                            'inline_keyboard' => [
-                                [['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => "https://www.s-tech-store.tech/?tg_token={$msgChatId}"]]],
-                                [
-                                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
-                                    ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                // STRICT ISOLATION: When webhook is for Staff Bot (bot=main),
+                // NEVER return customer store welcome or store menus in the HTTP response!
+                if ($botParam === 'main') {
+                    if ($msgChatType === 'private') {
+                        $customerBotUser = TelegramService::getCustomerBotUsername();
+                        $staffBotUser = TelegramService::OFFICIAL_STAFF_BOT_USERNAME;
+                        $redirectUrl = !empty($startParam)
+                            ? "https://t.me/{$customerBotUser}?start={$startParam}"
+                            : "https://t.me/{$customerBotUser}";
+
+                        $responsePayload = [
+                            'method' => 'sendMessage',
+                            'chat_id' => $msgChatId,
+                            'text' => "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
+                                . "គណនី Bot នេះ (@{$staffBotUser}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff & Store Notifications) ក្នុងគ្រុបប៉ុណ្ណោះ។\n\n"
+                                . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោមដើម្បីទៅកាន់ Customer Assistant Bot ផ្លូវការ៖</b>",
+                            'parse_mode' => 'HTML',
+                            'reply_markup' => [
+                                'inline_keyboard' => [
+                                    [['text' => '🚀 ទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                                    [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
+                                ]
+                            ]
+                        ];
+                    }
+                } else {
+                    // Dedicated Customer Companion Bot (bot=auth)
+                    if (str_starts_with(strtolower($startParam), 'syncloc_')) {
+                        $responsePayload = [
+                            'method' => 'sendMessage',
+                            'chat_id' => $msgChatId,
+                            'text' => "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n━━━━━━━━━━━━━━━━━━━━\n\nសួស្តី <b>" . htmlspecialchars($msgFromName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។",
+                            'parse_mode' => 'HTML',
+                            'reply_markup' => [
+                                'keyboard' => [
+                                    [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
                                 ],
-                                [
-                                    ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
-                                    ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
-                                ],
-                                [
-                                    ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
-                                    ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
+                                'resize_keyboard' => true,
+                                'one_time_keyboard' => true,
+                            ],
+                        ];
+                    } elseif (empty($startParam)) {
+                        $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                            . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
+                            . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                            . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
+                            . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+
+                        $responsePayload = [
+                            'method' => 'sendMessage',
+                            'chat_id' => $msgChatId,
+                            'text' => $welcomeText,
+                            'parse_mode' => 'HTML',
+                            'reply_markup' => [
+                                'inline_keyboard' => [
+                                    [['text' => '🛍️ បើកទិញទំនិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => "https://www.s-tech-store.tech/?tg_token={$msgChatId}"]]],
+                                    [
+                                        ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                                        ['text' => '💰 កាបូបលុយ & សមតុល្យ', 'callback_data' => 'cust_my_wallet'],
+                                    ],
+                                    [
+                                        ['text' => '🪙 ពិន្ទុ & VIP (Coins)', 'callback_data' => 'cust_my_points'],
+                                        ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                                    ],
+                                    [
+                                        ['text' => '💻 ផលិតផល Laptops & PC', 'callback_data' => 'cust_shop'],
+                                        ['text' => '📞 ទំនាក់ទំនង & ទីតាំង', 'callback_data' => 'cust_contact'],
+                                    ],
                                 ],
                             ],
-                        ],
-                    ];
+                        ];
+                    }
                 }
             }
         }

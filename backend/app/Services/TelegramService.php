@@ -26,11 +26,13 @@ class TelegramService
     //    - NEVER expose or route customer login, verification, or customer chat to this bot!
     // =========================================================================
     public const OFFICIAL_STAFF_BOT_USERNAME = 's_tech_storeBot';
+    public const OFFICIAL_STAFF_BOT_ID = '8899300323';
+    public const OFFICIAL_STAFF_BOT_TOKEN = '8899300323:AAFYan1EcMEAEcC6E-3KvahVXKcnPHLhKOI';
     public const OFFICIAL_BOT_USERNAME = self::OFFICIAL_STAFF_BOT_USERNAME; // Backward-compatible alias for staff bot only
 
     public const OFFICIAL_CUSTOMER_BOT_USERNAME = 'S_TECH_ASSISTANTBOT';
     public const OFFICIAL_CUSTOMER_BOT_ID = '8689597792';
-    public const OFFICIAL_CUSTOMER_BOT_TOKEN = '';
+    public const OFFICIAL_CUSTOMER_BOT_TOKEN = '8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8';
 
     private static $settingsFile = 'telegram_settings.json';
     private static ?array $cachedSettings = null;
@@ -335,8 +337,7 @@ class TelegramService
      */
     public static function ensureWebhookRegistered(): bool
     {
-        $settings = self::getSettings();
-        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        $token = self::getStaffBotToken();
         $authBotToken = self::getCustomerBotToken();
 
         $webhookUrl = env('TELEGRAM_WEBHOOK_URL');
@@ -627,17 +628,21 @@ class TelegramService
             $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $fromUsername = $from['username'] ?? '';
 
-            // Accurate Multi-Bot Token Routing: All private chats strictly route to Customer Bot (@S_TECH_ASSISTANTBOT)
+            // Accurate Multi-Bot Token Routing:
+            // Bot 1 (Staff Alert Bot): Used for staff group, staff actions, and any callback with bot=main or from staff bot ID.
+            // Bot 2 (Customer Companion Bot): Used for customer private chats, Mini App, customer menus.
             $msgBotId = (string)($callbackQuery['message']['from']['id'] ?? '');
-            if ($chatType === 'private') {
+            $isStaffBot = ($botParam === 'main' || $msgBotId === self::OFFICIAL_STAFF_BOT_ID || $msgBotId === '8899300323');
+
+            if ($isStaffBot) {
+                $activeToken = self::getStaffBotToken();
+                $activeBotUsername = self::OFFICIAL_STAFF_BOT_USERNAME;
+            } elseif ($botParam === 'auth' || $msgBotId === self::OFFICIAL_CUSTOMER_BOT_ID || $chatType === 'private') {
                 $activeToken = self::getCustomerBotToken();
                 $activeBotUsername = self::getCustomerBotUsername();
-            } elseif ($botParam === 'main' || $msgBotId === '8899300323') {
-                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-                $activeBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
             } else {
-                $activeToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-                $activeBotUsername = $settings['bot_username'] ?? self::OFFICIAL_BOT_USERNAME;
+                $activeToken = self::getStaffBotToken();
+                $activeBotUsername = self::OFFICIAL_STAFF_BOT_USERNAME;
             }
 
             // STRICT DISCONNECT ISOLATION: In group chat, if disconnected, ignore completely!
@@ -1475,19 +1480,20 @@ class TelegramService
 
         if (!$chatId) return;
 
-        // Multi-Bot Token routing: All private chats strictly route to Customer Bot (@S_TECH_ASSISTANTBOT)
-        $staffBotToken = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
-        $staffBotUsername = $settings['bot_username'] ?? 's_tech_storeBot';
+        // Multi-Bot Token routing:
+        $staffBotToken = self::getStaffBotToken();
+        $staffBotUsername = self::OFFICIAL_STAFF_BOT_USERNAME;
+        $customerBotToken = self::getCustomerBotToken();
+        $customerBotUsername = self::getCustomerBotUsername();
 
-        if ($chatType === 'private') {
-            $activeToken = self::getCustomerBotToken();
-            $activeBotUsername = self::getCustomerBotUsername();
-        } elseif ($botParam === 'main') {
+        $isStaffBotMsg = ($botParam === 'main' || $chatType !== 'private' || str_contains($text, '@' . $staffBotUsername));
+
+        if ($isStaffBotMsg) {
             $activeToken = $staffBotToken;
             $activeBotUsername = $staffBotUsername;
         } else {
-            $activeToken = $staffBotToken;
-            $activeBotUsername = $staffBotUsername ?: self::OFFICIAL_BOT_USERNAME;
+            $activeToken = $customerBotToken;
+            $activeBotUsername = $customerBotUsername;
         }
 
         // Message Deduplication
@@ -1497,8 +1503,8 @@ class TelegramService
 
         // ── STRICT ISOLATION: BOT 1 (@s_tech_storeBot) STRICTLY GUARDS ADMIN/STAFF GROUP ONLY ──
         // If ANY private message or handshake arrives at Bot 1, check if staff requests Mini App or redirect customers
-        if ($chatType === 'private' && $botParam === 'main') {
-            $customerBotUser = self::getCustomerBotUsername();
+        if ($chatType === 'private' && ($botParam === 'main' || $isStaffBotMsg)) {
+            $customerBotUser = $customerBotUsername;
             
             $extractedCode = '';
             if (preg_match('/^\/start(?:@\w+)?\s*(.*)$/i', $text, $matches)) {
@@ -2331,17 +2337,18 @@ class TelegramService
         // 6. PRIVATE CHAT COMMANDS (Customers & Normal Users — STRICTLY NO ADMIN FEATURES)
 
         // If a customer messages Bot 1 (Staff & Store Notification Bot) privately, politely guide them to Customer Bot (@S_TECH_ASSISTANTBOT)
-        if ($botParam === 'main') {
+        if ($botParam === 'main' || $isStaffBotMsg) {
             $customerBotUser = self::getCustomerBotUsername();
+            $staffBotUser = self::OFFICIAL_STAFF_BOT_USERNAME;
             $redirectMsg = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
-                . "គណនី Bot នេះ (@{$activeBotUsername}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff Notifications) ប៉ុណ្ណោះ។\n\n"
+                . "គណនី Bot នេះ (@{$staffBotUser}) ត្រូវបានកំណត់សម្រាប់តែការផ្ញើដំណឹងប្រចាំហាង (Staff Notifications) ប៉ុណ្ណោះ។\n\n"
                 . "សម្រាប់ការបញ្ជាទិញទំនិញ, ពិនិត្យកាបូបលុយ, មើលពិន្ទុ, និងតាមដាន Orders សូមចុចទៅកាន់ <b>Customer Assistant Bot</b> ផ្លូវការរបស់យើងខ្ញុំ៖";
             $redirectKb = [
                 'inline_keyboard' => [
                     [['text' => '🛍️ ចូលទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => 'https://t.me/' . $customerBotUser]],
                 ]
             ];
-            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, $activeToken);
+            self::sendMessageWithKeyboard($chatId, $redirectMsg, $redirectKb, 'HTML', null, self::getStaffBotToken());
             return;
         }
 
@@ -3482,7 +3489,7 @@ class TelegramService
     public static function pollPendingUpdates(int $timeout = 0): void
     {
         $settings = self::getSettings();
-        $token = $settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN');
+        $token = self::getStaffBotToken();
         if (!$token || str_contains($token, 'Placeholder')) {
             return;
         }
@@ -3517,7 +3524,7 @@ class TelegramService
                         continue;
                     }
 
-                    self::processUpdate($up);
+                    self::processUpdate($up, 'main');
                 }
 
                 $settings = self::getSettings();
@@ -3947,14 +3954,63 @@ class TelegramService
 
     /**
      * Get Customer / Auth Bot Token (dedicated customer interactions)
+     * Strictly returns the dedicated Customer Bot token. NEVER leaks to staff bot token!
      */
     public static function getCustomerBotToken(): string
     {
         $token = trim((string)env('TELEGRAM_AUTH_BOT_TOKEN', env('TELEGRAM_CUSTOMER_BOT_TOKEN', '')));
-        if (!empty($token) && str_starts_with($token, self::OFFICIAL_CUSTOMER_BOT_ID)) {
+        if (!empty($token)) {
             return $token;
         }
-        return $token ?: (string)env('TELEGRAM_BOT_TOKEN', '');
+
+        $settings = self::getSettings();
+        if (!empty($settings['customer_bot_token'])) {
+            return (string)$settings['customer_bot_token'];
+        }
+
+        return self::OFFICIAL_CUSTOMER_BOT_TOKEN;
+    }
+
+    /**
+     * Get Staff / Notification Bot Token (internal store staff forum group topics alerts)
+     */
+    public static function getStaffBotToken(): string
+    {
+        $token = trim((string)env('TELEGRAM_BOT_TOKEN', ''));
+        if (!empty($token)) {
+            return $token;
+        }
+
+        $settings = self::getSettings();
+        if (!empty($settings['bot_token'])) {
+            return (string)$settings['bot_token'];
+        }
+
+        return self::OFFICIAL_STAFF_BOT_TOKEN;
+    }
+
+    /**
+     * Backward-compatible alias for staff bot token
+     */
+    public static function getBotToken(): string
+    {
+        return self::getStaffBotToken();
+    }
+
+    /**
+     * Send a notification to a specific topic in the staff forum group using the Staff Bot
+     */
+    public static function sendToTopic(string $text, string $topicCategory = 'chat', string $parseMode = 'HTML'): array
+    {
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id'])) {
+            return ['ok' => false, 'error' => 'Telegram staff group is not connected'];
+        }
+
+        $threadId = self::resolveTopicId($topicCategory);
+        $token = self::getStaffBotToken();
+
+        return self::sendMessage($settings['chat_id'], $text, $parseMode, $threadId, $token);
     }
 
     /**
@@ -5901,11 +5957,6 @@ HTML;
      */
     public static function sendOrderNotification($order): bool
     {
-        $settings = self::getSettings();
-        if (empty($settings['connected']) || empty($settings['chat_id']) || empty($settings['notify_orders'])) {
-            return false;
-        }
-
         // Support array fallback for backwards compatibility
         if (is_array($order)) {
             if (isset($order['chat_id'], $order['message'])) {
@@ -5913,6 +5964,11 @@ HTML;
                 return (self::sendMessage($order['chat_id'], $order['message'], $parseMode)['ok'] ?? false) === true;
             }
             $order = (object)$order;
+        }
+
+        $settings = self::getSettings();
+        if (empty($settings['connected']) || empty($settings['chat_id']) || empty($settings['notify_orders'])) {
+            return false;
         }
 
         // Auto-load items with product & category relations if missing
@@ -6263,7 +6319,7 @@ HTML;
 
         // Channel A: If Customer is Connected to Telegram, send PRIVATELY to customer (100% Private, Zero Admin Alert)
         if (!empty($customerChatId)) {
-            $activeToken = self::getCustomerBotToken() ?: self::getBotToken();
+            $activeToken = self::getCustomerBotToken();
             if (empty($activeToken)) {
                 return ['ok' => false, 'error' => 'Telegram Bot token is not configured'];
             }
