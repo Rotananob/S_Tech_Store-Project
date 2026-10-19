@@ -531,6 +531,21 @@ class PaymentService
             Log::warning("Customer direct telegram payment alert failed: " . $e->getMessage());
         }
 
+        // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+        $customerEmail = $order->customer_email ?: ($order->user->email ?? null);
+        if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
+            try {
+                \App\Http\Controllers\OrderController::sendOrderEmail(
+                    $order->load('items.product'),
+                    $customerEmail,
+                    'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Payment Received)',
+                    "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$order->order_id} ទឹកប្រាក់ $" . number_format((float)$order->total_amount, 2) . " តាមរយៈ " . strtoupper($method) . " ត្រូវបានផ្ទៀងផ្ទាត់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
+                );
+            } catch (\Throwable $mailErr) {
+                Log::warning("Order payment email invoice dispatch failed: " . $mailErr->getMessage());
+            }
+        }
+
         // Send full Order Invoice card to Telegram order topic
         try {
             TelegramService::sendOrderNotification($order->load('items.product'));

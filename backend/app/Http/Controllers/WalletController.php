@@ -1030,6 +1030,21 @@ class WalletController extends Controller
                     \Illuminate\Support\Facades\Log::warning("Customer direct telegram wallet payment alert failed: " . $e->getMessage());
                 }
 
+                // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+                $customerEmail = $paidOrder->customer_email ?: ($paidOrder->user->email ?? null);
+                if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
+                    try {
+                        \App\Http\Controllers\OrderController::sendOrderEmail(
+                            $paidOrder->load('items.product'),
+                            $customerEmail,
+                            'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Wallet Payment)',
+                            "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$paidOrder->order_id} ទឹកប្រាក់ $" . number_format((float)$paidOrder->total_amount, 2) . " តាមរយៈ S Tech Wallet ត្រូវបានកាត់កាក់/ទឹកប្រាក់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
+                        );
+                    } catch (\Throwable $mailErr) {
+                        \Illuminate\Support\Facades\Log::warning("Wallet order payment email dispatch failed: " . $mailErr->getMessage());
+                    }
+                }
+
                 // Send full Order Invoice card to Telegram order topic
                 try {
                     \App\Services\TelegramService::sendOrderNotification($paidOrder->load('items.product'));

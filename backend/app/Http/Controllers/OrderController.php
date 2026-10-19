@@ -234,6 +234,20 @@ class OrderController extends Controller
                 } catch (\Throwable $t) {
                     \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert skipped: " . $t->getMessage());
                 }
+
+                // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+                if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
+                    try {
+                        self::sendOrderEmail(
+                            $order->load('items.product'),
+                            $customerEmail,
+                            'ការកុម្ម៉ង់ទំនិញទទួលបានជោគជ័យ (Order Placed - COD)',
+                            "សូមអរគុណចំពោះការកុម្ម៉ង់ទំនិញនៅ S Tech Store Cambodia! ការបញ្ជាទិញរបស់អ្នក (#{$order->order_id}) ត្រូវបានកត់ត្រាចូលក្នុងប្រព័ន្ធរួចរាល់ហើយ។ វិក្កយបត្រអេឡិចត្រូនិចផ្លូវការត្រូវបានភ្ជាប់មកជាមួយអ៊ីមែលនេះ។"
+                        );
+                    } catch (\Throwable $mailErr) {
+                        \Illuminate\Support\Facades\Log::warning("Order placement COD email dispatch failed: " . $mailErr->getMessage());
+                    }
+                }
             }
 
             return response()->json([
