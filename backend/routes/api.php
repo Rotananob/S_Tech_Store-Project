@@ -128,42 +128,53 @@ Route::post('/chat/admin-reply-alert', function (Request $request) {
         try {
             $staffName = htmlspecialchars($validated['staff_name'] ?? 'ក្រុមការងារ S Tech');
             $replyHtml = nl2br(htmlspecialchars($validated['reply_text']));
-            $subject = "💬 [S Tech Store] សារឆ្លើយតបពីក្រុមការងារ {$staffName}";
+            $subject = "[S Tech Store] សារឆ្លើយតបពីក្រុមការងារ {$staffName}";
+            $domain = 'https://www.s-tech-store.tech';
             $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', Arial, sans-serif; background: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 580px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #8B1A1A 0%, #DC2626 100%); padding: 28px 24px; text-align: center; color: #fff; }
-    .content { padding: 28px 24px; }
-    .reply-box { background: #1c212c; border-left: 4px solid #ef4444; border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 20px 0; font-size: 14px; line-height: 1.6; color: #f1f5f9; }
-    .btn { display: inline-block; background: #dc2626; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; }
-    .footer { background: #10141d; padding: 18px; text-align: center; font-size: 11px; color: #64748b; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 580px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 32px 24px 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 8px 20px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 12px; }
+    .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
+    .content { padding: 30px 26px; }
+    .badge { display: inline-block; background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #f87171; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .reply-box { background: #141923; border-left: 3px solid #ef4444; border-radius: 0 12px 12px 0; padding: 18px 20px; margin: 20px 0; font-size: 14px; line-height: 1.6; color: #f1f5f9; }
+    .btn-row { text-align: center; margin: 26px 0 10px; }
+    .btn-primary { display: inline-block; background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 13px; padding: 13px 26px; border-radius: 10px; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
+    .footer { background: #0a0d14; padding: 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .footer a { color: #f87171; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <h2 style="margin: 0; font-size: 20px;">S TECH STORE LIVE SUPPORT</h2>
-      <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.9;">ការឆ្លើយតបសារផ្ទាល់ពីក្រុមការងារបច្ចេកទេស</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">សេវាបំរើអតិថិជន & Live Support • www.s-tech-store.tech</p>
     </div>
     <div class="content">
-      <p style="font-size: 14px; color: #cbd5e1; margin-top: 0;">
-        សួស្តីលោកអ្នក! <strong>{$staffName}</strong> បានឆ្លើយតបសំណួររបស់អ្នកក្នុងប្រព័ន្ធ Live Chat៖
+      <div class="badge">LIVE SUPPORT REPLY</div>
+      <p style="font-size: 14px; color: #cbd5e1; margin-top: 0; line-height: 1.6;">
+        សួស្តីលោកអ្នក! <strong>{$staffName}</strong> បានឆ្លើយតបសាររបស់អ្នកក្នុងប្រព័ន្ធ Live Chat៖
       </p>
       <div class="reply-box">
         {$replyHtml}
       </div>
-      <div style="text-align: center; margin-top: 24px;">
-        <a href="https://www.s-tech-store.tech" class="btn" target="_blank">💬 ចូលទៅកាន់ Live Chat ឥឡូវនេះ</a>
+      <div class="btn-row">
+        <a href="{$domain}" class="btn-primary" target="_blank">ចូលទៅកាន់ Live Chat ឥឡូវនេះ</a>
       </div>
     </div>
     <div class="footer">
-      <p>© 2026 S Tech Store Cambodia • www.s-tech-store.tech</p>
+      <p>© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង。<br>
+      គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
     </div>
   </div>
 </body>

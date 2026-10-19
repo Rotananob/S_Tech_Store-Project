@@ -25,7 +25,7 @@ class EmailService
     {
         $cleanUsername = !empty($username) ? ltrim($username, '@') : 'អតិថិជនកិត្តិយស';
         $domain = self::DOMAIN;
-        $subject = '🎉 សូមស្វាគមន៍មកកាន់ ' . self::STORE_NAME;
+        $subject = '[S Tech Store] សូមស្វាគមន៍មកកាន់គេហទំព័រផ្លូវការ';
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -35,76 +35,87 @@ class EmailService
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', 'Siemreap', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 620px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #8B1A1A 0%, #B91C1C 60%, #E11D48 100%); padding: 36px 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0 0 6px 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-    .header p { margin: 0; font-size: 13px; opacity: 0.9; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 600px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 36px 24px 28px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 10px 25px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 14px; }
+    .brand-title { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 5px 0 0; font-size: 12px; color: #94a3b8; letter-spacing: 0.5px; }
     .content { padding: 32px 28px; }
-    .greeting { font-size: 18px; font-weight: 700; color: #f8fafc; margin-bottom: 14px; }
-    .lead { font-size: 14px; line-height: 1.7; color: #cbd5e1; margin-bottom: 22px; }
-    .voucher-box { background: linear-gradient(135deg, rgba(139,26,26,0.15) 0%, rgba(220,38,38,0.08) 100%); border: 1px dashed #ef4444; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 26px; }
-    .voucher-title { font-size: 12px; font-weight: bold; color: #f87171; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-    .voucher-code { font-family: monospace; font-size: 26px; font-weight: 900; color: #ffffff; letter-spacing: 4px; background: #1c212c; padding: 8px 18px; border-radius: 10px; display: inline-block; margin-bottom: 6px; }
-    .voucher-sub { font-size: 12px; color: #94a3b8; }
-    .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
-    .feature-item { background: #1a202c; border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 14px; }
-    .feature-item strong { display: block; font-size: 13px; color: #f1f5f9; margin-bottom: 4px; }
-    .feature-item span { font-size: 11px; color: #94a3b8; line-height: 1.4; }
-    .cta-btn { display: inline-block; background: linear-gradient(135deg, #8B1A1A 0%, #DC2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 12px; text-align: center; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
-    .cta-btn-alt { display: inline-block; background: #262c3b; color: #e2e8f0 !important; text-decoration: none; font-weight: 600; font-size: 13px; padding: 12px 20px; border-radius: 12px; margin-left: 8px; }
-    .footer { background: #10141d; padding: 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
-    .footer a { color: #f87171; text-decoration: none; }
+    .badge { display: inline-block; background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #f87171; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .greeting { font-size: 19px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
+    .lead { font-size: 14px; line-height: 1.7; color: #cbd5e1; margin-bottom: 24px; }
+    .voucher-card { background: linear-gradient(135deg, rgba(220,38,38,0.1) 0%, rgba(139,26,26,0.04) 100%); border: 1px dashed rgba(239,68,68,0.5); border-radius: 16px; padding: 22px; text-align: center; margin-bottom: 28px; }
+    .voucher-label { font-size: 11px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+    .voucher-code { font-family: 'Courier New', Courier, monospace; font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: 4px; background: #161b26; border: 1px solid rgba(255,255,255,0.08); padding: 8px 24px; border-radius: 10px; display: inline-block; margin-bottom: 8px; }
+    .voucher-desc { font-size: 12px; color: #94a3b8; margin: 0; }
+    .section-title { font-size: 13px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 28px; }
+    .grid-item { background: #141923; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; }
+    .grid-tag { font-size: 10px; font-weight: 700; color: #ef4444; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; }
+    .grid-title { font-size: 13px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+    .grid-text { font-size: 11px; color: #94a3b8; line-height: 1.5; margin: 0; }
+    .btn-row { text-align: center; margin: 30px 0 10px; }
+    .btn-primary { display: inline-block; background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 13px; padding: 13px 26px; border-radius: 10px; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
+    .btn-secondary { display: inline-block; background: #1a202c; color: #cbd5e1 !important; text-decoration: none; font-weight: 600; font-size: 13px; padding: 13px 22px; border-radius: 10px; margin-left: 8px; border: 1px solid rgba(255,255,255,0.08); }
+    .footer { background: #0a0d14; padding: 24px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); line-height: 1.7; }
+    .footer a { color: #f87171; text-decoration: none; font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <div style="font-size: 32px; margin-bottom: 8px;">🚀</div>
-      <h1>S TECH STORE CAMBODIA</h1>
-      <p>មជ្ឈមណ្ឌលកុំព្យូទ័រ និងបច្ចេកវិទ្យាឈានមុខគេ • www.s-tech-store.tech</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">មជ្ឈមណ្ឌលកុំព្យូទ័រ និងបច្ចេកវិទ្យាឈានមុខគេ • www.s-tech-store.tech</p>
     </div>
     <div class="content">
-      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}! 👋</div>
+      <div class="badge">OFFICIAL WELCOME</div>
+      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}</div>
       <p class="lead">
-        សូមស្វាគមន៍យ៉ាងកក់ក្តៅមកកាន់ <strong>S Tech Store</strong>! យើងខ្ញុំពិតជារីករាយក្រៃលែងដែលលោកអ្នកបានចូលរួមជាសមាជិកគ្រួសារបច្ចេកវិទ្យាជាមួយយើង។ គណនីរបស់អ្នកត្រូវបានបង្កើតឡើងដោយជោគជ័យ និងអាចប្រើប្រាស់បានភ្លាមៗ!
+        សូមស្វាគមន៍មកកាន់ <strong>S Tech Store Cambodia</strong>។ គណនីរបស់អ្នកត្រូវបានបង្កើតឡើងដោយជោគជ័យ និងមានសុវត្ថិភាពពេញលេញ។ លោកអ្នកអាចចាប់ផ្តើមរុករកផលិតផលបច្ចេកវិទ្យា ផ្គុំម៉ាស៊ីនកុំព្យូទ័រ ឬទិញទំនិញបានភ្លាមៗ។
       </p>
 
-      <div class="voucher-box">
-        <div class="voucher-title">🎁 កាដូស្វាគមន៍ពិសេសសម្រាប់សមាជិកថ្មី ($5 OFF)</div>
+      <div class="voucher-card">
+        <div class="voucher-label">កាដូស្វាគមន៍សមាជិកថ្មី ($5.00 USD OFF)</div>
         <div class="voucher-code">WELCOME5</div>
-        <div class="voucher-sub">បញ្ចុះតម្លៃ $5.00 ភ្លាមៗលើរាល់ការបញ្ជាទិញដំបូងរបស់អ្នក!</div>
+        <p class="voucher-desc">ទទួលបានការបញ្ចុះតម្លៃ $5.00 ភ្លាមៗលើការបញ្ជាទិញដំបូងរបស់អ្នកលើគេហទំព័រ</p>
       </div>
 
-      <div class="feature-grid">
-        <div class="feature-item">
-          <strong>🪙 កាក់រង្វាន់ប្រចាំថ្ងៃ (Daily Coin)</strong>
-          <span>ចូល Login រាល់ថ្ងៃ ទទួលបាន 1 Coin ភ្លាមៗ អាចប្តូរជាលុយសុទ្ធក្នុងកាបូប Wallet បាន!</span>
+      <div class="section-title">សេវាកម្ម និងមុខងារសំខាន់ៗ</div>
+      <div class="grid">
+        <div class="grid-item">
+          <div class="grid-tag">PC Builder</div>
+          <div class="grid-title">ឧបករណ៍ផ្គុំកុំព្យូទ័រ</div>
+          <p class="grid-text">ជ្រើសរើសគ្រឿងបន្លាស់តាមចំណង់ចំណូលចិត្ត ជាមួយប្រព័ន្ធត្រួតពិនិត្យភាពស៊ីគ្នារវាង Hardware ១០០%។</p>
         </div>
-        <div class="feature-item">
-          <strong>🖥️ ឧបករណ៍ផ្គុំកុំព្យូទ័រ PC Builder</strong>
-          <span>ផ្គុំកុំព្យូទ័រតាមចំណង់ចំណូលចិត្ត ត្រួតពិនិត្យភាពស៊ីគ្នា 100% មុននឹងបញ្ជាទិញ។</span>
+        <div class="grid-item">
+          <div class="grid-tag">Daily Rewards</div>
+          <div class="grid-title">រង្វាន់កាក់ប្រចាំថ្ងៃ</div>
+          <p class="grid-text">ចូល Login រាល់ថ្ងៃ ទទួលបានកាក់សន្សំ Coin ភ្លាមៗ អាចប្តូរជាទឹកប្រាក់សុទ្ធក្នុង Wallet បាន។</p>
         </div>
-        <div class="feature-item">
-          <strong>🤖 ជំនួយការឆ្លាតវៃ Telegram Bot</strong>
-          <span>ទទួលបានការជូនដំណឹងពីស្ថានភាពទំនិញ និងទិញទំនិញរហ័សតាម @S_TECH_ASSISTANTBOT។</span>
+        <div class="grid-item">
+          <div class="grid-tag">Fast Delivery</div>
+          <div class="grid-title">ដឹកជញ្ជូនរហ័ស ២៥ ខេត្ត-ក្រុង</div>
+          <p class="grid-text">ទំនិញសុទ្ធ ១០០% ធានាផ្លូវការពីក្រុមហ៊ុន និងការវេចខ្ចប់យ៉ាងមានសុវត្ថិភាពខ្ពស់។</p>
         </div>
-        <div class="feature-item">
-          <strong>🚚 ដឹកជញ្ជូនរហ័សទូទាំង ២៥ ខេត្ត-ក្រុង</strong>
-          <span>ទំនិញសុទ្ធ 100% មានការធានាផ្លូវការ និងការវេចខ្ចប់យ៉ាងមានសុវត្ថិភាពខ្ពស់។</span>
+        <div class="grid-item">
+          <div class="grid-tag">Smart Assistant</div>
+          <div class="grid-title">Telegram Bot ២៤/៧</div>
+          <p class="grid-text">ភ្ជាប់គណនីជាមួយ @S_TECH_ASSISTANTBOT ដើម្បីទទួលដំណឹងទំនិញ និងទិញទំនិញរហ័ស។</p>
         </div>
       </div>
 
-      <div style="text-align: center; margin: 30px 0 10px;">
-        <a href="{$domain}/products" class="cta-btn" target="_blank">🛒 រុករកទំនិញឥឡូវនេះ</a>
-        <a href="{$domain}/build-pc" class="cta-btn-alt" target="_blank">🖥️ ផ្គុំ PC</a>
+      <div class="btn-row">
+        <a href="{$domain}/products" class="btn-primary" target="_blank">រុករកទំនិញ (Products)</a>
+        <a href="{$domain}/build-pc" class="btn-secondary" target="_blank">ផ្គុំ PC Builder</a>
       </div>
     </div>
 
     <div class="footer">
       <p>ទូរស័ព្ទទំនាក់ទំនង: +855 88 993 0032 | ទីតាំង: រាជធានីភ្នំពេញ កម្ពុជា</p>
       <p>គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
-      <p style="margin-top: 10px; color: #475569;">© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។</p>
+      <p style="margin-top: 6px; color: #475569;">© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។</p>
     </div>
   </div>
 </body>
@@ -166,7 +177,7 @@ HTML;
         ], 60 * 60);
 
         $resetLink = "{$domain}/reset-password?token={$resetToken}&email=" . urlencode($email);
-        $subject = '🔒 សំណើសុំប្តូរពាក្យសម្ងាត់ - ' . self::STORE_NAME;
+        $subject = '[S Tech Store] សំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់គណនី';
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -176,45 +187,49 @@ HTML;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', 'Siemreap', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 580px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 2px solid #ef4444; padding: 32px 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; color: #f8fafc; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 580px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 32px 24px 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 8px 20px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 12px; }
+    .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
     .content { padding: 32px 28px; }
-    .greeting { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 14px; }
+    .badge { display: inline-block; background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #f87171; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .greeting { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
     .lead { font-size: 14px; line-height: 1.7; color: #cbd5e1; margin-bottom: 24px; }
-    .security-notice { background: rgba(239,68,68,0.08); border-left: 4px solid #ef4444; border-radius: 0 12px 12px 0; padding: 14px 18px; margin: 20px 0; font-size: 12px; color: #fca5a5; line-height: 1.6; }
-    .cta-box { text-align: center; margin: 30px 0; }
-    .cta-btn { display: inline-block; background: linear-gradient(135deg, #8B1A1A 0%, #DC2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 800; font-size: 14px; padding: 15px 32px; border-radius: 12px; box-shadow: 0 8px 24px rgba(220,38,38,0.35); letter-spacing: 0.5px; }
-    .alt-link { word-break: break-all; font-family: monospace; font-size: 11px; background: #10141d; padding: 10px 14px; border-radius: 8px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); }
-    .footer { background: #10141d; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .cta-box { text-align: center; margin: 28px 0; }
+    .cta-btn { display: inline-block; background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 32px; border-radius: 10px; box-shadow: 0 8px 24px rgba(220,38,38,0.35); }
+    .security-notice { background: #141923; border-left: 3px solid #ef4444; border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 24px 0; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .alt-link { word-break: break-all; font-family: monospace; font-size: 11px; background: #080a0f; padding: 10px 14px; border-radius: 8px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.06); margin-top: 8px; }
+    .footer { background: #0a0d14; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
     .footer a { color: #f87171; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <div style="font-size: 34px; margin-bottom: 8px;">🔐</div>
-      <h1>ការកំណត់សុវត្ថិភាពគណនី</h1>
-      <p style="margin: 0; font-size: 12px; color: #94a3b8;">S Tech Store Security Alert • {$domain}</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">ការកំណត់សុវត្ថិភាពគណនី • Account Security Center</p>
     </div>
     <div class="content">
-      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}!</div>
+      <div class="badge">PASSWORD RESET REQUEST</div>
+      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}</div>
       <p class="lead">
-        យើងបានទទួលសំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់សម្រាប់គណនី S Tech Store ដែលភ្ជាប់ជាមួយអាសយដ្ឋានអ៊ីមែល <strong>{$email}</strong>។
+        យើងខ្ញុំបានទទួលសំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់សម្រាប់គណនី S Tech Store ដែលភ្ជាប់ជាមួយអាសយដ្ឋានអ៊ីមែល <strong>{$email}</strong>។
       </p>
 
       <div class="cta-box">
-        <a href="{$resetLink}" class="cta-btn" target="_blank">🔑 ផ្លាស់ប្តូរពាក្យសម្ងាត់ឥឡូវនេះ</a>
+        <a href="{$resetLink}" class="cta-btn" target="_blank">ផ្លាស់ប្តូរពាក្យសម្ងាត់ (Reset Password)</a>
       </div>
 
       <div class="security-notice">
-        <strong>⚠️ ការណែនាំអំពីសុវត្ថិភាព:</strong><br>
+        <strong style="color: #f1f5f9;">ការណែនាំអំពីសុវត្ថិភាព:</strong><br>
         • តំណភ្ជាប់នេះមានសុពលភាពត្រឹមតែ <strong>60 នាទី</strong> ប៉ុណ្ណោះ។<br>
-        • ប្រសិនបើអ្នកមិនបានធ្វើការស្នើសុំនេះទេ សូមកុំចែករំលែកតំណភ្ជាប់នេះឱ្យអ្នកដទៃជាដាច់ខាត គណនីរបស់អ្នកនៅតែមានសុវត្ថិភាពដដែល។
+        • ប្រសិនបើអ្នកមិនបានស្នើសុំផ្លាស់ប្តូរទេ សូមកុំចែករំលែកតំណភ្ជាប់នេះឱ្យអ្នកដទៃជាដាច់ខាត។ គណនីរបស់អ្នកនៅតែមានសុវត្ថិភាពដដែល។
       </div>
 
-      <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">
+      <p style="font-size: 12px; color: #64748b; margin-top: 20px; margin-bottom: 4px;">
         ប្រសិនបើប៊ូតុងខាងលើមិនដំណើរការ សូមចម្លងតំណភ្ជាប់ (URL) នេះទៅបើកក្នុង Browser របស់អ្នក:
       </p>
       <div class="alt-link">{$resetLink}</div>
@@ -222,7 +237,7 @@ HTML;
 
     <div class="footer">
       <p>គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
-      <p style="margin-top: 6px; color: #475569;">សារជូនដំណឹងសុវត្ថិភាពដោយស្វ័យប្រវត្តពី S Tech Store Cambodia</p>
+      <p style="margin-top: 6px; color: #475569;">សារជូនដំណឹងសុវត្ថិភាពស្វ័យប្រវត្តពី S Tech Store Cambodia</p>
     </div>
   </div>
 </body>
@@ -281,7 +296,7 @@ HTML;
         // Cache OTP for 10 minutes
         Cache::put("2fa_otp_{$email}", $otp, 10 * 60);
 
-        $subject = "🛡️ លេខកូដសុវត្ថិភាព 2FA ({$otp}) - " . self::STORE_NAME;
+        $subject = "[S Tech Store] លេខកូដសុវត្ថិភាពផ្ទៀងផ្ទាត់ OTP ({$otp})";
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -291,40 +306,45 @@ HTML;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', 'Siemreap', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 560px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 2px solid #38bdf8; padding: 32px 28px; text-align: center; color: #ffffff; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 560px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 32px 24px 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 8px 20px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 12px; }
+    .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
     .content { padding: 32px 28px; text-align: center; }
-    .greeting { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 12px; }
+    .badge { display: inline-block; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .greeting { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
     .lead { font-size: 13px; line-height: 1.6; color: #cbd5e1; margin-bottom: 24px; }
-    .otp-box { background: #0b1120; border: 2px dashed #38bdf8; border-radius: 18px; padding: 22px; margin: 24px auto; max-width: 320px; }
-    .otp-code { font-family: monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; margin: 0; }
+    .otp-box { background: #0b1120; border: 2px dashed rgba(56,189,248,0.4); border-radius: 16px; padding: 22px; margin: 24px auto; max-width: 300px; }
+    .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 40px; font-weight: 900; letter-spacing: 8px; color: #38bdf8; margin: 0; }
     .otp-expiry { font-size: 11px; color: #94a3b8; margin-top: 8px; }
-    .security-tips { text-align: left; background: #1a202c; border-radius: 14px; padding: 16px; margin-top: 24px; font-size: 12px; color: #94a3b8; line-height: 1.6; }
-    .footer { background: #10141d; padding: 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .security-tips { text-align: left; background: #141923; border-radius: 10px; padding: 16px; margin-top: 24px; font-size: 12px; color: #94a3b8; line-height: 1.6; border-left: 3px solid #38bdf8; }
+    .footer { background: #0a0d14; padding: 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
     .footer a { color: #38bdf8; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <div style="font-size: 36px; margin-bottom: 6px;">🛡️</div>
-      <h1 style="margin: 0; font-size: 20px; font-weight: 800;">ការផ្ទៀងផ្ទាត់ពីរកត្តា (Two-Factor Auth)</h1>
-      <p style="margin: 4px 0 0; font-size: 12px; color: #94a3b8;">{$domain}</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">ការផ្ទៀងផ្ទាត់ពីរកត្តា • Two-Factor Authentication</p>
     </div>
     <div class="content">
-      <div class="greeting">សួស្តី @{$cleanUsername}!</div>
+      <div class="badge">SECURITY PASSCODE</div>
+      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}</div>
       <p class="lead">
-        នេះជាលេខកូដសុវត្ថិភាព 2FA របស់អ្នកសម្រាប់ផ្ទៀងផ្ទាត់លើគេហទំព័រ <strong>S Tech Store</strong>:
+        នេះជាលេខកូដសុវត្ថិភាព 2FA របស់អ្នកសម្រាប់ផ្ទៀងផ្ទាត់គណនីលើគេហទំព័រ <strong>S Tech Store</strong>:
       </p>
 
       <div class="otp-box">
         <div class="otp-code">{$otp}</div>
-        <div class="otp-expiry">⏱️ មានសុពលភាពត្រឹម 10 នាទី</div>
+        <div class="otp-expiry">សុពលភាពត្រឹម 10 នាទី (Valid for 10 minutes)</div>
       </div>
 
       <div class="security-tips">
-        <strong style="color: #f8fafc;">💡 គន្លឹះសុវត្ថិភាព:</strong><br>
+        <strong style="color: #f1f5f9;">ការណែនាំអំពីសុវត្ថិភាព:</strong><br>
         • កុំចែករំលែកលេខកូដនេះទៅកាន់បុគ្គលណាផ្សេងជាដាច់ខាត។<br>
         • បុគ្គលិក S Tech Store នឹងមិនទាមទារសួររកលេខកូដ OTP ពីអ្នកឡើយ។
       </div>
@@ -332,7 +352,7 @@ HTML;
 
     <div class="footer">
       <p>គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
-      <p style="margin-top: 4px; color: #475569;">© 2026 S Tech Store Cambodia. ប្រព័ន្ធការពារសុវត្ថិភាពគណនី</p>
+      <p style="margin-top: 4px; color: #475569;">© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។</p>
     </div>
   </div>
 </body>
@@ -373,17 +393,18 @@ HTML;
      */
     public static function send2FAAlert(string $email, string $username, bool $enabled, ?string $code = null): array
     {
-        $statusText = $enabled ? "បានបើកដំណើរការ (Enabled)" : "ត្រូវបានបិទ (Disabled)";
+        $domain = self::DOMAIN;
+        $statusText = $enabled ? "បានបើកដំណើរការ (ENABLED)" : "ត្រូវបានបិទ (DISABLED)";
         $statusColor = $enabled ? "#10b981" : "#ef4444";
-        $subject = ($enabled ? '🔒 2FA Security Activated: ' : '⚠️ 2FA Security Notice: ') . self::STORE_NAME;
+        $subject = ($enabled ? '[S Tech Store] បានបើកដំណើរការសុវត្ថិភាព 2FA' : '[S Tech Store] ការជូនដំណឹងបិទសុវត្ថិភាព 2FA');
 
         $codeHtml = '';
         if (!empty($code)) {
             $codeHtml = <<<HTML
-            <div style="background:#1e293b; border: 1px dashed #38bdf8; border-radius: 14px; padding: 18px; text-align: center; margin: 20px 0;">
+            <div style="background: #0b1120; border: 2px dashed rgba(56,189,248,0.4); border-radius: 14px; padding: 18px; text-align: center; margin: 20px 0;">
                 <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">លេខកូដផ្ទៀងផ្ទាត់ 2FA (Verification Code)</div>
-                <div style="font-family: monospace; font-size: 32px; font-weight: 900; color: #38bdf8; letter-spacing: 6px;">{$code}</div>
-                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">មានសុពលភាពរយៈពេល ១០ នាទី (Expires in 10 mins)</div>
+                <div style="font-family: 'Courier New', Courier, monospace; font-size: 34px; font-weight: 900; color: #38bdf8; letter-spacing: 8px;">{$code}</div>
+                <div style="font-size: 11px; color: #64748b; margin-top: 6px;">មានសុពលភាពរយៈពេល ១០ នាទី (Valid for 10 minutes)</div>
             </div>
 HTML;
         }
@@ -393,35 +414,48 @@ HTML;
 <html lang="km">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 600px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; }
-    .header { background: linear-gradient(135deg, #8B1A1A 0%, #1e293b 100%); padding: 30px; text-align: center; color: #ffffff; }
-    .content { padding: 28px; font-size: 14px; line-height: 1.6; color: #cbd5e1; }
-    .status-badge { display: inline-block; background: {$statusColor}22; color: {$statusColor}; border: 1px solid {$statusColor}55; padding: 6px 14px; border-radius: 9999px; font-weight: 700; font-size: 13px; margin: 12px 0; }
-    .footer { background: #10141d; padding: 20px; text-align: center; font-size: 11px; color: #64748b; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 580px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 32px 24px 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 8px 20px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 12px; }
+    .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
+    .content { padding: 30px 26px; font-size: 13px; line-height: 1.6; color: #cbd5e1; }
+    .badge { display: inline-block; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .status-badge { display: inline-block; background: {$statusColor}18; color: {$statusColor}; border: 1px solid {$statusColor}44; padding: 6px 16px; border-radius: 9999px; font-weight: 700; font-size: 12px; margin: 12px 0; letter-spacing: 0.5px; }
+    .security-tips { background: #141923; border-left: 3px solid #38bdf8; border-radius: 0 10px 10px 0; padding: 14px 18px; margin-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .footer { background: #0a0d14; padding: 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .footer a { color: #38bdf8; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <h2 style="margin:0;">🔒 Two-Factor Authentication Alert</h2>
-      <p style="margin:6px 0 0; font-size: 13px; opacity:0.8;">S Tech Store Security Notification</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">ការកំណត់សុវត្ថិភាពគណនី • Account Security Center</p>
     </div>
     <div class="content">
-      <p>សួស្តីបង <b>{$username}</b>,</p>
-      <p>នេះជាការជូនដំណឹងសុវត្ថិភាពពីប្រព័ន្ធ <b>S Tech Store</b>៖ មុខងារផ្ទៀងផ្ទាត់ពីរកត្តា (Two-Factor Authentication - 2FA) លើគណនីរបស់អ្នក <b>{$email}</b> ត្រូវបាន៖</p>
-      <div style="text-align:center;">
+      <div class="badge">SECURITY NOTIFICATION</div>
+      <p style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 0;">សួស្តីលោកអ្នក <b>{$username}</b>,</p>
+      <p>
+        នេះជាការជូនដំណឹងសុវត្ថិភាពពីប្រព័ន្ធ <strong>S Tech Store Cambodia</strong>៖ មុខងារផ្ទៀងផ្ទាត់ពីរកត្តា (Two-Factor Authentication - 2FA) លើគណនីរបស់អ្នក <strong>{$email}</strong> ត្រូវបាន៖
+      </p>
+      <div style="text-align: center;">
         <span class="status-badge">{$statusText}</span>
       </div>
       {$codeHtml}
-      <p style="font-size: 12px; color: #94a3b8; margin-top: 18px;">
-        ប្រសិនបើនេះមិនមែនជាសកម្មភាពរបស់អ្នក សូមទាក់ទងមកកាន់ក្រុមការងារ Support បន្ទាន់តាមរយៈ Telegram ឬអ៊ីមែល <b>support@s-tech-store.tech</b>។
-      </p>
+      <div class="security-tips">
+        <strong style="color: #f1f5f9;">ការណែនាំអំពីសុវត្ថិភាព:</strong><br>
+        ប្រសិនបើនេះមិនមែនជាសកម្មភាពរបស់អ្នក សូមទាក់ទងមកកាន់ក្រុមការងារ Support បន្ទាន់តាមរយៈ Telegram ឬអ៊ីមែល <strong>support@s-tech-store.tech</strong>។
+      </div>
     </div>
     <div class="footer">
-      © S Tech Store Cambodia • All rights reserved
+      <p>© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។<br>
+      គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
     </div>
   </div>
 </body>
@@ -456,7 +490,7 @@ HTML;
         ], 24 * 60 * 60);
 
         $confirmLink = "{$domain}/confirm-email?token={$token}&email=" . urlencode($email);
-        $subject = "✉️ ផ្ទៀងផ្ទាត់អាសយដ្ឋាន Gmail របស់អ្នក ({$otp}) - " . self::STORE_NAME;
+        $subject = "[S Tech Store] ផ្ទៀងផ្ទាត់អាសយដ្ឋានអ៊ីមែល ({$otp})";
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -466,56 +500,60 @@ HTML;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', 'Siemreap', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .card { max-width: 580px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #059669 0%, #047857 60%, #0f172a 100%); padding: 34px 28px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 580px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 32px 24px 24px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 68px; height: 68px; border-radius: 14px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 8px 20px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 12px; }
+    .brand-title { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 4px 0 0; font-size: 11px; color: #94a3b8; }
     .content { padding: 32px 28px; }
-    .greeting { font-size: 17px; font-weight: 700; color: #f8fafc; margin-bottom: 14px; }
+    .badge { display: inline-block; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #34d399; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .greeting { font-size: 18px; font-weight: 700; color: #ffffff; margin-bottom: 12px; }
     .lead { font-size: 14px; line-height: 1.7; color: #cbd5e1; margin-bottom: 24px; }
-    .otp-box { background: #064e3b15; border: 2px dashed #10b981; border-radius: 16px; padding: 20px; text-align: center; margin: 24px 0; }
+    .otp-box { background: #064e3b15; border: 2px dashed rgba(16,185,129,0.4); border-radius: 16px; padding: 20px; text-align: center; margin: 24px 0; }
     .otp-label { font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-    .otp-code { font-family: monospace; font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #10b981; margin: 0; }
+    .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #10b981; margin: 0; }
     .otp-sub { font-size: 11px; color: #94a3b8; margin-top: 6px; }
     .cta-box { text-align: center; margin: 26px 0 10px; }
-    .cta-btn { display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff !important; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 32px; border-radius: 12px; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
-    .alt-link { word-break: break-all; font-family: monospace; font-size: 11px; background: #10141d; padding: 10px 14px; border-radius: 8px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.05); margin-top: 8px; }
-    .footer { background: #10141d; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .cta-btn { display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #ffffff !important; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 32px; border-radius: 10px; box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
+    .alt-link { word-break: break-all; font-family: monospace; font-size: 11px; background: #080a0f; padding: 10px 14px; border-radius: 8px; color: #94a3b8; border: 1px solid rgba(255,255,255,0.06); margin-top: 8px; }
+    .footer { background: #0a0d14; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
     .footer a { color: #10b981; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <div style="font-size: 34px; margin-bottom: 8px;">📧</div>
-      <h1>ផ្ទៀងផ្ទាត់អាសយដ្ឋាន Gmail</h1>
-      <p style="margin: 0; font-size: 12px; opacity: 0.9;">S Tech Store Cambodia • {$domain}</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">ផ្ទៀងផ្ទាត់អាសយដ្ឋានអ៊ីមែល • Email Address Verification</p>
     </div>
     <div class="content">
-      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}! 👋</div>
+      <div class="badge">EMAIL VERIFICATION</div>
+      <div class="greeting">សួស្តីលោកអ្នក @{$cleanUsername}</div>
       <p class="lead">
-        សូមអរគុណសម្រាប់ការប្រើប្រាស់ <strong>S Tech Store</strong>! សូមប្រើប្រាស់លេខកូដសម្ងាត់ 6 ខ្ទង់ខាងក្រោម ឬចុចប៊ូតុងដើម្បីបញ្ជាក់ថាអាសយដ្ឋាន <strong>{$email}</strong> ពិតជាកម្មសិទ្ធិស្របច្បាប់របស់អ្នក៖
+        សូមប្រើប្រាស់លេខកូដសម្ងាត់ ៦ ខ្ទង់ខាងក្រោម ឬចុចប៊ូតុងដើម្បីផ្ទៀងផ្ទាត់ថាអាសយដ្ឋាន <strong>{$email}</strong> ពិតជាកម្មសិទ្ធិស្របច្បាប់របស់អ្នក៖
       </p>
 
       <div class="otp-box">
-        <div class="otp-label">លេខកូដផ្ទៀងផ្ទាត់អ៊ីមែល (Verification OTP)</div>
+        <div class="otp-label">លេខកូដផ្ទៀងផ្ទាត់ (Verification Code)</div>
         <div class="otp-code">{$otp}</div>
-        <div class="otp-sub">⏱️ មានសុពលភាពរយៈពេល ១៥ នាទី</div>
+        <div class="otp-sub">សុពលភាពត្រឹម 15 នាទី (Valid for 15 minutes)</div>
       </div>
 
       <div class="cta-box">
-        <a href="{$confirmLink}" class="cta-btn" target="_blank">✅ បញ្ជាក់ Gmail ឥឡូវនេះ (1-Click Confirm)</a>
+        <a href="{$confirmLink}" class="cta-btn" target="_blank">ផ្ទៀងផ្ទាត់គណនី (Confirm Email)</a>
       </div>
 
-      <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">
-        ឬលោកអ្នកអាចចម្លងតំណភ្ជាប់នេះដើម្បីបើកក្នុង Browser របស់អ្នក៖
+      <p style="font-size: 12px; color: #64748b; margin-top: 20px; margin-bottom: 4px;">
+        ប្រសិនបើប៊ូតុងខាងលើមិនដំណើរការ សូមចម្លងតំណភ្ជាប់ (URL) នេះទៅបើកក្នុង Browser របស់អ្នក:
       </p>
       <div class="alt-link">{$confirmLink}</div>
     </div>
 
     <div class="footer">
       <p>គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
-      <p style="margin-top: 6px; color: #475569;">© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។</p>
+      <p style="margin-top: 6px; color: #475569;">សារជូនដំណឹងសុវត្ថិភាពស្វ័យប្រវត្តពី S Tech Store Cambodia</p>
     </div>
   </div>
 </body>
@@ -575,42 +613,53 @@ HTML;
             $statusColor = '#3b82f6';
         }
 
-        $subject = "🔧 [{$ticketCode}] បច្ចុប្បន្នភាពសំបុត្រជួសជុល & សេវាកម្ម - " . self::STORE_NAME;
+        $subject = "[S Tech Store] {$ticketCode} — បច្ចុប្បន្នភាពសំបុត្រជួសជុល & សេវាកម្ម";
 
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{$subject}</title>
   <style>
-    body { font-family: 'Kantumruy Pro', Arial, sans-serif; background-color: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
-    .container { max-width: 600px; margin: 0 auto; background: #151922; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
-    .header { background: linear-gradient(135deg, #8B1A1A 0%, #b91c1c 100%); padding: 30px 24px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 800; }
-    .content { padding: 28px 24px; }
-    .ticket-card { background: #1a202c; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px; margin: 18px 0; }
+    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
+    .card { max-width: 600px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
+    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 34px 24px 26px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .logo-img { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 10px 25px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 14px; }
+    .brand-title { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
+    .brand-sub { margin: 5px 0 0; font-size: 12px; color: #94a3b8; }
+    .content { padding: 32px 28px; }
+    .badge { display: inline-block; background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #f87171; font-size: 11px; font-weight: 700; letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 16px; }
+    .status-badge { display: inline-block; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #fff; background-color: {$statusColor}; text-transform: uppercase; }
+    .ticket-card { background: #141923; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 22px; margin: 20px 0; }
     .ticket-code { font-family: monospace; font-size: 22px; font-weight: 900; color: #f87171; }
-    .badge { display: inline-block; padding: 5px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #fff; background-color: {$statusColor}; }
-    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+    .info-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
     .info-label { color: #94a3b8; font-weight: 600; }
     .info-val { font-weight: 700; color: #f8fafc; text-align: right; }
-    .issue-box { background: #0f141f; border: 1px dashed rgba(255,255,255,0.1); border-radius: 10px; padding: 14px; margin-top: 14px; font-size: 13px; color: #cbd5e1; }
-    .cta-box { text-align: center; margin: 26px 0 10px; }
-    .cta-btn { display: inline-block; background: linear-gradient(135deg, #8B1A1A 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 800; font-size: 14px; padding: 14px 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
-    .footer { background: #10141d; padding: 20px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .issue-box { background: #0b1120; border: 1px dashed rgba(255,255,255,0.1); border-radius: 10px; padding: 14px 16px; margin-top: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0; }
+    .grid-item { background: #141923; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 14px; }
+    .grid-tag { font-size: 10px; font-weight: 700; color: #ef4444; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; }
+    .grid-title { font-size: 12px; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
+    .grid-text { font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 0; }
+    .btn-row { text-align: center; margin: 26px 0 10px; }
+    .btn-primary { display: inline-block; background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 13px; padding: 13px 26px; border-radius: 10px; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
+    .btn-secondary { display: inline-block; background: #1a202c; color: #cbd5e1 !important; text-decoration: none; font-weight: 600; font-size: 13px; padding: 13px 22px; border-radius: 10px; margin-left: 8px; border: 1px solid rgba(255,255,255,0.08); }
+    .footer { background: #0a0d14; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); line-height: 1.6; }
     .footer a { color: #f87171; text-decoration: none; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="card">
     <div class="header">
-      <div style="font-size: 32px; margin-bottom: 8px;">🔧</div>
-      <h1>S TECH STORE CAMBODIA</h1>
-      <p style="margin: 0; font-size: 12px; opacity: 0.9;">មជ្ឈមណ្ឌលសេវាកម្មជួសជុល & សំបុត្រជំនួយ (Service Ticket)</p>
+      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
+      <h1 class="brand-title">S Tech Store Cambodia</h1>
+      <p class="brand-sub">មជ្ឈមណ្ឌលសេវាកម្មជួសជុល & សំបុត្រជំនួយ • www.s-tech-store.tech</p>
     </div>
     <div class="content">
-      <p style="font-size: 16px; font-weight: 700; color: #f8fafc; margin-top: 0;">ជំរាបសួរលោកអ្នក <b>{$customerName}</b>,</p>
+      <div class="badge">SERVICE TICKET</div>
+      <p style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 0;">ជំរាបសួរលោកអ្នក <b>{$customerName}</b>,</p>
       <p style="font-size: 13px; line-height: 1.6; color: #cbd5e1;">
         យើងខ្ញុំសូមជម្រាបជូននូវព័ត៌មានលម្អិតនៃសំបុត្រជួសជុល / សេវាកម្មបច្ចេកទេសរបស់អ្នកដូចខាងក្រោម៖
       </p>
@@ -618,7 +667,7 @@ HTML;
       <div class="ticket-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
           <span class="ticket-code">{$ticketCode}</span>
-          <span class="badge">{$status}</span>
+          <span class="status-badge">{$status}</span>
         </div>
 
         <div class="info-row">
@@ -635,22 +684,43 @@ HTML;
         </div>
 
         <div class="issue-box">
-          <strong style="color: #f8fafc;">រោគសញ្ញា / ការពិពណ៌នាបញ្ហា:</strong><br>
+          <strong style="color: #f1f5f9;">រោគសញ្ញា / ការពិពណ៌នាបញ្ហា:</strong><br>
           {$issue}
         </div>
       </div>
 
-      <div class="cta-box">
-        <a href="{$trackingUrl}" class="cta-btn" target="_blank">🔍 តាមដានស្ថានភាពសំបុត្រ (Track Ticket)</a>
+      <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">រុករកសេវាកម្មបន្ថែម</div>
+      <div class="grid">
+        <div class="grid-item">
+          <div class="grid-tag">PC Builder</div>
+          <div class="grid-title">ផ្គុំកុំព្យូទ័រ</div>
+          <p class="grid-text">ជ្រើសរើសគ្រឿងបន្លាស់តាមចិត្ត ពិនិត្យភាពស៊ីគ្នារវាង Hardware ១០០%។</p>
+        </div>
+        <div class="grid-item">
+          <div class="grid-tag">Daily Rewards</div>
+          <div class="grid-title">រង្វាន់កាក់ប្រចាំថ្ងៃ</div>
+          <p class="grid-text">Login ប្រចាំថ្ងៃ ទទួលបានកាក់សន្សំ Coin ប្តូរជាទឹកប្រាក់សុទ្ធ។</p>
+        </div>
+        <div class="grid-item">
+          <div class="grid-tag">Fast Delivery</div>
+          <div class="grid-title">ដឹកជញ្ជូនរហ័ស</div>
+          <p class="grid-text">ទំនិញសុទ្ធ ១០០% ធានាផ្លូវការពីក្រុមហ៊ុនទូទាំងប្រទេស។</p>
+        </div>
+        <div class="grid-item">
+          <div class="grid-tag">Telegram Bot</div>
+          <div class="grid-title">ជំនួយការ ២៤/៧</div>
+          <p class="grid-text">ភ្ជាប់ @S_TECH_ASSISTANTBOT ទទួលដំណឹងសេវាកម្មរហ័ស។</p>
+        </div>
       </div>
 
-      <p style="font-size: 12px; color: #94a3b8; line-height: 1.6; margin-top: 20px;">
-        📍 <b>ទីតាំងហាង:</b> រាជធានីភ្នំពេញ កម្ពុជា<br>
-        📞 <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 88 993 0032 | Telegram Bot: @S_TECH_ASSISTANTBOT
-      </p>
+      <div class="btn-row">
+        <a href="{$trackingUrl}" class="btn-primary" target="_blank">តាមដានស្ថានភាពសំបុត្រ (Track Ticket)</a>
+        <a href="{$domain}/products" class="btn-secondary" target="_blank">រុករកទំនិញ (Products)</a>
+      </div>
     </div>
     <div class="footer">
-      <p>© 2026 S Tech Store Cambodia. All rights reserved.<br>
+      <p>ទូរស័ព្ទ: +855 88 993 0032 | ទីតាំង: រាជធានីភ្នំពេញ កម្ពុជា</p>
+      <p>© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។<br>
       គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
     </div>
   </div>
@@ -872,7 +942,7 @@ HTML;
         $errors = [];
 
         // ── Channel 1: SMTP / Real Gmail (Standard SMTP Port 587 / 465) ────────
-        $sendViaSmtp = function() use ($settings, $cleanTo, $subject, $html, $fromEmail, $fromName, &$errors) {
+        $sendViaSmtp = function() use ($settings, $cleanTo, $subject, $html, $fromEmail, $fromName, $options, &$errors) {
             $smtpHost = $settings['_raw_smtp_host'] ?? null;
             $smtpUsername = $settings['_raw_smtp_username'] ?? null;
             $smtpPassword = $settings['_raw_smtp_password'] ?? null;
@@ -913,9 +983,26 @@ HTML;
 
                 Mail::purge('smtp');
 
-                Mail::html($html, function ($msg) use ($cleanTo, $subject, $senderEmail, $fromName) {
+                Mail::html($html, function ($msg) use ($cleanTo, $subject, $senderEmail, $fromName, $options) {
                     $msg->to($cleanTo)->subject($subject);
                     $msg->from($senderEmail, $fromName);
+                    if (!empty($options['reply_to'])) {
+                        $msg->replyTo($options['reply_to']);
+                    }
+                    if (!empty($options['attachments']) && is_array($options['attachments'])) {
+                        foreach ($options['attachments'] as $att) {
+                            if (!empty($att['data']) && !empty($att['name'])) {
+                                $msg->attachData($att['data'], $att['name'], [
+                                    'mime' => $att['mime'] ?? 'text/html',
+                                ]);
+                            } elseif (!empty($att['path']) && file_exists($att['path'])) {
+                                $msg->attach($att['path'], [
+                                    'as' => $att['name'] ?? null,
+                                    'mime' => $att['mime'] ?? null,
+                                ]);
+                            }
+                        }
+                    }
                 });
 
                 $isGmail = str_contains((string)$smtpHost, 'gmail.com');
@@ -953,6 +1040,19 @@ HTML;
 
                     if (!empty($options['reply_to'])) {
                         $payload['reply_to'] = $options['reply_to'];
+                    }
+
+                    if (!empty($options['attachments']) && is_array($options['attachments'])) {
+                        $payload['attachments'] = [];
+                        foreach ($options['attachments'] as $att) {
+                            $attData = !empty($att['data']) ? $att['data'] : (!empty($att['path']) && file_exists($att['path']) ? file_get_contents($att['path']) : '');
+                            if ($attData) {
+                                $payload['attachments'][] = [
+                                    'filename' => $att['name'] ?? 'invoice.html',
+                                    'content' => base64_encode($attData),
+                                ];
+                            }
+                        }
                     }
 
                     return Http::timeout(12)
