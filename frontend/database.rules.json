@@ -4,8 +4,9 @@
     ".write": false,
 
     "chats": {
-      ".read": false,
+      ".read": true,
       ".write": false,
+      ".indexOn": ["lastTimestamp", "status", "timestamp"],
 
       "$chatId": {
         ".read": "$chatId.length >= 4 && $chatId.length <= 128",

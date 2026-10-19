@@ -5017,6 +5017,7 @@ HTML;
         // 2. Prioritize actively linked account with real data
         $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
             ->orWhere('telegram_chat_id', (string)$chatId)
+            ->orderByDesc('wallet_balance')
             ->orderByDesc('updated_at')
             ->first();
 
@@ -5024,7 +5025,33 @@ HTML;
         if (!$user) {
             $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
                 ->orWhere('firebase_uid', 'tg_' . $chatId)
+                ->orderByDesc('wallet_balance')
                 ->first();
+        }
+
+        // 4. Critical Unification: If the found user has an email or phone, check if a primary account exists with wallet, points, or orders
+        if ($user && !empty($user->email)) {
+            $primary = \App\Models\UserProfile::where('email', $user->email)
+                ->where('id', '!=', $user->id)
+                ->where(function ($q) {
+                    $q->where('wallet_balance', '>', 0)
+                      ->orWhere('points', '>', 0)
+                      ->orWhereNotNull('phone');
+                })
+                ->orderByDesc('wallet_balance')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($primary) {
+                if (empty($primary->telegram_chat_id)) {
+                    $primary->telegram_chat_id = (string)$cleanId;
+                    if (empty($primary->telegram) && !empty($user->telegram)) {
+                        $primary->telegram = $user->telegram;
+                    }
+                    $primary->save();
+                }
+                $user = $primary;
+            }
         }
 
         return $user;

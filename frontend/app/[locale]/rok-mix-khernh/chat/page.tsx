@@ -130,12 +130,34 @@ export default function AdminRealtimeChatPage() {
             }
             setBypassNotice(`បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ 1-Click Direct Token (សល់ ${data.uses_remaining} ដង)`);
             setTimeout(() => setBypassNotice(null), 8000);
+
+            // Clean query param so refreshing won't re-consume token
+            try {
+              const url = new URL(window.location.href);
+              url.searchParams.delete("token");
+              url.searchParams.delete("bypass_token");
+              window.history.replaceState({}, document.title, url.toString());
+            } catch (e) {}
           }
         })
         .catch((err) => {
-          const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Token មិនត្រឹមត្រូវ ឬផុតកំណត់";
-          setBypassNotice(errMsg);
-          setTimeout(() => setBypassNotice(null), 8000);
+          // If already logged in as Admin or Staff, do NOT display an intrusive error banner
+          const hasExistingAdminSession = Boolean(
+            localStorage.getItem("stech_admin_token") || 
+            localStorage.getItem("stech_admin_user")
+          );
+          if (!hasExistingAdminSession) {
+            const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Token មិនត្រឹមត្រូវ ឬផុតកំណត់";
+            setBypassNotice(errMsg);
+            setTimeout(() => setBypassNotice(null), 8000);
+          }
+          // Clean invalid token from URL
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("token");
+            url.searchParams.delete("bypass_token");
+            window.history.replaceState({}, document.title, url.toString());
+          } catch (e) {}
         });
     }
   }, [searchParams]);

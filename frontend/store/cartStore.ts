@@ -60,21 +60,26 @@ export const useCartStore = create<CartState>()(
               image_url: item.product?.image || item.product?.image_url || item.image_url,
             }));
 
-            if (mappedItems.length > 0) {
-              set({ items: mappedItems, loading: false });
-            } else {
-              // If server returns empty but local cart has items, sync local items to user's database cart
-              const localItems = get().items;
-              if (localItems.length > 0) {
-                for (const li of localItems) {
-                  const pid = (li as any).product_id || li.id;
-                  if (pid) {
-                    await addToCart(pid, li.quantity).catch(() => {});
-                  }
+            // Merge server items with local items so added products never disappear
+            const localItems = get().items;
+            const mergedMap = new Map<number, CartItem>();
+
+            for (const si of mappedItems) {
+              const pid = si.product_id || si.id;
+              if (pid) mergedMap.set(pid, si);
+            }
+
+            for (const li of localItems) {
+              const pid = (li as any).product_id || (li as any).product?.id || li.id;
+              if (pid) {
+                if (!mergedMap.has(pid)) {
+                  mergedMap.set(pid, li);
+                  addToCart(pid, li.quantity).catch(() => {});
                 }
               }
-              set({ loading: false });
             }
+
+            set({ items: Array.from(mergedMap.values()), loading: false });
           } else {
             set({ loading: false });
           }

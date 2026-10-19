@@ -364,9 +364,13 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         ? ($data['username'] . '@telegram.s-tech-store.tech')
         : ("tg_{$tgId}@s-tech-store.tech");
 
-    $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
-        ->orWhere('firebase_uid', $firebaseUid)
-        ->first();
+    $user = \App\Services\TelegramService::resolveActiveUser((string)$tgId);
+
+    if (!$user) {
+        $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
+            ->orWhere('firebase_uid', $firebaseUid)
+            ->first();
+    }
 
     if (!$user) {
         $user = new \App\Models\UserProfile();
@@ -886,15 +890,20 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     // Look for active user linked with this telegram_chat_id first
     $user = null;
     if (!$isDisconnected) {
-        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-            ->orWhere('telegram_chat_id', (string)$tgId)
-            ->orderByDesc('updated_at')
-            ->first();
+        $user = \App\Services\TelegramService::resolveActiveUser((string)$cleanTgId);
 
-        // If no user has telegram_chat_id linked, check fallback only if not disconnected
+        if (!$user) {
+            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+                ->orWhere('telegram_chat_id', (string)$tgId)
+                ->orderByDesc('wallet_balance')
+                ->orderByDesc('updated_at')
+                ->first();
+        }
+
         if (!$user) {
             $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
                 ->orWhere('firebase_uid', 'tg_' . $tgId)
+                ->orderByDesc('wallet_balance')
                 ->first();
         }
     }
@@ -907,11 +916,6 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             'user' => null,
             'message' => 'Telegram account was disconnected. Auto-logout Mini App.',
         ]);
-    }
-
-    // Resolve or auto-create active profile for this Telegram customer
-    if (!$user) {
-        $user = \App\Services\TelegramService::resolveActiveUser((string)$cleanTgId);
     }
 
     if (!$user) {

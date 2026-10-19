@@ -137,7 +137,13 @@ class WalletController extends Controller
         }
 
         // Fetch transactions with optional date and type filtering
-        $txQuery = WalletTransaction::where('firebase_uid', $user->firebase_uid)
+        $uids = array_filter([$user->firebase_uid, 'tg_' . ($user->telegram_chat_id ?? '')]);
+        if (!empty($user->email)) {
+            $siblings = UserProfile::where('email', $user->email)->pluck('firebase_uid')->filter()->toArray();
+            $uids = array_unique(array_merge($uids, $siblings));
+        }
+
+        $txQuery = WalletTransaction::whereIn('firebase_uid', $uids)
             ->select(['id', 'firebase_uid', 'type', 'amount', 'coins', 'description', 'payment_method', 'status', 'created_at']);
 
         if ($request->filled('date')) {
@@ -158,10 +164,10 @@ class WalletController extends Controller
         $limit = min((int)($request->query('limit', 100)), 500);
         $transactions = $txQuery->orderBy('created_at', 'desc')->limit($limit)->get();
 
-        $stats = \Illuminate\Support\Facades\Cache::remember("wallet_stats_{$user->firebase_uid}", 60, function () use ($user) {
+        $stats = \Illuminate\Support\Facades\Cache::remember("wallet_stats_{$user->firebase_uid}", 60, function () use ($uids) {
             return [
-                'total_transactions' => WalletTransaction::where('firebase_uid', $user->firebase_uid)->count(),
-                'total_deposited' => (float)WalletTransaction::where('firebase_uid', $user->firebase_uid)->where('type', 'deposit')->where('status', 'completed')->sum('amount'),
+                'total_transactions' => WalletTransaction::whereIn('firebase_uid', $uids)->count(),
+                'total_deposited' => (float)WalletTransaction::whereIn('firebase_uid', $uids)->where('type', 'deposit')->where('status', 'completed')->sum('amount'),
             ];
         });
 

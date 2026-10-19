@@ -192,15 +192,22 @@ export function ProductDetailClient({ product: initialProduct }: { product: any 
   };
 
   const handleBuyNow = (e?: React.MouseEvent) => {
+    const activeImg = images[activeImage] || images[0] || product.image_url || product.image;
     if (e) {
-      triggerFlyToCart(e.currentTarget as HTMLElement, images[activeImage] || product.image_url);
+      triggerFlyToCart(e.currentTarget as HTMLElement, activeImg);
     }
     addItemToCart({
       id: product.id,
+      product_id: product.id,
       name: product.name,
       price: product.sale_price || product.price,
       quantity: Math.max(1, quantity),
-      image_url: product.image_url,
+      image_url: activeImg,
+      product: {
+        ...product,
+        image: activeImg,
+        image_url: activeImg,
+      },
     });
     setTimeout(() => {
       router.push("/checkout");
@@ -230,13 +237,20 @@ export function ProductDetailClient({ product: initialProduct }: { product: any 
 
   // Parabolic Fly-To-Cart Animation Trigger
   const handleAddToCart = (e: React.MouseEvent) => {
-    triggerFlyToCart(e.currentTarget as HTMLElement, images[activeImage] || product.image_url);
+    const activeImg = images[activeImage] || images[0] || product.image_url || product.image;
+    triggerFlyToCart(e.currentTarget as HTMLElement, activeImg);
     addItemToCart({
       id: product.id,
+      product_id: product.id,
       name: product.name,
       price: product.sale_price || product.price,
       quantity: Math.max(1, quantity),
-      image_url: product.image_url,
+      image_url: activeImg,
+      product: {
+        ...product,
+        image: activeImg,
+        image_url: activeImg,
+      },
     });
 
     try {

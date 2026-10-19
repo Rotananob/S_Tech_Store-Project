@@ -127,7 +127,7 @@ export default function CartPage() {
                       <div className="flex flex-wrap items-end justify-between gap-4 mt-auto">
                         <div className="flex flex-col">
                           <span className="text-lg font-black text-[#8B1A1A] dark:text-red-400 font-mono leading-none tracking-tight">
-                            ${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ${Number(price || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
 
