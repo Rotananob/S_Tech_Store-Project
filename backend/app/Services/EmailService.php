@@ -941,25 +941,35 @@ HTML;
             }
 
             try {
-                $sender = $fromEmail;
-                if (!str_contains($sender, '@') || str_ends_with($sender, '@s-tech-store.tech')) {
-                    $sender = 'onboarding@resend.dev';
+                $sender = !empty($fromEmail) && str_contains($fromEmail, '@') ? $fromEmail : 'orders@s-tech-store.tech';
+
+                $sendWithFrom = function(string $fromAddress) use ($fromName, $cleanTo, $subject, $html, $options, $resendKey) {
+                    $payload = [
+                        'from' => "{$fromName} <{$fromAddress}>",
+                        'to' => [$cleanTo],
+                        'subject' => $subject,
+                        'html' => $html,
+                    ];
+
+                    if (!empty($options['reply_to'])) {
+                        $payload['reply_to'] = $options['reply_to'];
+                    }
+
+                    return Http::timeout(12)
+                        ->withToken(trim($resendKey))
+                        ->post('https://api.resend.com/emails', $payload);
+                };
+
+                // 1. Try sending from official store domain
+                $res = $sendWithFrom($sender);
+
+                // 2. If domain unverified (HTTP 403 / 422), fallback to sandbox onboarding@resend.dev
+                if (!$res->successful() && $sender !== 'onboarding@resend.dev') {
+                    $retryRes = $sendWithFrom('onboarding@resend.dev');
+                    if ($retryRes->successful()) {
+                        $res = $retryRes;
+                    }
                 }
-
-                $payload = [
-                    'from' => "{$fromName} <{$sender}>",
-                    'to' => [$cleanTo],
-                    'subject' => $subject,
-                    'html' => $html,
-                ];
-
-                if (!empty($options['reply_to'])) {
-                    $payload['reply_to'] = $options['reply_to'];
-                }
-
-                $res = Http::timeout(12)
-                    ->withToken(trim($resendKey))
-                    ->post('https://api.resend.com/emails', $payload);
 
                 if ($res->successful()) {
                     $data = $res->json();

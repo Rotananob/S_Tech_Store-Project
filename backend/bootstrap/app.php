@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->reportable(function (\Throwable $e) {
+            // Ignore CLI, artisan, tinker, and console commands
+            if (app()->runningInConsole()) {
+                return;
+            }
+
             // Ignore common client/HTTP expected exceptions
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException ||
                 $e instanceof \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException ||
