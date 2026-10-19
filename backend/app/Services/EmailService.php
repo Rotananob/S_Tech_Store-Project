@@ -127,11 +127,11 @@ HTML;
             $user = UserProfile::where('email', $email)->first();
             if ($user) {
                 UserNotification::create([
-                    'user_id' => $user->firebase_uid ?? (string)$user->id,
+                    'firebase_uid' => $user->firebase_uid ?: ('usr_' . $user->id),
                     'title' => '🎉 សូមស្វាគមន៍មកកាន់ S Tech Store!',
                     'message' => "សួស្តី @{$cleanUsername}! កាដូស្វាគមន៍ $5 (Voucher: WELCOME5) និងកាក់ប្រចាំថ្ងៃត្រូវបានត្រៀមរួចជាស្រេចសម្រាប់អ្នក។",
                     'type' => 'welcome',
-                    'is_read' => false,
+                    'read' => false,
                 ]);
 
                 // Telegram companion alert if connected
@@ -252,11 +252,11 @@ HTML;
                 $user->save();
 
                 UserNotification::create([
-                    'user_id' => $user->firebase_uid ?? (string)$user->id,
+                    'firebase_uid' => $user->firebase_uid ?: ('usr_' . $user->id),
                     'title' => '🔒 សំណើសុំប្តូរពាក្យសម្ងាត់',
                     'message' => "តំណភ្ជាប់ផ្លាស់ប្តូរពាក្យសម្ងាត់ត្រូវបានផ្ញើទៅកាន់អ៊ីមែល {$email}។ សុពលភាព 60 នាទី។",
                     'type' => 'security',
-                    'is_read' => false,
+                    'read' => false,
                 ]);
 
                 if (!empty($user->telegram_chat_id)) {
@@ -364,11 +364,11 @@ HTML;
             $user = UserProfile::where('email', $email)->first();
             if ($user) {
                 UserNotification::create([
-                    'user_id' => $user->firebase_uid ?? (string)$user->id,
+                    'firebase_uid' => $user->firebase_uid ?: ('usr_' . $user->id),
                     'title' => '🛡️ លេខកូដសុវត្ថិភាព 2FA',
                     'message' => "លេខកូដ OTP របស់អ្នកគឺ: {$otp} (សុពលភាព 10 នាទី)",
                     'type' => 'security',
-                    'is_read' => false,
+                    'read' => false,
                 ]);
 
                 if (!empty($user->telegram_chat_id)) {
@@ -565,11 +565,11 @@ HTML;
             $user = UserProfile::where('email', $email)->first();
             if ($user) {
                 UserNotification::create([
-                    'user_id' => $user->firebase_uid ?? (string)$user->id,
+                    'firebase_uid' => $user->firebase_uid ?: ('usr_' . $user->id),
                     'title' => '✉️ ផ្ទៀងផ្ទាត់ Gmail របស់អ្នក',
                     'message' => "លេខកូដបញ្ជាក់អ៊ីមែលគឺ {$otp}។ សូមបញ្ចូលក្នុងទំព័រដើម្បីបញ្ចប់ការផ្ទៀងផ្ទាត់។",
                     'type' => 'security',
-                    'is_read' => false,
+                    'read' => false,
                 ]);
             }
         } catch (\Throwable $e) {}
@@ -963,10 +963,8 @@ HTML;
             }
 
             try {
-                $senderEmail = !empty($fromEmail) ? $fromEmail : $smtpUsername;
-                if (str_contains((string)$smtpHost, 'gmail.com') && !empty($smtpUsername)) {
-                    $senderEmail = $smtpUsername;
-                }
+                $displayFromEmail = !empty($fromEmail) ? $fromEmail : $smtpUsername;
+                $replyToEmail = $options['reply_to'] ?? $displayFromEmail ?? 'support@s-tech-store.tech';
 
                 config([
                     'mail.default' => 'smtp',
@@ -977,18 +975,16 @@ HTML;
                     'mail.mailers.smtp.password' => $cleanPassword,
                     'mail.mailers.smtp.encryption' => $smtpEncryption,
                     'mail.mailers.smtp.timeout' => 12,
-                    'mail.from.address' => $senderEmail,
+                    'mail.from.address' => $displayFromEmail,
                     'mail.from.name' => $fromName,
                 ]);
 
                 Mail::purge('smtp');
 
-                Mail::html($html, function ($msg) use ($cleanTo, $subject, $senderEmail, $fromName, $options) {
+                Mail::html($html, function ($msg) use ($cleanTo, $subject, $displayFromEmail, $fromName, $replyToEmail, $options) {
                     $msg->to($cleanTo)->subject($subject);
-                    $msg->from($senderEmail, $fromName);
-                    if (!empty($options['reply_to'])) {
-                        $msg->replyTo($options['reply_to']);
-                    }
+                    $msg->from($displayFromEmail, $fromName);
+                    $msg->replyTo($replyToEmail, $fromName);
                     if (!empty($options['attachments']) && is_array($options['attachments'])) {
                         foreach ($options['attachments'] as $att) {
                             if (!empty($att['data']) && !empty($att['name'])) {
