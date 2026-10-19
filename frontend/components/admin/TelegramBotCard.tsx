@@ -16,10 +16,11 @@ import {
 } from "@/lib/services/admin.service";
 
 // =============================================================================
-// TELEGRAM BOT ARCHITECTURE:
-// UNIFIED BOT: @S_TECH_ASSISTANTBOT (Customer Mini App, Chat, Orders, Auth & Staff Alerts)
+// TELEGRAM BOT ARCHITECTURE (STRICT 2-BOT SEPARATION):
+// 1. STAFF BOT: @s_tech_storeBot (Admin & Staff group alerts, Forum Topics)
+// 2. CUSTOMER BOT: @S_TECH_ASSISTANTBOT (Customer Mini App, Chat, Orders, 1-Click Login)
 // =============================================================================
-const OFFICIAL_STAFF_BOT_USERNAME = "S_TECH_ASSISTANTBOT";
+const OFFICIAL_STAFF_BOT_USERNAME = "s_tech_storeBot";
 const OFFICIAL_BOT_USERNAME = OFFICIAL_STAFF_BOT_USERNAME;
 const OFFICIAL_CUSTOMER_BOT_USERNAME = "S_TECH_ASSISTANTBOT";
 

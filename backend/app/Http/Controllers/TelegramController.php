@@ -416,14 +416,9 @@ class TelegramController extends Controller
         $botParam = trim((string)$request->query('bot', ''));
 
         $chatType = $update['message']['chat']['type'] ?? $update['callback_query']['message']['chat']['type'] ?? '';
-        // If chat is private, it is ALWAYS customer assistant & 1-on-1 portal ('auth').
-        // If chat is a group, it is store staff notifications ('main').
-        if ($chatType === 'private') {
-            $botParam = 'auth';
-        } elseif ($chatType === 'group' || $chatType === 'supergroup') {
-            $botParam = 'main';
-        } elseif (empty($botParam)) {
-            $botParam = 'auth';
+        // If bot parameter was not explicitly passed in webhook URL, infer from chat type:
+        if (empty($botParam)) {
+            $botParam = ($chatType === 'group' || $chatType === 'supergroup') ? 'main' : 'auth';
         }
 
         // ⚡ INSTANT LOCAL-FIRST CALLBACK ACKNOWLEDGMENT:
@@ -498,61 +493,91 @@ class TelegramController extends Controller
             if ($msgChatId && preg_match('/^\/start(?:@\w+)?(?:\s+(.*))?$/i', $msgText, $matches)) {
                 $startParam = trim($matches[1] ?? '');
 
-                $isHandshake = str_starts_with(strtolower($startParam), 'tgauth_') || str_starts_with(strtolower($startParam), 'tglink_');
-
-                $msgBotId = (string)($update['message']['via_bot']['id'] ?? '');
-                $isLegacyOldBot = ($msgBotId === '8899300323' || str_contains($msgText, '@s_tech_storeBot'));
-                if ($isLegacyOldBot && $msgChatType === 'private' && !$isHandshake) {
-                    $customerBotUser = TelegramService::getCustomerBotUsername();
-                    $redirectUrl = !empty($startParam)
-                        ? "https://t.me/{$customerBotUser}?start={$startParam}"
-                        : "https://t.me/{$customerBotUser}";
-
-                    $responsePayload = [
-                        'method' => 'sendMessage',
-                        'chat_id' => $msgChatId,
-                        'text' => "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store!</b>\n\n"
-                            . "គណនី Bot នេះ ត្រូវបានផ្លាស់ប្តូរទៅកាន់ Official Bot ថ្មី (@{$customerBotUser}) រួចរាល់ហើយ។\n\n"
-                            . "👉 <b>សម្រាប់ការផ្ទៀងផ្ទាត់ចូលគណនី, ទិញទំនិញ, និងតាមដាន Orders សូមចុចប៊ូតុងខាងក្រោម៖</b>",
-                        'parse_mode' => 'HTML',
-                        'reply_markup' => [
-                            'inline_keyboard' => [
-                                [['text' => '🚀 ទៅកាន់ Official Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
-                                [['text' => '⚡ បើក Admin & Staff Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
-                            ]
-                        ]
-                    ];
-                } else {
-                    // Dedicated Customer Companion Bot
-                    if (str_starts_with(strtolower($startParam), 'syncloc_')) {
+                // ── 1. FAST-PATH: Customer 1-Click Handshake Authentication (tgauth_...) ──
+                if (str_starts_with(strtolower($startParam), 'tgauth_')) {
+                    $handshakeResult = TelegramService::processHandshakeSync($startParam, $update['message'] ?? []);
+                    if (!empty($handshakeResult['text'])) {
                         $responsePayload = [
                             'method' => 'sendMessage',
                             'chat_id' => $msgChatId,
-                            'text' => "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n━━━━━━━━━━━━━━━━━━━━\n\nសួស្តី <b>" . htmlspecialchars($msgFromName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។",
+                            'text' => $handshakeResult['text'],
+                            'parse_mode' => 'HTML',
+                            'reply_markup' => $handshakeResult['reply_markup'] ?? null,
+                        ];
+                        app()->instance('tg_handshake_done_' . $msgChatId, true);
+                    }
+                }
+                // ── 2. FAST-PATH: Profile Account Linkage (tglink_...) ──
+                elseif (str_starts_with(strtolower($startParam), 'tglink_')) {
+                    $linkResult = TelegramService::processProfileLinkSync($startParam, $update['message'] ?? []);
+                    if (!empty($linkResult['text'])) {
+                        $responsePayload = [
+                            'method' => 'sendMessage',
+                            'chat_id' => $msgChatId,
+                            'text' => $linkResult['text'],
+                            'parse_mode' => 'HTML',
+                            'reply_markup' => $linkResult['reply_markup'] ?? null,
+                        ];
+                        app()->instance('tg_link_done_' . $msgChatId, true);
+                    }
+                } else {
+                    $msgBotId = (string)($update['message']['via_bot']['id'] ?? '');
+                    $isStaffBot = ($botParam === 'main' || $msgBotId === '8899300323' || str_contains($msgText, '@s_tech_storeBot'));
+                    if ($isStaffBot && $msgChatType === 'private') {
+                        $customerBotUser = TelegramService::getCustomerBotUsername();
+                        $staffBotUser = TelegramService::getStaffBotUsername();
+                        $redirectUrl = !empty($startParam)
+                            ? "https://t.me/{$customerBotUser}?start={$startParam}"
+                            : "https://t.me/{$customerBotUser}";
+
+                        $responsePayload = [
+                            'method' => 'sendMessage',
+                            'chat_id' => $msgChatId,
+                            'text' => "⚡ <b>S TECH STORE — ADMIN & STAFF BOT HUB</b>\n"
+                                . "━━━━━━━━━━━━━━━━━━━━\n"
+                                . "សួស្តី <b>" . htmlspecialchars($msgFromName) . "</b> (Admin / Staff)!\n\n"
+                                . "Bot នេះ (@{$staffBotUser}) គឺសម្រាប់ក្រុមការងារ Admin & Staff ទទួលដំណឹងហាង និងឆ្លើយតប Live Chat។\n\n"
+                                . "👉 <b>សម្រាប់អតិថិជនទិញទំនិញ & ផ្ទៀងផ្ទាត់ Login:</b> សូមប្រើប្រាស់ Official Customer Bot (@{$customerBotUser})។",
                             'parse_mode' => 'HTML',
                             'reply_markup' => [
-                                'keyboard' => [
-                                    [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
+                                'inline_keyboard' => [
+                                    [['text' => '⚡ បើក Admin & Staff Mini App Hub', 'web_app' => ['url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat']]],
+                                    [['text' => '🛍️ ទៅកាន់ Customer Bot (@' . $customerBotUser . ')', 'url' => $redirectUrl]],
+                                ]
+                            ]
+                        ];
+                    } else {
+                        // Dedicated Customer Companion Bot
+                        if (str_starts_with(strtolower($startParam), 'syncloc_')) {
+                            $responsePayload = [
+                                'method' => 'sendMessage',
+                                'chat_id' => $msgChatId,
+                                'text' => "📍 <b>សូមចែករំលែកទីតាំងសម្រាប់ដឹកជញ្ជូន (Checkout)</b>\n━━━━━━━━━━━━━━━━━━━━\n\nសួស្តី <b>" . htmlspecialchars($msgFromName) . "</b>! សូមចុចប៊ូតុង <b>'📍 ចែករំលែកទីតាំង (Share Location)'</b> ខាងក្រោម ដើម្បីឱ្យប្រព័ន្ធ S Tech Store បំពេញទីតាំង និងគណនាតម្លៃដឹកជញ្ជូនចូលផ្ទាំង Checkout ដោយស្វ័យប្រវត្តិ។",
+                                'parse_mode' => 'HTML',
+                                'reply_markup' => [
+                                    'keyboard' => [
+                                        [['text' => '📍 ចែករំលែកទីតាំង (Share Location)', 'request_location' => true]],
+                                    ],
+                                    'resize_keyboard' => true,
+                                    'one_time_keyboard' => true,
                                 ],
-                                'resize_keyboard' => true,
-                                'one_time_keyboard' => true,
-                            ],
-                        ];
-                    } elseif (empty($startParam)) {
-                        $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
-                            . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
-                            . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
-                            . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
-                            . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+                            ];
+                        } elseif (empty($startParam)) {
+                            $welcomeText = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                                . "ជម្រាបសួរ <b>" . htmlspecialchars($msgFromName) . "</b>!\n"
+                                . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                                . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
+                                . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
 
-                        $responsePayload = [
-                            'method' => 'sendMessage',
-                            'chat_id' => $msgChatId,
-                            'text' => $welcomeText,
-                            'parse_mode' => 'HTML',
-                            'reply_markup' => TelegramService::getCustomerMainMenuKeyboard((string)$msgChatId),
-                        ];
-                        app()->instance('tg_start_welcome_sent_' . $msgChatId, true);
+                            $responsePayload = [
+                                'method' => 'sendMessage',
+                                'chat_id' => $msgChatId,
+                                'text' => $welcomeText,
+                                'parse_mode' => 'HTML',
+                                'reply_markup' => TelegramService::getCustomerMainMenuKeyboard((string)$msgChatId),
+                            ];
+                            app()->instance('tg_start_welcome_sent_' . $msgChatId, true);
+                        }
                     }
                 }
             }
