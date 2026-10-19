@@ -326,19 +326,7 @@ export default function RegisterPage() {
       localStorage.setItem("stech_user_session", JSON.stringify(userSession));
       window.dispatchEvent(new Event("user_session_updated"));
 
-      // 1. Dispatch Warm Khmer Welcome Email with $5 WELCOME5 voucher
-      try {
-        await api.post("/user/send-welcome-email", {
-          email: email.trim(),
-          username: cleanUsername,
-        }, {
-          headers: { "X-Firebase-UID": cred.user.uid }
-        });
-      } catch (emailErr) {
-        console.warn("Auto welcome email notice:", emailErr);
-      }
-
-      // 2. Create real welcome notification in database
+      // 1. Create real welcome in-app notification in database (welcome email is reserved for verified Google Sign-In)
       try {
         await api.post("/user/notifications", {
           title: `Welcome @${cleanUsername}! 🎉`,
