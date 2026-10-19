@@ -112,26 +112,77 @@ Route::post('/chat/admin-reply-alert', function (Request $request) {
         $validated['customer_email'] ?? null
     );
 
+    $telegramAlerted = false;
     if ($targetChatId) {
         $res = \App\Services\TelegramService::sendAdminChatReplyAlertToCustomer(
             $targetChatId,
             $validated['reply_text'],
             $validated['staff_name'] ?? 'S Tech Staff'
         );
+        $telegramAlerted = ($res['ok'] ?? false) === true;
+    }
 
-        return response()->json([
-            'success' => true,
-            'telegram_alerted' => ($res['ok'] ?? false) === true,
-            'chat_id' => $targetChatId,
-            'message' => 'បានផ្ញើការជូនដំណឹងទៅកាន់ Telegram របស់អតិថិជនជោគជ័យ!',
-        ]);
+    $customerEmail = $validated['customer_email'] ?? ($user->email ?? null);
+    $emailAlerted = false;
+    if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_starts_with($customerEmail, 'tg_')) {
+        try {
+            $staffName = htmlspecialchars($validated['staff_name'] ?? 'ក្រុមការងារ S Tech');
+            $replyHtml = nl2br(htmlspecialchars($validated['reply_text']));
+            $subject = "💬 [S Tech Store] សារឆ្លើយតបពីក្រុមការងារ {$staffName}";
+            $html = <<<HTML
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <title>{$subject}</title>
+  <style>
+    body { font-family: 'Kantumruy Pro', Arial, sans-serif; background: #0c0f17; color: #e2e8f0; margin: 0; padding: 24px 12px; }
+    .card { max-width: 580px; margin: 0 auto; background: #151922; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+    .header { background: linear-gradient(135deg, #8B1A1A 0%, #DC2626 100%); padding: 28px 24px; text-align: center; color: #fff; }
+    .content { padding: 28px 24px; }
+    .reply-box { background: #1c212c; border-left: 4px solid #ef4444; border-radius: 0 12px 12px 0; padding: 16px 20px; margin: 20px 0; font-size: 14px; line-height: 1.6; color: #f1f5f9; }
+    .btn { display: inline-block; background: #dc2626; color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px; }
+    .footer { background: #10141d; padding: 18px; text-align: center; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h2 style="margin: 0; font-size: 20px;">S TECH STORE LIVE SUPPORT</h2>
+      <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.9;">ការឆ្លើយតបសារផ្ទាល់ពីក្រុមការងារបច្ចេកទេស</p>
+    </div>
+    <div class="content">
+      <p style="font-size: 14px; color: #cbd5e1; margin-top: 0;">
+        សួស្តីលោកអ្នក! <strong>{$staffName}</strong> បានឆ្លើយតបសំណួររបស់អ្នកក្នុងប្រព័ន្ធ Live Chat៖
+      </p>
+      <div class="reply-box">
+        {$replyHtml}
+      </div>
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="https://www.s-tech-store.tech" class="btn" target="_blank">💬 ចូលទៅកាន់ Live Chat ឥឡូវនេះ</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>© 2026 S Tech Store Cambodia • www.s-tech-store.tech</p>
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+            $emailRes = \App\Services\EmailService::dispatchHtmlEmail($customerEmail, $subject, $html);
+            $emailAlerted = ($emailRes['success'] ?? false) === true;
+        } catch (\Throwable $t) {
+            \Illuminate\Support\Facades\Log::warning("Live chat email alert exception: " . $t->getMessage());
+        }
     }
 
     return response()->json([
         'success' => true,
-        'telegram_alerted' => false,
-        'reason' => 'not_connected',
-        'message' => 'អតិថិជនមិនទាន់ភ្ជាប់ Telegram ទេ (បានអាប់ដេតសារក្នុង Live Chat)',
+        'telegram_alerted' => $telegramAlerted,
+        'email_alerted' => $emailAlerted,
+        'chat_id' => $targetChatId,
+        'customer_email' => $customerEmail,
+        'message' => 'បានដំណើរការជូនដំណឹងទៅកាន់ Telegram និង Gmail របស់អតិថិជនរួចរាល់!',
     ]);
 });
 
