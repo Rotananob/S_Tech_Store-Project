@@ -387,6 +387,20 @@ export default function RegisterPage() {
         isSuccess: true,
       });
 
+      // 1. Dispatch Warm Khmer Welcome Email with $5 WELCOME5 voucher
+      if (cred?.user?.email) {
+        try {
+          await api.post("/user/send-welcome-email", {
+            email: cred.user.email,
+            username: cred.user.displayName || cred.user.email.split("@")[0],
+          }, {
+            headers: { "X-Firebase-UID": cred.user.uid }
+          });
+        } catch (emailErr) {
+          console.warn("Auto welcome email notice:", emailErr);
+        }
+      }
+
       await api.post("/user/notifications", {
         title: "Welcome to S Tech Store! 🎉",
         message: `Welcome ${cred.user.displayName || cred.user.email}! Your S Tech account is ready.`,

@@ -402,6 +402,18 @@ export default function LoginPage() {
         isSuccess: true,
       });
 
+      // 1. Auto-dispatch Warm Welcome Email for new/unwelcomed user
+      if (cred?.user?.email) {
+        try {
+          await api.post("/user/send-welcome-email", {
+            email: cred.user.email,
+            username: cred.user.displayName || cred.user.email.split("@")[0],
+          }, {
+            headers: { "X-Firebase-UID": cred.user.uid }
+          });
+        } catch (emailErr) {}
+      }
+
       await api.post("/user/notifications", {
         title: "Login Successful 🔐",
         message: `Signed in with Google (${cred.user.email}). Welcome back!`,

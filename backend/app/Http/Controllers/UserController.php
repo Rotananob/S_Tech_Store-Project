@@ -1084,6 +1084,7 @@ class UserController extends Controller
     {
         $email = $request->input('email');
         $username = $request->input('username');
+        $force = $request->boolean('force', false);
 
         if (empty($email)) {
             $uid = $this->getUid($request);
@@ -1105,7 +1106,17 @@ class UserController extends Controller
             ], 422);
         }
 
+        $cacheKey = "welcome_email_sent_" . md5(strtolower(trim($email)));
+        if (!$force && \Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return response()->json([
+                'success' => true,
+                'message' => "អ៊ីមែលស្វាគមន៍ត្រូវបានបញ្ជូនរួចរាល់ហើយ",
+                'already_sent' => true,
+            ]);
+        }
+
         $res = \App\Services\EmailService::sendWelcomeEmail($email, $username);
+        \Illuminate\Support\Facades\Cache::put($cacheKey, true, 30 * 24 * 60 * 60);
 
         return response()->json([
             'success' => true,
