@@ -1,7 +1,7 @@
 # S Tech Store
 
-[![Release Version](https://img.shields.io/badge/Release-v1.2.0-emerald.svg)](https://www.s-tech-store.tech)
-[![Build](https://img.shields.io/badge/Build-20261016.01-blue.svg)](https://www.s-tech-store.tech)
+[![Release Version](https://img.shields.io/badge/Release-v1.3.0-emerald.svg)](https://www.s-tech-store.tech)
+[![Build](https://img.shields.io/badge/Build-20261019.01-blue.svg)](https://www.s-tech-store.tech)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2.10-black.svg)](https://nextjs.org/)
 [![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/)
 [![Bakong KHQR](https://img.shields.io/badge/Bakong-KHQR_EMVCo-crimson.svg)](https://bakong.nbc.org.kh/)
@@ -10,7 +10,38 @@
 Production hardware retail platform, custom computer builder, and store management system built for the Cambodian technology market. The system connects a Next.js 16 storefront with a Laravel 11 backend, integrating National Bank of Cambodia Bakong KHQR payments, dual Telegram bot automation, progressive web applications, and an obfuscated operations portal.
 
 📖 **Staff & Operations Manual**: [ADMIN_AND_STAFF_TRAINING_GUIDE.md](file:///d:/WEB%20Development/S%20Tech%20Store/ADMIN_AND_STAFF_TRAINING_GUIDE.md)  
-📘 **Comprehensive Client & Features Manual**: [CLIENT_MANUAL_AND_FEATURES.md](file:///d:/WEB%20Development/S%20Tech%20Store/CLIENT_MANUAL_AND_FEATURES.md)
+📘 **Comprehensive Client & Features Manual**: [CLIENT_MANUAL_AND_FEATURES.md](file:///d:/WEB%20Development/S%20Tech%20Store/CLIENT_MANUAL_AND_FEATURES.md)  
+📊 **Project Cost Estimation 2026**: [PROJECT_COST_ESTIMATION_2026.md](file:///d:/WEB%20Development/S%20Tech%20Store/PROJECT_COST_ESTIMATION_2026.md)
+
+---
+
+## 🚀 Release v1.3.0 (Executive Hardware Console & Real Gmail Engine)
+
+* **Version**: `v1.3.0`
+* **Build Identifier**: `20261019.01`
+* **Release Date**: October 19, 2026
+* **Status**: Production Stable (Live)
+
+### 🌟 Key Highlights & Changelog in v1.3.0:
+1. **🎛️ Executive Hardware Console / Cockpit Rack (Grand Master Controls)**:
+   - Complete architectural redesign of the store state command console with a clean executive cockpit aesthetic (`bg-[#0c1017]`), discrete status LEDs, tactile switches, and monospace telemetry.
+   - **Zero Emojis & Zero AI Vibe Glow**: Stripped all generic emojis and neon glowing halos for a professional enterprise feel.
+   - 4 discrete decks:
+     - `DISPATCH // 01` — **Normal 24/7 Live**: Discrete `SYS.ACTIVE` emerald status indicator and live switch.
+     - `DISPATCH // 02` — **Vacation & Break Mode**: Monospace digital countdown `[ 03d : 00h : 00m : 00s ]` with automated storefront reopening upon expiration.
+     - `DISPATCH // 03` — **Maintenance Lockdown**: Technical maintenance mode with safety verification modal.
+     - `DISPATCH // 04` — **Night Lock Schedule**: Automated overnight lockdown (02:00–06:00 AM ICT) and manual force switch.
+2. **📧 Real Gmail Automated Email Engine (`stech.supporter@gmail.com`)**:
+   - Integration with Google Workspace SMTP & Resend API for automated customer communication.
+   - Auto-welcome email dispatch with official store branding exclusively for authentic Google/Gmail sign-ins (filtering unverified manual accounts).
+   - Automated delivery of digital receipts, 2FA security OTPs, password reset links, and repair tickets.
+3. **✈️ 1-Click Telegram Bot Deep Link in All Customer Emails**:
+   - Injected dark-slate 1-click companion bot card into all email templates (`https://t.me/S_TECH_ASSISTANTBOT?start=tglink_...`).
+   - Tapping the link directly launches Telegram, auto-pairs customer accounts, and delivers notifications straight to their 1-on-1 private inbox.
+4. **🛡️ 2FA OTP Cross-Profile Auto-Healing & Gmail Fallback**:
+   - Cross-profile discovery automatically resolves and binds missing `telegram_chat_id` from existing accounts matching handle or email.
+   - Immediate 1-click fallback button in 2FA modal to receive OTP via Gmail if Telegram is unavailable.
+   - Replaced browser `alert()` popups with user-friendly in-app toast modals and rate-limit retry handling.
 
 ---
 

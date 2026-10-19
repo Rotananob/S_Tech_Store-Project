@@ -129,14 +129,15 @@
 ### ២.៩ គណនីផ្ទាល់ខ្លួន និងការតាមដានការដឹកជញ្ជូន (VIP Profile & Order Tracking)
 * **VIP Member Badge**៖ កម្រិតសមាជិកភាពរបស់អតិថិជន (Standard, Silver, Gold, Platinum VIP) ផ្អែកលើប្រវត្តិទិញ។
 * **Live Order Tracking**៖ មើលដំណាក់កាលនៃទំនិញ (កំពុងរៀបចំ → កំពុងដឹក → បានដឹកដល់) ព្រមទាំងមានលេខទូរស័ព្ទ និងឈ្មោះអ្នកដឹកជញ្ជូនផ្ទាល់។
-* **Saved Addresses**៖ រក្សាទុកអាសយដ្ឋានច្រើនកន្លែង (ផ្ទះ, កន្លែងធ្វើការ) ស្រួលជ្រើសរើសពេលទិញលើកក្រោយ។
-* **Wishlist**៖ បញ្ជីទំនិញដែលពេញចិត្ត ដោយអាចចុចបេះដូងទុកមើលពេលក្រោយ។
-* **Security & 2FA OTP**៖ អាចបើកមុខងារផ្ទៀងផ្ទាត់ ២ ជាន់ (Two-Factor Authentication) ដើម្បីសុវត្ថិភាពគណនីខ្ពស់បំផុត។
+* **Real Gmail Verification & Automated Emails**៖ អតិថិជនអាចផ្ទៀងផ្ទាត់អាសយដ្ឋាន Gmail ពិតប្រាកដជាមួយលេខកូដ OTP ដើម្បីទទួលវិក្កយបត្រ E-Receipts, សំបុត្រជួសជុល, និងដំណឹងកុម្ម៉ង់ទំនិញភ្លាមៗ។
+* **Saved Addresses & GPS Pin**៖ រក្សាទុកអាសយដ្ឋានច្រើនកន្លែង ព្រមទាំងការចាប់ទីតាំងផែនទី Google Map GPS Pin ផ្ទាល់ ដើម្បីឱ្យអ្នកដឹកជញ្ជូន PassApp / Express ដឹកដល់មុខទ្វារផ្ទះសុក្រឹត ១០០%។
+* **Wishlist & History**៖ បញ្ជីទំនិញពេញចិត្ត និងប្រវត្តិទំនិញដែលបានចូលមើលកន្លងមក។
+* **Security & 2FA OTP with 1-Click Fallback**៖ គាំទ្រការផ្ទៀងផ្ទាត់សុវត្ថិភាព ២ ជាន់ (2FA) តាម Telegram Bot ផ្លូវការ និង 1-Click Fallback ផ្ញើតាម Gmail ជំនួសវិញភ្លាមៗ ព្រមទាំងប្រព័ន្ធ Auto-Healing Telegram Chat ID។
 
 ### ២.១០ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)
 * **Telegram 1-Click Handshake Login**៖ មិនបាច់វាយ Email ឬ Password ឡើយ! គ្រាន់តែចុចប៊ូតុង "ចូលដោយប្រើ Telegram" វានឹងបើក Bot `@S_TECH_ASSISTANTBOT` រួច Log in ចូលវេបសាយដោយស្វ័យប្រវត្តិតាមបច្ចេកវិទ្យា Cryptographic Handshake។
-* **Google, Apple, Facebook Login**៖ គាំទ្រការចូលតាមគណនីសង្គមល្បីៗប្រកបដោយសុវត្ថិភាព។
-* **Traditional Email & Password**៖ មានប្រព័ន្ធ Password Strength Meter និង Reset Password តាម Email យ៉ាងត្រឹមត្រូវ។
+* **Google Sign-In ជាមួយ Real Gmail Auto-Welcome**៖ អតិថិជនដែល Sign up តាម Google/Gmail ពិតប្រាកដ នឹងទទួលបានលិខិតស្វាគមន៍ Welcome Email ផ្លូវការពី `stech.supporter@gmail.com` ដែលមានភ្ជាប់ Logo ហាង និងកាត 1-Click Telegram Bot ផ្ទាល់។
+* **Traditional Email & Password**៖ មានប្រព័ន្ធ Password Strength Meter និង Magic Login / Reset Password ទាំងតាម Gmail និង Telegram។
 
 ### ២.១១ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)
 * វេបសាយទាំងមូលត្រូវបានបង្កើតឡើងជា **Progressive Web App (PWA)**៖
@@ -224,7 +225,12 @@
 * **របាយការណ៍សប្តាហ៍ថ្ងៃអាទិត្យ**៖ សង្ខេបទំនិញពេញនិយម និងស្ថិតិអតិថិជនថ្មី។
 
 ### ៣.១១ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Owner Only)
-* គ្រប់គ្រង Storefront Mode (Normal, Vacation Countdown Mode ជាមួយការបើកឡើងវិញដោយស្វ័យប្រវត្តិ, Maintenance Mode) និងប៊ូតុង Master Lockdown បង្កកសិទ្ធិបុគ្គលិកពេលមានអាសន្ន។
+* ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ ត្រូវបានរចនាឡើងយ៉ាងម៉ត់ចត់បំផុតតាមបែប **Executive Hardware Console / Cockpit Rack** (bg-[#0c1017], គ្មាន Emoji និងគ្មាន Vibe AI Glow) ដោយចែកចេញជា ៤ Decks សំខាន់ៗ៖
+  * **DISPATCH // 01 — ដំណើរការធម្មតា (Normal 24/7 Live)**៖ អំពូល LED `SYS.ACTIVE` ពណ៌ Emerald ដំណើរការទទួលការកុម្ម៉ង់ ២៤/៧។
+  * **DISPATCH // 02 — បិទឈប់សម្រាក (Vacation & Break Mode)**៖ កំណត់ចំនួនថ្ងៃសម្រាកបុណ្យ ជាមួយ **នាឡិកាឌីជីថលរាប់ថយក្រោយ Monospace `[ 03d : 00h : 00m : 00s ]`** និងប្រព័ន្ធ Auto-Reopen បើកហាងឡើងវិញដោយស្វ័យប្រវត្តិ។
+  * **DISPATCH // 03 — បិទជួសជុល (Maintenance Mode)**៖ ប្រព័ន្ធចាក់សោរបច្ចេកទេសជាមួយ Safety Confirmation Modal។
+  * **DISPATCH // 04 — សុវត្ថិភាពពេលរាត្រី (Night Lock)**៖ កាលវិភាគស្វ័យប្រវត្តិចន្លោះម៉ោង 02:00 – 06:00 AM ICT ការពារការកុម្ម៉ង់ និងសុវត្ថិភាពពេលយប់ជ្រៅ។
+  * **Master Staff Activity Lockdown**៖ ប៊ូតុងចុចតែមួយ Click សម្រាប់បង្កកសិទ្ធិបុគ្គលិកទាំងអស់ពេលមានអាសន្ន ឬសវនកម្មផ្ទៃក្នុង (HTTP 423 Locked)។
 
 ### ៣.១២ Admin PWA សម្រាប់បុគ្គលិកហាង
 * ផ្ទាំងគ្រប់គ្រង Admin ក៏គាំទ្រមុខងារ **PWA (Progressive Web App)** ផងដែរ៖
@@ -233,15 +239,19 @@
 
 ---
 
-## 4. ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម Telegram Bot ផ្លូវការ (Unified Official Bot)
+## 4. ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម Dual Telegram Bot & Real Gmail Ecosystem
 
-| លក្ខណៈសម្បត្តិ | Official Assistant & Store Alerts Bot |
-|---|---|
-| **ឈ្មោះ Bot** | `@S_TECH_ASSISTANTBOT` (ID: `8689597792`) |
-| **Token ប្រព័ន្ធ** | `8689597792:AAESJgFacj-eTx-3sDCQllT2A7d9Pm49mI8` |
-| **អ្នកប្រើប្រាស់គោលដៅ** | អតិថិជនទូទៅ + ម្ចាស់ហាង, អ្នកគ្រប់គ្រង និងបុគ្គលិក |
-| **ទីកន្លែងដំណើរការ** | Private 1-on-1 Chat ជាមួយអតិថិជន និង Group Forum Topics របស់ហាង |
-| **មុខងារចម្បង** | • **Telegram Mini App (TMA)**៖ បើកទិញទំនិញពេញលេញក្នុង Telegram ផ្ទាល់<br>• ចូលប្រើប្រាស់វេបសាយដោយមិនបាច់វាយ Password (1-Click Login Handshake)<br>• ជូនដំណឹងពេលមាន Order ថ្មី, ស្តុកជិតអស់, របាយការណ៍ប្រចាំថ្ងៃ, និង Error Alerts<br>• ផ្ញើវិក្កយបត្រឌីជីថល (Digital Receipts) ភ្លាមៗពេលទិញទំនិញជោគជ័យ<br>• ផ្ញើដំណឹងដឹកជញ្ជូន និងលេខទូរស័ព្ទអ្នកដឹក<br>• ផ្ទៀងផ្ទាត់សុវត្ថិភាព 2FA |
+| លក្ខណៈសម្បត្តិ | Bot ទី ១៖ Staff Alerts & Operations Bot | Bot ទី ២៖ Official Customer Companion Bot |
+|---|---|---|
+| **Username** | `@s_tech_storeBot` | `@S_TECH_ASSISTANTBOT` (ID: `8689597792`) |
+| **គោលបំណង** | សម្រាប់ម្ចាស់ហាង, អ្នកគ្រប់គ្រង និងបុគ្គលិក | សម្រាប់អតិថិជនទូទៅ (1-on-1 Private Inbox) |
+| **ទីកន្លែងដំណើរការ** | Telegram Group របស់ហាង តាម Forum Topics | ឆាតឯកជនមួយទល់នឹងមួយ + Telegram Mini App (TMA) |
+| **មុខងារចម្បង** | • ជូនដំណឹងភ្លាមៗពេលមាន Order ថ្មី<br>• ស្តុកជិតអស់ (Low Stock Alert)<br>• ដំណឹងប្តូរវេន POS Shift<br>• សំបុត្រជួសជុលកុំព្យូទ័រ Repair Ticket<br>• របាយការណ៍ស្វ័យប្រវត្តិ ៨ យប់ (ច័ន្ទ-សៅរ៍) និងរបាយការណ៍អាទិត្យ | • Telegram Mini App (TMA) ទិញទំនិញក្នុង Telegram<br>• 1-Click Login Handshake ដោយមិនបាច់ Password<br>• វិក្កយបត្រឌីជីថល E-Receipts ផ្ញើចូល Chat ផ្ទាល់<br>• 1-Click Token Deep-Link (`tglink_...`) ពីក្នុង Gmail<br>• លេខកូដសុវត្ថិភាព 2FA OTP & Magic Reset Links |
+
+### ប្រព័ន្ធ Real Gmail Engine (`stech.supporter@gmail.com`)
+* **Welcome Email ស្វ័យប្រវត្តិ**៖ ផ្ញើជូនអតិថិជនដែល Sign-in តាម Google/Gmail ពិតប្រាកដ (ទប់ស្កាត់ការផ្ញើទៅកាន់ Fake/Manual Accounts)។
+* **1-Click Telegram Deep Link Card**៖ បង្កប់ប៊ូតុងតភ្ជាប់ទៅកាន់ Telegram Bot ដោយផ្ទាល់ក្នុងគ្រប់អ៊ីមែលទាំងអស់។
+* **សំបុត្រអេឡិចត្រូនិចផ្លូវការ**៖ វិក្កយបត្របញ្ជាទិញ, សំបុត្រជួសជុលម៉ាស៊ីន (Repair Tickets), និងការផ្លាស់ប្តូរពាក្យសម្ងាត់។
 
 ---
 
