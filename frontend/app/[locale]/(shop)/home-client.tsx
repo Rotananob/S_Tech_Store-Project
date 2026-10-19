@@ -514,16 +514,15 @@ export function PromotionDealsSection({ products = [] }: { products?: any[] }) {
   const handleAddToCart = (e: React.MouseEvent, product: any, promoPrice: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!getEffectiveUser()) {
-      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
-      return;
-    }
+
     addItem({
       id: Number(product.id),
+      product_id: Number(product.id),
       name: product.name,
       price: promoPrice,
       quantity: 1,
       image_url: product.image_url || product.image,
+      product: product,
     });
     setTimeout(() => {
       useCartStore.getState().setIsOpen(true);
@@ -1198,12 +1197,6 @@ export function ProductCard({ product }: { product: any }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Check if user is logged in
-    if (!getEffectiveUser()) {
-      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
-      return;
-    }
     
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 300);
@@ -1213,10 +1206,12 @@ export function ProductCard({ product }: { product: any }) {
 
     addItem({
       id: Number(product.id),
+      product_id: Number(product.id),
       name: product.name,
       price: effectivePrice,
       quantity: 1,
-      image_url: product.image_url || product.image
+      image_url: product.image_url || product.image,
+      product: product,
     });
     
     setTimeout(() => {

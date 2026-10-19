@@ -19,6 +19,7 @@ export default function CartPage() {
 
   useEffect(() => {
     setMounted(true);
+    fetchCart();
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -101,7 +102,7 @@ export default function CartPage() {
               {items.map((item) => {
                 const price = item.product?.sale_price ?? item.product?.price ?? item.price;
                 const name = item.product?.name ?? item.name;
-                const image = item.product?.image ?? item.image_url;
+                const image = item.image_url || item.product?.image || item.product?.image_url;
                 
                 return (
                   <div

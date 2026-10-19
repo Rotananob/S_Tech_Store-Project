@@ -103,7 +103,7 @@ export default function Navbar() {
       }
 
       setUser(null);
-      useCartStore.getState().clearCart();
+      // Keep cart intact in localStorage for guest visitors
       useWishlistStore.getState().clearWishlist();
     };
 

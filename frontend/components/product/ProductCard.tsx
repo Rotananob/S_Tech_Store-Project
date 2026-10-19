@@ -56,19 +56,18 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!getEffectiveUser()) {
-      router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
-      return;
-    }
+
     // Trigger parabolic fly-to-cart animation!
     triggerFlyToCart(e.currentTarget as HTMLElement, productImg);
 
     addItem({
       id: Number(product.id),
+      product_id: Number(product.id),
       name: product.name,
       price: product.sale_price ?? product.price,
       quantity: 1,
       image_url: productImg,
+      product: product,
     });
     // Open slide-over cart after animation lands
     setTimeout(() => {

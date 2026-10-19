@@ -155,6 +155,20 @@ export async function sendChatMessage(
 }
 
 /**
+ * Update activeSessionId in RTDB when user starts or switches sessions
+ */
+export async function updateChatActiveSession(
+  chatId: string,
+  sessionId: string
+): Promise<void> {
+  if (!rtdb) return;
+  const sessionRef = ref(rtdb, `chats/${chatId}/meta`);
+  await update(sessionRef, {
+    activeSessionId: sessionId,
+  }).catch(() => {});
+}
+
+/**
  * Set AI paused/active status for a chat (Admin Takeover / Leave)
  */
 export async function setChatAiStatus(

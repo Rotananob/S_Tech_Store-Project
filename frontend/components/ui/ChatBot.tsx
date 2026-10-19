@@ -39,7 +39,8 @@ import {
   sendChatMessage, 
   subscribeToMessages, 
   subscribeToChatMeta,
-  markChatReadByUser 
+  markChatReadByUser,
+  updateChatActiveSession
 } from "@/lib/services/chat.service";
 import { useRouter } from "next/navigation";
 
@@ -923,6 +924,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
 
     setSessions((prev) => {
       const updated = [newSession, ...prev];
+      sessionsRef.current = updated;
       saveSessionsToStorage(userStorageKeyRef.current || "guest", updated);
       return updated;
     });
@@ -930,6 +932,11 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     setActiveSessionId(newId);
     setMessages(initialMsgs);
     setShowHistoryDrawer(false);
+
+    if (chatId) {
+      updateChatActiveSession(chatId, newId).catch(() => {});
+    }
+
     showToast("✨ បានចាប់ផ្តើមការសន្ទនាថ្មី!", "info");
   };
 
@@ -994,6 +1001,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     const unsub = subscribeToMessages(chatId, (firebaseMsgs) => {
       if (firebaseMsgs && firebaseMsgs.length > 0) {
         setMessages((prev) => {
+          const curSession = sessionsRef.current.find((s) => s.id === activeSessionId);
+          const sessionCreatedAt = curSession?.createdAt || Date.now();
+
           const existingIds = new Set(prev.map((m) => m.id).filter(Boolean));
           const existingSignatures = new Set(
             prev.map((m) => `${m.sender}:${(m.text || "").trim()}`)
@@ -1006,6 +1016,18 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
             const cleanText = (m.text || "").trim();
             const senderType = m.sender === "admin" ? "staff" : m.sender;
             const sig = `${senderType}:${cleanText}`;
+
+            // Strict Session Isolation:
+            // 1. If message belongs to a different session, never merge into active session
+            if (m.sessionId && m.sessionId !== activeSessionId) {
+              continue;
+            }
+
+            // 2. If message does not have a sessionId (historical messages or untagged staff replies),
+            // never pull messages that occurred before this session was created
+            if (!m.sessionId && m.timestamp && m.timestamp < sessionCreatedAt - 5000) {
+              continue;
+            }
 
             const isAlreadyPresent =
               (m.id && existingIds.has(m.id)) ||

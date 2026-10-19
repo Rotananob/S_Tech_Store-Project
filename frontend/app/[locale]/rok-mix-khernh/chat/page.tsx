@@ -355,12 +355,14 @@ export default function AdminRealtimeChatPage() {
           sender: currentStaff.role === "admin" ? "admin" : "staff",
           senderName: currentStaff.name,
           text: textToSend,
+          sessionId: (activeChatMeta as any)?.activeSessionId || null,
         },
         activeChat
           ? {
               userName: activeChat.userName,
               userEmail: activeChat.userEmail,
               userPhone: activeChat.userPhone,
+              sessionId: (activeChatMeta as any)?.activeSessionId || undefined,
             }
           : undefined
       );

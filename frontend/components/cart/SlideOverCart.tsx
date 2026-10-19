@@ -70,8 +70,8 @@ export default function SlideOverCart() {
                 items.map((item) => (
                   <div key={item.id} className="flex gap-4 bg-white border border-gray-100 p-3 rounded-2xl shadow-sm relative group">
                     <div className="w-20 h-20 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 relative">
-                      {item.image_url ? (
-                        <Image src={item.image_url} alt={item.name} fill className="object-cover" />
+                      {(item.image_url || item.product?.image || item.product?.image_url) ? (
+                        <Image src={item.image_url || item.product?.image || item.product?.image_url} alt={item.name} fill className="object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <ShoppingCart size={20} className="text-gray-300" />
