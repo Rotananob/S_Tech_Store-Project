@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import {
   createTopupSession,
+  checkTopupStatus,
   confirmTopup,
   alertAdminTopup,
   processCardTopup,
@@ -184,6 +185,48 @@ export default function WalletTopupModal({
     return () => clearInterval(interval);
   }, [step, session]);
 
+  // Intelligent background auto-polling for instant payment detection (every 2.5s starting 3s after QR display)
+  useEffect(() => {
+    if (step !== "qr" || !session?.deposit_id) return;
+
+    let isCancelled = false;
+    let pollTimer: NodeJS.Timeout;
+
+    const pollStatus = async () => {
+      try {
+        const res = await checkTopupStatus(session.deposit_id);
+        if (isCancelled) return;
+        if (res?.paid || res?.status === "completed") {
+          playCelebrationFanfare();
+          setShowConfetti(true);
+          setSuccessReceipt({
+            amount: res.amount || session.amount,
+            deposit_id: session.deposit_id,
+            method: selectedChannel === "aba" ? "ABA PAY" : "Bakong KHQR (All Banks)",
+          });
+          setStep("success");
+          localStorage.removeItem(STORAGE_KEY);
+          if (res.wallet_balance !== undefined) {
+            onSuccess(res.wallet_balance);
+          }
+          return;
+        }
+      } catch (e) {
+        // Silently skip background polling error
+      }
+      if (!isCancelled) {
+        pollTimer = setTimeout(pollStatus, 2500);
+      }
+    };
+
+    pollTimer = setTimeout(pollStatus, 3000);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(pollTimer);
+    };
+  }, [step, session?.deposit_id, selectedChannel, onSuccess]);
+
   const getEffectiveAmount = (): number => {
     if (customAmount && !isNaN(Number(customAmount)) && Number(customAmount) > 0) {
       return Number(customAmount);
@@ -211,24 +254,21 @@ export default function WalletTopupModal({
     try {
       const res = await createTopupSession(amt, selectedChannel);
 
-      // Preload image in memory so the container and QR code reveal synchronously together!
-      if (res?.qr_image_url) {
-        await new Promise<void>((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve();
-          img.onerror = () => resolve();
-          img.src = res.qr_image_url;
-          setTimeout(resolve, 2000); // 2s safety timeout
-        });
-      }
-
+      // Instant transition: Reveal QR view immediately without blocking!
       setSession(res);
-      setQrImageLoaded(true);
       setStep("qr");
       setCheckAttempts(0);
       const now = Date.now();
       const expiresAt = now + SESSION_TTL_MS;
       setTimeLeft(30 * 60);
+
+      // Non-blocking background image preload
+      if (res?.qr_image_url) {
+        const img = new Image();
+        img.onload = () => setQrImageLoaded(true);
+        img.onerror = () => setQrImageLoaded(true);
+        img.src = res.qr_image_url;
+      }
 
       // Persist in localStorage so switching to mobile banking app or switching tabs NEVER reloads/resets!
       localStorage.setItem(

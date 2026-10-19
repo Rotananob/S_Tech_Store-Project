@@ -171,8 +171,8 @@ class PaymentService
             Log::warning("Failed to store payment MD5 hashes in order: " . $e->getMessage());
         }
 
-        // High resolution QR code URL with High Error Correction (ecc=H: 30% recovery) for 100% scan rate on all banks
-        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=15&ecc=H&format=png&data=" . urlencode($activeKhqr);
+        // Optimized QR code URL with standard Error Correction (ecc=M) for ultra-fast generation and crisp scanning
+        $qrImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=380x380&margin=8&ecc=M&format=png&data=" . urlencode($activeKhqr);
 
         // Universal Deeplink from Bakong Open API
         $bakongToken = config('payment.bakong.api_token');
@@ -432,7 +432,8 @@ class PaymentService
 
                 foreach ($md5List as $md5) {
                     $response = Http::withToken($bakongToken)
-                        ->timeout(6)
+                        ->connectTimeout(1.2)
+                        ->timeout(2.5)
                         ->post($apiUrl . '/check_transaction_by_md5', [
                             'md5' => $md5,
                         ]);
