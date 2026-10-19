@@ -2185,8 +2185,13 @@ class TelegramService
             return;
         }
 
-        // 4.2 Handle Profile Setting Private Account Linkage Handshake (tglink_...)
-        if ($extractedCode && (str_starts_with($extractedCode, 'tglink_') || str_starts_with($extractedCode, 'TGLINK_'))) {
+        // 4.2 Handle Profile & Email 1-Click Telegram Deep Link Handshake (tglink_... or tgmail_...)
+        if ($extractedCode && (
+            str_starts_with($extractedCode, 'tglink_') || 
+            str_starts_with($extractedCode, 'TGLINK_') ||
+            str_starts_with($extractedCode, 'tgmail_') ||
+            str_starts_with($extractedCode, 'TGMAIL_')
+        )) {
             if (app()->bound('tg_link_done_' . $chatId)) {
                 return;
             }
@@ -4921,6 +4926,37 @@ HTML;
             if (!empty($orderOrUser->firebase_uid) && str_starts_with($orderOrUser->firebase_uid, 'tg_')) {
                 $raw = substr($orderOrUser->firebase_uid, 3);
                 if (is_numeric($raw)) return $raw;
+            }
+            // Cross-Profile Auto-Healing: If user has a telegram handle (e.g. '@NobRotana' or 'NobRotana')
+            if (!empty($orderOrUser->telegram)) {
+                $clean = ltrim(trim($orderOrUser->telegram), '@');
+                $linked = \App\Models\UserProfile::where(function($q) use ($clean) {
+                    $q->where('telegram', '@' . $clean)
+                      ->orWhere('telegram', $clean)
+                      ->orWhere('email', $clean . '@telegram.s-tech-store.tech');
+                })->whereNotNull('telegram_chat_id')->first();
+                if ($linked && !empty($linked->telegram_chat_id)) {
+                    try {
+                        $orderOrUser->telegram_chat_id = (string)$linked->telegram_chat_id;
+                        $orderOrUser->save();
+                    } catch (\Throwable $t) {}
+                    return (string)$linked->telegram_chat_id;
+                }
+            }
+            // Cross-Profile Auto-Healing: Also check if this email has a telegram_chat_id in another row
+            if (!empty($orderOrUser->email)) {
+                $cleanEmail = strtolower(trim($orderOrUser->email));
+                $linkedByEmail = \App\Models\UserProfile::where('email', $cleanEmail)
+                    ->whereNotNull('telegram_chat_id')
+                    ->where('id', '!=', $orderOrUser->id)
+                    ->first();
+                if ($linkedByEmail && !empty($linkedByEmail->telegram_chat_id)) {
+                    try {
+                        $orderOrUser->telegram_chat_id = (string)$linkedByEmail->telegram_chat_id;
+                        $orderOrUser->save();
+                    } catch (\Throwable $t) {}
+                    return (string)$linkedByEmail->telegram_chat_id;
+                }
             }
             return null;
         }

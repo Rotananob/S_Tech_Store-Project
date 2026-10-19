@@ -468,6 +468,8 @@ export default function UserProfilePage() {
   const [otpChannel, setOtpChannel] = useState<"telegram" | "email">("telegram");
   const [otpErrorType, setOtpErrorType] = useState<string | null>(null);
   const [otpBotUsername, setOtpBotUsername] = useState<string>("S_TECH_ASSISTANTBOT");
+  const [otpDeepLink, setOtpDeepLink] = useState<string | null>(null);
+  const [otpHasEmail, setOtpHasEmail] = useState<boolean>(false);
 
   // Luxury Password Reset Alert State (https://www.s-tech-store.tech)
   const [resetLoading, setResetLoading] = useState(false);
@@ -1354,7 +1356,8 @@ export default function UserProfilePage() {
   const handleSendEmailVerification = async () => {
     const rawEmail = (profile.email || user?.email || "").trim();
     if (!rawEmail || !rawEmail.includes("@")) {
-      alert("សូមបញ្ចូលអាសយដ្ឋាន Gmail ត្រឹមត្រូវជាមុនសិន!");
+      setPrivacyToast("សូមបញ្ចូលអាសយដ្ឋាន Gmail ត្រឹមត្រូវជាមុនសិន!");
+      setTimeout(() => setPrivacyToast(null), 3000);
       return;
     }
     setEmailVerifyLoading(true);
@@ -1367,11 +1370,21 @@ export default function UserProfilePage() {
       if (res.data?.success) {
         setEmailVerifySent(true);
         setEmailVerifyModal(true);
+        setPrivacyToast("បានផ្ញើលេខកូដបញ្ជាក់ទៅកាន់ Gmail រួចរាល់! 📩");
+        setTimeout(() => setPrivacyToast(null), 3500);
       } else {
-        alert(res.data?.message || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់");
+        setEmailVerifyError(res.data?.message || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់");
+        setEmailVerifyModal(true);
       }
     } catch (err: any) {
-      alert(err.response?.data?.message || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់");
+      const status = err.response?.status;
+      const msg = err.response?.data?.message;
+      if (status === 429) {
+        setEmailVerifyError("ប្រព័ន្ធបានផ្ញើលេខកូដរួចរាល់ហើយ! សូមពិនិត្យមើល Inbox ឬ Spam ក្នុង Gmail របស់អ្នក ឬរង់ចាំបន្តិចសិនមុនចុចផ្ញើម្ដងទៀត។");
+      } else {
+        setEmailVerifyError(msg || "បរាជ័យក្នុងការផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់ សូមព្យាយាមម្ដងទៀត");
+      }
+      setEmailVerifyModal(true);
     } finally {
       setEmailVerifyLoading(false);
     }
@@ -1448,6 +1461,7 @@ export default function UserProfilePage() {
     setOtpLoading(true);
     setOtpError("");
     setOtpErrorType(null);
+    setOtpDeepLink(null);
     setOtpInput("");
     setOtpTargetAction("enable");
     setShow2faModal(true);
@@ -1468,12 +1482,16 @@ export default function UserProfilePage() {
         setOtpError(res.data?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ");
         if (res.data?.error_type) setOtpErrorType(res.data.error_type);
         if (res.data?.bot_username) setOtpBotUsername(sanitizeTgBot(res.data.bot_username));
+        if (res.data?.deep_link) setOtpDeepLink(res.data.deep_link);
+        if (res.data?.has_email !== undefined) setOtpHasEmail(Boolean(res.data.has_email));
       }
     } catch (err: any) {
       const errData = err.response?.data;
       setOtpError(errData?.message || "មិនអាចផ្ញើលេខកូដ OTP បានទេ សូមព្យាយាមម្តងទៀត");
       if (errData?.error_type) setOtpErrorType(errData.error_type);
       if (errData?.bot_username) setOtpBotUsername(sanitizeTgBot(errData.bot_username));
+      if (errData?.deep_link) setOtpDeepLink(errData.deep_link);
+      if (errData?.has_email !== undefined) setOtpHasEmail(Boolean(errData.has_email));
     } finally {
       setOtpLoading(false);
     }
@@ -5415,24 +5433,39 @@ export default function UserProfilePage() {
 
                   {/* Error Banner */}
                   {otpError && (
-                    <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-600 dark:text-red-400 font-bold space-y-2 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <AlertTriangle size={15} className="shrink-0 text-red-500" />
-                        <span>{otpError}</span>
+                    <div className="p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-600 dark:text-red-400 font-bold space-y-2.5 text-left">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle size={16} className="shrink-0 text-red-500 mt-0.5" />
+                        <span className="leading-relaxed">{otpError}</span>
                       </div>
 
-                      {/* Bot Not Started helper button */}
-                      {(otpErrorType === "bot_not_started" || otpError.includes("/start") || otpError.includes("Bot")) && (
-                        <a
-                          href={`https://t.me/${otpBotUsername || "S_TECH_ASSISTANTBOT"}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full mt-1.5 py-2 px-3 rounded-lg bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 no-underline shadow-sm"
-                        >
-                          <Send size={13} />
-                          <span>ចុចទីនេះដើម្បីបើក Telegram Bot @{otpBotUsername || "S_TECH_ASSISTANTBOT"} (/start)</span>
-                        </a>
-                      )}
+                      {/* Bot Direct Link + Gmail 1-click fallback */}
+                      <div className="space-y-2 pt-1">
+                        {(otpErrorType === "bot_not_started" || otpError.includes("/start") || otpError.includes("Bot") || otpChannel === "telegram") && (
+                          <a
+                            href={otpDeepLink || `https://t.me/${otpBotUsername || "S_TECH_ASSISTANTBOT"}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#0088cc] to-[#229ED9] hover:from-[#0077b5] hover:to-[#1b8fc5] text-white text-xs font-bold flex items-center justify-center gap-2 no-underline shadow-sm transition-transform active:scale-98"
+                          >
+                            <Send size={14} className="-translate-x-0.5 translate-y-0.5" />
+                            <span>បើក Telegram Bot (@{otpBotUsername || "S_TECH_ASSISTANTBOT"}) ចុច Start</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
+
+                        {(hasRealEmailChannel || otpHasEmail || (profile.email && profile.email.includes("@") && !profile.email.endsWith("@s-tech-store.tech"))) && (
+                          <button
+                            type="button"
+                            disabled={otpLoading}
+                            onClick={() => handleToggle2FA("email")}
+                            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#6b1111] hover:to-red-700 text-white text-xs font-bold flex items-center justify-center gap-2 border-none cursor-pointer shadow-sm transition-transform active:scale-98 disabled:opacity-50"
+                          >
+                            <Mail size={14} />
+                            <span>ផ្ញើតាម Gmail ជំនួសវិញ (Send OTP via Gmail)</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 

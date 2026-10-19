@@ -413,149 +413,191 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
       </div>
 
       {/* ── 1. STORE OPERATING MODE SWITCHER & PUBLIC UI (GRAND MASTER CORE) ── */}
-      <div className="pt-6 pb-2 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="pt-6 pb-2 space-y-4">
+        {/* Console Section Header */}
+        <div className="p-4 rounded-2xl bg-[#0b0f17] border border-slate-800/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3 shadow-sm">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30 flex items-center gap-1">
-                <Crown size={11} className="text-amber-400" />
-                <span>Store Public UI Switcher</span>
+              <span className="px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono text-[10px] font-bold uppercase tracking-wider border border-slate-700">
+                SYSTEM DISPATCH CONSOLE
               </span>
-              <span className="text-xs text-gray-400 font-medium">
-                (គ្រប់គ្រងផ្ទាំង UI លើ Storefront & Website សាធារណៈ)
+              <span className="text-xs text-slate-400 font-medium">
+                (Storefront & Public Web Infrastructure)
               </span>
             </div>
-            <h3 className="text-base sm:text-lg font-black text-white mt-1">
-              ប្តូរផ្ទាំង UI ហាង៖ ដំណើរការធម្មតា, បិទសម្រាក (Vacation), ឬ ជួសជុល (Maintenance)
+            <h3 className="text-base sm:text-lg font-bold text-white mt-1 m-0">
+              មជ្ឈមណ្ឌលគ្រប់គ្រងស្ថានភាពហាង (Master Store Operations)
             </h3>
+            <p className="text-xs text-slate-400 mt-0.5 m-0">
+              ការបញ្ជាផ្ទាល់លើ Storefront សាធារណៈ: បើកដំណើរការ, ឈប់សម្រាកតាមកាលកំណត់, បិទជួសជុល, ឬចាក់សោរពេលរាត្រី។
+            </p>
           </div>
 
-          {state.vacation_mode && (
-            <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
-              <Timer size={14} className="animate-spin text-amber-400" />
-              <span>
-                Countdown: {String(countdown.days).padStart(2, '0')}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+          <div className="flex items-center gap-2 shrink-0">
+            {state.vacation_mode && (
+              <div className="px-3 py-1.5 rounded-lg bg-amber-950/60 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
+                <Timer size={14} className="text-amber-400" />
+                <span>
+                  COUNTDOWN: {String(countdown.days).padStart(2, '0')}d {String(countdown.hours).padStart(2, '0')}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
+                </span>
+              </div>
+            )}
+            <div className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 text-xs font-mono font-medium flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full ${
+                state.maintenance_mode
+                  ? 'bg-rose-500'
+                  : state.vacation_mode
+                  ? 'bg-amber-400'
+                  : state.night_lock_forced
+                  ? 'bg-cyan-400'
+                  : 'bg-emerald-400'
+              }`} />
+              <span className="text-[11px] uppercase tracking-wider font-bold">
+                {state.maintenance_mode
+                  ? 'MAINTENANCE'
+                  : state.vacation_mode
+                  ? 'VACATION'
+                  : state.night_lock_forced
+                  ? 'NIGHT_LOCK'
+                  : 'NORMAL_LIVE'}
               </span>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* 4 Main Mode Selector Cards (Online, Vacation, Maintenance, Night Lock) */}
+        {/* 4 Discrete Hardware Console Decks */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           
-          {/* Option A: Normal Live 24/7 */}
+          {/* Deck 1: Normal Live 24/7 */}
           <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
             !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
-              ? "bg-emerald-950/30 border-emerald-500/60 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30"
-              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+              ? "bg-[#0c1420] border-emerald-500/50 shadow-md ring-1 ring-emerald-500/20"
+              : "bg-[#0b0f17] border-slate-800/80 hover:border-slate-700"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                  !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? "bg-emerald-500/20 text-emerald-400" : "bg-white/10 text-gray-400"
+                  !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
+                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                    : "bg-slate-800/60 text-slate-400 border border-slate-700"
                 }`}>
                   <Activity size={18} />
                 </div>
                 {!state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    <span>កំពុងដំណើរការ (Active)</span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>SYS.ACTIVE</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700 text-[9.5px] font-mono font-bold uppercase tracking-wider">
+                    STANDBY
+                  </span>
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white">🟢 ដំណើរការធម្មតា (Normal 24/7)</h4>
-              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-                អតិថិជនអាចមើលទំនិញ ដាក់បញ្ជាទិញ Checkout និងប្រើប្រាស់គ្រប់មុខងារទាំងអស់តាមធម្មតា។
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400/90 mb-0.5">
+                DISPATCH // 01
+              </div>
+              <h4 className="text-sm font-bold text-white m-0">
+                ដំណើរការធម្មតា (Normal 24/7 Live)
+              </h4>
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
+                Storefront បើកដំណើរការពេញលេញ។ អតិថិជនអាចរុករកទំនិញ ផ្គុំកុំព្យូទ័រ និងធ្វើការ Checkout បានគ្រប់ពេលវេលា។
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                handleProtectedAction(
-                  "switch_normal",
-                  "Switch to Normal Live Mode",
-                  async () => {
-                    if (state.vacation_mode) await toggleVacationMode(false);
-                    if (state.maintenance_mode) await toggleMaintenanceMode(false);
-                    if (state.night_lock_forced) await toggleNightLockMode({ forced: false });
-                    showToast("បានបើកដំណើរការហាងជាធម្មតាវិញជោគជ័យ!");
-                    await loadStatus(true);
-                  },
-                  true,
-                  "បើកដំណើរការហាងជាធម្មតាឡើងវិញ",
-                  "តើអ្នកចង់បិទមុខងារសម្រាក/Maintenance/Night Lock និងបើកឲ្យអតិថិជនទិញទំនិញធម្មតាឡើងវិញមែនទេ?",
-                  "warning"
-                );
-              }}
-              disabled={actionLoading === "switch_normal" || (!state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced)}
-              className={`mt-4 w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                !isSuperAdmin
-                  ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
-                  : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
-                  ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 cursor-default"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
-              }`}
-            >
-              {!isSuperAdmin ? (
-                <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
-              ) : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
-                <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
-              ) : (
-                <><Power size={13} /><span>ប្តូរមក Normal Live វិញ</span></>
-              )}
-            </button>
+            <div className="mt-4 pt-3 border-t border-slate-800/60">
+              <button
+                type="button"
+                onClick={() => {
+                  handleProtectedAction(
+                    "switch_normal",
+                    "Switch to Normal Live Mode",
+                    async () => {
+                      if (state.vacation_mode) await toggleVacationMode(false);
+                      if (state.maintenance_mode) await toggleMaintenanceMode(false);
+                      if (state.night_lock_forced) await toggleNightLockMode({ forced: false });
+                      showToast("បានបើកដំណើរការហាងជាធម្មតាវិញជោគជ័យ!");
+                      await loadStatus(true);
+                    },
+                    true,
+                    "បើកដំណើរការហាងជាធម្មតាឡើងវិញ",
+                    "តើអ្នកចង់បិទមុខងារសម្រាក/Maintenance/Night Lock និងបើកឲ្យអតិថិជនទិញទំនិញធម្មតាឡើងវិញមែនទេ?",
+                    "warning"
+                  );
+                }}
+                disabled={actionLoading === "switch_normal" || (!state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced)}
+                className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  !isSuperAdmin
+                    ? "bg-slate-800/50 text-slate-400 border border-slate-700 opacity-60"
+                    : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced
+                    ? "bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 cursor-default"
+                    : "bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm"
+                }`}
+              >
+                {!isSuperAdmin ? (
+                  <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
+                ) : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
+                  <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
+                ) : (
+                  <><Power size={13} /><span>ប្តូរមក Normal Live វិញ</span></>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Option B: Vacation Mode (Temporary Closure + Countdown) */}
-          <div className={`relative p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+          {/* Deck 2: Vacation / Break Mode */}
+          <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
             state.vacation_mode
-              ? "bg-amber-950/40 border-amber-500/70 shadow-lg shadow-amber-950/40 ring-1 ring-amber-500/40"
-              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+              ? "bg-[#16120b] border-amber-500/60 shadow-md ring-1 ring-amber-500/20"
+              : "bg-[#0b0f17] border-slate-800/80 hover:border-slate-700"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                  state.vacation_mode ? "bg-amber-500/20 text-amber-400" : "bg-white/10 text-gray-400"
+                  state.vacation_mode
+                    ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                    : "bg-slate-800/60 text-slate-400 border border-slate-700"
                 }`}>
-                  <Palmtree size={18} />
+                  <Clock size={18} />
                 </div>
                 {state.vacation_mode ? (
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-black uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <span>កំពុងបិទសម្រាក ({state.vacation_days || 3} ថ្ងៃ)</span>
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span>VACATION ({state.vacation_days || 3}D)</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700 text-[9.5px] font-mono font-bold uppercase tracking-wider">
+                    STANDBY
+                  </span>
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Palmtree size={15} className="text-amber-400" />
-                <span>បិទបណ្ដោះអាសន្ន / ឈប់សម្រាក</span>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400/90 mb-0.5">
+                DISPATCH // 02
+              </div>
+              <h4 className="text-sm font-bold text-white m-0">
+                បិទឈប់សម្រាក (Vacation & Break)
               </h4>
-              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-                បិទសម្រាកតាមកាលកំណត់ (ឧ. ៣ ថ្ងៃ)។ UI បង្ហាញផ្ទាំង Luxury ជាមួយ Live Countdown និង auto direct បើកហាងឡើងវិញស្វ័យប្រវត្តពេលដល់ម៉ោង!
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
+                កំណត់កាលវិភាគសម្រាកបណ្តោះអាសន្ន។ Storefront បង្ហាញផ្ទាំងផ្លូវការជាមួយ Live Countdown និង auto direct បើកវិញពេលដល់ម៉ោង។
               </p>
 
-              {/* Real-time Ticker Preview if Active */}
+              {/* Live Ticker Readout if Active */}
               {state.vacation_mode && (
-                <div className="mt-2.5 p-2.5 rounded-xl bg-black/50 border border-amber-500/30 text-center">
-                  <div className="text-[10px] text-amber-400 font-bold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
-                    <Clock size={11} className="text-amber-400" />
+                <div className="mt-2.5 p-2 rounded-xl bg-black/60 border border-amber-500/30 text-center">
+                  <div className="text-[9.5px] text-amber-400 font-mono font-bold uppercase tracking-wider mb-1 flex items-center justify-center gap-1">
+                    <Timer size={11} className="text-amber-400" />
                     <span>ពេលវេលានៅសល់មុនពេលបើកហាងវិញ</span>
                   </div>
-                  <div className="text-base font-black font-mono text-white flex items-center justify-center gap-1.5">
+                  <div className="text-sm font-mono font-black text-white flex items-center justify-center gap-1">
                     <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.days).padStart(2, '0')}d</span>:
                     <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.hours).padStart(2, '0')}h</span>:
                     <span className="px-1.5 py-0.5 rounded bg-white/10">{String(countdown.minutes).padStart(2, '0')}m</span>:
                     <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">{String(countdown.seconds).padStart(2, '0')}s</span>
                   </div>
                   {state.vacation_end_time && (
-                    <div className="text-[9.5px] text-gray-400 mt-1 truncate">
+                    <div className="text-[9px] font-mono text-slate-400 mt-1 truncate">
                       បើកវិញ: {new Date(state.vacation_end_time).toLocaleString()}
                     </div>
                   )}
@@ -563,7 +605,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               )}
             </div>
 
-            <div className="mt-4 flex items-center gap-2">
+            <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center gap-2">
               {state.vacation_mode ? (
                 <button
                   type="button"
@@ -582,7 +624,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                     );
                   }}
                   disabled={actionLoading === "cancel_vacation"}
-                  className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/40"
+                  className="flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs bg-emerald-700 hover:bg-emerald-600 text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
                 >
                   <Power size={13} />
                   <span>បើកហាងវិញភ្លាមៗ</span>
@@ -606,10 +648,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 disabled={actionLoading === "vacation_modal"}
                 className={`py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   state.vacation_mode
-                    ? "bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/40 shrink-0"
+                    ? "bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-500/40 shrink-0"
                     : !isSuperAdmin
-                    ? "w-full bg-white/5 text-gray-400 border border-white/10 opacity-70"
-                    : "w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white shadow-md shadow-amber-950/40"
+                    ? "w-full bg-slate-800/50 text-slate-400 border border-slate-700 opacity-60"
+                    : "w-full bg-amber-700 hover:bg-amber-600 text-white shadow-sm"
                 }`}
               >
                 {!isSuperAdmin ? (
@@ -617,125 +659,137 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 ) : state.vacation_mode ? (
                   <><Clock size={13} /><span>កែប្រែពេល</span></>
                 ) : (
-                  <><Palmtree size={13} /><span>កំណត់ថ្ងៃសម្រាក (Switch UI)</span></>
+                  <><Calendar size={13} /><span>កំណត់ថ្ងៃសម្រាក</span></>
                 )}
               </button>
             </div>
           </div>
 
-          {/* Option C: Maintenance Mode (Under Technical Maintenance) */}
+          {/* Deck 3: Maintenance Mode */}
           <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
             state.maintenance_mode
-              ? "bg-rose-950/40 border-rose-500/70 shadow-lg shadow-rose-950/40 ring-1 ring-rose-500/40"
-              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+              ? "bg-[#170e12] border-rose-500/60 shadow-md ring-1 ring-rose-500/20"
+              : "bg-[#0b0f17] border-slate-800/80 hover:border-slate-700"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
-                  state.maintenance_mode ? "bg-rose-500/20 text-rose-400" : "bg-white/10 text-gray-400"
+                  state.maintenance_mode
+                    ? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                    : "bg-slate-800/60 text-slate-400 border border-slate-700"
                 }`}>
-                  <AlertOctagon size={18} />
+                  <Wrench size={18} />
                 </div>
                 {state.maintenance_mode ? (
-                  <span className="px-2 py-0.5 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-black uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
-                    <span>Maintenance Mode សកម្ម</span>
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                    <span>MAINTENANCE</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">Standby</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700 text-[9.5px] font-mono font-bold uppercase tracking-wider">
+                    STANDBY
+                  </span>
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Wrench size={15} className="text-amber-400" />
-                <span>ជួសជុលប្រព័ន្ធ (Maintenance)</span>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-rose-400/90 mb-0.5">
+                DISPATCH // 03
+              </div>
+              <h4 className="text-sm font-bold text-white m-0">
+                បិទជួសជុល (Maintenance Mode)
               </h4>
-              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-                បិទហាងដាក់ផ្ទាំងជួសជុលប្រព័ន្ធ (Technical Gears UI) ពេលធ្វើបច្ចុប្បន្នភាព Server ឬប្រព័ន្ធទូទាត់។
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
+                ផ្អាកដំណើរការ Storefront សម្រាប់បច្ចុប្បន្នភាពប្រព័ន្ធ Database, APIs, ឬហេដ្ឋារចនាសម្ព័ន្ធទូទាត់ប្រាក់។
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                handleProtectedAction(
-                  "maintenance_toggle",
-                  "Store Maintenance Mode",
-                  async () => {
-                    const res = await toggleMaintenanceMode(!state.maintenance_mode);
-                    showToast(res.message);
-                  },
-                  true,
-                  state.maintenance_mode ? "បិទ Maintenance & បើកហាងឡើងវិញ" : "បើក Maintenance Mode",
-                  state.maintenance_mode 
-                    ? "តើអ្នកចង់បិទ Maintenance Mode និងបើកដំណើរការហាងជាធម្មតាឡើងវិញមែនទេ?" 
-                    : "ប្រយ័ត្ន! ការបើក Maintenance Mode នឹងធ្វើឲ្យអតិថិជនមិនអាចមើលទំនិញ ឬទិញបានឡើយ។ តើអ្នកចង់បន្តទេ?",
-                  state.maintenance_mode ? "warning" : "extreme"
-                );
-              }}
-              disabled={actionLoading === "maintenance_toggle"}
-              className={`mt-4 w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                !isSuperAdmin
-                  ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
-                  : state.maintenance_mode
-                  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40"
-                  : "bg-rose-600 hover:bg-rose-500 text-white shadow-md shadow-rose-950/40"
-              }`}
-            >
-              {!isSuperAdmin ? (
-                <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
-              ) : state.maintenance_mode ? (
-                <><Power size={13} /><span>បិទ Maintenance (Go Live)</span></>
-              ) : (
-                <><AlertOctagon size={13} /><span>បើក Maintenance Mode</span></>
-              )}
-            </button>
+            <div className="mt-4 pt-3 border-t border-slate-800/60">
+              <button
+                type="button"
+                onClick={() => {
+                  handleProtectedAction(
+                    "maintenance_toggle",
+                    "Store Maintenance Mode",
+                    async () => {
+                      const res = await toggleMaintenanceMode(!state.maintenance_mode);
+                      showToast(res.message);
+                    },
+                    true,
+                    state.maintenance_mode ? "បិទ Maintenance & បើកហាងឡើងវិញ" : "បើក Maintenance Mode",
+                    state.maintenance_mode 
+                      ? "តើអ្នកចង់បិទ Maintenance Mode និងបើកដំណើរការហាងជាធម្មតាឡើងវិញមែនទេ?" 
+                      : "ប្រយ័ត្ន! ការបើក Maintenance Mode នឹងធ្វើឲ្យអតិថិជនមិនអាចមើលទំនិញ ឬទិញបានឡើយ។ តើអ្នកចង់បន្តទេ?",
+                    state.maintenance_mode ? "warning" : "extreme"
+                  );
+                }}
+                disabled={actionLoading === "maintenance_toggle"}
+                className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  !isSuperAdmin
+                    ? "bg-slate-800/50 text-slate-400 border border-slate-700 opacity-60"
+                    : state.maintenance_mode
+                    ? "bg-emerald-700 hover:bg-emerald-600 text-white shadow-sm"
+                    : "bg-rose-700 hover:bg-rose-600 text-white shadow-sm"
+                }`}
+              >
+                {!isSuperAdmin ? (
+                  <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
+                ) : state.maintenance_mode ? (
+                  <><Power size={13} /><span>បិទ Maintenance (Go Live)</span></>
+                ) : (
+                  <><Wrench size={13} /><span>បើក Maintenance Mode</span></>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Option D: Cybersecurity Night Lock (02:00 AM - 06:00 AM) */}
+          {/* Deck 4: Cybersecurity Night Lock */}
           <div className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
             state.night_lock_forced
-              ? "bg-cyan-950/40 border-cyan-500/70 shadow-lg shadow-cyan-950/40 ring-1 ring-cyan-500/40"
+              ? "bg-[#0b1622] border-cyan-500/60 shadow-md ring-1 ring-cyan-500/20"
               : state.night_lock_enabled
-              ? "bg-indigo-950/20 border-cyan-500/30 hover:border-cyan-500/50"
-              : "bg-white/[0.03] border-white/10 hover:border-white/20"
+              ? "bg-[#0c121e] border-cyan-800/50"
+              : "bg-[#0b0f17] border-slate-800/80 hover:border-slate-700"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold ${
                   state.night_lock_forced 
-                    ? "bg-cyan-500/20 text-cyan-300" 
+                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" 
                     : state.night_lock_enabled 
-                    ? "bg-indigo-500/20 text-cyan-400" 
-                    : "bg-white/10 text-gray-400"
+                    ? "bg-indigo-500/15 text-cyan-400 border border-indigo-500/30" 
+                    : "bg-slate-800/60 text-slate-400 border border-slate-700"
                 }`}>
                   <Moon size={18} />
                 </div>
                 {state.night_lock_forced ? (
-                  <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-black uppercase flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                     <span>FORCED LOCK</span>
                   </span>
                 ) : state.night_lock_enabled ? (
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+                  <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[9.5px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                    <span>Auto 2AM-6AM Standby</span>
+                    <span>AUTO 02:00-06:00</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">Disabled</span>
+                  <span className="px-2 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700 text-[9.5px] font-mono font-bold uppercase tracking-wider">
+                    DISABLED
+                  </span>
                 )}
               </div>
 
-              <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Moon size={15} className="text-cyan-400" />
-                <span>សុវត្ថិភាពពេលរាត្រី (Night Lock)</span>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-cyan-400/90 mb-0.5">
+                DISPATCH // 04
+              </div>
+              <h4 className="text-sm font-bold text-white m-0">
+                សុវត្ថិភាពពេលរាត្រី (Night Lock)
               </h4>
-              <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-                បិទ Storefront & ចាក់សោ Checkout ស្វ័យប្រវត្តពីម៉ោង {state.night_lock_start || "02:00"} ដល់ {state.night_lock_end || "06:00"} AM ការពារ Hacker/Bot វាយប្រហារពេលយប់ & សន្សំ Free Tier!
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
+                ការពារ Storefront & Checkout ពីម៉ោង {state.night_lock_start || "02:00"} ដល់ {state.night_lock_end || "06:00"} AM ICT ប្រឆាំងនឹង Bot Attacks និងសន្សំ Cloud Quota។
               </p>
             </div>
 
-            <div className="mt-4 flex flex-col gap-2">
+            <div className="mt-4 pt-3 border-t border-slate-800/60 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -759,10 +813,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 disabled={actionLoading === "night_lock_force"}
                 className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   !isSuperAdmin
-                    ? "bg-white/5 text-gray-400 border border-white/10 opacity-70"
+                    ? "bg-slate-800/50 text-slate-400 border border-slate-700 opacity-60"
                     : state.night_lock_forced
-                    ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-md shadow-cyan-950/40"
-                    : "bg-cyan-950/50 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/30"
+                    ? "bg-cyan-700 hover:bg-cyan-600 text-white shadow-sm"
+                    : "bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-800/60"
                 }`}
               >
                 {!isSuperAdmin ? (
@@ -795,11 +849,11 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                   );
                 }}
                 disabled={actionLoading === "night_lock_toggle_auto"}
-                className="w-full py-1.5 px-3 rounded-xl font-medium text-[11px] text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full py-1.5 px-3 rounded-xl font-mono text-[11px] text-slate-400 hover:text-white bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>Auto Schedule (2AM - 6AM):</span>
-                <strong className={state.night_lock_enabled ?? true ? "text-cyan-400 font-bold" : "text-gray-500 font-bold"}>
-                  {state.night_lock_enabled ?? true ? "បើក (ON)" : "បិទ (OFF)"}
+                <strong className={state.night_lock_enabled ?? true ? "text-cyan-400 font-bold" : "text-slate-500 font-bold"}>
+                  {state.night_lock_enabled ?? true ? "ON" : "OFF"}
                 </strong>
               </button>
             </div>

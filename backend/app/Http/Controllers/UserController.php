@@ -1443,10 +1443,27 @@ class UserController extends Controller
 
         // Safety check requested channel availability
         if ($targetChannel === 'telegram' && !$hasTelegram) {
+            $botName = \App\Services\TelegramService::getCustomerBotUsername();
+            $linkToken = 'tglink_' . \Illuminate\Support\Str::random(24);
+            if ($user) {
+                \Illuminate\Support\Facades\Cache::put("tg_link_{$linkToken}", [
+                    'user_id' => $user->id,
+                    'firebase_uid' => $user->firebase_uid,
+                    'email' => $user->email,
+                    'display_name' => $user->display_name ?: $user->username,
+                    'status' => 'pending',
+                    'created_at' => time(),
+                ], 86400);
+            }
             return response()->json([
                 'success' => false,
-                'message' => 'គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ Telegram Bot នៅឡើយទេ។ សូមជ្រើសរើសផ្ញើតាម Gmail ឬភ្ជាប់ Telegram ជាមុនសិន!',
-            ], 422);
+                'error_type' => 'bot_not_started',
+                'bot_username' => $botName,
+                'deep_link' => "https://t.me/{$botName}?start={$linkToken}",
+                'has_email' => $isRealEmail,
+                'email' => $isRealEmail ? $email : null,
+                'message' => 'គណនីរបស់អ្នកមិនទាន់បានភ្ជាប់ Telegram Bot នៅឡើយទេ។ សូមចុច Start Bot ដើម្បីភ្ជាប់ Telegram ឬជ្រើសរើសផ្ញើតាម Gmail ជំនួសវិញ!',
+            ], 400);
         }
 
         if ($targetChannel === 'email' && !$isRealEmail) {
@@ -1479,17 +1496,29 @@ class UserController extends Controller
         if ($targetChannel === 'telegram') {
             $tgRes = \App\Services\TelegramService::sendCustomerTwoFactorOtp($telegramChatId, $otp, $customerName);
             if (!($tgRes['ok'] ?? false)) {
-                $desc = $tgRes['description'] ?? '';
+                $desc = $tgRes['description'] ?? ($tgRes['error'] ?? '');
                 \Illuminate\Support\Facades\Log::warning("Telegram 2FA OTP error for {$telegramChatId}: " . json_encode($tgRes));
-                if (str_contains(strtolower($desc), 'blocked') || str_contains(strtolower($desc), 'chat not found') || str_contains(strtolower($desc), 'can\'t initiate')) {
-                    $botName = \App\Services\TelegramService::getCustomerBotUsername();
-                    return response()->json([
-                        'success' => false,
-                        'error_type' => 'bot_not_started',
-                        'bot_username' => $botName,
-                        'message' => "មិនអាចផ្ញើសារចូល Telegram បានទេ! សូមចុច /start ក្នុង Bot @{$botName} រួចចុចផ្ញើម្ដងទៀត។",
-                    ], 400);
+                $botName = \App\Services\TelegramService::getCustomerBotUsername();
+                $linkToken = 'tglink_' . \Illuminate\Support\Str::random(24);
+                if ($user) {
+                    \Illuminate\Support\Facades\Cache::put("tg_link_{$linkToken}", [
+                        'user_id' => $user->id,
+                        'firebase_uid' => $user->firebase_uid,
+                        'email' => $user->email,
+                        'display_name' => $user->display_name ?: $user->username,
+                        'status' => 'pending',
+                        'created_at' => time(),
+                    ], 86400);
                 }
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'bot_not_started',
+                    'bot_username' => $botName,
+                    'deep_link' => "https://t.me/{$botName}?start={$linkToken}",
+                    'has_email' => $isRealEmail,
+                    'email' => $isRealEmail ? $email : null,
+                    'message' => "មិនអាចផ្ញើសារចូល Telegram បានទេ! សូមចុច Start ក្នុង Bot @{$botName} រួចចុចផ្ញើម្ដងទៀត ឬជ្រើសរើសផ្ញើតាម Gmail ជំនួសវិញ។",
+                ], 400);
             }
 
             return response()->json([
@@ -1506,7 +1535,10 @@ class UserController extends Controller
 
         // Otherwise target channel is 'email'
         try {
-            \App\Services\EmailService::sendTwoFactorOtpEmail($email, $customerName, 'verify', $otp);
+            $mailRes = \App\Services\EmailService::sendTwoFactorOtpEmail($email, $customerName, 'verify', $otp);
+            if (!($mailRes['success'] ?? false) && empty($mailRes['email_sent'])) {
+                \Illuminate\Support\Facades\Log::warning("Email 2FA dispatch returned false for {$email}");
+            }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::warning("Email 2FA dispatch warning: " . $e->getMessage());
         }

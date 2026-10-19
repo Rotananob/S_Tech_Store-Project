@@ -19,6 +19,78 @@ class EmailService
     const HOTLINE = '+855 88 993 0032';
 
     /**
+     * Generate secure 1-click Telegram Bot deep-link token and metadata for email integration
+     */
+    public static function generateTelegramDirectDeepLink(string $email, ?UserProfile $user = null): array
+    {
+        if (!$user) {
+            $user = UserProfile::where('email', $email)->first();
+        }
+
+        $botUsername = TelegramService::getCustomerBotUsername();
+        $tgToken = 'tglink_' . Str::random(24);
+
+        if ($user) {
+            $payload = [
+                'user_id' => $user->id,
+                'firebase_uid' => $user->firebase_uid,
+                'email' => $user->email,
+                'display_name' => $user->display_name ?: $user->username,
+                'status' => 'pending',
+                'created_at' => time(),
+            ];
+            Cache::put("tg_link_{$tgToken}", $payload, 86400 * 7); // 7 days
+            try {
+                DB::table('system_settings')->updateOrInsert(
+                    ['key' => "tg_link_{$tgToken}"],
+                    ['value' => json_encode($payload), 'updated_at' => now()]
+                );
+            } catch (\Throwable $t) {}
+        }
+
+        return [
+            'bot_username' => $botUsername,
+            'deep_link' => "https://t.me/{$botUsername}?start={$tgToken}",
+            'has_telegram_linked' => $user ? !empty($user->telegram_chat_id) : false,
+            'telegram_chat_id' => $user ? $user->telegram_chat_id : null,
+            'user' => $user,
+        ];
+    }
+
+    /**
+     * Render sleek 1-Click Telegram Bot Direct Action Card for emails
+     */
+    public static function renderTelegramDeepLinkCard(string $deepLink, string $botUsername, bool $isAlreadyLinked = false): string
+    {
+        $btnText = $isAlreadyLinked 
+            ? "បើក Telegram Bot ទទួលដំណឹង (@{$botUsername})" 
+            : "ភ្ជាប់ Telegram Bot 1-Click (@{$botUsername})";
+        $badgeText = $isAlreadyLinked 
+            ? "TELEGRAM BOT CONNECTED" 
+            : "1-CLICK TELEGRAM BOT LINK";
+        $descText = $isAlreadyLinked
+            ? "គណនីរបស់អ្នកត្រូវបានភ្ជាប់ជាមួយ Telegram រួចរាល់! ចុចដើម្បីបើកមើលការជូនដំណឹង និងសេវាកម្មដោយផ្ទាល់ក្នុង 1-on-1 Inbox។"
+            : "ភ្ជាប់គណនីជាមួយ Telegram Bot ផ្លូវការ ដើម្បីឲ្យ Bot ស្គាល់គណនីរបស់អ្នកភ្លាមៗ និងផ្ញើវិក្កយបត្រ ដំណឹងទិញទំនិញ ឬលេខកូដសុវត្ថិភាព 2FA ចូលក្នុង Inbox របស់អ្នកស្វ័យប្រវត្តិ។";
+
+        return <<<HTML
+      <div style="background: #0c1424; border: 1px solid rgba(56,189,248,0.28); border-radius: 14px; padding: 20px; text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; margin-bottom: 10px;">
+          {$badgeText}
+        </div>
+        <div style="font-size: 14px; font-weight: 800; color: #ffffff; margin-bottom: 6px;">
+          📱 ទទួលដំណឹងបន្ទាន់តាម Telegram Bot (@{$botUsername})
+        </div>
+        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 16px; line-height: 1.6;">
+          {$descText}
+        </p>
+        <a href="{$deepLink}" style="display: inline-block; background: #0088cc; color: #ffffff !important; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none; box-shadow: 0 6px 20px rgba(0,136,204,0.4);" target="_blank">
+          {$btnText}
+        </a>
+      </div>
+HTML;
+    }
+
+    /**
      * Send Warm Khmer Welcome Email to Newly Registered User
      */
     public static function sendWelcomeEmail(string $email, ?string $username = null): array
@@ -26,6 +98,10 @@ class EmailService
         $cleanUsername = !empty($username) ? ltrim($username, '@') : 'អតិថិជនកិត្តិយស';
         $domain = self::DOMAIN;
         $subject = '[S Tech Store] សូមស្វាគមន៍មកកាន់គេហទំព័រផ្លូវការ';
+
+        $user = UserProfile::where('email', $email)->first();
+        $tgData = self::generateTelegramDirectDeepLink($email, $user);
+        $tgCard = self::renderTelegramDeepLinkCard($tgData['deep_link'], $tgData['bot_username'], $tgData['has_telegram_linked']);
 
         $html = <<<HTML
 <!DOCTYPE html>
@@ -106,6 +182,9 @@ class EmailService
         </div>
       </div>
 
+      <!-- 1-Click Telegram Bot Direct Action Card -->
+      {$tgCard}
+
       <div class="btn-row">
         <a href="{$domain}/products" class="btn-primary" target="_blank">រុករកទំនិញ (Products)</a>
         <a href="{$domain}/build-pc" class="btn-secondary" target="_blank">ផ្គុំ PC Builder</a>
@@ -179,6 +258,10 @@ HTML;
         $resetLink = "{$domain}/reset-password?token={$resetToken}&email=" . urlencode($email);
         $subject = '[S Tech Store] សំណើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់គណនី';
 
+        $user = UserProfile::where('email', $email)->first();
+        $tgData = self::generateTelegramDirectDeepLink($email, $user);
+        $tgCard = self::renderTelegramDeepLinkCard($tgData['deep_link'], $tgData['bot_username'], $tgData['has_telegram_linked']);
+
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
@@ -233,6 +316,9 @@ HTML;
         ប្រសិនបើប៊ូតុងខាងលើមិនដំណើរការ សូមចម្លងតំណភ្ជាប់ (URL) នេះទៅបើកក្នុង Browser របស់អ្នក:
       </p>
       <div class="alt-link">{$resetLink}</div>
+
+      <!-- 1-Click Telegram Bot Direct Action Card -->
+      {$tgCard}
     </div>
 
     <div class="footer">
@@ -298,6 +384,10 @@ HTML;
 
         $subject = "[S Tech Store] លេខកូដសុវត្ថិភាពផ្ទៀងផ្ទាត់ OTP ({$otp})";
 
+        $user = UserProfile::where('email', $email)->first();
+        $tgData = self::generateTelegramDirectDeepLink($email, $user);
+        $tgCard = self::renderTelegramDeepLinkCard($tgData['deep_link'], $tgData['bot_username'], $tgData['has_telegram_linked']);
+
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
@@ -348,6 +438,9 @@ HTML;
         • កុំចែករំលែកលេខកូដនេះទៅកាន់បុគ្គលណាផ្សេងជាដាច់ខាត។<br>
         • បុគ្គលិក S Tech Store នឹងមិនទាមទារសួររកលេខកូដ OTP ពីអ្នកឡើយ។
       </div>
+
+      <!-- 1-Click Telegram Bot Direct Action Card -->
+      {$tgCard}
     </div>
 
     <div class="footer">
@@ -492,6 +585,10 @@ HTML;
         $confirmLink = "{$domain}/confirm-email?token={$token}&email=" . urlencode($email);
         $subject = "[S Tech Store] ផ្ទៀងផ្ទាត់អាសយដ្ឋានអ៊ីមែល ({$otp})";
 
+        $user = UserProfile::where('email', $email)->first();
+        $tgData = self::generateTelegramDirectDeepLink($email, $user);
+        $tgCard = self::renderTelegramDeepLinkCard($tgData['deep_link'], $tgData['bot_username'], $tgData['has_telegram_linked']);
+
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
@@ -549,6 +646,9 @@ HTML;
         ប្រសិនបើប៊ូតុងខាងលើមិនដំណើរការ សូមចម្លងតំណភ្ជាប់ (URL) នេះទៅបើកក្នុង Browser របស់អ្នក:
       </p>
       <div class="alt-link">{$confirmLink}</div>
+
+      <!-- 1-Click Telegram Bot Direct Action Card -->
+      {$tgCard}
     </div>
 
     <div class="footer">
@@ -560,9 +660,8 @@ HTML;
 </html>
 HTML;
 
-        // In-app alert
+        // In-app alert & Telegram companion
         try {
-            $user = UserProfile::where('email', $email)->first();
             if ($user) {
                 UserNotification::create([
                     'firebase_uid' => $user->firebase_uid ?: ('usr_' . $user->id),
@@ -571,6 +670,16 @@ HTML;
                     'type' => 'security',
                     'read' => false,
                 ]);
+
+                if (!empty($user->telegram_chat_id)) {
+                    TelegramService::sendMessage(
+                        $user->telegram_chat_id,
+                        "🔐 <b>[S TECH STORE] លេខកូដផ្ទៀងផ្ទាត់ Gmail ({$email})</b>\n\nលេខកូដ OTP របស់អ្នកគឺ: <code>{$otp}</code> (សុពលភាព 15 នាទី)។\n\n👉 <i>លោកអ្នកអាចបញ្ចូលលេខកូដនេះលើគេហទំព័រ ឬចុច Confirm ភ្លាមៗ។</i>",
+                        'HTML',
+                        null,
+                        TelegramService::getCustomerBotToken()
+                    );
+                }
             }
         } catch (\Throwable $e) {}
 
@@ -612,6 +721,10 @@ HTML;
         } elseif (in_array(strtolower($status), ['in progress', 'repairing'])) {
             $statusColor = '#3b82f6';
         }
+
+        $user = UserProfile::where('email', $email)->first();
+        $tgData = self::generateTelegramDirectDeepLink($email, $user);
+        $tgCard = self::renderTelegramDeepLinkCard($tgData['deep_link'], $tgData['bot_username'], $tgData['has_telegram_linked']);
 
         $subject = "[S Tech Store] {$ticketCode} — បច្ចុប្បន្នភាពសំបុត្រជួសជុល & សេវាកម្ម";
 
@@ -712,6 +825,9 @@ HTML;
           <p class="grid-text">ភ្ជាប់ @S_TECH_ASSISTANTBOT ទទួលដំណឹងសេវាកម្មរហ័ស។</p>
         </div>
       </div>
+
+      <!-- 1-Click Telegram Bot Direct Action Card -->
+      {$tgCard}
 
       <div class="btn-row">
         <a href="{$trackingUrl}" class="btn-primary" target="_blank">តាមដានស្ថានភាពសំបុត្រ (Track Ticket)</a>
