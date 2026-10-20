@@ -1507,7 +1507,11 @@ export default function UserProfilePage() {
     setOtpLoading(true);
     setOtpError("");
     try {
-      const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+      let userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+      if (!userTelegramChatId && profile.telegram && profile.telegram.includes("ID:")) {
+        const match = profile.telegram.match(/\d+/);
+        if (match) userTelegramChatId = match[0];
+      }
       const res = await api.post("/user/verify-2fa-otp", {
         otp: otpInput.trim(),
         enable: true,
@@ -1873,7 +1877,11 @@ export default function UserProfilePage() {
     // Keep modal open and show clear, active loading state
     setTelegramUnlinking(true);
     try {
-      const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+      let userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+      if (!userTelegramChatId && profile.telegram && profile.telegram.includes("ID:")) {
+        const match = profile.telegram.match(/\d+/);
+        if (match) userTelegramChatId = match[0];
+      }
       const res = await api.post("/user/telegram/unlink", {
         telegram_chat_id: userTelegramChatId,
         telegram: profile.telegram,
@@ -5341,7 +5349,11 @@ export default function UserProfilePage() {
       {/* ── Two-Factor Authentication (2FA) OTP Modal ───────────── */}
       <AnimatePresence>
         {show2faModal && (() => {
-          const userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+          let userTelegramChatId = profile.telegram_chat_id || (profile.firebase_uid?.startsWith("tg_") ? profile.firebase_uid.slice(3) : null) || (user?.uid?.startsWith("tg_") ? user.uid.slice(3) : null);
+      if (!userTelegramChatId && profile.telegram && profile.telegram.includes("ID:")) {
+        const match = profile.telegram.match(/\d+/);
+        if (match) userTelegramChatId = match[0];
+      }
           const hasTelegramChannel = Boolean(isTelegramAuthUser || userTelegramChatId || profile.telegram);
           const rawUserEmail = (user?.email || profile.email || "").toLowerCase().trim();
           const hasRealEmailChannel = Boolean(rawUserEmail && !rawUserEmail.endsWith("@telegram.s-tech-store.tech") && !rawUserEmail.endsWith("@tiktok.s-tech-store.tech") && rawUserEmail.includes("@"));

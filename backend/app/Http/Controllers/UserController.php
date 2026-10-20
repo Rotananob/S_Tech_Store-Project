@@ -34,7 +34,17 @@ class UserController extends Controller
             if (!$exists) {
                 $email = $request->header('X-Firebase-Email');
                 if (!empty($email)) {
-                    $userByEmail = UserProfile::where('email', $email)->first();
+                    $userByEmail = UserProfile::where('email', $email)
+                        ->where('is_active', true)
+                        ->orderByDesc('wallet_balance')
+                        ->orderByDesc('id')
+                        ->first();
+                    if (!$userByEmail) {
+                        $userByEmail = UserProfile::where('email', $email)
+                            ->orderByDesc('wallet_balance')
+                            ->orderByDesc('id')
+                            ->first();
+                    }
                     if ($userByEmail && !empty($userByEmail->firebase_uid)) {
                         return $userByEmail->firebase_uid;
                     }
@@ -82,7 +92,17 @@ class UserController extends Controller
 
         $email = $request->header('X-Firebase-Email');
         if (!empty($email)) {
-            $user = UserProfile::where('email', $email)->first();
+            $user = UserProfile::where('email', $email)
+                ->where('is_active', true)
+                ->orderByDesc('wallet_balance')
+                ->orderByDesc('id')
+                ->first();
+            if (!$user) {
+                $user = UserProfile::where('email', $email)
+                    ->orderByDesc('wallet_balance')
+                    ->orderByDesc('id')
+                    ->first();
+            }
             if ($user && !empty($user->firebase_uid)) {
                 return $user->firebase_uid;
             }

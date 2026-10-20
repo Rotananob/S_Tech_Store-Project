@@ -769,9 +769,17 @@ Route::post('/user/telegram/unlink', function (Request $request) {
 
     $user = null;
     if ($uid) {
-        $user = \App\Models\UserProfile::where('firebase_uid', $uid)
-            ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
-            ->first();
+        if (str_starts_with($uid, 'tg_')) {
+            $tgNum = substr($uid, 3);
+            $user = \App\Models\UserProfile::where('firebase_uid', $uid)
+                ->orWhere('telegram_chat_id', (string)$tgNum)
+                ->orderByDesc('wallet_balance')
+                ->first();
+        } else {
+            $user = \App\Models\UserProfile::where('firebase_uid', $uid)
+                ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
+                ->first();
+        }
     }
     if (!$user && $token) {
         $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
@@ -779,17 +787,31 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         if (!$user) $user = \App\Models\UserProfile::where('magic_login_token', $token)->first();
     }
     if (!$user && $chatId) {
-        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$chatId)
-            ->orWhere('firebase_uid', 'tg_' . $chatId)
+        $cleanChatId = preg_replace('/\D/', '', (string)$chatId) ?: $chatId;
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanChatId)
+            ->orWhere('telegram_chat_id', (string)$chatId)
+            ->orWhere('firebase_uid', 'tg_' . $cleanChatId)
+            ->orderByDesc('wallet_balance')
             ->first();
     }
     if (!$user && $email) {
-        $user = \App\Models\UserProfile::where('email', $email)->first();
+        $user = \App\Models\UserProfile::where('email', $email)
+            ->where('is_active', true)
+            ->orderByDesc('wallet_balance')
+            ->orderByDesc('id')
+            ->first();
+        if (!$user) {
+            $user = \App\Models\UserProfile::where('email', $email)
+                ->orderByDesc('wallet_balance')
+                ->orderByDesc('id')
+                ->first();
+        }
     }
     if (!$user && $telegram) {
         $cleanTg = ltrim(trim($telegram), '@');
         $user = \App\Models\UserProfile::where('telegram', '@' . $cleanTg)
             ->orWhere('telegram', $cleanTg)
+            ->orderByDesc('wallet_balance')
             ->first();
     }
 
@@ -822,36 +844,38 @@ Route::post('/user/telegram/unlink', function (Request $request) {
             \Illuminate\Support\Facades\Cache::forget("tg_txs_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_repairs_{$cleanOldChatId}");
         }
-        if (!empty($oldUid)) {
-            \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$oldUid}");
+        if (!empty($user->firebase_uid)) {
+            \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$user->firebase_uid}");
         }
 
-        // Send final confirmation alert to customer's private Telegram chat via Customer Bot (@S_TECH_ASSISTANTBOT)
+        // Send final confirmation alert asynchronously via app terminating to guarantee sub-second HTTP response
         if (!empty($oldChatId)) {
-            try {
-                $botToken = \App\Services\TelegramService::getCustomerBotToken();
-                $custName = htmlspecialchars($user->display_name ?: 'អតិថិជន');
-                $alertText = "ℹ️ <b>[S TECH STORE] គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ជោគជ័យ!</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🤖 <b>ផ្ញើចេញពី:</b> Customer Assistant Bot (@" . \App\Services\TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME . ")\n"
-                    . "ជម្រាបសួរ <b>{$custName}</b>!\n\n"
-                    . "គណនី Telegram នេះត្រូវបានផ្តាច់ចេញពីគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
-                    . "🔒 <b>ព័ត៌មានសុវត្ថិភាព៖</b>\n"
-                    . "• Bot នឹងលែងផ្ញើវិក្កយបត្រ (E-Receipts) ឬដំណឹងបញ្ជាទិញចូល Telegram នេះទៀតហើយ\n"
-                    . "• គណនី Telegram នេះឥឡូវនេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល\n\n"
-                    . "👉 <i>ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ឡើងវិញ សូមចូលទៅកាន់ទំព័រ Profile Setting លើ Website ឬ Mini App ហើយចុច \"ភ្ជាប់ Official Bot\"។</i>";
+            app()->terminating(function () use ($oldChatId, $user) {
+                try {
+                    $botToken = \App\Services\TelegramService::getCustomerBotToken();
+                    $custName = htmlspecialchars($user->display_name ?: 'អតិថិជន');
+                    $alertText = "ℹ️ <b>[S TECH STORE] គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ជោគជ័យ!</b>\n"
+                        . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                        . "🤖 <b>ផ្ញើចេញពី:</b> Customer Assistant Bot (@" . \App\Services\TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME . ")\n"
+                        . "ជម្រាបសួរ <b>{$custName}</b>!\n\n"
+                        . "គណនី Telegram នេះត្រូវបានផ្តាច់ចេញពីគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
+                        . "🔒 <b>ព័ត៌មានសុវត្ថិភាព៖</b>\n"
+                        . "• Bot នឹងលែងផ្ញើវិក្កយបត្រ (E-Receipts) ឬដំណឹងបញ្ជាទិញចូល Telegram នេះទៀតហើយ\n"
+                        . "• គណនី Telegram នេះឥឡូវនេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល\n\n"
+                        . "👉 <i>ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ឡើងវិញ សូមចូលទៅកាន់ទំព័រ Profile Setting លើ Website ឬ Mini App ហើយចុច \"ភ្ជាប់ Official Bot\"។</i>";
 
-                $kb = [
-                    'inline_keyboard' => [
-                        [['text' => '🛍️ បើកមើលហាងទំនិញ (Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                        [['text' => '🌐 ចូលគេហទំព័រផ្លូវការ', 'url' => 'https://www.s-tech-store.tech/account/profile']],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                    ]
-                ];
-                \App\Services\TelegramService::sendMessageWithKeyboard($oldChatId, $alertText, $kb, 'HTML', null, $botToken);
-            } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Telegram unlink alert warning: " . $t->getMessage());
-            }
+                    $kb = [
+                        'inline_keyboard' => [
+                            [['text' => '🛍️ បើកមើលហាងទំនិញ (Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                            [['text' => '🌐 ចូលគេហទំព័រផ្លូវការ', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ]
+                    ];
+                    \App\Services\TelegramService::sendMessageWithKeyboard($oldChatId, $alertText, $kb, 'HTML', null, $botToken);
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Telegram unlink alert warning: " . $t->getMessage());
+                }
+            });
         }
 
         try {
