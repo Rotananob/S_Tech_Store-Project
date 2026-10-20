@@ -911,8 +911,46 @@ class TelegramService
             return ['ok' => false, 'text' => $notFoundMsg, 'reply_markup' => []];
         }
 
+        $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
+
+        // ── STRICT INVARIANT 1: NATIVE TELEGRAM ACCOUNT INTEGRITY LOCK ──
+        // If this S Tech account was registered via Telegram (firebase_uid starts with tg_),
+        // it can ONLY reconnect to its original Telegram account! Connecting Telegram B to Account A is strictly forbidden!
+        if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
+            $origTgId = preg_replace('/\D/', '', substr($user->firebase_uid, 3));
+            if (!empty($origTgId) && $origTgId !== $cleanTgId) {
+                $mismatchPayload = [
+                    'status' => 'conflict',
+                    'error' => "គណនីនេះជាគណនីបង្កើតឡើងដោយ Telegram ID (#{$origTgId}) មិនអាចយក Telegram ផ្សេង (#{$cleanTgId}) មកភ្ជាប់បានឡើយ។ លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើមរបស់គណនីនេះប៉ុណ្ណោះ។",
+                ];
+                Cache::put($linkKey, $mismatchPayload, 600);
+                try {
+                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                        ['key' => $linkKey],
+                        ['value' => json_encode($mismatchPayload), 'updated_at' => now()]
+                    );
+                } catch (\Throwable $t) {}
+
+                $mismatchMsg = "⚠️ <b>មិនអាចភ្ជាប់ Telegram ផ្សេងបានឡើយ!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាពអត្តសញ្ញាណគណនី៖</b>\n"
+                    . "គណនី S Tech នេះត្រូវបានចុះឈ្មោះបង្កើតឡើងដោយ Telegram ID ដើម <code>#{$origTgId}</code>។\n\n"
+                    . "លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើម (<code>#{$origTgId}</code>) ប៉ុណ្ណោះ មិនអាចយកគណនី Telegram ផ្សេង (<code>#{$cleanTgId}</code>) មកភ្ជាប់ជំនួសបានឡើយ ដើម្បីការពារកុំឱ្យទិន្នន័យច្រឡំគ្នា។\n\n"
+                    . "👉 <i>សូមប្រើប្រាស់ Telegram ដើមរបស់គណនីនេះដើម្បីភ្ជាប់ឡើងវិញ ឬភ្ជាប់ Telegram នេះជាមួយគណនី Gmail វិញ។</i>";
+
+                $mismatchKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ត្រឡប់ទៅ Profile Setting', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                return ['ok' => false, 'text' => $mismatchMsg, 'reply_markup' => $mismatchKb];
+            }
+        }
+
         // ── STRICT 1-TO-1 ACCOUNT CHECK (1 TELEGRAM = EXACTLY 1 S TECH ACCOUNT) ──
-        $alreadyLinked = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
+        $alreadyLinked = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+            ->orWhere('telegram_chat_id', (string)$tgId)
             ->where('id', '!=', $user->id)
             ->first();
 
@@ -956,7 +994,6 @@ class TelegramService
         }
 
         // 1. CLEAR DISCONNECTED FLAG & ENSURE CLEAN 1-TO-1 MAPPING
-        $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
         Cache::forget("tg_disconnected_{$cleanTgId}");
         Cache::forget("tg_disconnected_{$tgId}");
 
@@ -967,9 +1004,16 @@ class TelegramService
             ->where('id', '!=', $user->id)
             ->update(['telegram_chat_id' => null, 'telegram' => null]);
 
-        $user->telegram = $tgUsername ?: ("ID: {$tgId}");
-        $user->telegram_chat_id = (string)$tgId;
+        $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+        $user->telegram_chat_id = (string)$cleanTgId;
         $user->notif_telegram = true;
+
+        // Download real avatar and update if user does not have an avatar or is native telegram user
+        $avatarUrl = self::getUserAvatarUrl($cleanTgId);
+        if ($avatarUrl && (empty($user->photo_url) || str_starts_with((string)$user->firebase_uid, 'tg_'))) {
+            $user->photo_url = $avatarUrl;
+            $user->avatar_url = $avatarUrl;
+        }
         $user->save();
 
         $completedPayload = [
@@ -1301,6 +1345,24 @@ class TelegramService
                 // Local-First Cached Profile & Transactions (< 1ms on repeat clicks)
                 $user = self::resolveActiveUser((string)$chatId);
 
+                if (!$user) {
+                    $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                        . "👉 ដើម្បីពិនិត្យសមតុល្យកាបូបលុយ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                    $notLinkedKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ]
+                    ];
+                    if ($messageId) {
+                        self::editMessageText($chatId, $messageId, $notLinkedMsg, $notLinkedKb, 'HTML', $activeToken);
+                    } else {
+                        self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                    }
+                    return;
+                }
+
+                $fromName = $user->display_name ?: $fromName;
                 $walletBalance = (float)($user->wallet_balance ?? 0.00);
                 $points = (int)($user->points ?? 0);
                 $pointsVal = $points * 0.01;
@@ -1383,6 +1445,25 @@ class TelegramService
             // Customer My Points & VIP Rewards (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_points', 'btn_my_points']) && $chatId) {
                 $user = self::resolveActiveUser((string)$chatId);
+
+                if (!$user) {
+                    $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                        . "👉 ដើម្បីពិនិត្យពិន្ទុ S-Coins និងកម្រិត VIP សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                    $notLinkedKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ]
+                    ];
+                    if ($messageId) {
+                        self::editMessageText($chatId, $messageId, $notLinkedMsg, $notLinkedKb, 'HTML', $activeToken);
+                    } else {
+                        self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                    }
+                    return;
+                }
+
+                $fromName = $user->display_name ?: $fromName;
                 $points = (int)($user->points ?? 0);
                 $dollarVal = number_format($points * 0.01, 2);
 
@@ -1442,6 +1523,25 @@ class TelegramService
             // Customer My Repairs & Warranty Service (Local-First Snappy Response)
             if (in_array($callbackData, ['cust_my_repairs', 'btn_my_repairs', 'cust_repair']) && $chatId) {
                 $user = self::resolveActiveUser((string)$chatId);
+
+                if (!$user) {
+                    $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                        . "👉 ដើម្បីពិនិត្យសំបុត្រជួសជុលឧបករណ៍ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                    $notLinkedKb = [
+                        'inline_keyboard' => [
+                            [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        ]
+                    ];
+                    if ($messageId) {
+                        self::editMessageText($chatId, $messageId, $notLinkedMsg, $notLinkedKb, 'HTML', $activeToken);
+                    } else {
+                        self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                    }
+                    return;
+                }
+
+                $fromName = $user->display_name ?: $fromName;
 
                 $repairs = Cache::remember("tg_repairs_{$chatId}", 30, function() use ($user) {
                     return \App\Models\Repair::where(function ($q) use ($user) {
@@ -1779,11 +1879,10 @@ class TelegramService
             // Customer Disconnect Menu Prompt
             if ($callbackData === 'cust_disconnect_menu' && $chatId) {
                 $tgId = (string)($from['id'] ?? $chatId);
-                $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
-                    ->orWhere('firebase_uid', 'tg_' . $tgId)
-                    ->first();
+                $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
+                $user = self::resolveActiveUser($cleanTgId);
 
-                if ($user && (!empty($user->telegram_chat_id) || !empty($user->telegram))) {
+                if ($user) {
                     $discText = "🔌 <b>ការគ្រប់គ្រងគណនី & ផ្តាច់ការភ្ជាប់ (Telegram Disconnect):</b>\n"
                         . "━━━━━━━━━━━━━━━━━━━━\n\n"
                         . "• 👤 <b>គណនីភ្ជាប់បច្ចុប្បន្ន:</b> <b>" . htmlspecialchars($user->display_name ?: 'VIP Member') . "</b>\n"
@@ -2451,39 +2550,67 @@ class TelegramService
         // Customer /start
         if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
             $tgId = (string)($from['id'] ?? $chatId);
+            $cleanTgId = preg_replace('/\D/', '', $tgId) ?: $tgId;
             $fullName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $tgUsername = !empty($from['username']) ? '@' . ltrim($from['username'], '@') : null;
-            $email = !empty($from['username'])
-                ? ($from['username'] . '@telegram.s-tech-store.tech')
-                : ("tg_{$tgId}@s-tech-store.tech");
-
-            $user = self::resolveActiveUser((string)$tgId);
-            if (!$user) {
-                $user = \App\Models\UserProfile::firstOrNew(['firebase_uid' => 'tg_' . $tgId]);
-                $user->telegram_chat_id = (string)$tgId;
-            }
-            $user->display_name = $user->display_name ?: $fullName;
-            if (empty($user->email)) $user->email = $email;
-            if ($tgUsername) $user->telegram = $tgUsername;
-            $user->is_active = true;
-            $user->status = 'active';
-            $user->save();
 
             if (app()->bound('tg_start_welcome_sent_' . $chatId)) {
                 return;
             }
 
-            $directToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
-            $directUrl = !empty($directToken) ? "https://www.s-tech-store.tech/?tg_token={$directToken}" : "https://www.s-tech-store.tech";
+            $user = self::resolveActiveUser((string)$cleanTgId);
 
-            $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
-                . "ជម្រាបសួរ <b>{$fullName}</b>!\n"
+            if ($user) {
+                // Keep avatar and display name up-to-date for native telegram accounts
+                if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
+                    $user->display_name = $fullName;
+                    $avatarUrl = self::getUserAvatarUrl($cleanTgId);
+                    if ($avatarUrl) {
+                        $user->photo_url = $avatarUrl;
+                        $user->avatar_url = $avatarUrl;
+                    }
+                    if ($tgUsername) $user->telegram = $tgUsername;
+                    $user->save();
+                }
+
+                $directToken = self::generateCustomerSessionToken((string)$cleanTgId, $user->display_name);
+                $directUrl = !empty($directToken) ? "https://www.s-tech-store.tech/?tg_token={$directToken}" : "https://www.s-tech-store.tech";
+
+                $welcome = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                    . "ជម្រាបសួរ <b>" . htmlspecialchars($user->display_name) . "</b>!\n"
+                    . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
+                    . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់រួចរាល់ (Connected)!</b>\n"
+                    . "• 👤 <b>ម្ចាស់គណនី:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
+                    . "• 💰 <b>សមតុល្យកាបូប:</b> <b>$" . number_format((float)($user->wallet_balance ?? 0), 2) . " USD</b>\n"
+                    . "• 🪙 <b>ពិន្ទុរង្វាន់:</b> <b>" . (int)($user->points ?? 0) . " Coins</b>\n\n"
+                    . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+
+                $customerKb = self::getCustomerMainMenuKeyboard($cleanTgId);
+                self::sendMessageWithKeyboard($chatId, $welcome, $customerKb, 'HTML', null, $activeToken);
+                return;
+            }
+
+            // GUEST / UNLINKED CUSTOMER (DO NOT AUTO-CREATE A USER)
+            $welcomeGuest = "👋 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Official Bot!</b>\n\n"
+                . "ជម្រាបសួរ <b>" . htmlspecialchars($fullName) . "</b>!\n"
                 . "🏪 <b>ហាង S Tech Store Cambodia</b> — ឧបករណ៍បច្ចេកវិទ្យា & សេវាកម្មជួសជុលទំនើប\n\n"
-                . "✨ <b>គណនី Telegram របស់អ្នកត្រូវបានទទួលស្គាល់ ១០០% (Connected)!</b>\n"
-                . "លោកអ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយលេខសម្ងាត់ឡើយ៖";
+                . "ℹ️ <b>ស្ថានភាពគណនី:</b> <b>មិនទាន់ភ្ជាប់ (Not Connected)</b>\n\n"
+                . "👉 លោកអ្នកអាចចូលទៅកាន់គេហទំព័រ S Tech Store ដើម្បី Sign In / Sign Up ឬភ្ជាប់គណនីជាមួយ Telegram នេះ ក្នុង Profile Setting ដើម្បីទទួលបានការជូនដំណឹង (Order Alerts, OTP, និងសមតុល្យកាបូបលុយ)៖";
 
-            $customerKb = self::getCustomerMainMenuKeyboard($chatId);
-            self::sendMessageWithKeyboard($chatId, $welcome, $customerKb, 'HTML', null, $activeToken);
+            $guestKb = [
+                'inline_keyboard' => [
+                    [['text' => '🛍️ បើកទិញក្នុង Mini App (Open Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                    [
+                        ['text' => '🌐 ចូលគេហទំព័រ / Sign In', 'url' => 'https://www.s-tech-store.tech/login'],
+                        ['text' => '💻 ផលិតផល (Shop)', 'callback_data' => 'cust_shop'],
+                    ],
+                    [
+                        ['text' => '🔥 ប្រូម៉ូសិនពិសេស', 'callback_data' => 'cust_promo'],
+                        ['text' => '💬 ជំនួយ & ទំនាក់ទំនង', 'callback_data' => 'cust_contact'],
+                    ],
+                ]
+            ];
+            self::sendMessageWithKeyboard($chatId, $welcomeGuest, $guestKb, 'HTML', null, $activeToken);
             return;
         }
 
@@ -2579,6 +2706,21 @@ class TelegramService
         if (preg_match('/^\/(?:points|coins|rewards)(?:@\w+)?/i', $text)) {
             if ($messageId) self::setMessageReaction($chatId, $messageId, '🪙', true, $activeToken);
             $user = self::resolveActiveUser((string)$chatId);
+
+            if (!$user) {
+                $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                    . "👉 ដើម្បីពិនិត្យពិន្ទុ S-Coins និងកម្រិត VIP សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                $notLinkedKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                return;
+            }
+
+            $fromName = $user->display_name ?: $fromName;
             $points = (int)($user->points ?? 0);
             $dollarVal = number_format($points * 0.01, 2);
 
@@ -2597,7 +2739,7 @@ class TelegramService
             $pointsAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
 
             $pointsText = "🪙 <b>កាបូបពិន្ទុ & កម្រិតសមាជិក (S-Coins & VIP Rewards):</b>\n\n"
-                . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                . "👤 <b>ម្ចាស់គណនី:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
                 . "🎖️ <b>កម្រិតសមាជិកភាព:</b> <b>{$vipTier}</b>\n"
                 . "🪙 <b>ពិន្ទុ S-Coins បច្ចុប្បន្ន:</b> <b>{$points} Coins</b>\n"
                 . "💵 <b>តម្លៃទឹកប្រាក់បញ្ចុះ:</b> <b>\${$dollarVal} USD</b>\n"
@@ -2627,6 +2769,20 @@ class TelegramService
             if ($messageId) self::setMessageReaction($chatId, $messageId, '💰', true, $activeToken);
             $user = self::resolveActiveUser((string)$chatId);
 
+            if (!$user) {
+                $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                    . "👉 ដើម្បីពិនិត្យសមតុល្យកាបូបលុយ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                $notLinkedKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                return;
+            }
+
+            $fromName = $user->display_name ?: $fromName;
             $walletBalance = (float)($user->wallet_balance ?? 0.00);
             $points = (int)($user->points ?? 0);
             $pointsVal = $points * 0.01;
@@ -2670,7 +2826,7 @@ class TelegramService
 
             $walletText = "💰 <b>កាបូបលុយ & សមតុល្យគណនី (S Tech Smart Wallet):</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "👤 <b>ម្ចាស់គណនី:</b> <b>{$fromName}</b>\n"
+                . "👤 <b>ម្ចាស់គណនី:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
                 . "💵 <b>សមតុល្យសាច់ប្រាក់ (Cash Balance):</b> <b>\$" . number_format($walletBalance, 2) . " USD</b>\n"
                 . "🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$points} Coins</b> (ស្មើ <b>\$" . number_format($pointsVal, 2) . " USD</b>)\n"
                 . "💎 <b>ទឹកប្រាក់អាចប្រើប្រាស់សរុប:</b> <b>\$" . number_format($totalFunds, 2) . " USD</b>\n\n"
@@ -2702,6 +2858,19 @@ class TelegramService
         // Customer /repair or /repairs
         if (preg_match('/^\/(?:repair|repairs|services)(?:@\w+)?/i', $text)) {
             $user = self::resolveActiveUser((string)$chatId);
+
+            if (!$user) {
+                $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                    . "👉 ដើម្បីពិនិត្យសំបុត្រជួសជុលឧបករណ៍ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+                $notLinkedKb = [
+                    'inline_keyboard' => [
+                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+                return;
+            }
             $repairs = \App\Models\Repair::where(function ($q) use ($user) {
                 if ($user && !empty($user->phone)) $q->orWhere('customer_phone', $user->phone);
                 if ($user && !empty($user->email)) $q->orWhere('customer_email', $user->email);
@@ -4985,22 +5154,17 @@ HTML;
     /**
      * Resolve actively linked UserProfile for a Telegram chat/user ID.
      * Enforces STRICT 1-TO-1 MAPPING: 1 Telegram ID corresponds to exactly 1 S Tech account.
+     * If user disconnected their Telegram, this strictly returns NULL.
      */
     public static function resolveActiveUser(string $chatId): ?\App\Models\UserProfile
     {
         $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
 
-        // 1. Resolve actively linked account where telegram_chat_id equals this Telegram ID
+        // Strict: ONLY resolve account where telegram_chat_id equals this Telegram ID
         $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
             ->orWhere('telegram_chat_id', (string)$chatId)
+            ->orderByDesc('wallet_balance')
             ->first();
-
-        // 2. Fallback: If not connected via telegram_chat_id, check if native tg_{id} account exists
-        if (!$user) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
-                ->orWhere('firebase_uid', 'tg_' . $chatId)
-                ->first();
-        }
 
         return $user;
     }
@@ -5013,21 +5177,24 @@ HTML;
         $cleanChatId = preg_replace('/\D/', '', $chatId) ?: $chatId;
         $user = $user ?: self::resolveActiveUser((string)$cleanChatId);
 
-        $userIds = ['tg_' . $cleanChatId, 'tg_' . $chatId, (string)$cleanChatId, (string)$chatId];
-        if ($user) {
-            if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
-            if (!empty($user->id)) $userIds[] = (string)$user->id;
-            if (!empty($user->telegram_chat_id)) {
-                $userIds[] = (string)$user->telegram_chat_id;
-                $userIds[] = 'tg_' . $user->telegram_chat_id;
-            }
-            if (!empty($user->email)) {
-                $siblingUids = \App\Models\UserProfile::where('email', $user->email)
-                    ->pluck('firebase_uid')
-                    ->filter()
-                    ->toArray();
-                $userIds = array_merge($userIds, $siblingUids);
-            }
+        // If Telegram is disconnected or not connected to an S Tech account, return 0 orders
+        if (!$user) {
+            return \App\Models\Order::whereRaw('1 = 0');
+        }
+
+        $userIds = [];
+        if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+        if (!empty($user->id)) $userIds[] = (string)$user->id;
+        if (!empty($user->telegram_chat_id)) {
+            $userIds[] = (string)$user->telegram_chat_id;
+            $userIds[] = 'tg_' . $user->telegram_chat_id;
+        }
+        if (!empty($user->email)) {
+            $siblingUids = \App\Models\UserProfile::where('email', $user->email)
+                ->pluck('firebase_uid')
+                ->filter()
+                ->toArray();
+            $userIds = array_merge($userIds, $siblingUids);
         }
         $userIds = array_unique(array_filter($userIds));
 
@@ -5083,6 +5250,23 @@ HTML;
     public static function sendCustomerOrdersMenu($chatId, ?string $fromName = null, ?int $messageId = null, ?string $activeToken = null): void
     {
         $user = self::resolveActiveUser((string)$chatId);
+        if (!$user) {
+            $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                . "👉 ដើម្បីពិនិត្យ និងតាមដានការកុម្ម៉ង់ទំនិញ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+            $notLinkedKb = [
+                'inline_keyboard' => [
+                    [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                ]
+            ];
+            if ($messageId) {
+                self::editMessageText($chatId, $messageId, $notLinkedMsg, $notLinkedKb, 'HTML', $activeToken);
+            } else {
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+            }
+            return;
+        }
+
         $fromName = $fromName ?: (trim(($user->display_name ?? '') ?: 'អតិថិជន'));
         $tz = 'Asia/Phnom_Penh';
 
@@ -5218,6 +5402,23 @@ HTML;
     public static function sendCustomerOrdersFiltered($chatId, string $filter = 'today', ?string $fromName = null, ?int $messageId = null, ?string $activeToken = null): void
     {
         $user = self::resolveActiveUser((string)$chatId);
+        if (!$user) {
+            $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
+                . "👉 ដើម្បីពិនិត្យ និងតាមដានការកុម្ម៉ង់ទំនិញ សូមចូលទៅកាន់គេហទំព័រ រួចភ្ជាប់គណនីជាមួយ Telegram នេះក្នុង Profile Setting។";
+            $notLinkedKb = [
+                'inline_keyboard' => [
+                    [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech/login']],
+                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                ]
+            ];
+            if ($messageId) {
+                self::editMessageText($chatId, $messageId, $notLinkedMsg, $notLinkedKb, 'HTML', $activeToken);
+            } else {
+                self::sendMessageWithKeyboard($chatId, $notLinkedMsg, $notLinkedKb, 'HTML', null, $activeToken);
+            }
+            return;
+        }
+
         $fromName = $fromName ?: (trim(($user->display_name ?? '') ?: 'អតិថិជន'));
         $tz = 'Asia/Phnom_Penh';
 
@@ -5417,35 +5618,22 @@ HTML;
 
     /**
      * Generate 1-Click login session token for customer companion bot
+     * Only returns token if user is actively connected. Never auto-creates dummy accounts!
      */
     public static function generateCustomerSessionToken(string $chatId, ?string $name = null): string
     {
-        $cleanId = preg_replace('/\D/', '', $chatId);
-        if (empty($cleanId)) {
-            $cleanId = $chatId;
-        }
-
-        $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanId}") 
-            || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$chatId}");
-        if ($isDisconnected) {
-            return '';
-        }
+        $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
 
         $user = self::resolveActiveUser($cleanId);
-
         if (!$user) {
-            $user = new \App\Models\UserProfile();
-            $user->firebase_uid = 'tg_' . $cleanId;
-            $user->telegram_chat_id = (string)$cleanId;
-            $user->display_name = $name ?: "Telegram Customer";
-            $user->email = "tg_{$cleanId}@s-tech-store.tech";
-            $user->is_active = true;
-            $user->status = 'active';
-            $user->save();
+            return '';
         }
 
         $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
         \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+        try {
+            \Illuminate\Support\Facades\Cache::store('file')->put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+        } catch (\Throwable $t) {}
         $user->magic_login_token = $token;
         $user->save();
 

@@ -835,16 +835,23 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         $user->notif_telegram = false;
         $user->save();
 
-        // Clear cache mappings so Telegram ID is immediately free to be linked again or cleanly separated
+        // Set disconnected flag and clear cache mappings so Telegram ID is immediately free to be linked again or cleanly separated
         if (!empty($oldChatId)) {
             $cleanOldChatId = preg_replace('/\D/', '', (string)$oldChatId) ?: $oldChatId;
-            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanOldChatId}");
-            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$oldChatId}");
+            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$cleanOldChatId}", true, 86400 * 30);
+            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$oldChatId}", true, 86400 * 30);
+
+            // Ensure NO account is left holding this telegram_chat_id
+            \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanOldChatId)
+                ->orWhere('telegram_chat_id', (string)$oldChatId)
+                ->update(['telegram' => null, 'telegram_chat_id' => null, 'notif_telegram' => false]);
+
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$oldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_link_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_link_{$oldChatId}");
             \Illuminate\Support\Facades\Cache::forget("customer_sess_{$oldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("customer_sess_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_orders_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_orders_cnt_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_txs_{$cleanOldChatId}");
@@ -975,43 +982,26 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
 
     $cleanTgId = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
 
-    // 1. Look for account currently connected to this Telegram ID
-    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-        ->orWhere('telegram_chat_id', (string)$tgId)
-        ->orderByDesc('wallet_balance')
-        ->first();
+    // 1. Check if user is explicitly disconnected or unlinked
+    $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanTgId}")
+        || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$tgId}");
 
-    // 2. If none connected, look for native Telegram account
-    if (!$user) {
-        $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
-            ->orWhere('firebase_uid', 'tg_' . $tgId)
+    // 2. Strict 1-to-1: ONLY resolve account actively connected with this Telegram ID
+    $user = null;
+    if (!$isDisconnected) {
+        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+            ->orWhere('telegram_chat_id', (string)$tgId)
+            ->orderByDesc('wallet_balance')
             ->first();
     }
 
-    // 3. Auto-create account if genuinely new user in Mini App
+    // 3. If disconnected or not connected to any S Tech account, return linked: false (NEVER auto-create dummy accounts)
     if (!$user) {
-        $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
-        $user = new \App\Models\UserProfile();
-        $user->firebase_uid = 'tg_' . $cleanTgId;
-        $user->telegram_chat_id = (string)$cleanTgId;
-        $user->display_name = $fullName;
-        $user->email = !empty($tgUser['username'])
-            ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
-            : ("tg_{$cleanTgId}@s-tech-store.tech");
-        $user->telegram = !empty($tgUser['username']) ? ('@' . ltrim($tgUser['username'], '@')) : ("ID: {$cleanTgId}");
-        $user->notif_telegram = true;
-        $user->is_active = true;
-        $user->status = 'active';
-        $user->save();
-    }
-
-    // Enforce Strict Invariant: 1 Telegram = Exactly 1 Account
-    if (!empty($user->telegram_chat_id)) {
-        \App\Models\UserProfile::where(function($q) use ($cleanTgId, $tgId) {
-            $q->where('telegram_chat_id', (string)$cleanTgId)
-              ->orWhere('telegram_chat_id', (string)$tgId);
-        })->where('id', '!=', $user->id)
-          ->update(['telegram_chat_id' => null, 'notif_telegram' => false]);
+        return response()->json([
+            'success' => true,
+            'linked' => false,
+            'message' => 'គណនី Telegram នេះមិនទាន់ត្រូវបានភ្ជាប់ជាមួយគណនី Website ណាមួយឡើយ ឬត្រូវបានផ្តាច់រួចរាល់។',
+        ]);
     }
 
     if (!($user->is_active ?? true)) {

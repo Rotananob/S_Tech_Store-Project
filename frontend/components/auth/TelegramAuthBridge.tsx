@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import api from "@/lib/api";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
 
 declare global {
   interface Window {
@@ -46,6 +48,7 @@ export default function TelegramAuthBridge() {
       localStorage.removeItem("stech_cached_orders");
       localStorage.removeItem("stech_telegram_connected");
       document.cookie = "customer_token=; path=/; max-age=0; SameSite=Lax";
+      signOut(auth).catch(() => {});
       window.dispatchEvent(new Event("user_session_updated"));
     };
 
@@ -79,6 +82,7 @@ export default function TelegramAuthBridge() {
         localStorage.setItem("customer_token", token);
         document.cookie = `customer_token=${token}; path=/; max-age=2592000; SameSite=Lax`;
       }
+      signOut(auth).catch(() => {});
       window.dispatchEvent(new Event("user_session_updated"));
     };
 
