@@ -767,10 +767,13 @@ Route::get('/user/telegram/link-check', function (Request $request) {
 });
 
 Route::post('/user/telegram/unlink', function (Request $request) {
-    $uid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid') ?: $request->input('uid');
-    $email = $request->header('X-Firebase-Email') ?: $request->input('email');
-    $token = $request->header('X-Customer-Token') ?: $request->input('customer_token') ?: $request->cookie('customer_token') ?: $request->bearerToken();
-    $chatId = $request->input('telegram_chat_id') ?: $request->input('chat_id');
+    $rawUid = $request->header('X-Firebase-UID') ?: $request->input('firebase_uid') ?: $request->input('uid');
+    $uid = !empty($rawUid) ? urldecode(trim((string)$rawUid)) : null;
+    $rawEmail = $request->header('X-Firebase-Email') ?: $request->input('email');
+    $email = !empty($rawEmail) ? urldecode(trim((string)$rawEmail)) : null;
+    $rawToken = $request->header('X-Customer-Token') ?: $request->input('customer_token') ?: $request->cookie('customer_token') ?: $request->bearerToken() ?: $request->query('tg_token') ?: $request->input('tg_token');
+    $token = !empty($rawToken) ? urldecode(trim((string)$rawToken)) : null;
+    $chatId = $request->input('telegram_chat_id') ?: $request->input('chat_id') ?: $request->header('X-Telegram-Chat-ID');
     $telegram = $request->input('telegram');
 
     $user = null;

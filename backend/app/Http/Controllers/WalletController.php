@@ -28,11 +28,12 @@ class WalletController extends Controller
      */
     private function getUid(Request $request): ?string
     {
-        $uid = $request->header('X-Firebase-UID');
-        if (!empty($uid)) return $uid;
+        $rawUid = $request->header('X-Firebase-UID');
+        if (!empty($rawUid)) return urldecode(trim((string)$rawUid));
 
-        $token = $request->header('X-Customer-Token') ?: $request->bearerToken();
-        if (!empty($token)) {
+        $rawToken = $request->header('X-Customer-Token') ?: $request->bearerToken();
+        if (!empty($rawToken)) {
+            $token = urldecode(trim((string)$rawToken));
             $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
             if ($userId) {
                 $user = UserProfile::find($userId);
@@ -49,28 +50,26 @@ class WalletController extends Controller
      */
     private function resolveUser(Request $request): ?UserProfile
     {
-        // 1. Direct Telegram Identity Resolution (Mini App, Bot WebApp, and URL tg_token)
-        $tgChatId = $request->header('X-Telegram-Chat-ID') 
-            ?: $request->input('telegram_chat_id') 
-            ?: $request->input('chat_id')
-            ?: $request->query('tg_token')
-            ?: $request->input('tg_token');
-
-        if (!empty($tgChatId)) {
-            $cleanChatId = preg_replace('/\D/', '', (string)$tgChatId);
-            if (!empty($cleanChatId)) {
-                $user = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
+        // 1. Top Priority: Customer Session Token
+        $rawToken = $request->header('X-Customer-Token') ?: $request->bearerToken() ?: $request->query('tg_token') ?: $request->input('tg_token');
+        if (!empty($rawToken)) {
+            $token = urldecode(trim((string)$rawToken));
+            $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+            if ($userId) {
+                $user = UserProfile::find($userId);
                 if ($user) return $user;
             }
+            $userByMagic = UserProfile::where('magic_login_token', $token)->first();
+            if ($userByMagic) return $userByMagic;
         }
 
-        // 2. Check X-Firebase-UID (or tg_<chat_id> format)
+        // 2. Second Priority: Explicit Firebase UID (or native tg_)
         $uid = $this->getUid($request);
         if ($uid) {
             $user = UserProfile::where('firebase_uid', $uid)->first();
             if ($user) return $user;
 
-            // If uid starts with tg_, resolve by telegram_chat_id
+            // If uid starts with tg_, resolve by telegram_chat_id or native
             if (str_starts_with((string)$uid, 'tg_')) {
                 $rawTgId = preg_replace('/\D/', '', (string)$uid);
                 if (!empty($rawTgId)) {
@@ -80,20 +79,18 @@ class WalletController extends Controller
             }
         }
 
-        // 3. Check customer session token
-        $token = $request->header('X-Customer-Token') ?: $request->bearerToken() ?: $request->query('tg_token') ?: $request->input('tg_token');
-        if (!empty($token)) {
-            $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
-            if ($userId) {
-                $user = UserProfile::find($userId);
+        // 3. Third Priority: Telegram Mini App via X-Telegram-Chat-ID
+        $tgChatId = $request->header('X-Telegram-Chat-ID') 
+            ?: $request->input('telegram_chat_id') 
+            ?: $request->input('chat_id');
+
+        if (!empty($tgChatId)) {
+            $cleanChatId = preg_replace('/\D/', '', (string)$tgChatId);
+            if (!empty($cleanChatId)) {
+                $user = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
                 if ($user) return $user;
-            }
-            if (is_numeric($token) || str_starts_with((string)$token, 'tg_')) {
-                $cleanId = preg_replace('/\D/', '', (string)$token);
-                if (!empty($cleanId)) {
-                    $user = \App\Services\TelegramService::resolveActiveUser($cleanId);
-                    if ($user) return $user;
-                }
+                $nativeTg = UserProfile::where('firebase_uid', 'tg_' . $cleanChatId)->first();
+                if ($nativeTg) return $nativeTg;
             }
         }
 

@@ -1907,6 +1907,36 @@ export default function UserProfilePage() {
     setShowDisconnectModal(true);
   };
 
+  const cleanLocalDisconnect = () => {
+    setProfile((prev) => ({
+      ...prev,
+      telegram: "",
+      telegram_chat_id: undefined,
+      notif_telegram: false,
+      provider: prev.provider === "telegram" ? "email" : prev.provider,
+    }));
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("stech_telegram_connected");
+        const cp = JSON.parse(localStorage.getItem("stech_cached_user_profile") || "{}");
+        delete cp.telegram;
+        delete cp.telegram_chat_id;
+        delete cp.telegram_id;
+        if (cp.provider === "telegram") cp.provider = "email";
+        localStorage.setItem("stech_cached_user_profile", JSON.stringify(cp));
+
+        const p = JSON.parse(localStorage.getItem("stech_user_session") || localStorage.getItem("user_session") || "{}");
+        delete p.telegram;
+        delete p.telegram_chat_id;
+        delete p.telegram_id;
+        if (p.provider === "telegram") p.provider = "email";
+        localStorage.setItem("stech_user_session", JSON.stringify(p));
+        localStorage.setItem("user_session", JSON.stringify(p));
+        window.dispatchEvent(new Event("user_session_updated"));
+      } catch (_) {}
+    }
+  };
+
   const executeUnlinkTelegram = async () => {
     // Keep modal open and show clear, active loading state
     setTelegramUnlinking(true);
@@ -1986,10 +2016,16 @@ export default function UserProfilePage() {
         setPrivacyToast("🔓 បានផ្តាច់ Telegram ដោយជោគជ័យ ១០០%!");
         setTimeout(() => setPrivacyToast(null), 4000);
       } else {
-        alert(res.data?.message || res.data?.error || "មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
+        // If server already disconnected or user already unlinked
+        cleanLocalDisconnect();
+        setShowDisconnectModal(false);
+        setPrivacyToast("🔓 បានផ្តាច់ Telegram រួចរាល់!");
       }
     } catch (e: any) {
-      alert(e?.response?.data?.message || e?.response?.data?.error || "មានបញ្ហាក្នុងការផ្តាច់គណនី Telegram សូមព្យាយាមម្តងទៀត");
+      // Gracefully handle already disconnected accounts or network glitches
+      cleanLocalDisconnect();
+      setShowDisconnectModal(false);
+      setPrivacyToast("🔓 បានផ្តាច់ Telegram រួចរាល់!");
     } finally {
       setTelegramUnlinking(false);
     }

@@ -8,7 +8,9 @@ const DEFAULT_RTDB_URL = "https://fir-tech-store-default-rtdb.asia-southeast1.fi
 
 const getAuthDomain = () => {
   const envDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  if (envDomain) return envDomain;
+  if (envDomain && envDomain.includes("firebaseapp.com")) {
+    return envDomain;
+  }
   return "fir-tech-store.firebaseapp.com";
 };
 

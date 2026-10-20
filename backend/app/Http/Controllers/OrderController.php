@@ -175,16 +175,40 @@ class OrderController extends Controller
             // Calculate final validated total
             $totalAmount = max(1.00, ($itemsSubtotal - $discountAmount) + $deliveryFee);
 
-            // Resolve customer user ID & email reliably
-            $orderUserUid = $request->header('X-Firebase-UID');
-            $customerEmail = !empty($validated['email']) ? trim($validated['email']) : ($request->input('customer_email') ?: $request->header('X-Firebase-Email'));
-            
-            // If UID is empty, attempt resolution via Telegram headers or active token
+            // Resolve customer user ID & email reliably (URL decode safe)
+            $rawUid = $request->header('X-Firebase-UID');
+            $orderUserUid = !empty($rawUid) ? urldecode(trim((string)$rawUid)) : null;
+            $rawCustEmail = !empty($validated['email']) ? trim($validated['email']) : ($request->input('customer_email') ?: $request->header('X-Firebase-Email'));
+            $customerEmail = !empty($rawCustEmail) ? urldecode(trim((string)$rawCustEmail)) : null;
+
+            // 1. If UID empty, attempt resolution via Customer Session Token
             if (empty($orderUserUid)) {
-                $chatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
-                if (!empty($chatId)) {
-                    $active = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
-                    $orderUserUid = $active ? $active->firebase_uid : ('tg_' . preg_replace('/\D/', '', $chatId));
+                $rawToken = $request->header('X-Customer-Token')
+                    ?: $request->bearerToken()
+                    ?: $request->cookie('customer_token')
+                    ?: $request->query('token')
+                    ?: $request->query('tg_token');
+                if (!empty($rawToken)) {
+                    $token = urldecode(trim((string)$rawToken));
+                    $sessUserId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
+                    if ($sessUserId) {
+                        $sessUser = \App\Models\UserProfile::find($sessUserId);
+                        if ($sessUser && !empty($sessUser->firebase_uid)) {
+                            $orderUserUid = $sessUser->firebase_uid;
+                        }
+                    }
+                }
+            }
+
+            // 2. If still empty, check X-Telegram-Chat-ID
+            if (empty($orderUserUid)) {
+                $rawChatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
+                if (!empty($rawChatId)) {
+                    $cleanChatId = preg_replace('/\D/', '', (string)$rawChatId);
+                    $active = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
+                    if ($active && !empty($active->firebase_uid)) {
+                        $orderUserUid = $active->firebase_uid;
+                    }
                 }
             }
 

@@ -918,7 +918,8 @@ class UserController extends Controller
         $uid = $this->getUid($request);
         if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
 
-        $email = $request->header('X-Firebase-Email', '');
+        $rawEmail = $request->header('X-Firebase-Email', '');
+        $email = !empty($rawEmail) ? urldecode(trim((string)$rawEmail)) : '';
         $profile = UserProfile::where('firebase_uid', $uid)->first();
         if (!$profile && !empty($email)) {
             $profile = UserProfile::where('email', $email)->first();
@@ -928,11 +929,15 @@ class UserController extends Controller
             }
         }
         if (!$profile) {
+            $rawName = $request->header('X-Firebase-Name', '');
+            $rawPhoto = $request->header('X-Firebase-Photo', '');
+            $displayName = !empty($rawName) ? urldecode(trim((string)$rawName)) : '';
+            $photoUrl = !empty($rawPhoto) ? urldecode(trim((string)$rawPhoto)) : '';
             $profile = UserProfile::create([
                 'firebase_uid' => $uid,
-                'display_name' => $request->header('X-Firebase-Name', ''),
+                'display_name' => $displayName,
                 'email' => $email,
-                'photo_url' => $request->header('X-Firebase-Photo', ''),
+                'photo_url' => $photoUrl,
             ]);
         }
 
@@ -953,14 +958,26 @@ class UserController extends Controller
             });
         }
 
-        // Auto-fetch genuine Telegram profile avatar if connected and missing photo
+        // Auto-fetch genuine Telegram profile avatar if connected and missing photo (Non-blocking!)
         $tgChatId = $profile->telegram_chat_id ?: (str_starts_with($uid, 'tg_') ? substr($uid, 3) : null);
         if (empty($profile->photo_url) && !empty($tgChatId)) {
-            $realPhoto = \App\Services\TelegramService::getUserAvatarUrl((string)$tgChatId);
-            if ($realPhoto) {
-                $profile->photo_url = $realPhoto;
-                $profile->avatar_url = $realPhoto;
+            $cleanTg = preg_replace('/\D/', '', (string)$tgChatId);
+            $localAvatar = public_path("storage/avatars/tg_{$cleanTg}.jpg");
+            if (file_exists($localAvatar) && filesize($localAvatar) > 500) {
+                $profile->photo_url = "/storage/avatars/tg_{$cleanTg}.jpg";
+                $profile->avatar_url = "/storage/avatars/tg_{$cleanTg}.jpg";
                 $profile->save();
+            } else {
+                app()->terminating(function () use ($profile, $cleanTg) {
+                    try {
+                        $realPhoto = \App\Services\TelegramService::getUserAvatarUrl((string)$cleanTg);
+                        if ($realPhoto) {
+                            $profile->photo_url = $realPhoto;
+                            $profile->avatar_url = $realPhoto;
+                            $profile->save();
+                        }
+                    } catch (\Throwable $t) {}
+                });
             }
         }
 
