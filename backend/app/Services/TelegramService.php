@@ -2150,30 +2150,33 @@ class TelegramService
                 }
 
                 // Cache phone for instant 0ms real-time client retrieval (both Mini App and Web)
-                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$contactUserId}", $phoneNumber, 600);
-                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $phoneNumber, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$contactUserId}", $phoneNumber, 86400 * 30);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $phoneNumber, 86400 * 30);
                 $webSyncCode = \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_{$contactUserId}") 
                     ?: \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_{$chatId}");
                 if ($webSyncCode) {
-                    \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$webSyncCode}", $phoneNumber, 600);
+                    \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$webSyncCode}", $phoneNumber, 3600);
+                    \Illuminate\Support\Facades\Cache::forget("tg_phone_sync_user_{$contactUserId}");
+                    \Illuminate\Support\Facades\Cache::forget("tg_phone_sync_user_{$chatId}");
                 }
 
-                $respMsg = "📱 <b>ទទួលបានលេខទូរស័ព្ទជោគជ័យ!</b>\n\n"
-                    . "• 👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
-                    . "• 📞 <b>លេខទូរស័ព្ទ:</b> <code>" . htmlspecialchars($phoneNumber) . "</code>\n\n"
-                    . "✅ ព័ត៌មាននេះត្រូវបានភ្ជាប់ជាមួយគណនីរបស់អ្នករួចរាល់ សម្រាប់បំពេញស្វ័យប្រវត្តិនាពេល Checkout និងទទួលទំនិញដឹកជញ្ជូន។\n\n"
-                    . "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីចូលទិញទំនិញបន្ត៖";
-
-                $directUrl = "https://www.s-tech-store.tech";
+                $checkoutUrl = "https://www.s-tech-store.tech/checkout";
                 $sessionToken = $user ? self::generateCustomerSessionToken((string)$contactUserId, $fromName) : null;
                 if ($sessionToken) {
-                    $directUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
+                    $checkoutUrl = "https://www.s-tech-store.tech/checkout?tg_token={$sessionToken}";
                 }
+
+                $respMsg = "⚡ <b>ទទួលបានលេខទូរស័ព្ទជោគជ័យ ១០០%!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "• 👤 <b>អតិថិជន:</b> <b>" . htmlspecialchars($fromName) . "</b>\n"
+                    . "• 📞 <b>លេខទូរស័ព្ទ:</b> <code>" . htmlspecialchars($phoneNumber) . "</code>\n\n"
+                    . "✅ លេខទូរស័ព្ទត្រូវបានភ្ជាប់ និងបំពេញចូលផ្ទាំង Checkout លើគេហទំព័រដោយស្វ័យប្រវត្តិតែម្ដង!\n\n"
+                    . "👉 សូមចុចប៊ូតុងខាងក្រោមដើម្បីត្រឡប់ទៅផ្ទាំង Checkout បញ្ចប់ការកម្ម៉ង់ទិញ៖";
 
                 $replyMarkup = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ បើកទិញក្នុង Mini App ភ្លាមៗ', 'web_app' => ['url' => $directUrl]]],
-                        [['text' => '🌐 ចូល Website ហាង', 'url' => $directUrl]],
+                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ (Return to Checkout)', 'url' => $checkoutUrl]],
+                        [['text' => '🌐 ចូលទំព័រដើម Website', 'url' => "https://www.s-tech-store.tech"]],
                     ]
                 ];
 
@@ -2326,9 +2329,9 @@ class TelegramService
 
             if ($existingPhone) {
                 // Instantly fulfill the sync!
-                \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$syncCode}", $existingPhone, 600);
-                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$tgId}", $existingPhone, 600);
-                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $existingPhone, 600);
+                \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$syncCode}", $existingPhone, 3600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$tgId}", $existingPhone, 86400 * 30);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $existingPhone, 86400 * 30);
 
                 $msg = "⚡ <b>ភ្ជាប់លេខទូរស័ព្ទជោគជ័យ ១០០%!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2338,7 +2341,7 @@ class TelegramService
                 $webUrl = "https://www.s-tech-store.tech/checkout";
                 $kb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ', 'url' => $webUrl]]
+                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ (Return to Checkout)', 'url' => $webUrl]]
                     ]
                 ];
                 self::sendMessageWithKeyboard($chatId, $msg, $kb, 'HTML', null, $activeToken);
@@ -2481,6 +2484,40 @@ class TelegramService
                 . "សម្រាប់អតិថិជន សូមប្រើប្រាស់ពាក្យបញ្ជា <code>/start</code> ឬ <code>/help</code> ដើម្បីទិញទំនិញ និងទទួលព័ត៌មាន។";
             self::sendMessageWithKeyboard($chatId, $adminNotice, self::getCustomerMainMenuKeyboard(), 'HTML', null, $activeToken);
             return;
+        }
+
+        // 6.0 Handle Manual Phone Number text input when awaiting checkout phone sync
+        $pendingPhoneSync = \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_{$chatId}")
+            ?: (!empty($from['id']) ? \Illuminate\Support\Facades\Cache::get("tg_phone_sync_user_" . $from['id']) : null);
+        if ($pendingPhoneSync && !empty($text)) {
+            $rawPhone = preg_replace('/[\s\-\.]/', '', $text);
+            if (preg_match('/^(?:\+?855|0)[1-9]\d{7,8}$/', $rawPhone)) {
+                $cleanPhone = str_starts_with($rawPhone, '+') ? $rawPhone : (str_starts_with($rawPhone, '855') ? '+' . $rawPhone : $rawPhone);
+                \Illuminate\Support\Facades\Cache::put("tg_phone_sync_result_{$pendingPhoneSync}", $cleanPhone, 3600);
+                \Illuminate\Support\Facades\Cache::put("tg_latest_phone_{$chatId}", $cleanPhone, 86400 * 30);
+                if (!empty($from['id'])) {
+                    \Illuminate\Support\Facades\Cache::put("tg_latest_phone_" . $from['id'], $cleanPhone, 86400 * 30);
+                }
+                \Illuminate\Support\Facades\Cache::forget("tg_phone_sync_user_{$chatId}");
+                if (!empty($from['id'])) {
+                    \Illuminate\Support\Facades\Cache::forget("tg_phone_sync_user_" . $from['id']);
+                }
+
+                $checkoutUrl = "https://www.s-tech-store.tech/checkout";
+                $respMsg = "⚡ <b>ទទួលបានលេខទូរស័ព្ទជោគជ័យ ១០០%!</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "• 📞 <b>លេខទូរស័ព្ទ:</b> <code>" . htmlspecialchars($cleanPhone) . "</code>\n\n"
+                    . "✅ លេខទូរស័ព្ទត្រូវបានបំពេញចូលផ្ទាំង Checkout លើគេហទំព័រដោយស្វ័យប្រវត្តិតែម្ដង!\n\n"
+                    . "👉 លោកអ្នកអាចត្រឡប់ទៅផ្ទាំង Checkout វិញ ដើម្បីបន្តការកម្ម៉ង់ទិញបានភ្លាមៗ៖";
+
+                $replyMarkup = [
+                    'inline_keyboard' => [
+                        [['text' => '🛍️ ត្រឡប់ទៅផ្ទាំង Checkout វិញ (Return to Checkout)', 'url' => $checkoutUrl]],
+                    ]
+                ];
+                self::sendMessageWithKeyboard($chatId, $respMsg, $replyMarkup, 'HTML', null, $activeToken);
+                return;
+            }
         }
 
         // Customer /disconnect or /unlink or ផ្តាច់
