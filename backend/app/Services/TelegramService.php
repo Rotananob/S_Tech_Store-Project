@@ -4109,25 +4109,8 @@ class TelegramService
             $results['setChatMenuButton'] = ['ok' => false, 'error' => $e->getMessage()];
         }
 
-        // 3. Set bot description (About screen before user starts bot)
-        try {
-            $descResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyDescription", [
-                'description' => "🏪 ជំនួយការផ្លូវការរបស់ S Tech Store Cambodia\n\n• 💻 ទិញកុំព្យូទ័រ Laptops & Custom PC\n• 📦 តាមដានស្ថានភាពការបញ្ជាទិញ (Orders)\n• 💰 កាបូបលុយ & សមតុល្យ (Smart Wallet)\n• 🪙 ពិន្ទុ S-Coins & VIP Member\n• 🔧 សេវាជួសជុល & Upgrade ឧបករណ៍បច្ចេកវិទ្យា\n\n👉 ចុច Start ដើម្បីចាប់ផ្តើម ឬបើកទិញក្នុង Mini App ភ្លាមៗ!",
-            ]);
-            $results['setMyDescription'] = $descResp->json();
-        } catch (\Throwable $e) {
-            $results['setMyDescription'] = ['ok' => false, 'error' => $e->getMessage()];
-        }
-
-        // 4. Set bot short description
-        try {
-            $shortResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyShortDescription", [
-                'short_description' => "🛍️ S Tech Store Cambodia — Laptops, PC, កាបូបលុយ, តាមដាន Orders និង Mini App ទំនើប",
-            ]);
-            $results['setMyShortDescription'] = $shortResp->json();
-        } catch (\Throwable $e) {
-            $results['setMyShortDescription'] = ['ok' => false, 'error' => $e->getMessage()];
-        }
+        // 3. Bot descriptions: Left completely under BotFather management
+        // (Do NOT automatically overwrite bot description / bio so user has full control in @BotFather)
 
         $allOk = (($results['setMyCommands']['ok'] ?? false) === true)
             && (($results['setChatMenuButton']['ok'] ?? false) === true);
@@ -4188,25 +4171,8 @@ class TelegramService
             $results['setChatMenuButton'] = ['ok' => false, 'error' => $e->getMessage()];
         }
 
-        // 3. Set bot description
-        try {
-            $descResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyDescription", [
-                'description' => "💼 ប្រព័ន្ធជំនួយការ និងផ្ញើដំណឹងផ្លូវការសម្រាប់ Admin & Staff ហាង S Tech Store\n\n• 💬 ឆ្លើយតប Live Chat ផ្ទាល់ជាមួយអតិថិជន (Mini App)\n• 📦 ទទួលដំណឹង និងគ្រប់គ្រងការកុម្ម៉ង់ (Orders)\n• 🔧 តាមដានសំបុត្រជួសជុល (Repairs)\n• 📊 របាយការណ៍អាជីវកម្មស្វ័យប្រវត្តិ\n\n👉 ចុច Start ឬចុចលើប៊ូតុង Menu ខាងក្រោម ដើម្បីបើក Mini App ភ្លាមៗ!",
-            ]);
-            $results['setMyDescription'] = $descResp->json();
-        } catch (\Throwable $e) {
-            $results['setMyDescription'] = ['ok' => false, 'error' => $e->getMessage()];
-        }
-
-        // 4. Set bot short description
-        try {
-            $shortResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setMyShortDescription", [
-                'short_description' => "⚡ S Tech Admin & Staff Hub — Live Chat, Orders, និង Mini App ផ្លូវការ",
-            ]);
-            $results['setMyShortDescription'] = $shortResp->json();
-        } catch (\Throwable $e) {
-            $results['setMyShortDescription'] = ['ok' => false, 'error' => $e->getMessage()];
-        }
+        // 3. Bot descriptions: Left completely under BotFather management
+        // (Do NOT automatically overwrite bot description / bio so user has full control in @BotFather)
 
         $allOk = (($results['setMyCommands']['ok'] ?? false) === true)
             && (($results['setChatMenuButton']['ok'] ?? false) === true);
