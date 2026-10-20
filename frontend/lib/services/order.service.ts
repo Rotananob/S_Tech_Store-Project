@@ -57,9 +57,15 @@ export const createOrder = async (payload: CreateOrderPayload) => {
     return { success: true, data: response.data };
   } catch (error: any) {
     console.error("Failed to create order:", error);
+    const serverMessage = error.response?.data?.message || error.response?.data?.error;
+    const isTimeout = error.code === "ECONNABORTED" || error.response?.status === 504 || (typeof error.message === "string" && error.message.toLowerCase().includes("timeout"));
+    const fallbackMessage = isTimeout
+      ? "ម៉ាស៊ីនមេឆ្លើយតបយឺត (Gateway Timeout)។ សូមព្យាយាមម្ដងទៀត!"
+      : (error.message || "ការបង្កើតការកុម្ម៉ង់មិនជោគជ័យ (Failed to create order)");
+
     return {
       success: false,
-      error: error.response?.data?.message || error.response?.data?.error || "Failed to create order",
+      error: serverMessage || fallbackMessage,
     };
   }
 };

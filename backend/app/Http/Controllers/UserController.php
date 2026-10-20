@@ -29,6 +29,17 @@ class UserController extends Controller
                     return $active->firebase_uid;
                 }
             }
+            // If incoming UID does not exist, check if X-Firebase-Email matches existing consolidated account
+            $exists = UserProfile::where('firebase_uid', $uid)->exists();
+            if (!$exists) {
+                $email = $request->header('X-Firebase-Email');
+                if (!empty($email)) {
+                    $userByEmail = UserProfile::where('email', $email)->first();
+                    if ($userByEmail && !empty($userByEmail->firebase_uid)) {
+                        return $userByEmail->firebase_uid;
+                    }
+                }
+            }
             return $uid;
         }
 
@@ -887,27 +898,39 @@ class UserController extends Controller
         $uid = $this->getUid($request);
         if (!$uid) return response()->json(['error' => 'Unauthorized'], 401);
 
-        $profile = UserProfile::firstOrCreate(
-            ['firebase_uid' => $uid],
-            [
+        $email = $request->header('X-Firebase-Email', '');
+        $profile = UserProfile::where('firebase_uid', $uid)->first();
+        if (!$profile && !empty($email)) {
+            $profile = UserProfile::where('email', $email)->first();
+            if ($profile && empty($profile->firebase_uid)) {
+                $profile->firebase_uid = $uid;
+                $profile->save();
+            }
+        }
+        if (!$profile) {
+            $profile = UserProfile::create([
+                'firebase_uid' => $uid,
                 'display_name' => $request->header('X-Firebase-Name', ''),
-                'email' => $request->header('X-Firebase-Email', ''),
+                'email' => $email,
                 'photo_url' => $request->header('X-Firebase-Photo', ''),
-            ]
-        );
+            ]);
+        }
 
         if ($profile->wasRecentlyCreated) {
-            try {
-                \App\Services\TelegramService::sendNewUserRegistrationNotification([
-                    'id' => $profile->id,
-                    'name' => $profile->display_name ?: 'អតិថិជនថ្មី',
-                    'email' => $profile->email ?: 'N/A',
-                    'phone' => $profile->phone ?: 'N/A',
-                    'role' => 'Customer',
-                ]);
-            } catch (\Throwable $t) {
-                Log::warning("Telegram registration notification failed: " . $t->getMessage());
-            }
+            $newUserSummary = [
+                'id' => $profile->id,
+                'name' => $profile->display_name ?: 'អតិថិជនថ្មី',
+                'email' => $profile->email ?: 'N/A',
+                'phone' => $profile->phone ?: 'N/A',
+                'role' => 'Customer',
+            ];
+            app()->terminating(function () use ($newUserSummary) {
+                try {
+                    \App\Services\TelegramService::sendNewUserRegistrationNotification($newUserSummary);
+                } catch (\Throwable $t) {
+                    Log::warning("Telegram registration notification failed: " . $t->getMessage());
+                }
+            });
         }
 
         // Auto-fetch genuine Telegram profile avatar if connected and missing photo

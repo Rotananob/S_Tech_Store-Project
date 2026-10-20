@@ -175,15 +175,41 @@ class OrderController extends Controller
             // Calculate final validated total
             $totalAmount = max(1.00, ($itemsSubtotal - $discountAmount) + $deliveryFee);
 
-            // Resolve customer email
+            // Resolve customer user ID & email reliably
+            $orderUserUid = $request->header('X-Firebase-UID');
             $customerEmail = !empty($validated['email']) ? trim($validated['email']) : ($request->input('customer_email') ?: $request->header('X-Firebase-Email'));
-            if (!$customerEmail && ($uid = $request->header('X-Firebase-UID'))) {
-                $customerEmail = \App\Models\UserProfile::where('firebase_uid', $uid)->value('email');
+            
+            // If UID is empty, attempt resolution via Telegram headers or active token
+            if (empty($orderUserUid)) {
+                $chatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
+                if (!empty($chatId)) {
+                    $active = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
+                    $orderUserUid = $active ? $active->firebase_uid : ('tg_' . preg_replace('/\D/', '', $chatId));
+                }
+            }
+
+            // Cross-check with UserProfile if UID is known or if email matches an existing account
+            if (!empty($orderUserUid)) {
+                $matchedUser = \App\Models\UserProfile::where('firebase_uid', $orderUserUid)->first();
+                if (!$matchedUser && !empty($customerEmail)) {
+                    $matchedUser = \App\Models\UserProfile::where('email', $customerEmail)->first();
+                    if ($matchedUser && !empty($matchedUser->firebase_uid)) {
+                        $orderUserUid = $matchedUser->firebase_uid;
+                    }
+                }
+                if ($matchedUser && empty($customerEmail) && !empty($matchedUser->email)) {
+                    $customerEmail = $matchedUser->email;
+                }
+            } elseif (!empty($customerEmail)) {
+                $matchedUser = \App\Models\UserProfile::where('email', $customerEmail)->first();
+                if ($matchedUser && !empty($matchedUser->firebase_uid)) {
+                    $orderUserUid = $matchedUser->firebase_uid;
+                }
             }
 
             // Create Order
             $order = Order::create([
-                'user_id' => $request->header('X-Firebase-UID'),
+                'user_id' => $orderUserUid,
                 'customer_name' => $validated['name'],
                 'customer_phone' => $validated['phone'],
                 'customer_email' => $customerEmail,
@@ -207,8 +233,8 @@ class OrderController extends Controller
             DB::commit();
 
             // Clear the user's cart if authenticated
-            if ($uid = $request->header('X-Firebase-UID')) {
-                \App\Models\UserCartItem::where('firebase_uid', $uid)->delete();
+            if (!empty($orderUserUid)) {
+                \App\Models\UserCartItem::where('firebase_uid', $orderUserUid)->delete();
             }
 
             // Only dispatch Telegram notifications on order creation if payment is COD (Cash on Delivery).
@@ -216,38 +242,50 @@ class OrderController extends Controller
             // AFTER the customer has actually completed payment, preventing premature alerts and speeding up checkout!
             $isCod = in_array(strtolower($order->payment_method ?? 'cod'), ['cod', 'cash', 'cash_on_delivery']);
             if ($isCod) {
-                try {
-                    \App\Services\TelegramService::sendOrderNotification($order->load('items.product'));
-                    \App\Services\TelegramService::sendFinanceAlert([
-                        'type' => 'New Order (COD - Pending Payment on Delivery)',
-                        'amount' => $order->total_amount,
-                        'method' => 'COD',
-                        'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
-                        'customer' => $order->customer_name ?? 'Customer',
-                    ]);
-                } catch (\Throwable $t) {
-                    \Illuminate\Support\Facades\Log::warning("Telegram order notification non-critical error: " . $t->getMessage());
-                }
+                $orderId = $order->id;
+                $emailToSend = (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) ? $customerEmail : null;
 
-                try {
-                    \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'created');
-                } catch (\Throwable $t) {
-                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert skipped: " . $t->getMessage());
-                }
-
-                // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
-                if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
+                app()->terminating(function () use ($orderId, $emailToSend) {
                     try {
-                        self::sendOrderEmail(
-                            $order->load('items.product'),
-                            $customerEmail,
-                            'ការកុម្ម៉ង់ទំនិញទទួលបានជោគជ័យ (Order Placed - COD)',
-                            "សូមអរគុណចំពោះការកុម្ម៉ង់ទំនិញនៅ S Tech Store Cambodia! ការបញ្ជាទិញរបស់អ្នក (#{$order->order_id}) ត្រូវបានកត់ត្រាចូលក្នុងប្រព័ន្ធរួចរាល់ហើយ។ វិក្កយបត្រអេឡិចត្រូនិចផ្លូវការត្រូវបានភ្ជាប់មកជាមួយអ៊ីមែលនេះ។"
-                        );
-                    } catch (\Throwable $mailErr) {
-                        \Illuminate\Support\Facades\Log::warning("Order placement COD email dispatch failed: " . $mailErr->getMessage());
+                        $freshOrder = Order::with('items.product')->find($orderId);
+                        if (!$freshOrder) return;
+
+                        try {
+                            \App\Services\TelegramService::sendOrderNotification($freshOrder);
+                            \App\Services\TelegramService::sendFinanceAlert([
+                                'type' => 'New Order (COD - Pending Payment on Delivery)',
+                                'amount' => $freshOrder->total_amount,
+                                'method' => 'COD',
+                                'order_id' => $freshOrder->order_id ?? ('#ORD-' . $freshOrder->id),
+                                'customer' => $freshOrder->customer_name ?? 'Customer',
+                            ]);
+                        } catch (\Throwable $t) {
+                            \Illuminate\Support\Facades\Log::warning("Telegram order notification non-critical error: " . $t->getMessage());
+                        }
+
+                        try {
+                            \App\Services\TelegramService::sendCustomerDirectOrderAlert($freshOrder, 'created');
+                        } catch (\Throwable $t) {
+                            \Illuminate\Support\Facades\Log::warning("Customer direct telegram order alert skipped: " . $t->getMessage());
+                        }
+
+                        // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+                        if ($emailToSend) {
+                            try {
+                                OrderController::sendOrderEmail(
+                                    $freshOrder,
+                                    $emailToSend,
+                                    'ការកុម្ម៉ង់ទំនិញទទួលបានជោគជ័យ (Order Placed - COD)',
+                                    "សូមអរគុណចំពោះការកុម្ម៉ង់ទំនិញនៅ S Tech Store Cambodia! ការបញ្ជាទិញរបស់អ្នក (#{$freshOrder->order_id}) ត្រូវបានកត់ត្រាចូលក្នុងប្រព័ន្ធរួចរាល់ហើយ។ វិក្កយបត្រអេឡិចត្រូនិចផ្លូវការត្រូវបានភ្ជាប់មកជាមួយអ៊ីមែលនេះ។"
+                                );
+                            } catch (\Throwable $mailErr) {
+                                \Illuminate\Support\Facades\Log::warning("Order placement COD email dispatch failed: " . $mailErr->getMessage());
+                            }
+                        }
+                    } catch (\Throwable $bgErr) {
+                        \Illuminate\Support\Facades\Log::error("Background COD dispatch error: " . $bgErr->getMessage());
                     }
-                }
+                });
             }
 
             return response()->json([

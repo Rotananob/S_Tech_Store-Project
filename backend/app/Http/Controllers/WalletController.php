@@ -97,7 +97,20 @@ class WalletController extends Controller
             }
         }
 
-        // 4. Auto-create only if genuinely a new user with valid UID
+        // 4. Check if existing user exists by email before creating a duplicate
+        $email = $request->header('X-Firebase-Email') ?: $request->input('email');
+        if (!empty($email)) {
+            $userByEmail = UserProfile::where('email', $email)->first();
+            if ($userByEmail) {
+                if ($uid && empty($userByEmail->firebase_uid)) {
+                    $userByEmail->firebase_uid = $uid;
+                    $userByEmail->save();
+                }
+                return $userByEmail;
+            }
+        }
+
+        // 5. Auto-create only if genuinely a new user with valid UID
         if ($uid) {
             return UserProfile::create([
                 'firebase_uid' => $uid,
@@ -981,79 +994,89 @@ class WalletController extends Controller
             ], $txResult['error_status']);
         }
 
-        // 2. DISPATCH NOTIFICATIONS OUTSIDE DB TRANSACTION (Zero risk of DB transaction timeout)
-        try {
-            $paidOrder = $txResult['order'] ?? null;
-            $tranId = $txResult['tranId'] ?? ('WAL_' . strtoupper(Str::random(10)));
-            if ($paidOrder) {
-                // Customer in-app notification
-                if (!empty($paidOrder->user_id)) {
-                    try {
-                        \App\Models\UserNotification::create([
-                            'firebase_uid' => $paidOrder->user_id,
-                            'title' => 'ការទូទាត់កាបូបលុយជោគជ័យ! 💳',
-                            'message' => "ការទូទាត់សម្រាប់ Order #{$paidOrder->order_id} ចំនួន \${$paidOrder->total_amount} ត្រូវបានផ្ទៀងផ្ទាត់ជោគជ័យ។ ក្រុមការងារកំពុងរៀបចំទំនិញដឹកជូនលោកអ្នក។",
-                            'type' => 'order',
-                            'read' => false,
-                        ]);
-                    } catch (\Throwable $e) {}
-                }
-
-                // Telegram alert to Order fulfillment topic
+        // 2. DISPATCH NOTIFICATIONS OUTSIDE DB TRANSACTION & ASYNCHRONOUSLY
+        $paidOrder = $txResult['order'] ?? null;
+        $tranId = $txResult['tranId'] ?? ('WAL_' . strtoupper(Str::random(10)));
+        if ($paidOrder) {
+            // Customer in-app notification (fast DB record)
+            if (!empty($paidOrder->user_id)) {
                 try {
-                    $settings = \App\Services\TelegramService::getSettings();
-                    if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
-                        $orderTopicId = $settings['topics']['orders'] ?? null;
-                        $pAmount = number_format((float)$paidOrder->total_amount, 2);
-
-                        $msg = "✅ <b>ការទូទាត់តាម WALLET ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n\n"
-                            . "🧾 <b>Order ID:</b> <code>{$paidOrder->order_id}</code>\n"
-                            . "💰 <b>ទឹកប្រាក់បានកាត់:</b> <b>\${$pAmount} USD</b>\n"
-                            . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> <b>S-TECH REAL WALLET</b>\n"
-                            . "🔢 <b>Transaction ID:</b> <code>{$tranId}</code>\n"
-                            . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($paidOrder->customer_name) . "\n"
-                            . "📞 <b>ទូរស័ព្ទ:</b> " . htmlspecialchars($paidOrder->customer_phone) . "\n"
-                            . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($paidOrder->shipping_address) . "\n"
-                            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . now()->format('d-m-Y H:i:s') . "\n\n"
-                            . "👉 <b>ស្ថានភាពឥឡូវនេះ: Processing (កំពុងរៀបចំដឹក)</b>";
-
-                        \App\Services\TelegramService::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
-                    }
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Failed to notify Telegram of wallet payment: " . $e->getMessage());
-                }
-
-                // Customer direct alert to Telegram Bot Companion
-                try {
-                    \App\Services\TelegramService::sendCustomerDirectOrderAlert($paidOrder->load('items.product'), 'paid');
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram wallet payment alert failed: " . $e->getMessage());
-                }
-
-                // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
-                $customerEmail = $paidOrder->customer_email ?: ($paidOrder->user->email ?? null);
-                if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
-                    try {
-                        \App\Http\Controllers\OrderController::sendOrderEmail(
-                            $paidOrder->load('items.product'),
-                            $customerEmail,
-                            'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Wallet Payment)',
-                            "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$paidOrder->order_id} ទឹកប្រាក់ $" . number_format((float)$paidOrder->total_amount, 2) . " តាមរយៈ S Tech Wallet ត្រូវបានកាត់កាក់/ទឹកប្រាក់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
-                        );
-                    } catch (\Throwable $mailErr) {
-                        \Illuminate\Support\Facades\Log::warning("Wallet order payment email dispatch failed: " . $mailErr->getMessage());
-                    }
-                }
-
-                // Send full Order Invoice card to Telegram order topic
-                try {
-                    \App\Services\TelegramService::sendOrderNotification($paidOrder->load('items.product'));
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Order notification on wallet payment failed: " . $e->getMessage());
-                }
+                    \App\Models\UserNotification::create([
+                        'firebase_uid' => $paidOrder->user_id,
+                        'title' => 'ការទូទាត់កាបូបលុយជោគជ័យ! 💳',
+                        'message' => "ការទូទាត់សម្រាប់ Order #{$paidOrder->order_id} ចំនួន \${$paidOrder->total_amount} ត្រូវបានផ្ទៀងផ្ទាត់ជោគជ័យ។ ក្រុមការងារកំពុងរៀបចំទំនិញដឹកជូនលោកអ្នក។",
+                        'type' => 'order',
+                        'read' => false,
+                    ]);
+                } catch (\Throwable $e) {}
             }
-        } catch (\Throwable $t) {
-            \Illuminate\Support\Facades\Log::warning("Post-wallet payment notification error: " . $t->getMessage());
+
+            $orderId = $paidOrder->id;
+            $customerEmail = $paidOrder->customer_email ?: ($paidOrder->user->email ?? null);
+            $emailToSend = (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) ? $customerEmail : null;
+
+            // Dispatch external Telegram and Email notifications AFTER sending the HTTP 200 response
+            // This guarantees sub-second wallet checkout and eliminates 504 timeouts!
+            app()->terminating(function () use ($orderId, $tranId, $emailToSend) {
+                try {
+                    $order = \App\Models\Order::with('items.product')->find($orderId);
+                    if (!$order) return;
+
+                    // Telegram alert to Order fulfillment topic
+                    try {
+                        $settings = \App\Services\TelegramService::getSettings();
+                        if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+                            $orderTopicId = $settings['topics']['orders'] ?? null;
+                            $pAmount = number_format((float)$order->total_amount, 2);
+
+                            $msg = "✅ <b>ការទូទាត់តាម WALLET ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n\n"
+                                . "🧾 <b>Order ID:</b> <code>{$order->order_id}</code>\n"
+                                . "💰 <b>ទឹកប្រាក់បានកាត់:</b> <b>\${$pAmount} USD</b>\n"
+                                . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> <b>S-TECH REAL WALLET</b>\n"
+                                . "🔢 <b>Transaction ID:</b> <code>{$tranId}</code>\n"
+                                . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . "\n"
+                                . "📞 <b>ទូរស័ព្ទ:</b> " . htmlspecialchars($order->customer_phone) . "\n"
+                                . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($order->shipping_address) . "\n"
+                                . "⏰ <b>កាលបរិច្ឆេទ:</b> " . now()->format('d-m-Y H:i:s') . "\n\n"
+                                . "👉 <b>ស្ថានភាពឥឡូវនេះ: Processing (កំពុងរៀបចំដឹក)</b>";
+
+                            \App\Services\TelegramService::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
+                        }
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Failed to notify Telegram of wallet payment: " . $e->getMessage());
+                    }
+
+                    // Customer direct alert to Telegram Bot Companion
+                    try {
+                        \App\Services\TelegramService::sendCustomerDirectOrderAlert($order, 'paid');
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Customer direct telegram wallet payment alert failed: " . $e->getMessage());
+                    }
+
+                    // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+                    if ($emailToSend) {
+                        try {
+                            \App\Http\Controllers\OrderController::sendOrderEmail(
+                                $order,
+                                $emailToSend,
+                                'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Wallet Payment)',
+                                "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$order->order_id} ទឹកប្រាក់ $" . number_format((float)$order->total_amount, 2) . " តាមរយៈ S Tech Wallet ត្រូវបានកាត់កាក់/ទឹកប្រាក់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
+                            );
+                        } catch (\Throwable $mailErr) {
+                            \Illuminate\Support\Facades\Log::warning("Wallet order payment email dispatch failed: " . $mailErr->getMessage());
+                        }
+                    }
+
+                    // Send full Order Invoice card to Telegram order topic
+                    try {
+                        \App\Services\TelegramService::sendOrderNotification($order);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Order notification on wallet payment failed: " . $e->getMessage());
+                    }
+                } catch (\Throwable $t) {
+                    \Illuminate\Support\Facades\Log::warning("Post-wallet payment notification error: " . $t->getMessage());
+                }
+            });
         }
 
         return response()->json([

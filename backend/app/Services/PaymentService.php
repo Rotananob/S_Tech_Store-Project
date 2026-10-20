@@ -499,72 +499,85 @@ class PaymentService
             } catch (\Throwable $e) {}
         }
 
-        // Telegram alert to Order fulfillment topic
-        try {
-            $settings = TelegramService::getSettings();
-            if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
-                $orderTopicId = $settings['topics']['orders'] ?? null;
-                $pMethod = strtoupper($method);
-                $pAmount = number_format((float)$order->total_amount, 2);
-
-                $msg = "✅ <b>ការទូទាត់ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n\n"
-                    . "🧾 <b>Order ID:</b> <code>{$order->order_id}</code>\n"
-                    . "💰 <b>ទឹកប្រាក់បានបង់:</b> <b>\${$pAmount} USD</b>\n"
-                    . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> <b>{$pMethod}</b>\n"
-                    . "🔢 <b>Transaction ID:</b> <code>{$tranId}</code>\n"
-                    . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . "\n"
-                    . "📞 <b>ទូរស័ព្ទ:</b> " . htmlspecialchars($order->customer_phone) . "\n"
-                    . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($order->shipping_address) . "\n"
-                    . "⏰ <b>កាលបរិច្ឆេទ:</b> " . now()->format('d-m-Y H:i:s') . "\n\n"
-                    . "👉 <b>ស្ថានភាពឥឡូវនេះ: Processing (កំពុងរៀបចំដឹក)</b>";
-
-                TelegramService::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
-            }
-        } catch (\Throwable $e) {
-            Log::error("Failed to notify Telegram of payment: " . $e->getMessage());
-        }
-
-        // Customer direct notification to Telegram Bot 2
-        try {
-            TelegramService::sendCustomerDirectOrderAlert($order->load('items.product'), 'paid');
-        } catch (\Throwable $e) {
-            Log::warning("Customer direct telegram payment alert failed: " . $e->getMessage());
-        }
-
-        // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+        // Send all external notifications asynchronously after HTTP response terminates
+        $orderId = $order->id;
         $customerEmail = $order->customer_email ?: ($order->user->email ?? null);
-        if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) {
+        $emailToSend = (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_ends_with($customerEmail, '@telegram.s-tech-store.tech') && !str_ends_with($customerEmail, '@tiktok.s-tech-store.tech')) ? $customerEmail : null;
+
+        app()->terminating(function () use ($orderId, $tranId, $method, $emailToSend) {
             try {
-                \App\Http\Controllers\OrderController::sendOrderEmail(
-                    $order->load('items.product'),
-                    $customerEmail,
-                    'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Payment Received)',
-                    "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$order->order_id} ទឹកប្រាក់ $" . number_format((float)$order->total_amount, 2) . " តាមរយៈ " . strtoupper($method) . " ត្រូវបានផ្ទៀងផ្ទាត់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
-                );
-            } catch (\Throwable $mailErr) {
-                Log::warning("Order payment email invoice dispatch failed: " . $mailErr->getMessage());
+                $order = Order::with('items.product')->find($orderId);
+                if (!$order) return;
+
+                // Telegram alert to Order fulfillment topic
+                try {
+                    $settings = TelegramService::getSettings();
+                    if (!empty($settings['connected']) && !empty($settings['chat_id'])) {
+                        $orderTopicId = $settings['topics']['orders'] ?? null;
+                        $pMethod = strtoupper($method);
+                        $pAmount = number_format((float)$order->total_amount, 2);
+
+                        $msg = "✅ <b>ការទូទាត់ទទួលបានជោគជ័យ! (PAYMENT VERIFIED)</b>\n\n"
+                            . "🧾 <b>Order ID:</b> <code>{$order->order_id}</code>\n"
+                            . "💰 <b>ទឹកប្រាក់បានបង់:</b> <b>\${$pAmount} USD</b>\n"
+                            . "💳 <b>វិធីសាស្ត្រទូទាត់:</b> <b>{$pMethod}</b>\n"
+                            . "🔢 <b>Transaction ID:</b> <code>{$tranId}</code>\n"
+                            . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . "\n"
+                            . "📞 <b>ទូរស័ព្ទ:</b> " . htmlspecialchars($order->customer_phone) . "\n"
+                            . "📍 <b>អាសយដ្ឋានដឹក:</b> " . htmlspecialchars($order->shipping_address) . "\n"
+                            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . now()->format('d-m-Y H:i:s') . "\n\n"
+                            . "👉 <b>ស្ថានភាពឥឡូវនេះ: Processing (កំពុងរៀបចំដឹក)</b>";
+
+                        TelegramService::sendMessage($settings['chat_id'], $msg, 'HTML', $orderTopicId);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error("Failed to notify Telegram of payment: " . $e->getMessage());
+                }
+
+                // Customer direct notification to Telegram Bot 2
+                try {
+                    TelegramService::sendCustomerDirectOrderAlert($order, 'paid');
+                } catch (\Throwable $e) {
+                    Log::warning("Customer direct telegram payment alert failed: " . $e->getMessage());
+                }
+
+                // Auto-dispatch Luxury HTML Order Invoice Email to customer's Gmail
+                if ($emailToSend) {
+                    try {
+                        \App\Http\Controllers\OrderController::sendOrderEmail(
+                            $order,
+                            $emailToSend,
+                            'ការទូទាត់ជោគជ័យ & វិក្កយបត្រ (Payment Received)',
+                            "ការទូទាត់សម្រាប់វិក្កយបត្រ #{$order->order_id} ទឹកប្រាក់ $" . number_format((float)$order->total_amount, 2) . " តាមរយៈ " . strtoupper($method) . " ត្រូវបានផ្ទៀងផ្ទាត់ដោយជោគជ័យ! ទំនិញកំពុងត្រូវបានរៀបចំដឹកជញ្ជូនជូនលោកអ្នក។"
+                        );
+                    } catch (\Throwable $mailErr) {
+                        Log::warning("Order payment email invoice dispatch failed: " . $mailErr->getMessage());
+                    }
+                }
+
+                // Send full Order Invoice card to Telegram order topic
+                try {
+                    TelegramService::sendOrderNotification($order);
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send order notification on payment verification: " . $e->getMessage());
+                }
+
+                // Send Finance notification to Finance topic
+                try {
+                    TelegramService::sendFinanceAlert([
+                        'type' => '✅ Order Payment Received (' . strtoupper($method) . ')',
+                        'amount' => $order->total_amount,
+                        'method' => strtoupper($method),
+                        'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
+                        'customer' => $order->customer_name ?? 'Customer',
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning("Failed to send finance alert on payment verification: " . $e->getMessage());
+                }
+            } catch (\Throwable $t) {
+                Log::warning("Payment terminating notification handler error: " . $t->getMessage());
             }
-        }
-
-        // Send full Order Invoice card to Telegram order topic
-        try {
-            TelegramService::sendOrderNotification($order->load('items.product'));
-        } catch (\Throwable $e) {
-            Log::warning("Failed to send order notification on payment verification: " . $e->getMessage());
-        }
-
-        // Send Finance notification to Finance topic
-        try {
-            TelegramService::sendFinanceAlert([
-                'type' => '✅ Order Payment Received (' . strtoupper($method) . ')',
-                'amount' => $order->total_amount,
-                'method' => strtoupper($method),
-                'order_id' => $order->order_id ?? ('#ORD-' . $order->id),
-                'customer' => $order->customer_name ?? 'Customer',
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning("Failed to send finance alert on payment verification: " . $e->getMessage());
-        }
+        });
 
         return $order;
     }

@@ -32,6 +32,13 @@
       }
     },
 
+    "system": {
+      "store_status": {
+        ".read": true,
+        ".write": true
+      }
+    },
+
     "rate_limits": {
       ".read": false,
       ".write": false
