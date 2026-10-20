@@ -1127,7 +1127,50 @@ HTML;
                 ];
             } catch (\Throwable $t) {
                 $errors['smtp'] = "SMTP Error: " . $t->getMessage();
-                Log::warning("SMTP dispatch failed to {$cleanTo}: " . $t->getMessage());
+                Log::warning("Direct SMTP dispatch failed to {$cleanTo}: " . $t->getMessage() . " — Attempting HTTPS Vercel Gateway fallback...");
+
+                // Fallback: If on Render Free Tier or cloud where ports 25, 465, 587 are blocked,
+                // tunnel via HTTPS port 443 to the Vercel Serverless Gateway!
+                try {
+                    $gatewayUrl = env('FRONTEND_URL', 'https://www.s-tech-store.tech');
+                    if (str_contains($gatewayUrl, 'localhost')) {
+                        $gatewayUrl = 'https://www.s-tech-store.tech';
+                    }
+                    $dispatchEndpoint = rtrim($gatewayUrl, '/') . '/api/email/dispatch';
+                    $secret = env('PAYMENT_WEBHOOK_SECRET', 'stech_pay_whsec_99a8b1c4d2e3f567890123456789abcdef');
+
+                    $payload = [
+                        'to' => $cleanTo,
+                        'subject' => $subject,
+                        'html' => $html,
+                        'from_name' => $fromName,
+                        'reply_to' => $options['reply_to'] ?? $displayFromEmail ?? 'stech.supporter@gmail.com',
+                    ];
+                    if (!empty($options['attachments']) && is_array($options['attachments'])) {
+                        $payload['attachments'] = $options['attachments'];
+                    }
+
+                    $gateRes = Http::timeout(15)
+                        ->withHeaders(['x-email-secret' => $secret])
+                        ->post($dispatchEndpoint, $payload);
+
+                    if ($gateRes->successful() && ($gateRes->json()['success'] ?? false) === true) {
+                        Log::info("HTTPS Vercel Gateway dispatched email successfully to {$cleanTo}");
+                        return [
+                            'success' => true,
+                            'provider' => 'gmail',
+                            'recipient' => $cleanTo,
+                            'message' => 'បានបញ្ជូន Email ជោគជ័យតាមរយៈ Gmail SMTP (Secure Gateway)',
+                        ];
+                    } else {
+                        $errors['gateway'] = "Gateway Error: " . $gateRes->body();
+                        Log::warning("HTTPS Vercel Gateway failed: " . $gateRes->body());
+                    }
+                } catch (\Throwable $gateErr) {
+                    $errors['gateway'] = "Gateway Exception: " . $gateErr->getMessage();
+                    Log::warning("HTTPS Vercel Gateway exception: " . $gateErr->getMessage());
+                }
+
                 return null;
             }
         };

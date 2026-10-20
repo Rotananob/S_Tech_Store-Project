@@ -326,7 +326,7 @@ export default function RegisterPage() {
       localStorage.setItem("stech_user_session", JSON.stringify(userSession));
       window.dispatchEvent(new Event("user_session_updated"));
 
-      // 1. Create real welcome in-app notification in database (welcome email is reserved for verified Google Sign-In)
+      // 1. Create real welcome in-app notification in database
       try {
         await api.post("/user/notifications", {
           title: `Welcome @${cleanUsername}! 🎉`,
@@ -335,6 +335,21 @@ export default function RegisterPage() {
         });
         useNotificationStore.getState().fetchNotifications();
       } catch (notifErr) {}
+
+      // 2. Auto-dispatch Official Luxury Welcome Email with $5 WELCOME5 voucher to customer's Gmail
+      if (email.includes("@") && !email.endsWith("@s-tech-store.tech")) {
+        try {
+          await api.post("/user/send-welcome-email", {
+            email: email.trim(),
+            username: cleanUsername || realDisplayName,
+            force: true,
+          }, {
+            headers: { "X-Firebase-UID": cred.user.uid }
+          });
+        } catch (emailErr) {
+          console.warn("Auto welcome email notice:", emailErr);
+        }
+      }
 
       setAuthOverlay({
         show: true,

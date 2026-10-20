@@ -886,74 +886,48 @@ class TelegramService
             return ['ok' => false, 'text' => $notFoundMsg, 'reply_markup' => []];
         }
 
-        // ── STRICT 1-TO-1 ACCOUNT CHECK & SEAMLESS ORPHAN AUTO-MERGE ──
-        $alreadyLinked = \App\Models\UserProfile::where(function($q) use ($tgId) {
-                $q->where('telegram_chat_id', (string)$tgId)
-                  ->orWhere('firebase_uid', 'tg_' . $tgId);
-            })
+        // ── STRICT 1-TO-1 ACCOUNT CHECK (1 TELEGRAM = EXACTLY 1 S TECH ACCOUNT) ──
+        $alreadyLinked = \App\Models\UserProfile::where('telegram_chat_id', (string)$tgId)
             ->where('id', '!=', $user->id)
             ->first();
 
         if ($alreadyLinked) {
-            $isOrphanOrSibling = str_starts_with($alreadyLinked->firebase_uid, 'tg_')
-                || empty($alreadyLinked->email)
-                || $alreadyLinked->email === $user->email
-                || (str_contains($alreadyLinked->email, '@telegram.s-tech-store.tech') || str_contains($alreadyLinked->email, '@s-tech-store.tech'))
-                || $alreadyLinked->display_name === $user->display_name;
+            $maskedEmail = !empty($alreadyLinked->email)
+                ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
+                : 'គណនី Telegram';
 
-            if ($isOrphanOrSibling) {
-                try {
-                    \App\Models\Order::where('user_id', (string)$alreadyLinked->id)
-                        ->orWhere('user_id', $alreadyLinked->firebase_uid)
-                        ->update(['user_id' => $user->firebase_uid ?: (string)$user->id]);
-                } catch (\Throwable $t) {}
+            $conflictPayload = [
+                'status' => 'conflict',
+                'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}'! (1 Telegram = 1 Account)។ សូមចូលទៅកាន់គណនីចាស់រួចចុច ផ្តាច់ការភ្ជាប់ (Disconnect Telegram) ជាមុនសិន។",
+                'already_linked_name' => $alreadyLinked->display_name,
+                'already_linked_email' => $maskedEmail,
+            ];
 
-                $user->points = ($user->points ?? 0) + ($alreadyLinked->points ?? 0);
-                $alreadyLinked->update([
-                    'telegram_chat_id' => null,
-                    'telegram' => null,
-                    'notif_telegram' => false,
-                    'is_active' => false,
-                ]);
-            } else {
-                $maskedEmail = !empty($alreadyLinked->email)
-                    ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
-                    : 'អ៊ីមែលសម្ងាត់';
+            Cache::put($linkKey, $conflictPayload, 600);
+            try {
+                \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                    ['key' => $linkKey],
+                    ['value' => json_encode($conflictPayload), 'updated_at' => now()]
+                );
+            } catch (\Throwable $t) {}
 
-                $conflictPayload = [
-                    'status' => 'conflict',
-                    'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}' ({$maskedEmail})! សូមផ្តាច់ការភ្ជាប់ពីគណនីចាស់ជាមុនសិន។",
-                    'already_linked_name' => $alreadyLinked->display_name,
-                    'already_linked_email' => $maskedEmail,
-                ];
+            $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
+                . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1 Telegram = 1 S Tech Account៖</b>\n"
+                . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
+                . "• 👤 <b>ឈ្មោះគណនីដែលកំពុងភ្ជាប់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n\n"
+                . "💡 <b>ច្បាប់តឹងរ៉ឹង៖</b>\n"
+                . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី S Tech ១ ប៉ុណ្ណោះ មិនអាចយក ២ គណនីមកភ្ជាប់ Telegram តែ ១ ឡើយ។\n"
+                . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើគេហទំព័រ រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
+                . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីនេះបាន។</i>";
 
-                Cache::put($linkKey, $conflictPayload, 600);
-                try {
-                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
-                        ['key' => $linkKey],
-                        ['value' => json_encode($conflictPayload), 'updated_at' => now()]
-                    );
-                } catch (\Throwable $t) {}
-
-                $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
-                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1-to-1 Account Rule៖</b>\n"
-                    . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
-                    . "• 👤 <b>ឈ្មោះគណនីចាស់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n"
-                    . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($maskedEmail) . "</code>\n\n"
-                    . "💡 <b>ដំណោះស្រាយ៖</b>\n"
-                    . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី Website ១ ប៉ុណ្ណោះ (1 Telegram = 1 Account)។\n"
-                    . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនីថ្មី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើ Website រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
-                    . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីថ្មីនេះបាន។</i>";
-
-                $conflictKb = [
-                    'inline_keyboard' => [
-                        [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                    ]
-                ];
-                return ['ok' => false, 'text' => $conflictMsg, 'reply_markup' => $conflictKb];
-            }
+            $conflictKb = [
+                'inline_keyboard' => [
+                    [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                ]
+            ];
+            return ['ok' => false, 'text' => $conflictMsg, 'reply_markup' => $conflictKb];
         }
 
         // 1. CLEAR DISCONNECTED FLAG & ENSURE CLEAN 1-TO-1 MAPPING
@@ -5039,55 +5013,28 @@ HTML;
 
     /**
      * Resolve actively linked UserProfile for a Telegram chat/user ID.
-     * Prevents cross-account contamination and ignores disconnected accounts.
+     * Enforces STRICT 1-TO-1 MAPPING: 1 Telegram ID corresponds to exactly 1 S Tech account.
      */
     public static function resolveActiveUser(string $chatId): ?\App\Models\UserProfile
     {
         $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
 
-        // 1. If explicitly disconnected, do NOT resolve to an old account
+        // 1. If explicitly marked disconnected in cache, do not resolve
         if (\Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanId}") || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$chatId}")) {
             return null;
         }
 
-        // 2. Prioritize actively linked account with real data
+        // 2. Resolve actively linked account where telegram_chat_id equals this Telegram ID
         $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
             ->orWhere('telegram_chat_id', (string)$chatId)
-            ->orderByDesc('wallet_balance')
-            ->orderByDesc('updated_at')
             ->first();
 
-        // 3. Fallback to tg_{id} account only if no account is linked to telegram_chat_id
+        // 3. Fallback: If not connected via telegram_chat_id, check if native tg_{id} account exists
+        // and has not been explicitly disconnected
         if (!$user) {
             $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
                 ->orWhere('firebase_uid', 'tg_' . $chatId)
-                ->orderByDesc('wallet_balance')
                 ->first();
-        }
-
-        // 4. Critical Unification: If the found user has an email or phone, check if a primary account exists with wallet, points, or orders
-        if ($user && !empty($user->email)) {
-            $primary = \App\Models\UserProfile::where('email', $user->email)
-                ->where('id', '!=', $user->id)
-                ->where(function ($q) {
-                    $q->where('wallet_balance', '>', 0)
-                      ->orWhere('points', '>', 0)
-                      ->orWhereNotNull('phone');
-                })
-                ->orderByDesc('wallet_balance')
-                ->orderByDesc('id')
-                ->first();
-
-            if ($primary) {
-                if (empty($primary->telegram_chat_id)) {
-                    $primary->telegram_chat_id = (string)$cleanId;
-                    if (empty($primary->telegram) && !empty($user->telegram)) {
-                        $primary->telegram = $user->telegram;
-                    }
-                    $primary->save();
-                }
-                $user = $primary;
-            }
         }
 
         return $user;

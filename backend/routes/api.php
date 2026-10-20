@@ -791,24 +791,7 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         $user->telegram = null;
         $user->telegram_chat_id = null;
         $user->notif_telegram = false;
-
-        $oldUid = $user->firebase_uid;
-        if (str_starts_with((string)$user->firebase_uid, 'tg_')) {
-            $user->firebase_uid = 'stech_u_' . $user->id . '_' . \Illuminate\Support\Str::random(10);
-            $user->save();
-
-            // Migrate all related records so orders, wallet transactions, and history remain 100% intact!
-            if (!empty($oldUid) && $oldUid !== $user->firebase_uid) {
-                try {
-                    \App\Models\Order::where('user_id', $oldUid)->update(['user_id' => $user->firebase_uid]);
-                    \App\Models\WalletTransaction::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
-                    \App\Models\UserNotification::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
-                    \App\Models\Wishlist::where('firebase_uid', $oldUid)->update(['firebase_uid' => $user->firebase_uid]);
-                } catch (\Throwable $t) {}
-            }
-        } else {
-            $user->save();
-        }
+        $user->save();
 
         // Clear cache mappings for this chat ID and mark disconnected for auto-logout in Mini App
         if (!empty($oldChatId)) {
