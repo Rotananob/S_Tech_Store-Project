@@ -335,6 +335,14 @@ export async function GET(req: NextRequest) {
       {
         width: 800,
         height: 1050,
+        headers: {
+          "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+          ...(searchParams.get("download") === "1"
+            ? {
+                "Content-Disposition": `attachment; filename="Invoice_${cleanId || "receipt"}.png"`,
+              }
+            : {}),
+        },
       }
     );
   } catch (e: any) {

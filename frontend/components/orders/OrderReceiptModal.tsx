@@ -128,6 +128,17 @@ export default function OrderReceiptModal({
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <a
+                href={`/api/invoice-image?order_id=${encodeURIComponent(receipt.orderId)}&download=1`}
+                download={`Invoice_${receipt.orderId}.png`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title="Download as JPG/PNG Image"
+              >
+                <Download size={14} />
+                <span>Save JPG</span>
+              </a>
               <button
                 type="button"
                 onClick={handlePrint}
@@ -363,14 +374,25 @@ export default function OrderReceiptModal({
               </div>
 
               {/* ── Action Buttons (No-print) ── */}
-              <div className="no-print pt-2 flex flex-col sm:flex-row items-center gap-3">
+              <div className="no-print pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                <a
+                  href={`/api/invoice-image?order_id=${encodeURIComponent(receipt.orderId)}&download=1`}
+                  download={`Invoice_${receipt.orderId}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-blue-600/20"
+                >
+                  <Download size={15} />
+                  <span>ទាញយកជារូបភាព (Save JPG)</span>
+                </a>
+
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="w-full sm:flex-1 py-3 px-4 bg-[#8B1A1A] hover:bg-[#6e1313] text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:flex-1 py-3 px-4 bg-[#8B1A1A] hover:bg-[#6e1313] text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-red-900/20"
                 >
                   <Printer size={15} />
-                  <span>បោះពុម្ពវិក្កយបត្រ (Print / Save PDF)</span>
+                  <span>បោះពុម្ព / Save PDF</span>
                 </button>
 
                 {onTrackOrder && (

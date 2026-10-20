@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { to, subject, html, from_name, reply_to, attachments } = body;
+    const { to, subject, html, from_name, from_email, reply_to, attachments } = body;
 
     const cleanTo = (to || "").trim().toLowerCase();
     if (!cleanTo || !cleanTo.includes("@")) {
@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     const smtpUser = process.env.MAIL_USERNAME || "mmokompongcham@gmail.com";
     const smtpPass = (process.env.MAIL_PASSWORD || "jvtbivueeqmrvlag").replace(/\s+/g, "");
     const fromName = from_name || "S Tech Store Cambodia";
-    const replyToEmail = reply_to || "stech.supporter@gmail.com";
+    const replyToEmail = reply_to || process.env.MAIL_REPLY_TO || "support@s-tech-store.tech";
+    const displayFromEmail = (from_email || process.env.MAIL_FROM_ADDRESS || "orders@s-tech-store.tech").trim();
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
     });
 
     const mailOptions: any = {
-      from: `"${fromName}" <${smtpUser}>`,
+      from: `"${fromName}" <${displayFromEmail}>`,
+      sender: smtpUser,
       to: cleanTo,
       replyTo: replyToEmail,
       subject: subject || "[S Tech Store] Notification",

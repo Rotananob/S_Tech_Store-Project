@@ -1070,17 +1070,18 @@ HTML;
 
             $itemsHtml = '';
             if ($order->relationLoaded('items') && $order->items->count() > 0) {
-                foreach ($order->items as $item) {
+                foreach ($order->items as $idx => $item) {
                     $prodName = htmlspecialchars($item->product->name ?? 'គ្រឿងបច្ចេកវិទ្យា S Tech');
                     $qty = (int)$item->quantity;
                     $unitPrice = number_format((float)$item->unit_price, 2);
                     $itemSubtotal = number_format((float)$item->subtotal, 2);
+                    $rowBg = ($idx % 2 === 0) ? '#ffffff' : '#f8fafc';
                     $itemsHtml .= "
-                    <tr>
-                      <td style='padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; color: #f1f5f9;'>{$prodName}</td>
-                      <td style='padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; text-align: center; color: #94a3b8;'>x{$qty}</td>
-                      <td style='padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; text-align: right; color: #94a3b8;'>\${$unitPrice}</td>
-                      <td style='padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; text-align: right; font-weight: 700; color: #ffffff;'>\${$itemSubtotal}</td>
+                    <tr style='background-color: {$rowBg};'>
+                      <td style='padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #0f172a; font-weight: 600;'>{$prodName}</td>
+                      <td style='padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: center; color: #475569; font-weight: 700;'>×{$qty}</td>
+                      <td style='padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; color: #475569; font-mono font-weight: 600;'>\${$unitPrice}</td>
+                      <td style='padding: 12px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; text-align: right; font-weight: 800; color: #0f172a;'>\${$itemSubtotal}</td>
                     </tr>";
                 }
             }
@@ -1088,20 +1089,20 @@ HTML;
             $trackingRow = '';
             if (!empty($order->tracking_number)) {
                 $trackingRow = "
-                <div class='info-row'>
-                  <span class='info-label'>កូដតាមដានបញ្ញើ (Tracking Number):</span>
-                  <span class='info-val' style='font-family: monospace; color: #a78bfa;'>{$order->tracking_number}</span>
-                </div>";
+                <tr>
+                  <td style='padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600; width: 38%; vertical-align: top;'>កូដតាមដានបញ្ញើ (Tracking):</td>
+                  <td style='padding: 6px 0; font-size: 13px; color: #7c3aed; font-weight: 800; width: 62%; text-align: right; font-family: monospace;'>{$order->tracking_number}</td>
+                </tr>";
             }
 
             $discountRow = '';
             if ((float)($order->discount_amount ?? 0) > 0) {
                 $discountVal = number_format((float)$order->discount_amount, 2);
                 $discountRow = "
-                <div class='info-row'>
-                  <span class='info-label'>បញ្ចុះតម្លៃ Promo Code:</span>
-                  <span class='info-val' style='color: #4ade80;'>-\${$discountVal}</span>
-                </div>";
+                <tr>
+                  <td style='padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600; width: 38%; vertical-align: top;'>បញ្ចុះតម្លៃ Promo Code:</td>
+                  <td style='padding: 6px 0; font-size: 13px; color: #16a34a; font-weight: 800; width: 62%; text-align: right;'>-\${$discountVal} USD</td>
+                </tr>";
             }
 
             $totalFormatted = number_format((float)$order->total_amount, 2);
@@ -1118,152 +1119,243 @@ HTML;
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
   <title>{$subject}</title>
-  <style>
-    body { font-family: 'Kantumruy Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; margin: 0; padding: 28px 12px; }
-    .card { max-width: 600px; margin: 0 auto; background: #0f131d; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.6); }
-    .header { background: linear-gradient(180deg, #181d2a 0%, #0f131d 100%); padding: 34px 24px 26px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .logo-img { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; border: 2px solid rgba(220,38,38,0.4); box-shadow: 0 10px 25px rgba(220,38,38,0.25); display: inline-block; margin-bottom: 14px; }
-    .brand-title { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: 0.5px; color: #ffffff; text-transform: uppercase; }
-    .brand-sub { margin: 5px 0 0; font-size: 12px; color: #94a3b8; }
-    .content { padding: 32px 28px; }
-    .status-badge { display: inline-block; padding: 5px 14px; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #fff; background-color: {$statusBadgeColor}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
-    .message-box { background: #141923; border-left: 3px solid #ef4444; border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 24px; }
-    .message-title { font-weight: 800; font-size: 15px; color: #f87171; margin-bottom: 6px; }
-    .message-body { font-size: 13px; line-height: 1.6; color: #cbd5e1; }
-    .order-card { background: #141923; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 22px; margin-bottom: 24px; }
-    .order-code { font-family: monospace; font-size: 20px; font-weight: 800; color: #f87171; }
-    .info-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
-    .info-label { color: #94a3b8; font-weight: 600; }
-    .info-val { font-weight: 700; color: #f8fafc; text-align: right; }
-    .items-table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 16px; }
-    .items-table th { background: #0b1120; padding: 10px 14px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; text-align: left; }
-    .total-box { background: #0b1120; border: 1px dashed rgba(239,68,68,0.5); border-radius: 12px; padding: 16px 20px; margin-top: 18px; display: flex; justify-content: space-between; align-items: center; }
-    .invoice-notice { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #93c5fd; margin-bottom: 24px; line-height: 1.5; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-    .grid-item { background: #141923; border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 14px; }
-    .grid-tag { font-size: 10px; font-weight: 700; color: #ef4444; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 4px; }
-    .grid-title { font-size: 12px; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
-    .grid-text { font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 0; }
-    .btn-row { text-align: center; margin: 26px 0 10px; }
-    .btn-primary { display: inline-block; background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); color: #ffffff !important; text-decoration: none; font-weight: 700; font-size: 13px; padding: 13px 26px; border-radius: 10px; box-shadow: 0 8px 20px rgba(220,38,38,0.3); }
-    .btn-secondary { display: inline-block; background: #1a202c; color: #cbd5e1 !important; text-decoration: none; font-weight: 600; font-size: 13px; padding: 13px 22px; border-radius: 10px; margin-left: 8px; border: 1px solid rgba(255,255,255,0.08); }
-    .footer { background: #0a0d14; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); line-height: 1.6; }
-    .footer a { color: #f87171; text-decoration: none; }
-  </style>
 </head>
-<body>
-  <div class="card">
-    <div class="header">
-      <img src="{$domain}/logo.jpg" alt="S Tech Store" class="logo-img" />
-      <h1 class="brand-title">S Tech Store Cambodia</h1>
-      <p class="brand-sub">បច្ចុប្បន្នភាពការបញ្ជាទិញ & សេវាដឹកជញ្ជូនរហ័ស • www.s-tech-store.tech</p>
-    </div>
-    <div class="content">
-      <div class="status-badge">{$statusText}</div>
-      <p style="font-size: 16px; font-weight: 700; color: #ffffff; margin-top: 0;">ជំរាបសួរលោកអ្នក <b>{$customerName}</b>,</p>
-      
-      <div class="message-box">
-        <div class="message-title">{$cleanTitle}</div>
-        <div class="message-body">{$cleanMsg}</div>
-      </div>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Koh Santepheap', 'Battambang', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; padding: 24px 12px; -webkit-font-smoothing: antialiased;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 620px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 12px 35px rgba(0,0,0,0.06);">
+    <!-- Top Signature Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #8B1A1A 0%, #a82020 60%, #6e1313 100%); padding: 34px 24px 28px; text-align: center;">
+        <img src="{$domain}/logo.jpg" alt="S Tech Store" width="68" height="68" style="width: 68px; height: 68px; border-radius: 18px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); display: inline-block; margin-bottom: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.25);" />
+        <h1 style="margin: 0; font-size: 21px; font-weight: 900; letter-spacing: 0.8px; color: #ffffff !important; text-transform: uppercase;">
+          S Tech Store Cambodia
+        </h1>
+        <p style="margin: 5px 0 0; font-size: 12px; color: #fecaca !important; font-weight: 500;">
+          បច្ចុប្បន្នភាពការបញ្ជាទិញ & សេវាដឹកជញ្ជូនរហ័ស • www.s-tech-store.tech
+        </p>
+      </td>
+    </tr>
 
-      <div class="order-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-          <span class="order-code">#{$order->order_id}</span>
-          <span style="font-size: 12px; color: #94a3b8;">វិធីសាស្ត្រ: <strong>{$paymentMethod}</strong></span>
-        </div>
+    <!-- Main Content Area -->
+    <tr>
+      <td style="padding: 28px 24px 32px;">
+        <!-- Status Pill -->
+        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 18px;">
+          <tr>
+            <td style="background-color: {$statusBadgeColor}; color: #ffffff !important; font-size: 11px; font-weight: 800; padding: 6px 16px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.8px;">
+              {$statusText}
+            </td>
+          </tr>
+        </table>
 
-        <div class="info-row">
-          <span class="info-label">អតិថិជន (Customer):</span>
-          <span class="info-val">{$customerName} ({$customerPhone})</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">អាសយដ្ឋានដឹកជញ្ជូន:</span>
-          <span class="info-val">{$shippingAddress}</span>
-        </div>
-        {$trackingRow}
-        {$discountRow}
+        <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 14px;">
+          ជំរាបសួរលោកអ្នក <span style="color: #8B1A1A;">{$customerName}</span>,
+        </h2>
 
-        <div style="margin-top: 18px;">
-          <strong style="font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px;">មុខទំនិញដែលបានកុម្ម៉ង់ (Order Items):</strong>
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>ទំនិញ</th>
-                <th style="text-align: center;">ចំនួន</th>
-                <th style="text-align: right;">តម្លៃរាយ</th>
-                <th style="text-align: right;">សរុប</th>
-              </tr>
-            </thead>
-            <tbody>
-              {$itemsHtml}
-            </tbody>
-          </table>
-        </div>
+        <!-- Alert Notification Box -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #8B1A1A; border-radius: 0 14px 14px 0; margin-bottom: 22px;">
+          <tr>
+            <td style="padding: 16px 18px;">
+              <div style="font-weight: 800; font-size: 14px; color: #8B1A1A; margin-bottom: 5px;">
+                {$cleanTitle}
+              </div>
+              <div style="font-size: 13px; line-height: 1.6; color: #334155;">
+                {$cleanMsg}
+              </div>
+            </td>
+          </tr>
+        </table>
 
-        <div class="total-box">
-          <span style="font-size: 14px; font-weight: 800; color: #cbd5e1;">សរុបទឹកប្រាក់ត្រូវទូទាត់ (Total):</span>
-          <span style="font-size: 20px; font-weight: 900; color: #f87171;">\${$totalFormatted} USD</span>
-        </div>
-      </div>
+        <!-- Order Information Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; margin-bottom: 22px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+          <tr>
+            <td style="padding: 4px 4px 14px 4px; border-bottom: 1px solid #f1f5f9;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left">
+                    <span style="font-family: monospace; font-size: 18px; font-weight: 900; color: #8B1A1A;">
+                      #{$order->order_id}
+                    </span>
+                  </td>
+                  <td align="right">
+                    <span style="font-size: 12px; color: #64748b; font-weight: 600;">
+                      វិធីសាស្ត្រទូទាត់៖ <strong style="color: #0f172a; font-weight: 800;">{$paymentMethod}</strong>
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-      <div class="invoice-notice">
-        <strong>វិក្កយបត្រផ្លូវការ (Attached Invoice File):</strong><br>
-        វិក្កយបត្រអេឡិចត្រូនិចជាផ្លូវការ (Invoice_{$order->order_id}.html) ត្រូវបានភ្ជាប់មកជាមួយអ៊ីមែលនេះ។ លោកអ្នកអាចទាញយក ឬបើកដើម្បី Print រក្សាទុកជាឯកសារយោងបានគ្រប់ពេលវេលា។
-      </div>
+          <tr>
+            <td style="padding: 14px 4px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600; width: 38%; vertical-align: top;">
+                    អតិថិជន (Customer):
+                  </td>
+                  <td style="padding: 6px 0; font-size: 13px; color: #0f172a; font-weight: 700; width: 62%; text-align: right;">
+                    {$customerName} ({$customerPhone})
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 0; font-size: 12px; color: #64748b; font-weight: 600; width: 38%; vertical-align: top;">
+                    អាសយដ្ឋានដឹកជញ្ជូន:
+                  </td>
+                  <td style="padding: 6px 0; font-size: 12px; color: #334155; font-weight: 600; width: 62%; text-align: right; line-height: 1.5;">
+                    {$shippingAddress}
+                  </td>
+                </tr>
+                {$trackingRow}
+                {$discountRow}
+              </table>
+            </td>
+          </tr>
 
-      <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">រុករកសេវាកម្មបន្ថែម</div>
-      <div class="grid">
-        <div class="grid-item">
-          <div class="grid-tag">PC Builder</div>
-          <div class="grid-title">ឧបករណ៍ផ្គុំកុំព្យូទ័រ</div>
-          <p class="grid-text">ផ្គុំម៉ាស៊ីនកុំព្យូទ័រតាមចិត្ត និងត្រួតពិនិត្យ Hardware ស៊ីគ្នា ១០០%។</p>
-        </div>
-        <div class="grid-item">
-          <div class="grid-tag">Daily Rewards</div>
-          <div class="grid-title">រង្វាន់កាក់ប្រចាំថ្ងៃ</div>
-          <p class="grid-text">ចូល Login រាល់ថ្ងៃ ទទួលបានកាក់សន្សំ Coin សម្រាប់ប្តូរជាទឹកប្រាក់។</p>
-        </div>
-        <div class="grid-item">
-          <div class="grid-tag">Fast Delivery</div>
-          <div class="grid-title">ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង</div>
-          <p class="grid-text">ទំនិញសុទ្ធ ១០០% ធានាផ្លូវការ និងវេចខ្ចប់យ៉ាងមានសុវត្ថិភាពខ្ពស់។</p>
-        </div>
-        <div class="grid-item">
-          <div class="grid-tag">Telegram Bot</div>
-          <div class="grid-title">ជំនួយការ ២៤/៧</div>
-          <p class="grid-text">ភ្ជាប់ @S_TECH_ASSISTANTBOT ទទួលដំណឹងការបញ្ជាទិញរហ័ស។</p>
-        </div>
-      </div>
+          <!-- Items Table -->
+          <tr>
+            <td style="padding-top: 10px;">
+              <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;">
+                បញ្ជីមុខទំនិញដែលបានកុម្ម៉ង់ (Order Items):
+              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; width: 100%;">
+                <thead>
+                  <tr style="background: #f8fafc;">
+                    <th style="padding: 10px 12px; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: left; border-bottom: 1px solid #e2e8f0;">ទំនិញ</th>
+                    <th style="padding: 10px 10px; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: center; border-bottom: 1px solid #e2e8f0;">ចំនួន</th>
+                    <th style="padding: 10px 12px; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: right; border-bottom: 1px solid #e2e8f0;">តម្លៃរាយ</th>
+                    <th style="padding: 10px 12px; font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; text-align: right; border-bottom: 1px solid #e2e8f0;">សរុប</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {$itemsHtml}
+                </tbody>
+              </table>
+            </td>
+          </tr>
 
-      <div class="btn-row">
-        <a href="{$domain}/orders" class="btn-primary" target="_blank">តាមដានការបញ្ជាទិញ (Track Order)</a>
-        <a href="{$domain}/products" class="btn-secondary" target="_blank">រុករកទំនិញ (Products)</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>ទូរស័ព្ទ: +855 88 993 0032 | ទីតាំង: រាជធានីភ្នំពេញ កម្ពុជា</p>
-      <p>© 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។<br>
-      គេហទំព័រផ្លូវការ: <a href="{$domain}">https://www.s-tech-store.tech</a></p>
-    </div>
-  </div>
+          <!-- Grand Total Box -->
+          <tr>
+            <td style="padding-top: 16px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #fef2f2; border: 1px dashed #f87171; border-radius: 12px; padding: 14px 18px;">
+                <tr>
+                  <td align="left" style="font-size: 14px; font-weight: 800; color: #1e293b;">
+                    សរុបទឹកប្រាក់ត្រូវទូទាត់ (Total):
+                  </td>
+                  <td align="right" style="font-size: 20px; font-weight: 900; color: #8B1A1A; font-family: monospace;">
+                    \${$totalFormatted} USD
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ── 1-CLICK INVOICE DOWNLOAD HUB (PDF & JPG IMAGE) ── -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 18px; padding: 18px 20px; margin-bottom: 24px; text-align: center;">
+          <tr>
+            <td>
+              <div style="font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">
+                🧾 វិក្កយបត្រអេឡិចត្រូនិចផ្លូវការ (Official Invoice)
+              </div>
+              <p style="font-size: 12px; color: #374151; margin: 0 0 14px; line-height: 1.5;">
+                ដើម្បីភាពងាយស្រួល លោកអ្នកអាចទាញយកវិក្កយបត្រទុកក្នុងទូរស័ព្ទជា <strong>រូបភាព JPG</strong> (រក្សាទុកក្នុង Photos) ឬ <strong>ឯកសារ PDF</strong> បានភ្លាមៗ៖
+              </p>
+              <div>
+                <a href="{$domain}/api/invoice-image?order_id={$order->order_id}&download=1" target="_blank" style="display: inline-block; background: #0284c7; color: #ffffff !important; font-weight: 800; font-size: 12px; padding: 11px 22px; border-radius: 10px; text-decoration: none; margin: 4px; box-shadow: 0 4px 12px rgba(2,132,199,0.25);">
+                  📸 ទាញយកជារូបភាព JPG
+                </a>
+                <a href="{$domain}/orders?verify={$order->order_id}&print=1" target="_blank" style="display: inline-block; background: #8B1A1A; color: #ffffff !important; font-weight: 800; font-size: 12px; padding: 11px 22px; border-radius: 10px; text-decoration: none; margin: 4px; box-shadow: 0 4px 12px rgba(139,26,26,0.25);">
+                  📄 ទាញយកជា PDF / Print
+                </a>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- 24/7 Telegram Direct Assistant Card -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #0f172a; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 24px;">
+          <tr>
+            <td>
+              <div style="display: inline-block; background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 10px; font-weight: 800; letter-spacing: 1px; padding: 3px 12px; border-radius: 999px; text-transform: uppercase; margin-bottom: 8px;">
+                TELEGRAM BOT 24/7
+              </div>
+              <div style="font-size: 14px; font-weight: 800; color: #ffffff !important; margin-bottom: 4px;">
+                💬 តាមដាន និងជជែកជាមួយ Telegram Bot ផ្លូវការ
+              </div>
+              <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px;">
+                លោកអ្នកអាចសាកសួរព័ត៌មានលម្អិត និងឆែកការដឹកជញ្ជូនទំនិញភ្លាមៗតាម Telegram។
+              </p>
+              <a href="https://t.me/S_TECH_ASSISTANTBOT" target="_blank" style="display: inline-block; background: #0088cc; color: #ffffff !important; font-weight: 800; font-size: 12px; padding: 10px 24px; border-radius: 10px; text-decoration: none;">
+                បើក Telegram Assistant Bot (@S_TECH_ASSISTANTBOT)
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Tracking Links -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="text-align: center; margin-top: 10px;">
+          <tr>
+            <td>
+              <a href="{$domain}/orders" target="_blank" style="display: inline-block; background: #8B1A1A; color: #ffffff !important; text-decoration: none; font-weight: 800; font-size: 13px; padding: 12px 26px; border-radius: 10px; margin: 4px; box-shadow: 0 4px 15px rgba(139,26,26,0.25);">
+                តាមដានការបញ្ជាទិញ (Track Order)
+              </a>
+              <a href="{$domain}/products" target="_blank" style="display: inline-block; background: #f1f5f9; color: #334155 !important; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 22px; border-radius: 10px; margin: 4px; border: 1px solid #cbd5e1;">
+                រុករកទំនិញ (Products)
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background: #f8fafc; padding: 22px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; line-height: 1.6;">
+        <p style="margin: 0 0 4px;">ទូរស័ព្ទ: +855 88 993 0032 | ទីតាំង: រាជធានីភ្នំពេញ កម្ពុជា</p>
+        <p style="margin: 0;">
+          © 2026 S Tech Store Cambodia. រក្សាសិទ្ធិគ្រប់យ៉ាង។<br>
+          គេហទំព័រផ្លូវការ: <a href="{$domain}" style="color: #8B1A1A; text-decoration: none; font-weight: 700;">https://www.s-tech-store.tech</a>
+        </p>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 HTML;
 
-            $invoiceHtml = self::generateInvoiceHtml($order);
+            // Prepare attachments: Fetch high-resolution JPG/PNG invoice image
+            $attachments = [];
+            try {
+                $imageRes = Http::timeout(6)->get("{$domain}/api/invoice-image?order_id={$order->order_id}");
+                if ($imageRes->successful() && strlen($imageRes->body()) > 500) {
+                    $attachments[] = [
+                        'name' => "Invoice_{$order->order_id}.png",
+                        'data' => $imageRes->body(),
+                        'mime' => 'image/png',
+                    ];
+                }
+            } catch (\Throwable $imgErr) {
+                Log::warning("Invoice image pre-fetch skipped: " . $imgErr->getMessage());
+            }
+
+            // Fallback: If image fetch failed, attach clean HTML invoice
+            if (empty($attachments)) {
+                $invoiceHtml = self::generateInvoiceHtml($order);
+                $attachments[] = [
+                    'name' => "Invoice_{$order->order_id}.html",
+                    'data' => $invoiceHtml,
+                    'mime' => 'text/html',
+                ];
+            }
 
             return \App\Services\EmailService::dispatchHtmlEmail($toEmail, $subject, $htmlContent, [
                 'order_id' => $order->order_id,
+                'from_name' => 'S Tech Store Cambodia',
+                'from_email' => 'orders@s-tech-store.tech',
                 'reply_to' => 'support@s-tech-store.tech',
-                'attachments' => [
-                    [
-                        'name' => "Invoice_{$order->order_id}.html",
-                        'data' => $invoiceHtml,
-                        'mime' => 'text/html',
-                    ]
-                ]
+                'attachments' => $attachments,
             ]);
         } catch (\Throwable $t) {
             Log::error("Order email preparation error: " . $t->getMessage());

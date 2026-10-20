@@ -1144,7 +1144,8 @@ HTML;
                         'subject' => $subject,
                         'html' => $html,
                         'from_name' => $fromName,
-                        'reply_to' => $options['reply_to'] ?? $displayFromEmail ?? 'stech.supporter@gmail.com',
+                        'from_email' => $displayFromEmail,
+                        'reply_to' => $options['reply_to'] ?? 'support@s-tech-store.tech',
                     ];
                     if (!empty($options['attachments']) && is_array($options['attachments'])) {
                         $payload['attachments'] = $options['attachments'];

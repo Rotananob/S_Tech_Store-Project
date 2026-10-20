@@ -18,7 +18,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   ShoppingBag, 
-  AlertCircle 
+  AlertCircle,
+  Download 
 } from "lucide-react";
 
 const getOrderStep = (status: string): number => {
