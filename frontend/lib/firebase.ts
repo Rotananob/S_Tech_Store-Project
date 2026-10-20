@@ -7,17 +7,9 @@ import { getDatabase } from "firebase/database";
 const DEFAULT_RTDB_URL = "https://fir-tech-store-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 const getAuthDomain = () => {
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host.includes("s-tech-store.tech")) {
-      return host;
-    }
-  }
   const envDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  if (envDomain && !envDomain.includes("firebaseapp.com")) {
-    return envDomain;
-  }
-  return "www.s-tech-store.tech";
+  if (envDomain) return envDomain;
+  return "fir-tech-store.firebaseapp.com";
 };
 
 const firebaseConfig = {

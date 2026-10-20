@@ -104,24 +104,42 @@ api.interceptors.request.use(
 
       // 2. Attach Firebase Auth info or Direct Magic Login session
       try {
+        let sessionUser: any = null;
+        const sessionUserStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+        if (sessionUserStr) {
+          try {
+            sessionUser = JSON.parse(sessionUserStr);
+          } catch (_) {}
+        }
+
+        const isTelegramSession = sessionUser && (
+          sessionUser.provider === "telegram" ||
+          (typeof sessionUser.firebase_uid === "string" && sessionUser.firebase_uid.startsWith("tg_")) ||
+          (typeof sessionUser.uid === "string" && sessionUser.uid.startsWith("tg_"))
+        );
+
         const auth = getAuth();
         const user = auth.currentUser;
-        if (user) {
+
+        // If active session is Telegram, prioritize Telegram session over stale Firebase user!
+        if (isTelegramSession && sessionUser) {
+          const uid = sessionUser.firebase_uid || sessionUser.uid || sessionUser.id;
+          config.headers["X-Firebase-UID"] = String(uid);
+          config.headers["X-Firebase-Email"] = sessionUser.email || "";
+          config.headers["X-Firebase-Name"] = sessionUser.display_name || sessionUser.name || "";
+          config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
+        } else if (user) {
           config.headers["X-Firebase-UID"] = user.uid;
           config.headers["X-Firebase-Email"] = user.email || "";
           config.headers["X-Firebase-Name"] = user.displayName || "";
           config.headers["X-Firebase-Photo"] = user.photoURL || "";
-        } else {
-          const sessionUserStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
-          if (sessionUserStr) {
-            const sessionUser = JSON.parse(sessionUserStr);
-            const uid = sessionUser?.firebase_uid || sessionUser?.uid || sessionUser?.id;
-            if (uid) {
-              config.headers["X-Firebase-UID"] = String(uid);
-              config.headers["X-Firebase-Email"] = sessionUser.email || "";
-              config.headers["X-Firebase-Name"] = sessionUser.display_name || sessionUser.name || "";
-              config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
-            }
+        } else if (sessionUser) {
+          const uid = sessionUser.firebase_uid || sessionUser.uid || sessionUser.id;
+          if (uid) {
+            config.headers["X-Firebase-UID"] = String(uid);
+            config.headers["X-Firebase-Email"] = sessionUser.email || "";
+            config.headers["X-Firebase-Name"] = sessionUser.display_name || sessionUser.name || "";
+            config.headers["X-Firebase-Photo"] = sessionUser.photo_url || sessionUser.avatar_url || "";
           }
         }
 

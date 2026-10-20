@@ -41,21 +41,40 @@ export default function TelegramAuthBridge() {
       localStorage.removeItem("customer_token");
       localStorage.removeItem("user_session");
       localStorage.removeItem("stech_user_session");
+      localStorage.removeItem("stech_cached_user_profile");
+      localStorage.removeItem("stech_cached_wallet");
+      localStorage.removeItem("stech_cached_orders");
+      localStorage.removeItem("stech_telegram_connected");
       document.cookie = "customer_token=; path=/; max-age=0; SameSite=Lax";
       window.dispatchEvent(new Event("user_session_updated"));
     };
 
     const applyUserSession = (rawUser: any, token?: string) => {
+      // Invalidate stale caches so switching accounts shows 100% accurate profile immediately
+      localStorage.removeItem("stech_cached_user_profile");
+      localStorage.removeItem("stech_cached_wallet");
+      localStorage.removeItem("stech_cached_orders");
+
+      const cleanTgId = rawUser.telegram_id || rawUser.telegram_chat_id || (typeof rawUser.uid === "string" && rawUser.uid.startsWith("tg_") ? rawUser.uid.replace("tg_", "") : null);
+      const resolvedUid = rawUser.firebase_uid || rawUser.uid || (cleanTgId ? `tg_${cleanTgId}` : `stech_u_${rawUser.id}`);
+
       const userObj = {
         ...rawUser,
-        firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-        uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+        firebase_uid: resolvedUid,
+        uid: resolvedUid,
         display_name: rawUser.display_name || rawUser.name || "Customer",
         provider: rawUser.provider || "telegram",
       };
       localStorage.setItem("user_session", JSON.stringify(userObj));
       localStorage.setItem("stech_user_session", JSON.stringify(userObj));
       localStorage.setItem("stech_telegram_connected", "true");
+
+      localStorage.setItem("stech_cached_user_profile", JSON.stringify({
+        ...userObj,
+        points: Number(rawUser.points || 0),
+        wallet_balance: Number(rawUser.wallet_balance || 0),
+      }));
+
       if (token) {
         localStorage.setItem("customer_token", token);
         document.cookie = `customer_token=${token}; path=/; max-age=2592000; SameSite=Lax`;

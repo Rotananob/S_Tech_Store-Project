@@ -453,7 +453,9 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     })->where('id', '!=', $user->id)
       ->update(['telegram_chat_id' => null, 'notif_telegram' => false]);
 
-    $user->display_name = $user->display_name ?: ($fullName ?: "Telegram User #{$cleanTg}");
+    if (str_starts_with((string)$user->firebase_uid, 'tg_') || empty($user->display_name)) {
+        $user->display_name = $fullName ?: "Telegram User #{$cleanTg}";
+    }
     if (empty($user->email)) {
         $user->email = $email;
     }
@@ -465,9 +467,10 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     if (empty($user->telegram)) {
         $user->telegram = $tgUsername ?: ("ID: {$cleanTg}");
     }
-    if (!empty($data['photo_url']) && empty($user->photo_url)) {
-        $user->photo_url = $data['photo_url'];
-        $user->avatar_url = $data['photo_url'];
+    $avatarUrl = !empty($data['photo_url']) ? $data['photo_url'] : \App\Services\TelegramService::getUserAvatarUrl($cleanTg);
+    if ($avatarUrl) {
+        $user->photo_url = $avatarUrl;
+        $user->avatar_url = $avatarUrl;
     }
     $user->is_active = true;
     $user->status = 'active';
@@ -498,13 +501,16 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         'user' => [
             'id' => $user->id,
             'uid' => $user->firebase_uid,
+            'firebase_uid' => $user->firebase_uid,
             'name' => $user->display_name,
             'display_name' => $user->display_name,
             'email' => $user->email,
             'telegram' => $user->telegram,
-            'telegram_id' => $tgId,
+            'telegram_id' => $cleanTg,
+            'telegram_chat_id' => $cleanTg,
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
+            'avatar_url' => $user->photo_url,
             'provider' => 'telegram',
         ]
     ]);
@@ -953,6 +959,7 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
             'phone' => $user->phone,
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
+            'avatar_url' => $user->photo_url,
             'provider' => 'telegram',
         ],
     ]);
@@ -1021,7 +1028,9 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         : ("tg_{$cleanTgId}@s-tech-store.tech");
 
     $user->telegram_chat_id = (string)$cleanTgId;
-    $user->display_name = $user->display_name ?: $fullName;
+    if (str_starts_with((string)$user->firebase_uid, 'tg_') || empty($user->display_name)) {
+        $user->display_name = $fullName ?: "Telegram User #{$cleanTgId}";
+    }
     if (empty($user->email)) $user->email = $email;
     if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
     if (!empty($tgUser['photo_url'])) {
@@ -1068,8 +1077,10 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             'phone' => $user->phone,
             'telegram' => $user->telegram,
             'telegram_id' => $cleanTgId,
+            'telegram_chat_id' => $cleanTgId,
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
+            'avatar_url' => $user->photo_url,
             'provider' => 'telegram',
         ],
     ]);

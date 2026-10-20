@@ -718,35 +718,59 @@ class TelegramService
                 ->first();
         }
 
+        // Fetch real Telegram Avatar
+        $avatarUrl = self::getUserAvatarUrl($cleanTgId);
+
         if ($user) {
-            $user->telegram_chat_id = (string)$tgId;
+            $user->telegram_chat_id = (string)$cleanTgId;
             if (empty($user->telegram)) {
-                $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+                $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+            }
+            if (str_starts_with((string)$user->firebase_uid, 'tg_') || empty($user->display_name)) {
+                $user->display_name = $fullName;
+            }
+            if ($avatarUrl) {
+                $user->photo_url = $avatarUrl;
+                $user->avatar_url = $avatarUrl;
             }
             $user->is_active = true;
             $user->status = 'active';
             $user->save();
         } else {
             $user = new \App\Models\UserProfile();
-            $user->firebase_uid = 'tg_' . $tgId;
+            $user->firebase_uid = 'tg_' . $cleanTgId;
             $user->display_name = $fullName;
             $user->email = $email;
-            $user->telegram = $tgUsername ?: ("ID: {$tgId}");
-            $user->telegram_chat_id = (string)$tgId;
+            $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+            $user->telegram_chat_id = (string)$cleanTgId;
             $user->notif_telegram = true;
             $user->is_active = true;
             $user->status = 'active';
+            if ($avatarUrl) {
+                $user->photo_url = $avatarUrl;
+                $user->avatar_url = $avatarUrl;
+            }
             $user->save();
         }
 
+        // Enforce Strict Invariant: 1 Telegram = Exactly 1 S Tech Account
+        \App\Models\UserProfile::where(function($q) use ($cleanTgId, $tgId) {
+            $q->where('telegram_chat_id', (string)$cleanTgId)
+              ->orWhere('telegram_chat_id', (string)$tgId);
+        })->where('id', '!=', $user->id)
+          ->update(['telegram_chat_id' => null, 'notif_telegram' => false]);
+
         $sessionToken = 'tg_sess_' . \Illuminate\Support\Str::random(60);
         Cache::put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
+        try {
+            Cache::store('file')->put("customer_sess_{$sessionToken}", $user->id, 30 * 24 * 60 * 60);
+        } catch (\Throwable $t) {}
 
         $phoneNumber = !empty($user->phone)
             ? $user->phone
             : (!empty($from['phone_number'])
                 ? $from['phone_number']
-                : 'ភ្ជាប់តាម Telegram ID (' . $tgId . ')');
+                : 'ភ្ជាប់តាម Telegram ID (' . $cleanTgId . ')');
 
         $user->magic_login_token = $sessionToken;
         $user->save();
@@ -762,12 +786,13 @@ class TelegramService
                 'display_name' => $user->display_name,
                 'email' => $user->email,
                 'telegram' => $user->telegram,
-                'telegram_id' => $tgId,
-                'telegram_chat_id' => $tgId,
+                'telegram_id' => (string)$cleanTgId,
+                'telegram_chat_id' => (string)$cleanTgId,
                 'phone' => $phoneNumber,
                 'points' => (int)($user->points ?? 0),
                 'photo_url' => $user->photo_url,
                 'avatar' => $user->photo_url,
+                'avatar_url' => $user->photo_url,
                 'provider' => 'telegram',
             ],
         ];
@@ -4187,16 +4212,27 @@ class TelegramService
     }
 
     /**
-     * Fetch user's genuine profile photo directly from Telegram Bot API
+     * Fetch user's genuine profile photo directly from Telegram Bot API securely.
+     * Downloads and caches locally so the Telegram Bot Token is NEVER leaked in the URL!
      */
     public static function getUserAvatarUrl(string $tgUserId, ?string $botToken = null): ?string
     {
+        $cleanTgId = preg_replace('/\D/', '', $tgUserId) ?: $tgUserId;
         $token = $botToken ?: self::getCustomerBotToken();
-        if (!$token || !$tgUserId) return null;
+        if (!$token || !$cleanTgId) return null;
+
+        $avatarDir = public_path('storage/avatars');
+        $localPath = "{$avatarDir}/tg_{$cleanTgId}.jpg";
+        $webUrl = "/storage/avatars/tg_{$cleanTgId}.jpg";
+
+        // If recently cached file exists (> 500 bytes and fresher than 7 days), serve instantly
+        if (file_exists($localPath) && filesize($localPath) > 500 && (time() - filemtime($localPath) < 7 * 86400)) {
+            return $webUrl;
+        }
 
         try {
-            $resp = \Illuminate\Support\Facades\Http::connectTimeout(1.0)->timeout(1.5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
-                'user_id' => $tgUserId,
+            $resp = \Illuminate\Support\Facades\Http::connectTimeout(1.5)->timeout(2.5)->get("https://api.telegram.org/bot{$token}/getUserProfilePhotos", [
+                'user_id' => $cleanTgId,
                 'limit' => 1,
             ]);
 
@@ -4209,13 +4245,21 @@ class TelegramService
                     $fileId = $bestPhoto['file_id'] ?? null;
 
                     if ($fileId) {
-                        $fileRes = \Illuminate\Support\Facades\Http::connectTimeout(1.0)->timeout(1.5)->get("https://api.telegram.org/bot{$token}/getFile", [
+                        $fileRes = \Illuminate\Support\Facades\Http::connectTimeout(1.5)->timeout(2.5)->get("https://api.telegram.org/bot{$token}/getFile", [
                             'file_id' => $fileId,
                         ]);
                         if ($fileRes->successful()) {
                             $filePath = $fileRes->json()['result']['file_path'] ?? null;
                             if ($filePath) {
-                                return "https://api.telegram.org/file/bot{$token}/{$filePath}";
+                                // SECURE DOWNLOAD: Download bytes and save locally so BOT TOKEN NEVER LEAKS!
+                                $imgResp = \Illuminate\Support\Facades\Http::connectTimeout(2.0)->timeout(4.0)->get("https://api.telegram.org/file/bot{$token}/{$filePath}");
+                                if ($imgResp->successful() && strlen($imgResp->body()) > 500) {
+                                    if (!is_dir($avatarDir)) {
+                                        @mkdir($avatarDir, 0755, true);
+                                    }
+                                    @file_put_contents($localPath, $imgResp->body());
+                                    return $webUrl;
+                                }
                             }
                         }
                     }
@@ -4223,6 +4267,10 @@ class TelegramService
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Telegram getUserAvatarUrl error: " . $e->getMessage());
+        }
+
+        if (file_exists($localPath) && filesize($localPath) > 500) {
+            return $webUrl;
         }
 
         return null;

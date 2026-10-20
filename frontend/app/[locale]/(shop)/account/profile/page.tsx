@@ -801,35 +801,52 @@ export default function UserProfilePage() {
       if (sessionStr) {
         try {
           const sUser = JSON.parse(sessionStr);
-          const uid = sUser?.firebase_uid || sUser?.uid || (sUser?.id ? `tg_${sUser.id}` : null);
+          const cleanTgId = sUser?.telegram_id || sUser?.telegram_chat_id || (typeof sUser?.uid === "string" && sUser.uid.startsWith("tg_") ? sUser.uid.replace("tg_", "") : null);
+          const uid = sUser?.firebase_uid || sUser?.uid || (cleanTgId ? `tg_${cleanTgId}` : (sUser?.id ? `stech_u_${sUser.id}` : null));
           if (uid) {
             const pseudoUser = {
               uid: uid,
               displayName: sUser.display_name || sUser.name || "S Tech Member",
               email: sUser.email,
-              photoURL: sUser.photo_url || sUser.avatar,
+              photoURL: sUser.photo_url || sUser.avatar_url || sUser.avatar,
             } as any;
             setUser(pseudoUser);
-            if (sUser.photo_url || sUser.avatar) {
-              setAvatarPreview(sUser.photo_url || sUser.avatar);
+            if (sUser.photo_url || sUser.avatar_url || sUser.avatar) {
+              setAvatarPreview(sUser.photo_url || sUser.avatar_url || sUser.avatar);
             }
 
             try {
               const cached = localStorage.getItem("stech_cached_user_profile");
               if (cached) {
                 const p = JSON.parse(cached);
-                setProfile((prev) => ({
-                  ...prev,
-                  ...p,
-                  firebase_uid: uid,
-                  provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : p.provider || prev.provider),
-                  display_name: sUser.display_name || sUser.name || p.display_name || prev.display_name || "S Tech Member",
-                  email: sUser.email || p.email || prev.email,
-                  phone: sUser.phone || p.phone || prev.phone,
-                  photo_url: sUser.photo_url || sUser.avatar || p.photo_url || prev.photo_url,
-                  telegram: sUser.telegram || p.telegram || prev.telegram,
-                  telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || p.telegram_chat_id || prev.telegram_chat_id,
-                }));
+                const cachedUid = p?.firebase_uid || p?.uid;
+                if (!cachedUid || cachedUid === uid) {
+                  setProfile((prev) => ({
+                    ...prev,
+                    ...p,
+                    firebase_uid: uid,
+                    provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : p.provider || prev.provider),
+                    display_name: sUser.display_name || sUser.name || p.display_name || prev.display_name || "S Tech Member",
+                    email: sUser.email || p.email || prev.email,
+                    phone: sUser.phone || p.phone || prev.phone,
+                    photo_url: sUser.photo_url || sUser.avatar_url || sUser.avatar || p.photo_url || prev.photo_url,
+                    telegram: sUser.telegram || p.telegram || prev.telegram,
+                    telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || p.telegram_chat_id || prev.telegram_chat_id,
+                  }));
+                } else {
+                  localStorage.removeItem("stech_cached_user_profile");
+                  setProfile((prev) => ({
+                    ...prev,
+                    firebase_uid: uid,
+                    provider: sUser.provider || (uid.startsWith("tg_") ? "telegram" : prev.provider),
+                    display_name: sUser.display_name || sUser.name || "S Tech Member",
+                    email: sUser.email || "",
+                    phone: sUser.phone || "",
+                    photo_url: sUser.photo_url || sUser.avatar_url || sUser.avatar,
+                    telegram: sUser.telegram || "",
+                    telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id,
+                  }));
+                }
                 setProfileLoading(false);
               } else {
                 setProfile((prev) => ({
@@ -839,7 +856,7 @@ export default function UserProfilePage() {
                   display_name: sUser.display_name || sUser.name || prev.display_name || "S Tech Member",
                   email: sUser.email || prev.email,
                   phone: sUser.phone || prev.phone,
-                  photo_url: sUser.photo_url || sUser.avatar || prev.photo_url,
+                  photo_url: sUser.photo_url || sUser.avatar_url || sUser.avatar || prev.photo_url,
                   telegram: sUser.telegram || prev.telegram,
                   telegram_chat_id: sUser.telegram_chat_id || sUser.telegram_id || prev.telegram_chat_id,
                 }));
@@ -857,6 +874,23 @@ export default function UserProfilePage() {
     };
 
     const unsub = onAuthStateChanged(auth, (u) => {
+      // Check if active local session is Telegram
+      const sessionStr = typeof window !== "undefined"
+        ? (localStorage.getItem("stech_user_session") || localStorage.getItem("user_session"))
+        : null;
+      let activeLocalUser: any = null;
+      try { if (sessionStr) activeLocalUser = JSON.parse(sessionStr); } catch (_) {}
+      const isTelegramActive = activeLocalUser && (
+        activeLocalUser.provider === "telegram" ||
+        (typeof activeLocalUser.firebase_uid === "string" && activeLocalUser.firebase_uid.startsWith("tg_")) ||
+        (typeof activeLocalUser.uid === "string" && activeLocalUser.uid.startsWith("tg_"))
+      );
+
+      // If active session is Telegram, DO NOT let Firebase Google account overwrite it!
+      if (isTelegramActive) {
+        return;
+      }
+
       if (u) {
         setUser(u);
         try {

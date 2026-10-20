@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "@/i18n/routing";
 import { useRouter } from "@/i18n/routing";
 import { useSearchParams } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useNotificationStore } from "@/store/notificationStore";
 import { toHumanKhmerError } from "@/lib/error-translator";
@@ -153,19 +153,30 @@ export default function RegisterPage() {
         .then((res) => {
           if (res.data?.success && res.data?.user) {
             const rawUser = res.data.user;
+            const cleanTgId = rawUser.telegram_id || rawUser.telegram_chat_id || (typeof rawUser.uid === "string" && rawUser.uid.startsWith("tg_") ? rawUser.uid.replace("tg_", "") : null);
+            const resolvedUid = rawUser.firebase_uid || rawUser.uid || (cleanTgId ? `tg_${cleanTgId}` : `stech_u_${rawUser.id}`);
             const userObj = {
               ...rawUser,
-              firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-              uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+              firebase_uid: resolvedUid,
+              uid: resolvedUid,
               display_name: rawUser.display_name || rawUser.name,
               provider: "telegram",
             };
+            localStorage.removeItem("stech_cached_user_profile");
+            localStorage.removeItem("stech_cached_wallet");
+            localStorage.removeItem("stech_cached_orders");
             localStorage.setItem("user_session", JSON.stringify(userObj));
             localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+            localStorage.setItem("stech_cached_user_profile", JSON.stringify({
+              ...userObj,
+              points: Number(rawUser.points || 0),
+              wallet_balance: Number(rawUser.wallet_balance || 0),
+            }));
             localStorage.setItem("customer_token", res.data.token);
             document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
             localStorage.removeItem("stech_pending_tg_handshake");
             sessionStorage.removeItem("stech_pending_tg_handshake");
+            signOut(auth).catch(() => {});
             window.dispatchEvent(new Event("user_session_updated"));
 
             setAuthOverlay({
@@ -461,17 +472,28 @@ export default function RegisterPage() {
       if (res.data?.success && res.data?.user) {
         // Persist genuine customer session
         const rawUser = res.data.user;
+        const cleanTgId = rawUser.telegram_id || rawUser.telegram_chat_id || (typeof rawUser.uid === "string" && rawUser.uid.startsWith("tg_") ? rawUser.uid.replace("tg_", "") : null);
+        const resolvedUid = rawUser.firebase_uid || rawUser.uid || (cleanTgId ? `tg_${cleanTgId}` : `stech_u_${rawUser.id}`);
         const userObj = {
           ...rawUser,
-          firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-          uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+          firebase_uid: resolvedUid,
+          uid: resolvedUid,
           display_name: rawUser.display_name || rawUser.name,
           provider: "telegram",
         };
+        localStorage.removeItem("stech_cached_user_profile");
+        localStorage.removeItem("stech_cached_wallet");
+        localStorage.removeItem("stech_cached_orders");
         localStorage.setItem("user_session", JSON.stringify(userObj));
         localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+        localStorage.setItem("stech_cached_user_profile", JSON.stringify({
+          ...userObj,
+          points: Number(rawUser.points || 0),
+          wallet_balance: Number(rawUser.wallet_balance || 0),
+        }));
         localStorage.setItem("customer_token", res.data.token);
         document.cookie = `customer_token=${res.data.token}; path=/; max-age=2592000; SameSite=Lax`;
+        signOut(auth).catch(() => {});
         window.dispatchEvent(new Event("user_session_updated"));
 
         setAuthOverlay({
@@ -539,19 +561,30 @@ export default function RegisterPage() {
           stopTelegramPolling();
 
           const rawUser = checkRes.data.user;
+          const cleanTgId = rawUser.telegram_id || rawUser.telegram_chat_id || (typeof rawUser.uid === "string" && rawUser.uid.startsWith("tg_") ? rawUser.uid.replace("tg_", "") : null);
+          const resolvedUid = rawUser.firebase_uid || rawUser.uid || (cleanTgId ? `tg_${cleanTgId}` : `stech_u_${rawUser.id}`);
           const userObj = {
             ...rawUser,
-            firebase_uid: rawUser.firebase_uid || rawUser.uid || `tg_${rawUser.id || rawUser.telegram_id}`,
-            uid: rawUser.uid || rawUser.firebase_uid || `tg_${rawUser.id || rawUser.telegram_id}`,
+            firebase_uid: resolvedUid,
+            uid: resolvedUid,
             display_name: rawUser.display_name || rawUser.name,
             provider: "telegram",
           };
+          localStorage.removeItem("stech_cached_user_profile");
+          localStorage.removeItem("stech_cached_wallet");
+          localStorage.removeItem("stech_cached_orders");
           localStorage.setItem("user_session", JSON.stringify(userObj));
           localStorage.setItem("stech_user_session", JSON.stringify(userObj));
+          localStorage.setItem("stech_cached_user_profile", JSON.stringify({
+            ...userObj,
+            points: Number(rawUser.points || 0),
+            wallet_balance: Number(rawUser.wallet_balance || 0),
+          }));
           localStorage.setItem("customer_token", checkRes.data.token);
           document.cookie = `customer_token=${checkRes.data.token}; path=/; max-age=2592000; SameSite=Lax`;
           localStorage.removeItem("stech_pending_tg_handshake");
           sessionStorage.removeItem("stech_pending_tg_handshake");
+          signOut(auth).catch(() => {});
           window.dispatchEvent(new Event("user_session_updated"));
 
           setAuthOverlay({
