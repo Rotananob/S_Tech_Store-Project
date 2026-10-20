@@ -518,6 +518,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [isSendingAgentReq, setIsSendingAgentReq] = useState(false);
   const [agentReqSent, setAgentReqSent] = useState(false);
   const [hasNotifiedTelegram, setHasNotifiedTelegram] = useState(false);
+  const lastTelegramAlertRef = useRef<number>(0);
 
   const [agentForm, setAgentForm] = useState({
     name: "",
@@ -751,7 +752,13 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
       if (stored) localUser = JSON.parse(stored);
     } catch {}
 
-    let initialDetectedName = localUser?.name || localUser?.username || localUser?.full_name || (localUser?.email ? localUser.email.split("@")[0] : "") || "អតិថិជន";
+    const tgUser = typeof window !== "undefined" ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
+    let initialDetectedName = "";
+    if (tgUser) {
+      initialDetectedName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ").trim() || (tgUser.username ? `@${tgUser.username}` : "Telegram User");
+    } else {
+      initialDetectedName = localUser?.name || localUser?.username || localUser?.full_name || (localUser?.email ? localUser.email.split("@")[0] : "") || "អតិថិជន";
+    }
     if (initialDetectedName && initialDetectedName !== "អតិថិជន") {
       setUserName(initialDetectedName);
       setAgentForm((prev) => ({
@@ -766,7 +773,7 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       setAuthLoading(false);
-      const isAuthed = Boolean(user || checkUserLoggedIn());
+      const isAuthed = Boolean(user || checkUserLoggedIn() || tgUser);
       setIsLoggedIn(isAuthed);
 
       let detectedName = initialDetectedName;
@@ -1115,10 +1122,12 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   // ─── Notify Telegram about active chat (throttled) ────────────────────────
   const triggerTelegramAlert = useCallback(
     async (firstMessageText: string) => {
-      if (hasNotifiedTelegram) return;
+      const now = Date.now();
+      if (now - lastTelegramAlertRef.current < 150000) return;
+      lastTelegramAlertRef.current = now;
       try {
         await api.post("/chat/request-agent", {
-          chat_id: chatId || undefined,
+          chat_id: chatId || getActiveCustomerChatId(),
           name: agentForm.name || userName || "Website Customer",
           email: agentForm.email || currentUser?.email || "N/A",
           phone: agentForm.phone || "N/A",

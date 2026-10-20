@@ -10,7 +10,7 @@ import { useVisualSearchStore } from '@/store/visualSearchStore';
 import { useChatStore } from '@/store/chatStore';
 import ChatBot from '@/components/ui/ChatBot';
 import FloatingLiveChatButton from '@/components/ui/FloatingLiveChatButton';
-import { getOrCreateVisitorId, subscribeToChatMeta, markChatReadByUser } from '@/lib/services/chat.service';
+import { getOrCreateVisitorId, getActiveCustomerChatId, subscribeToChatMeta, markChatReadByUser } from '@/lib/services/chat.service';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BottomNav() {
@@ -70,7 +70,7 @@ export default function BottomNav() {
   // Subscribe to real-time unread messages for customer
   useEffect(() => {
     try {
-      const visitorId = getOrCreateVisitorId();
+      const visitorId = getActiveCustomerChatId();
       const unsub = subscribeToChatMeta(visitorId, (meta) => {
         if (meta && typeof meta.unreadUserCount === "number") {
           setUnreadChatCount(meta.unreadUserCount);
@@ -251,7 +251,7 @@ export default function BottomNav() {
                 type="button"
                 onClick={() => {
                   try {
-                    const visitorId = getOrCreateVisitorId();
+                    const visitorId = getActiveCustomerChatId();
                     markChatReadByUser(visitorId).catch(() => {});
                   } catch (e) {}
                   setUnreadChatCount(0);

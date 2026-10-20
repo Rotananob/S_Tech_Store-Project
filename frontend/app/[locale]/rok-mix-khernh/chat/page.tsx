@@ -1,772 +1,646 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import api from "@/lib/api";
+import { Link } from "@/i18n/routing";
 import { 
   MessageSquare, 
-  Search, 
   Send, 
   User, 
+  Search, 
+  Check, 
+  CheckCheck, 
   Clock, 
-  ShieldCheck, 
   Phone, 
   Mail, 
-  CheckCheck, 
+  ShieldAlert, 
   Sparkles, 
+  Bot, 
+  UserCheck, 
+  RefreshCw, 
   ExternalLink, 
-  RefreshCw,
-  ShoppingBag,
-  Bell,
-  Zap,
-  Archive,
-  ArchiveRestore,
-  Trash2,
-  CheckCircle2,
-  RotateCcw,
+  Image as ImageIcon, 
+  X, 
+  ChevronLeft, 
+  ArrowLeft,
+  Volume2, 
+  VolumeX, 
+  CheckCircle2, 
+  AlertCircle,
   Copy,
-  Check,
-  AlertTriangle,
-  X,
-  Tag,
-  Inbox,
-  ChevronLeft,
-  Bot
+  Trash2,
+  Archive,
+  Zap,
+  MoreVertical,
+  Paperclip,
+  Radio,
+  Eye,
+  SlidersHorizontal
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import api from "@/lib/api";
 import { 
   subscribeToAllChats, 
   subscribeToMessages, 
   sendChatMessage, 
-  markChatReadByAdmin,
-  setChatAiStatus,
-  subscribeToChatMeta,
+  setChatAiStatus, 
+  setChatTicketStatus, 
+  archiveChatSession, 
+  deleteChatSession, 
+  markChatReadByAdmin, 
   notifyCustomerOfAdminReply,
-  setChatTicketStatus,
-  archiveChatSession,
-  deleteChatSession,
-  ChatSession, 
-  ChatMessage 
+  ChatMessage, 
+  ChatSession 
 } from "@/lib/services/chat.service";
 
-const QUICK_REPLIES = [
-  "សួស្តីបាទ! តើ S Tech Store អាចជួយអ្វីបានដែរ?",
-  "ទំនិញនេះមានក្នុងស្តុកស្រាប់ អាចកម្ម៉ង់បានភ្លាមៗបាទ!",
-  "យើងមានសេវាដឹកជញ្ជូនរហ័ស ២៥ ខេត្ត-ក្រុងបាទ!",
-  "តម្លៃនេះមានការធានាផ្លូវការជូនត្រឹមត្រូវបាទ!",
-  "សូមជួយផ្ញើលេខទូរស័ព្ទ និងទីតាំងដឹកជញ្ជូនមកបាទ!",
+// Khmer quick response presets for instant 1-click staff answers
+const QUICK_RESPONSES = [
+  "👋 សួស្តីបង! តើខ្ញុំអាចជួយអ្វីបងបានដែរ?",
+  "📦 ទំនិញនេះមានក្នុងស្តុកស្រាប់បង អាចកម្ម៉ង់បានភ្លាមៗបាទ!",
+  "🚚 សេវាដឹកភ្នំពេញ $2.00 (ក្រោម ២ ម៉ោងដល់ដៃ) | ខេត្ត $3.00 (១-២ ថ្ងៃ)",
+  "🛡️ ទំនិញ Brand New មានការធានាផ្លូវការ ១ ឆ្នាំពេញពីក្រុមហ៊ុនបង!",
+  "💻 បងចង់បាន PC សម្រាប់ Gaming, Graphic Design ឬ Office ដែរ?",
+  "📞 លេខទូរស័ព្ទ Hotline ហាង: 012 345 678 / 098 765 432",
+  "🙏 អរគុណច្រើនបងសម្រាប់ការទាក់ទងមកកាន់ S Tech Store!",
 ];
 
-export default function AdminRealtimeChatPage() {
+export default function AdminLiveChatPage() {
   const searchParams = useSearchParams();
-  const [chats, setChats] = useState<ChatSession[]>([]);
+  const directToken = searchParams.get("token") || searchParams.get("bypass_token");
+  const queryChatId = searchParams.get("chat_id") || searchParams.get("session_id");
+
+  // Authentication State
+  const [currentAdmin, setCurrentAdmin] = useState<{
+    id?: number;
+    name?: string;
+    email?: string;
+    role?: string;
+  } | null>(null);
+  const [tokenVerified, setTokenVerified] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Chat Data State
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  // Filter & Search State
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "unread" | "takeover" | "resolved">("all");
+
+  // Message Composition State
   const [replyInput, setReplyInput] = useState("");
-  const [filter, setFilter] = useState<"active" | "unread" | "resolved" | "all" | "archived">("active");
-  const [sending, setSending] = useState(false);
-  const [togglingAi, setTogglingAi] = useState(false);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [activeChatMeta, setActiveChatMeta] = useState<{ ai_paused?: boolean; paused_by?: string; status?: string } | null>(null);
-  const [bypassNotice, setBypassNotice] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" | "info" } | null>(null);
-  const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false);
-  const [loadingChats, setLoadingChats] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [audioAlerts, setAudioAlerts] = useState(true);
 
-  // Auto-detect Telegram Mini App environment
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      try {
-        tg.ready();
-        tg.expand();
-        setIsTelegramMiniApp(true);
-      } catch (e) {}
-    }
-  }, []);
-
-  const showToast = (msg: string, type: "success" | "error" | "info" = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const [currentStaff, setCurrentStaff] = useState<{ name: string; role: string }>({
-    name: "S Tech Support",
-    role: "staff",
-  });
+  // Mobile / Telegram WebApp view toggle
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [copiedId, setCopiedId] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "info" | "error" } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevMessagesCountRef = useRef<number>(0);
 
-  // Check for Direct 1-Click Access Token from Telegram
+  const showToast = (msg: string, type: "success" | "info" | "error" = "info") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // Play subtle incoming message chime (Web Audio API synthesis)
+  const playChime = useCallback(() => {
+    if (!audioAlerts || typeof window === "undefined") return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime); // E5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.18, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch {}
+  }, [audioAlerts]);
+
+  // ─── 1. Telegram WebApp & 1-Click Bypass Auth Verification ─────────────────
   useEffect(() => {
-    const directToken = searchParams?.get("token") || searchParams?.get("bypass_token");
-    const targetChatId = searchParams?.get("chat_id");
+    // Detect and expand Telegram Mini App window
+    if (typeof window !== "undefined") {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg) {
+        try {
+          tg.ready();
+          tg.expand();
+          if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
+        } catch {}
+      }
+    }
 
+    // Auto verify 1-Click bypass token from Telegram notification button
     if (directToken) {
-      api.post("/admin/verify-bypass-token", { bypass_token: directToken, token: directToken })
+      api.post("/admin/verify-bypass-token", { token: directToken })
         .then((res) => {
           if (res.data?.success) {
-            const data = res.data;
-            const authToken = data.token || data.admin_token;
-            if (authToken) {
-              localStorage.setItem("stech_admin_token", authToken);
-              localStorage.setItem("token", authToken);
-              localStorage.setItem("stech_admin_user", JSON.stringify(data.admin_user));
-              document.cookie = `stech_admin_token=${authToken}; path=/; max-age=86400`;
-              api.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
-              window.dispatchEvent(new Event("stech_admin_auth_updated"));
+            const apiToken = res.data.token || res.data.admin_token;
+            const user = res.data.admin_user;
+            if (apiToken) {
+              localStorage.setItem("stech_admin_token", apiToken);
+              sessionStorage.setItem("stech_admin_token", apiToken);
+              document.cookie = `stech_admin_token=${encodeURIComponent(apiToken)}; path=/; max-age=604800; SameSite=Lax`;
             }
-            if (data.admin_user) {
-              setCurrentStaff({
-                name: data.admin_user.name,
-                role: data.admin_user.role,
-              });
+            if (user) {
+              localStorage.setItem("stech_admin_user", JSON.stringify(user));
+              sessionStorage.setItem("stech_admin_user", JSON.stringify(user));
+              setCurrentAdmin(user);
             }
-            if (targetChatId || data.chat_id) {
-              setSelectedChatId(targetChatId || data.chat_id);
-            }
-            setBypassNotice(`បានចូលបន្ទប់ឆាតដោយជោគជ័យតាមរយៈ 1-Click Direct Token (សល់ ${data.uses_remaining} ដង)`);
-            setTimeout(() => setBypassNotice(null), 8000);
+            window.dispatchEvent(new Event("stech_admin_auth_updated"));
+            setTokenVerified(true);
+            showToast("⚡ បានផ្ទៀងផ្ទាត់សិទ្ធិបុគ្គលិកដោយជោគជ័យ (1-Click Auto-Login)!", "success");
 
-            // Clean query param so refreshing won't re-consume token
-            try {
-              const url = new URL(window.location.href);
-              url.searchParams.delete("token");
-              url.searchParams.delete("bypass_token");
-              window.history.replaceState({}, document.title, url.toString());
-            } catch (e) {}
+            if (res.data?.chat_id) {
+              setSelectedChatId(res.data.chat_id);
+              setMobileView("chat");
+            }
           }
         })
         .catch((err) => {
-          // If already logged in as Admin or Staff, do NOT display an intrusive error banner
-          const hasExistingAdminSession = Boolean(
-            localStorage.getItem("stech_admin_token") || 
-            localStorage.getItem("stech_admin_user")
-          );
-          if (!hasExistingAdminSession) {
-            const errMsg = err.response?.data?.error || "តំណភ្ជាប់ Token មិនត្រឹមត្រូវ ឬផុតកំណត់";
-            setBypassNotice(errMsg);
-            setTimeout(() => setBypassNotice(null), 8000);
-          }
-          // Clean invalid token from URL
-          try {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("token");
-            url.searchParams.delete("bypass_token");
-            window.history.replaceState({}, document.title, url.toString());
-          } catch (e) {}
+          console.warn("Bypass token error:", err.response?.data?.error || err.message);
+          setAuthError(err.response?.data?.error || "Token has expired or was invalid.");
         });
+    } else {
+      // Check existing local admin session
+      try {
+        const u = localStorage.getItem("stech_admin_user") || sessionStorage.getItem("stech_admin_user");
+        if (u) setCurrentAdmin(JSON.parse(u));
+      } catch {}
     }
-  }, [searchParams]);
 
-  // Fetch logged in admin / staff info
-  useEffect(() => {
-    try {
-      const userStr = localStorage.getItem("stech_admin_user");
-      if (userStr) {
-        const u = JSON.parse(userStr);
-        setCurrentStaff({
-          name: u.name || "S Tech Staff",
-          role: u.role || "staff",
-        });
-      }
-    } catch (e) {}
-  }, []);
+    if (queryChatId) {
+      setSelectedChatId(queryChatId);
+      setMobileView("chat");
+    }
+  }, [directToken, queryChatId]);
 
-  // Subscribe to all chats in real-time
+  // ─── 2. Subscribe to All Chat Sessions in Real-Time ────────────────────────
   useEffect(() => {
-    const unsub = subscribeToAllChats((incomingChats) => {
-      setChats(incomingChats);
-      // Auto select first chat on desktop only (keep list view default on phones)
-      const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024;
-      if (!selectedChatId && incomingChats.length > 0 && isDesktop) {
-        const firstActive = incomingChats.find(c => !c.is_archived) || incomingChats[0];
-        setSelectedChatId(firstActive.id);
+    const unsub = subscribeToAllChats((allSessions) => {
+      setSessions(allSessions);
+
+      // Auto select the first chat if none selected yet on desktop
+      if (!selectedChatId && allSessions.length > 0 && typeof window !== "undefined" && window.innerWidth >= 1024) {
+        setSelectedChatId(allSessions[0].id);
       }
     });
 
     return () => unsub();
   }, [selectedChatId]);
 
-  const handleRefreshChats = () => {
-    setLoadingChats(true);
-    const unsub = subscribeToAllChats((incomingChats) => {
-      setChats(incomingChats);
-      setLoadingChats(false);
-      showToast(`បានទាញយកទិន្នន័យឆាតជោគជ័យ (សរុប ${incomingChats.length} បន្ទប់សន្ទនា)`);
-    });
-    setTimeout(() => setLoadingChats(false), 2000);
-  };
-
-  // Subscribe to active chat messages in real-time
+  // ─── 3. Subscribe to Real-Time Messages for Active Conversation ───────────
   useEffect(() => {
     if (!selectedChatId) {
       setMessages([]);
       return;
     }
 
-    // Mark as read by admin
+    setLoadingMessages(true);
+    // Mark as read immediately when admin opens chat
     markChatReadByAdmin(selectedChatId).catch(() => {});
 
-    const unsub = subscribeToMessages(selectedChatId, (incomingMsgs) => {
-      setMessages(incomingMsgs);
+    const unsub = subscribeToMessages(selectedChatId, (msgs) => {
+      setLoadingMessages(false);
+      setMessages(msgs);
+
+      // Play audio chime if a new user message arrives while admin is on page
+      if (msgs.length > prevMessagesCountRef.current && prevMessagesCountRef.current > 0) {
+        const latest = msgs[msgs.length - 1];
+        if (latest && latest.sender === "user") {
+          playChime();
+        }
+      }
+      prevMessagesCountRef.current = msgs.length;
     });
 
-    const unsubMeta = subscribeToChatMeta(selectedChatId, (meta) => {
-      setActiveChatMeta(meta);
-    });
+    return () => unsub();
+  }, [selectedChatId, playChime]);
 
-    return () => {
-      unsub();
-      unsubMeta();
-    };
-  }, [selectedChatId]);
-
-  // Auto scroll to latest message
+  // Auto scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const activeChat = chats.find((c) => c.id === selectedChatId) || null;
-
-  // Handle Staff Take Over Chat (Pause AI)
-  const handleTakeoverChat = async () => {
-    if (!selectedChatId || togglingAi) return;
-    setTogglingAi(true);
-    showToast("កំពុងផ្អាក AI Bot...", "info");
-    try {
-      await setChatAiStatus(selectedChatId, true, currentStaff.name);
-      showToast("បានផ្អាក AI Bot ជោគជ័យ! អ្នកអាចជជែកផ្ទាល់ជាមួយអតិថិជន", "success");
-    } catch (err) {
-      console.error("Failed to pause AI:", err);
-      showToast("មិនអាចផ្អាក AI បានទេ", "error");
-    } finally {
-      setTogglingAi(false);
-    }
-  };
-
-  // Handle Staff Leave Chat (Resume AI)
-  const handleResumeAi = async () => {
-    if (!selectedChatId || togglingAi) return;
-    setTogglingAi(true);
-    showToast("កំពុងបើកដំណើរការ AI Bot ឡើងវិញ...", "info");
-    try {
-      await setChatAiStatus(selectedChatId, false, currentStaff.name);
-      showToast("បានបើកដំណើរការ AI Bot ឡើងវិញជោគជ័យ", "success");
-    } catch (err) {
-      console.error("Failed to resume AI:", err);
-      showToast("មិនអាចបើកដំណើរការ AI ឡើងវិញបានទេ", "error");
-    } finally {
-      setTogglingAi(false);
-    }
-  };
-
-  // Resolve Ticket
-  const handleResolveTicket = async () => {
-    if (!selectedChatId || isUpdatingStatus) return;
-    setIsUpdatingStatus(true);
-    try {
-      await setChatTicketStatus(selectedChatId, "resolved", currentStaff.name);
-      showToast("Ticket ការសន្ទនាត្រូវបានបញ្ចប់ជោគជ័យ!", "success");
-    } catch (err) {
-      showToast("មិនអាចបញ្ចប់ Ticket បានទេ", "error");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  // Reopen Ticket
-  const handleReopenTicket = async () => {
-    if (!selectedChatId || isUpdatingStatus) return;
-    setIsUpdatingStatus(true);
-    try {
-      await setChatTicketStatus(selectedChatId, "in_progress", currentStaff.name);
-      showToast("Ticket ត្រូវបានបើកដំណើរការឡើងវិញ", "success");
-    } catch (err) {
-      showToast("មិនអាចបើក Ticket បានទេ", "error");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  // Archive / Unarchive
-  const handleToggleArchive = async () => {
-    if (!selectedChatId || !activeChat) return;
-    const nextState = !activeChat.is_archived;
-    try {
-      await archiveChatSession(selectedChatId, nextState);
-      showToast(nextState ? "បានដាក់ក្នុងបណ្ណសារ (Archived)" : "បានដកចេញពីបណ្ណសារ (Unarchived)", "info");
-    } catch {
-      showToast("មិនអាចផ្លាស់ប្តូរបណ្ណសារបានទេ", "error");
-    }
-  };
-
-  // Delete Chat Session
-  const handleDeleteChat = async () => {
-    if (!selectedChatId || isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await deleteChatSession(selectedChatId);
-      showToast("បានលុបការសន្ទនាចេញពីប្រព័ន្ធដោយជោគជ័យ", "success");
-      setDeleteConfirmOpen(false);
-      const remaining = chats.filter((c) => c.id !== selectedChatId);
-      setSelectedChatId(remaining.length > 0 ? remaining[0].id : null);
-    } catch (err) {
-      showToast("បរាជ័យក្នុងការលុបការសន្ទនា", "error");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleCopy = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    showToast(`បានចម្លង ${field}`, "info");
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  // Metrics for tabs
-  const activeCount = chats.filter((c) => !c.is_archived && c.status !== "resolved").length;
-  const resolvedCount = chats.filter((c) => !c.is_archived && c.status === "resolved").length;
-  const unreadCount = chats.filter((c) => !c.is_archived && c.unreadAdminCount > 0).length;
-  const archivedCount = chats.filter((c) => !!c.is_archived).length;
-  const allNonArchivedCount = chats.filter((c) => !c.is_archived).length;
-
-  const filteredChats = chats.filter((c) => {
-    const matchSearch =
-      c.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.userEmail && c.userEmail.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (c.userPhone && c.userPhone.includes(searchQuery)) ||
-      c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchSearch) return false;
-
-    if (filter === "active") {
-      return !c.is_archived && c.status !== "resolved";
-    }
-    if (filter === "resolved") {
-      return !c.is_archived && c.status === "resolved";
-    }
-    if (filter === "unread") {
-      return !c.is_archived && c.unreadAdminCount > 0;
-    }
-    if (filter === "archived") {
-      return !!c.is_archived;
-    }
-    // "all" tab shows all non-archived
-    return !c.is_archived;
-  });
-
-  const handleSendMessage = async (customText?: string) => {
-    const textToSend = (customText || replyInput).trim();
-    if (!textToSend || !selectedChatId) return;
-
-    setSending(true);
-    try {
-      // Auto-pause AI if not already paused when staff sends a message to prevent simultaneous replies
-      if (!activeChatMeta?.ai_paused) {
-        setChatAiStatus(selectedChatId, true, currentStaff.name).catch(() => {});
+  // Handle Telegram Mini App native back button
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.BackButton) {
+      if (mobileView === "chat") {
+        tg.BackButton.show();
+        const handleBack = () => setMobileView("list");
+        tg.BackButton.onClick(handleBack);
+        return () => {
+          tg.BackButton.offClick(handleBack);
+          tg.BackButton.hide();
+        };
+      } else {
+        tg.BackButton.hide();
       }
+    }
+  }, [mobileView]);
 
+  // Selected chat metadata
+  const activeSession = useMemo(() => {
+    return sessions.find((s) => s.id === selectedChatId) || null;
+  }, [sessions, selectedChatId]);
+
+  // Filtered sessions
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      // Status tab filter
+      if (statusFilter === "unread" && (!s.unreadAdminCount || s.unreadAdminCount <= 0)) return false;
+      if (statusFilter === "takeover" && !s.ai_paused) return false;
+      if (statusFilter === "resolved" && s.status !== "resolved") return false;
+      if (statusFilter === "all" && s.is_archived) return false;
+
+      // Text search
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        s.userName.toLowerCase().includes(q) ||
+        (s.userEmail && s.userEmail.toLowerCase().includes(q)) ||
+        (s.userPhone && s.userPhone.includes(q)) ||
+        (s.lastMessage && s.lastMessage.toLowerCase().includes(q)) ||
+        s.id.toLowerCase().includes(q)
+      );
+    });
+  }, [sessions, statusFilter, searchQuery]);
+
+  // Statistics
+  const totalUnread = useMemo(() => {
+    return sessions.reduce((acc, s) => acc + (s.unreadAdminCount || 0), 0);
+  }, [sessions]);
+
+  const totalTakeovers = useMemo(() => {
+    return sessions.filter((s) => s.ai_paused).length;
+  }, [sessions]);
+
+  // ─── Actions: Send Staff Reply ─────────────────────────────────────────────
+  const handleSendReply = async (textOverride?: string) => {
+    const textToSend = (textOverride || replyInput).trim();
+    if ((!textToSend && !attachedImage) || !selectedChatId || isSending) return;
+
+    setIsSending(true);
+    const staffName = currentAdmin?.name || "S Tech Staff (បុគ្គលិក)";
+
+    try {
       await sendChatMessage(
         selectedChatId,
         {
-          sender: currentStaff.role === "admin" ? "admin" : "staff",
-          senderName: currentStaff.name,
-          text: textToSend,
-          sessionId: (activeChatMeta as any)?.activeSessionId || null,
+          sender: "admin",
+          senderName: staffName,
+          text: textToSend || "[រូបភាពពីបុគ្គលិក]",
+          image: attachedImage || undefined,
         },
-        activeChat
-          ? {
-              userName: activeChat.userName,
-              userEmail: activeChat.userEmail,
-              userPhone: activeChat.userPhone,
-              sessionId: (activeChatMeta as any)?.activeSessionId || undefined,
-            }
-          : undefined
+        {
+          userName: activeSession?.userName,
+          userEmail: activeSession?.userEmail,
+          userPhone: activeSession?.userPhone,
+        }
       );
 
-      if (!customText) {
-        setReplyInput("");
-      }
-
-      // Notify customer via Telegram if connected
-      const alertRes = await notifyCustomerOfAdminReply({
+      // Notify customer via Telegram Bot companion or email
+      notifyCustomerOfAdminReply({
         chat_id: selectedChatId,
-        customer_email: activeChat?.userEmail,
-        customer_phone: activeChat?.userPhone,
-        customer_name: activeChat?.userName,
-        reply_text: textToSend,
-        staff_name: currentStaff.name,
-      });
+        reply_text: textToSend || "បុគ្គលិកបានផ្ញើរូបភាពជូនលោកអ្នក",
+        staff_name: staffName,
+        customer_name: activeSession?.userName,
+        customer_email: activeSession?.userEmail,
+        customer_phone: activeSession?.userPhone,
+      }).catch(() => {});
 
-      if (alertRes.telegram_alerted) {
-        showToast("បានឆ្លើយតប និងបាញ់ Alert ទៅ Telegram របស់អតិថិជនជោគជ័យ!", "success");
-      }
-    } catch (err) {
-      console.error("Failed to send reply:", err);
-      showToast("បរាជ័យក្នុងការផ្ញើសារ! សូមព្យាយាមម្តងទៀត", "error");
+      setReplyInput("");
+      setAttachedImage(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      markChatReadByAdmin(selectedChatId).catch(() => {});
+    } catch (err: any) {
+      showToast("❌ បរាជ័យក្នុងការផ្ញើសារ: " + (err.message || "Unknown error"), "error");
     } finally {
-      setSending(false);
+      setIsSending(false);
     }
   };
 
-  const formatTimestamp = (ts: number) => {
-    if (!ts) return "";
-    const date = new Date(ts);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
+  // Toggle Human Takeover (Pause AI / Resume AI)
+  const handleToggleAiStatus = async () => {
+    if (!selectedChatId) return;
+    const newPaused = !activeSession?.ai_paused;
+    const staffName = currentAdmin?.name || "S Tech Staff";
 
-    if (isToday) {
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    try {
+      await setChatAiStatus(selectedChatId, newPaused, staffName);
+      showToast(
+        newPaused
+          ? "👤 បានដណ្តើមឆ្លើយផ្ទាល់ (AI ត្រូវបានផ្អាកបណ្តោះអាសន្ន)!"
+          : "🤖 បានបើកដំណើរការ AI Assistant ឡើងវិញជោគជ័យ!",
+        "success"
+      );
+    } catch (e: any) {
+      showToast("❌ បរាជ័យក្នុងការកែប្រែស្ថានភាព AI", "error");
     }
-    return `${date.toLocaleDateString([], { month: "short", day: "numeric" })} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  // Toggle Ticket Status (Resolved / In Progress)
+  const handleToggleTicketStatus = async () => {
+    if (!selectedChatId) return;
+    const isResolved = activeSession?.status === "resolved";
+    const newStatus = isResolved ? "in_progress" : "resolved";
+    const staffName = currentAdmin?.name || "Staff";
+
+    try {
+      await setChatTicketStatus(selectedChatId, newStatus, staffName);
+      showToast(
+        newStatus === "resolved"
+          ? "✅ បានបញ្ចប់ Ticket ការសន្ទនានេះជោគជ័យ!"
+          : "🔄 បានបើកដំណើរការ Ticket ឡើងវិញ!",
+        "success"
+      );
+    } catch (e) {
+      showToast("❌ បរាជ័យក្នុងការកែប្រែ Ticket", "error");
+    }
+  };
+
+  // Handle staff image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("⚠️ សូមជ្រើសរើសឯកសាររូបភាព!", "error");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("⚠️ រូបភាពត្រូវតែតូចជាង 5MB!", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedImage(reader.result as string);
+      showToast("📷 បានភ្ជាប់រូបភាពរួចរាល់!", "info");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Copy Chat ID to clipboard
+  const handleCopyChatId = () => {
+    if (!selectedChatId) return;
+    navigator.clipboard.writeText(selectedChatId);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
+    showToast("📋 បានចម្លង Chat ID ចូល Clipboard!", "success");
   };
 
   return (
-    <div className="space-y-4 font-sans">
-      {/* Direct Bypass Access Notification Banner */}
-      {bypassNotice && (
-        <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 text-white px-4 py-3 rounded-2xl shadow-md font-bold text-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-center gap-2">
-            <Zap size={18} className="animate-bounce" />
-            <span>{bypassNotice}</span>
-          </div>
-          <button
-            onClick={() => setBypassNotice(null)}
-            className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer"
-          >
-            បិទ
-          </button>
-        </div>
-      )}
+    <div className="flex flex-col h-[calc(100vh-80px)] lg:h-[calc(100vh-100px)] max-w-7xl mx-auto w-full bg-[#0c0e14] text-gray-100 rounded-2xl border border-white/[0.08] overflow-hidden shadow-2xl">
+      {/* ─── Top Control Bar ──────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 sm:px-5 sm:py-3 bg-[#11141f] border-b border-white/[0.08] shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
+          {mobileView === "chat" && (
+            <button
+              onClick={() => setMobileView("list")}
+              className="lg:hidden p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white active:scale-95 transition-all"
+              aria-label="Back to conversations"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
 
-      {/* Telegram Mini App Top Status Bar */}
-      {isTelegramMiniApp && (
-        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-md border border-sky-800/60 text-xs font-bold flex items-center justify-between animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-mono text-sky-300 font-black">TELEGRAM MINI APP</span>
-            <span className="text-slate-500">•</span>
-            <span className="text-slate-200">ឆ្លើយតប Live Chat ផ្ទាល់ក្នុង Telegram</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                window.Telegram?.WebApp?.close();
-              } catch (_) {}
-            }}
-            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold cursor-pointer transition-all active:scale-95"
-          >
-            បិទ Mini App
-          </button>
-        </div>
-      )}
-
-      {/* Real-time Action Toast Banner */}
-      {toast && (
-        <div
-          className={`px-4 py-3 rounded-2xl shadow-md font-bold text-sm flex items-center justify-between transition-all animate-in fade-in slide-in-from-top-2 ${
-            toast.type === "success"
-              ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
-              : toast.type === "error"
-              ? "bg-gradient-to-r from-red-600 to-rose-600 text-white"
-              : "bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Bell size={18} className="animate-pulse shrink-0" />
-            <span>{toast.msg}</span>
-          </div>
-          <button
-            onClick={() => setToast(null)}
-            className="text-white/80 hover:text-white text-xs px-2 py-1 rounded bg-black/20 cursor-pointer ml-3"
-          >
-            បិទ
-          </button>
-        </div>
-      )}
-
-      {/* Page Title & Status Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 shadow-xs">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-red-600 flex items-center justify-center text-white shadow-md">
-              <MessageSquare size={20} />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                Real-time Customer Chat & Support Hub
-              </h1>
-              <div className="flex items-center gap-2 text-xs text-gray-500 font-medium mt-0.5 flex-wrap">
-                <span className="flex items-center gap-1.5 text-emerald-600 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Support Active (ប្រព័ន្ធឆាតផ្ទាល់ដំណើរការ)
-                </span>
-                <span>•</span>
-                <span>{chats.length} សន្ទនាសរុប</span>
-                <span>•</span>
-                <span className="text-blue-600 font-bold">{activeCount} កំពុងសន្ទនា</span>
-                <span>•</span>
-                <span className="text-emerald-700 font-bold">{resolvedCount} បានបញ្ចប់</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions & Current Staff Badge */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={handleRefreshChats}
-            disabled={loadingChats}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 active:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
-            title="ទាញយកទិន្នន័យឡើងវិញ (Refresh)"
-          >
-            <RefreshCw size={14} className={loadingChats ? "animate-spin text-[#8B1A1A]" : "text-gray-500"} />
-            <span className="hidden sm:inline">{loadingChats ? "កំពុងទាញយក..." : "ទាញយកឡើងវិញ"}</span>
-          </button>
-
-          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3.5 py-2 rounded-xl shadow-xs">
-            {currentStaff.role === "admin" ? (
-              <ShieldCheck size={16} className="text-amber-500" />
-            ) : (
-              <ShieldCheck size={16} className="text-blue-500" />
-            )}
-            <span className="text-xs font-bold text-gray-800">
-              ឆ្លើយតបជា៖ <span className="text-[#8B1A1A]">{currentStaff.name}</span>
+          <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-tr from-[#8B1A1A] to-rose-600 text-white shadow-md shadow-red-950/40">
+            <MessageSquare size={19} />
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-[#11141f]" />
             </span>
           </div>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm sm:text-base font-black text-white tracking-tight flex items-center gap-1.5">
+                <span>Live Chat Support</span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 font-bold">
+                  RTDB Real-Time
+                </span>
+              </h1>
+            </div>
+            <p className="text-[11px] text-gray-400 font-medium hidden sm:block">
+              ឆ្លើយតបអតិថិជនផ្ទាល់ ២៤/៧ • Support Telegram Mini App & Web
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Badges & Controls */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {totalUnread > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/40 text-[11px] font-bold">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span>{totalUnread} មិនទាន់អាន</span>
+            </div>
+          )}
+
+          {totalTakeovers > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold">
+              <Zap size={12} className="text-amber-400" />
+              <span>{totalTakeovers} Takeover</span>
+            </div>
+          )}
+
+          <button
+            onClick={() => setAudioAlerts(!audioAlerts)}
+            className={`p-2 rounded-xl border text-xs font-semibold transition-all ${
+              audioAlerts
+                ? "bg-white/[0.08] hover:bg-white/[0.14] text-white border-white/[0.1]"
+                : "bg-neutral-800 text-gray-500 border-neutral-700"
+            }`}
+            title={audioAlerts ? "បិទសំឡេង Notification" : "បើកសំឡេង Notification"}
+          >
+            {audioAlerts ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
         </div>
       </div>
 
-      {/* Main Chat Interface Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100dvh-200px)] min-h-[500px] lg:h-[calc(100vh-230px)] lg:min-h-[580px]">
-        {/* Left Sidebar: Chat List (4 cols) */}
-        <div className={`lg:col-span-4 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden ${selectedChatId ? "hidden lg:flex" : "flex h-full"}`}>
-          {/* Search & Filter Header */}
-          <div className="p-3.5 border-b border-gray-100 space-y-2.5 bg-gray-50/60">
+      {/* ─── Main Content Split Workspace ─────────────────────────────────── */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* ── Left Pane: Customer Sessions List ── */}
+        <div
+          className={`${
+            mobileView === "chat" ? "hidden" : "flex"
+          } lg:flex flex-col w-full lg:w-[350px] shrink-0 border-r border-white/[0.08] bg-[#0f121b]`}
+        >
+          {/* Search Box */}
+          <div className="p-3 border-b border-white/[0.06] space-y-2">
             <div className="relative">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
+                placeholder="ស្វែងរកឈ្មោះ, លេខ, Email, ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ស្វែងរកតាមឈ្មោះ, Email, លេខទូរស័ព្ទ..."
-                className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-[#8B1A1A] focus:ring-2 focus:ring-red-100 transition-all"
+                className="w-full bg-[#181d2a] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#8B1A1A] transition-all"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
 
-            {/* Ticket & Status Filters */}
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1">
+            {/* Filter Tabs */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-black/40 rounded-xl border border-white/[0.04] text-[10.5px] font-bold">
               <button
-                type="button"
-                onClick={() => setFilter("active")}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                  filter === "active"
-                    ? "bg-[#8B1A1A] text-white shadow-xs"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                onClick={() => setStatusFilter("all")}
+                className={`py-1 rounded-lg transition-all ${
+                  statusFilter === "all" ? "bg-[#8B1A1A] text-white shadow-xs" : "text-gray-400 hover:text-white"
                 }`}
               >
-                <span>កំពុងឆាត</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${filter === "active" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"}`}>
-                  {activeCount}
-                </span>
+                ទាំងអស់ ({sessions.length})
               </button>
-
               <button
-                type="button"
-                onClick={() => setFilter("unread")}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                  filter === "unread"
-                    ? "bg-red-600 text-white shadow-xs"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                onClick={() => setStatusFilter("unread")}
+                className={`py-1 rounded-lg transition-all ${
+                  statusFilter === "unread" ? "bg-[#8B1A1A] text-white shadow-xs" : "text-gray-400 hover:text-white"
                 }`}
               >
-                <span>មិនទាន់អាន</span>
-                {unreadCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-500 text-white animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
+                ថ្មី ({totalUnread})
               </button>
-
               <button
-                type="button"
-                onClick={() => setFilter("resolved")}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                  filter === "resolved"
-                    ? "bg-emerald-700 text-white shadow-xs"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                onClick={() => setStatusFilter("takeover")}
+                className={`py-1 rounded-lg transition-all ${
+                  statusFilter === "takeover" ? "bg-[#8B1A1A] text-white shadow-xs" : "text-gray-400 hover:text-white"
                 }`}
               >
-                <span>បានបញ្ចប់</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${filter === "resolved" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"}`}>
-                  {resolvedCount}
-                </span>
+                ឆ្លើយផ្ទាល់
               </button>
-
               <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                  filter === "all"
-                    ? "bg-gray-800 text-white shadow-xs"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                onClick={() => setStatusFilter("resolved")}
+                className={`py-1 rounded-lg transition-all ${
+                  statusFilter === "resolved" ? "bg-[#8B1A1A] text-white shadow-xs" : "text-gray-400 hover:text-white"
                 }`}
               >
-                <span>ទាំងអស់</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${filter === "all" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"}`}>
-                  {allNonArchivedCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setFilter("archived")}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-                  filter === "archived"
-                    ? "bg-amber-700 text-white shadow-xs"
-                    : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
-                }`}
-              >
-                <Archive size={12} />
-                <span>បណ្ណសារ</span>
-                {archivedCount > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${filter === "archived" ? "bg-white/20 text-white" : "bg-gray-100 text-gray-700"}`}>
-                    {archivedCount}
-                  </span>
-                )}
+                ដោះស្រាយរួច
               </button>
             </div>
           </div>
 
-          {/* Chat List Scroll Area */}
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {filteredChats.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 flex flex-col items-center justify-center">
-                <Inbox size={34} className="text-gray-300 mb-2 stroke-1" />
-                <p className="text-xs font-bold text-gray-600">មិនមានការសន្ទនាក្នុងថតនេះទេ</p>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  {chats.length > 0
-                    ? `មាន ${chats.length} ការសន្ទនានៅក្នុងថតផ្សេងទៀត`
-                    : "ជ្រើសរើសផ្ទាំង \"ទាំងអស់\" ឬរង់ចាំអតិថិជនផ្ញើសារថ្មីមកកាន់ហាង"}
-                </p>
-
-                <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                  {chats.length > 0 && filter !== "all" && (
-                    <button
-                      type="button"
-                      onClick={() => setFilter("all")}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-800 text-white hover:bg-gray-900 transition-all cursor-pointer shadow-xs"
-                    >
-                      បង្ហាញការសន្ទនាទាំងអស់ ({chats.length})
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={handleRefreshChats}
-                    disabled={loadingChats}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all cursor-pointer disabled:opacity-50"
-                  >
-                    <RefreshCw size={12} className={loadingChats ? "animate-spin" : ""} />
-                    <span>ទាញយកទិន្នន័យឡើងវិញ</span>
-                  </button>
-                </div>
+          {/* Sessions Scrollable List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04]">
+            {filteredSessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500">
+                <MessageSquare size={36} className="text-gray-600 mb-2 stroke-1" />
+                <p className="text-xs font-medium">មិនមានការសន្ទនាក្នុងលក្ខខណ្ឌនេះទេ</p>
+                <span className="text-[10px] text-gray-600 mt-1">រង់ចាំសារថ្មីពីអតិថិជន...</span>
               </div>
             ) : (
-              filteredChats.map((chat) => {
-                const isSelected = chat.id === selectedChatId;
-                const isUnread = chat.unreadAdminCount > 0;
-                const isResolved = chat.status === "resolved";
+              filteredSessions.map((session) => {
+                const isSelected = selectedChatId === session.id;
+                const isTelegramUser = session.id.startsWith("tg_");
+                const isRegisteredUser = session.id.startsWith("user_");
+                const hasUnread = (session.unreadAdminCount || 0) > 0;
+
+                const timeStr = session.lastTimestamp
+                  ? new Date(session.lastTimestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
 
                 return (
                   <button
-                    key={chat.id}
-                    type="button"
-                    onClick={() => setSelectedChatId(chat.id)}
-                    className={`w-full text-left p-3.5 flex items-start gap-3 transition-colors cursor-pointer ${
+                    key={session.id}
+                    onClick={() => {
+                      setSelectedChatId(session.id);
+                      setMobileView("chat");
+                    }}
+                    className={`w-full text-left p-3.5 transition-all flex items-start gap-3 cursor-pointer ${
                       isSelected
-                        ? "bg-red-50/70 border-l-4 border-l-[#8B1A1A]"
-                        : "hover:bg-gray-50/80"
+                        ? "bg-gradient-to-r from-[#8B1A1A]/30 via-red-950/20 to-transparent border-l-4 border-l-[#8B1A1A]"
+                        : "hover:bg-white/[0.03]"
                     }`}
                   >
-                    {/* User Avatar with Initials */}
+                    {/* User Avatar with Channel Icon */}
                     <div className="relative shrink-0">
-                      <div className={`w-10 h-10 rounded-full text-white font-bold text-sm flex items-center justify-center shadow-xs ${
-                        isResolved 
-                          ? "bg-gradient-to-br from-emerald-600 to-teal-700" 
-                          : "bg-gradient-to-br from-gray-700 to-gray-900"
-                      }`}>
-                        {chat.userName.charAt(0).toUpperCase()}
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neutral-800 to-neutral-700 flex items-center justify-center font-bold text-white text-xs border border-white/[0.1] shadow-inner">
+                        {session.userName.charAt(0).toUpperCase()}
                       </div>
-                      <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                        isResolved ? "bg-gray-400" : "bg-emerald-500"
-                      }`} />
+                      {isTelegramUser && (
+                        <span
+                          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#0088cc] flex items-center justify-center text-[9px] text-white font-bold border border-[#0f121b]"
+                          title="Telegram User"
+                        >
+                          ✈
+                        </span>
+                      )}
+                      {isRegisteredUser && (
+                        <span
+                          className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-600 flex items-center justify-center text-[9px] text-white font-bold border border-[#0f121b]"
+                          title="Registered Member"
+                        >
+                          ✓
+                        </span>
+                      )}
                     </div>
 
-                    {/* Chat Snippet */}
+                    {/* Meta & Last Message */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className={`text-xs truncate ${isUnread ? "font-black text-gray-950" : "font-bold text-gray-800"}`}>
-                          {chat.userName}
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                          {session.userName}
                         </span>
-                        <span className="text-[10px] text-gray-400 shrink-0 font-medium">
-                          {formatTimestamp(chat.lastTimestamp)}
-                        </span>
+                        <span className="text-[10px] text-gray-500 font-mono shrink-0">{timeStr}</span>
                       </div>
 
-                      <p className={`text-xs truncate ${isUnread ? "text-gray-900 font-semibold" : "text-gray-500"}`}>
-                        {chat.lastMessage || "(សារថ្មី)"}
+                      <p
+                        className={`text-[11.5px] truncate line-clamp-1 leading-relaxed ${
+                          hasUnread ? "text-white font-bold" : "text-gray-400"
+                        }`}
+                      >
+                        {session.lastMessage || "សារថ្មី"}
                       </p>
 
-                      {/* Contact Badges & Ticket Status */}
-                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap text-[10px]">
-                        {isResolved ? (
-                          <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[9px] flex items-center gap-1">
-                            <CheckCircle2 size={10} /> បានបញ្ចប់
+                      {/* Status Badges Row */}
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        {session.ai_paused ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <Zap size={9} />
+                            <span>Staff Takeover</span>
                           </span>
-                        ) : chat.ai_paused ? (
-                          <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[9px] flex items-center gap-1">
-                            <User size={9} /> <span>Staff Takeover</span>
+                        ) : session.status === "resolved" ? (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            ✓ Resolved
                           </span>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[9px] flex items-center gap-1">
-                            <Bot size={9} /> <span>AI Assistant</span>
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                            <Bot size={9} />
+                            <span>AI Active</span>
                           </span>
                         )}
 
-                        {chat.is_archived && (
-                          <span className="px-1.5 py-0.5 rounded-md bg-gray-200 text-gray-700 font-bold text-[9px] flex items-center gap-1">
-                            <Archive size={9} /> បណ្ណសារ
-                          </span>
-                        )}
-
-                        {(chat.userPhone || chat.userEmail) && (
-                          <span className="text-gray-400 flex items-center gap-1.5 truncate">
-                            {chat.userPhone && (
-                              <span className="flex items-center gap-0.5">
-                                <Phone size={9} /> {chat.userPhone}
-                              </span>
-                            )}
-                            {chat.userEmail && !chat.userPhone && (
-                              <span className="flex items-center gap-0.5 truncate">
-                                <Mail size={9} /> {chat.userEmail}
-                              </span>
-                            )}
+                        {hasUnread && (
+                          <span className="ml-auto text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-600 text-white shadow-xs">
+                            {session.unreadAdminCount}
                           </span>
                         )}
                       </div>
                     </div>
-
-                    {/* Unread Indicator */}
-                    {isUnread && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0 self-center animate-pulse" />
-                    )}
                   </button>
                 );
               })
@@ -774,264 +648,226 @@ export default function AdminRealtimeChatPage() {
           </div>
         </div>
 
-        {/* Right Pane: Active Conversation (8 cols) */}
-        <div className={`lg:col-span-8 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex flex-col overflow-hidden relative ${!selectedChatId ? "hidden lg:flex" : "flex h-full"}`}>
-          {activeChat ? (
+        {/* ── Right Pane: Active Chat Conversation ── */}
+        <div
+          className={`${
+            mobileView === "list" ? "hidden" : "flex"
+          } lg:flex flex-col flex-1 bg-[#0a0c12] overflow-hidden`}
+        >
+          {selectedChatId && activeSession ? (
             <>
-              {/* Active Chat Header with Ticket Controls */}
-              <div className="p-3.5 sm:p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
-                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                  {/* Mobile Back Button to Chat List */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedChatId(null)}
-                    className="lg:hidden p-1.5 -ml-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer shrink-0"
-                    title="ត្រឡប់ទៅបញ្ជីការសន្ទនា (Back to chat list)"
-                  >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full text-white font-black text-sm sm:text-base flex items-center justify-center shadow-xs shrink-0 ${
-                    activeChat.status === "resolved"
-                      ? "bg-gradient-to-tr from-emerald-600 to-teal-700"
-                      : "bg-gradient-to-tr from-[#8B1A1A] to-red-600"
-                  }`}>
-                    {activeChat.userName.charAt(0).toUpperCase()}
+              {/* ── Chat Header ── */}
+              <div className="px-4 py-3 bg-[#11141f] border-b border-white/[0.08] flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#8B1A1A] to-rose-600 text-white flex items-center justify-center font-bold text-sm shrink-0 border border-white/20">
+                    {activeSession.userName.charAt(0).toUpperCase()}
                   </div>
+
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="text-sm sm:text-base font-black text-gray-900 truncate">
-                        {activeChat.userName}
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-bold text-white truncate">
+                        {activeSession.userName}
                       </h2>
-                      {activeChat.status === "resolved" ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold border border-emerald-300">
-                          <CheckCircle2 size={11} /> Ticket Closed (បានបញ្ចប់)
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Support
-                        </span>
-                      )}
-                      {activeChat.is_archived && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-[10px] font-bold border border-gray-200">
-                          <Archive size={10} /> Archived
-                        </span>
-                      )}
+
+                      {/* Chat ID Copy Button */}
+                      <button
+                        onClick={handleCopyChatId}
+                        className="flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-gray-400 hover:text-white transition-all"
+                        title="Copy Chat ID"
+                      >
+                        <span>{activeSession.id.slice(0, 14)}...</span>
+                        {copiedId ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                      </button>
                     </div>
 
-                    {/* Customer Real Contact Bar */}
-                    <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                      {activeChat.userPhone && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(activeChat.userPhone!, "លេខទូរស័ព្ទ")}
-                          className="flex items-center gap-1 font-mono text-gray-700 hover:text-red-600 transition-colors cursor-pointer border-none bg-transparent"
-                          title="ចុចដើម្បីចម្លងលេខទូរស័ព្ទ"
+                    {/* Contact Info Row */}
+                    <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5 flex-wrap">
+                      {activeSession.userPhone && (
+                        <a
+                          href={`tel:${activeSession.userPhone}`}
+                          className="hover:text-red-400 flex items-center gap-1 text-inherit no-underline"
                         >
-                          <Phone size={11} className="text-red-500" />
-                          <span>{activeChat.userPhone}</span>
-                          {copiedField === "លេខទូរស័ព្ទ" ? <Check size={11} className="text-emerald-600" /> : <Copy size={10} className="text-gray-400" />}
-                        </button>
+                          <Phone size={11} />
+                          <span>{activeSession.userPhone}</span>
+                        </a>
                       )}
-                      {activeChat.userEmail && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(activeChat.userEmail!, "Email")}
-                          className="flex items-center gap-1 text-gray-700 hover:text-blue-600 transition-colors cursor-pointer border-none bg-transparent truncate max-w-[220px]"
-                          title="ចុចដើម្បីចម្លង Email"
-                        >
-                          <Mail size={11} className="text-blue-500 shrink-0" />
-                          <span className="truncate">{activeChat.userEmail}</span>
-                          {copiedField === "Email" ? <Check size={11} className="text-emerald-600 shrink-0" /> : <Copy size={10} className="text-gray-400 shrink-0" />}
-                        </button>
+                      {activeSession.userEmail && (
+                        <span className="flex items-center gap-1 truncate max-w-[160px]">
+                          <Mail size={11} />
+                          <span className="truncate">{activeSession.userEmail}</span>
+                        </span>
                       )}
-                      <span className="text-[10px] text-gray-400 font-mono">
-                        Session: {activeChat.id.substring(0, 10)}
-                      </span>
+                      {activeSession.id.startsWith("tg_") && (
+                        <span className="text-[#0088cc] font-semibold flex items-center gap-1">
+                          ✈ Telegram Connected
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Ticket Controls & AI Takeover Action Group */}
-                <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                  {/* AI Status & Takeover Toggle */}
-                  {activeChatMeta?.ai_paused ? (
-                    <button
-                      type="button"
-                      onClick={handleResumeAi}
-                      disabled={togglingAi}
-                      title="ចាកចេញពីឆាត និងបើកដំណើរការ AI ឡើងវិញ"
-                      className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Sparkles size={13} />
-                      <span>បើក AI វិញ (Resume)</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleTakeoverChat}
-                      disabled={togglingAi}
-                      title="ចូលឆ្លើយផ្ទាល់ និងបិទសិទ្ធិ AI កុំឱ្យឆ្លើយជាន់"
-                      className="px-3 py-1.5 bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:opacity-95 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <Zap size={13} />
-                      <span>ឆ្លើយផ្ទាល់ (Pause AI)</span>
-                    </button>
-                  )}
-
-                  {/* Resolve / Reopen Ticket */}
-                  {activeChat.status !== "resolved" ? (
-                    <button
-                      type="button"
-                      onClick={handleResolveTicket}
-                      disabled={isUpdatingStatus}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                      title="បញ្ចប់ Ticket សន្ទនានេះ"
-                    >
-                      <CheckCircle2 size={13} />
-                      <span>បញ្ចប់ Ticket</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleReopenTicket}
-                      disabled={isUpdatingStatus}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer disabled:opacity-50"
-                      title="បើក Ticket ឡើងវិញ"
-                    >
-                      <RotateCcw size={13} />
-                      <span>បើក Ticket វិញ</span>
-                    </button>
-                  )}
-
-                  {/* Archive / Unarchive */}
+                {/* Header Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Takeover / Resume AI Toggle Button */}
                   <button
-                    type="button"
-                    onClick={handleToggleArchive}
-                    className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-gray-200"
-                    title={activeChat.is_archived ? "ដកចេញពីបណ្ណសារ (Unarchive)" : "ដាក់ក្នុងបណ្ណសារ (Archive)"}
+                    onClick={handleToggleAiStatus}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm ${
+                      activeSession.ai_paused
+                        ? "bg-cyan-600 hover:bg-cyan-500 text-white"
+                        : "bg-amber-600 hover:bg-amber-500 text-white"
+                    }`}
+                    title={activeSession.ai_paused ? "បើក AI ឆ្លើយឡើងវិញ" : "ដណ្តើមឆ្លើយផ្ទាល់ (Pause AI)"}
                   >
-                    {activeChat.is_archived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
+                    {activeSession.ai_paused ? (
+                      <>
+                        <Bot size={14} />
+                        <span className="hidden sm:inline">បើក AI ឆ្លើយឡើងវិញ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap size={14} />
+                        <span className="hidden sm:inline">ឆ្លើយផ្ទាល់ (Pause AI)</span>
+                      </>
+                    )}
                   </button>
 
-                  {/* Delete Conversation */}
+                  {/* Ticket Status Button */}
                   <button
-                    type="button"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-red-200"
-                    title="លុបប្រវត្តិសន្ទនានេះជាស្ថាពរ"
+                    onClick={handleToggleTicketStatus}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      activeSession.status === "resolved"
+                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/60"
+                        : "bg-white/[0.06] text-gray-300 border-white/[0.1] hover:bg-white/[0.12]"
+                    }`}
                   >
-                    <Trash2 size={15} />
+                    <CheckCircle2 size={14} className={activeSession.status === "resolved" ? "text-emerald-400" : "text-gray-400"} />
+                    <span className="hidden sm:inline">
+                      {activeSession.status === "resolved" ? "បានបញ្ចប់" : "បញ្ចប់ Ticket"}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* Message History Feed */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-gray-50/40">
-                {messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-gray-400">
-                    <Sparkles size={30} className="text-red-300 mb-2" />
-                    <p className="text-xs font-bold text-gray-700">សន្ទនាជាមួយ {activeChat.userName}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      ផ្ញើសារខាងក្រោមដើម្បីជួយឆ្លើយតបសំណួរជូនអតិថិជន
-                    </p>
+              {/* Takeover Notice Banner */}
+              {activeSession.ai_paused && (
+                <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between text-xs text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <Zap size={14} className="text-amber-400 shrink-0" />
+                    <span>
+                      បុគ្គលិកកំពុងឆ្លើយតបផ្ទាល់ (AI ផ្អាកបណ្តោះអាសន្ន) ដោយ <strong>{activeSession.paused_by || "Staff"}</strong>
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleToggleAiStatus}
+                    className="text-[11px] underline font-bold text-amber-300 hover:text-white"
+                  >
+                    បើក AI វិញ
+                  </button>
+                </div>
+              )}
+
+              {/* ── Messages Stream ── */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-radial from-[#131622] to-[#0a0c12]">
+                {loadingMessages ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <div className="w-8 h-8 border-2 border-[#8B1A1A] border-t-transparent rounded-full animate-spin mb-2" />
+                    <p className="text-xs">កំពុងទាញយកសារសន្ទនា...</p>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <MessageSquare size={44} className="text-gray-700 mb-2 stroke-1" />
+                    <p className="text-xs font-semibold text-gray-400">ការសន្ទនាទទេ</p>
+                    <span className="text-[11px] text-gray-600 mt-0.5">
+                      អតិថិជនមិនទាន់បានផ្ញើសារ ឬសារកំពុងរង់ចាំ...
+                    </span>
                   </div>
                 ) : (
                   messages.map((msg) => {
                     const isStaff = msg.sender === "admin" || msg.sender === "staff";
-                    const isSystem = msg.sender === "system";
                     const isBot = msg.sender === "bot";
+                    const isSystem = msg.sender === "system";
 
                     if (isSystem) {
                       return (
                         <div key={msg.id} className="flex justify-center my-2">
-                          <div className="bg-amber-50 border border-amber-200/80 text-amber-900 text-xs px-3.5 py-1.5 rounded-full shadow-xs flex items-center gap-2 max-w-md">
-                            <Bell size={13} className="text-amber-600 shrink-0" />
-                            <span>{msg.text}</span>
-                          </div>
+                          <span className="text-[10.5px] font-medium px-3 py-1 rounded-full bg-white/[0.05] text-gray-400 border border-white/[0.08]">
+                            {msg.text}
+                          </span>
                         </div>
                       );
                     }
 
+                    const time = msg.timestamp
+                      ? new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                      : "";
+
                     return (
                       <div
                         key={msg.id}
-                        className={`flex flex-col ${isStaff ? "items-end" : "items-start"}`}
+                        className={`flex gap-2.5 max-w-[85%] sm:max-w-[75%] ${
+                          isStaff ? "ml-auto flex-row-reverse" : "mr-auto"
+                        }`}
                       >
-                        {/* Sender Label */}
-                        <span className="text-[10px] font-bold text-gray-400 mb-1 px-1 flex items-center gap-1">
+                        {/* Sender Avatar */}
+                        <div className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold text-white shadow-xs">
                           {isStaff ? (
-                            <>
-                              <ShieldCheck size={11} className="text-[#8B1A1A]" />
-                              <span>{msg.senderName} (Staff)</span>
-                            </>
+                            <div className="w-full h-full rounded-full bg-[#8B1A1A] flex items-center justify-center">
+                              🛡️
+                            </div>
                           ) : isBot ? (
-                            <>
-                              <Bot size={11} className="text-indigo-600" />
-                              <span className="text-indigo-600 font-extrabold">S Tech AI (Bot)</span>
-                            </>
+                            <div className="w-full h-full rounded-full bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center">
+                              🤖
+                            </div>
                           ) : (
-                            <span>{activeChat.userName}</span>
+                            <div className="w-full h-full rounded-full bg-neutral-700 flex items-center justify-center">
+                              {msg.senderName?.charAt(0) || "U"}
+                            </div>
                           )}
-                        </span>
+                        </div>
 
                         {/* Message Bubble */}
-                        <div
-                          className={`max-w-[85%] sm:max-w-[70%] p-3.5 rounded-2xl text-[13px] leading-relaxed shadow-xs ${
-                            isStaff
-                              ? "bg-gradient-to-r from-[#8B1A1A] to-red-700 text-white rounded-tr-xs"
-                              : isBot
-                              ? "bg-indigo-50/70 dark:bg-indigo-950/30 text-indigo-950 dark:text-indigo-200 border border-indigo-200/60 dark:border-indigo-800/40 rounded-tl-xs shadow-xs"
-                              : "bg-white text-gray-900 border border-gray-200 rounded-tl-xs shadow-xs"
-                          }`}
-                        >
-                          {/* Attached Product Preview */}
-                          {msg.productInfo?.name && (
-                            <div className="mb-2.5 p-2 rounded-xl bg-black/10 flex items-center gap-2 border border-white/20">
-                              {msg.productInfo.image && (
-                                <img
-                                  src={msg.productInfo.image}
-                                  alt=""
-                                  className="w-8 h-8 rounded-lg object-contain bg-white p-0.5"
-                                />
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="text-[11px] font-bold truncate">
-                                  {msg.productInfo.name}
-                                </div>
-                                {msg.productInfo.price && (
-                                  <div className="text-[10px] font-mono font-bold">
-                                    ${msg.productInfo.price}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Attached Customer Uploads (Images) */}
-                          {((msg.images && msg.images.length > 0) || msg.image) && (
-                            <div className="mb-2.5 flex flex-wrap gap-1.5">
-                              {(msg.images && msg.images.length > 0 ? msg.images : [msg.image!]).map((imgSrc, imgIdx) => (
-                                <a
-                                  key={imgIdx}
-                                  href={imgSrc}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block rounded-lg overflow-hidden border border-gray-200/50 w-24 h-24 bg-black/5 hover:opacity-90 transition-opacity"
-                                >
-                                  <img src={imgSrc} alt={`Attachment ${imgIdx + 1}`} className="w-full h-full object-cover" />
-                                </a>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="whitespace-pre-wrap">{msg.text}</div>
+                        <div className="space-y-1">
+                          <div className={`flex items-center gap-1.5 text-[10px] ${isStaff ? "justify-end text-rose-300" : isBot ? "text-cyan-400" : "text-gray-400"}`}>
+                            <span className="font-bold">{msg.senderName || (isStaff ? "Staff" : isBot ? "S Tech AI" : "Customer")}</span>
+                            <span className="text-[9px] text-gray-500 font-mono">{time}</span>
+                          </div>
 
                           <div
-                            className={`text-[9.5px] mt-1.5 text-right font-medium ${
-                              isStaff ? "text-white/70" : "text-gray-400"
+                            className={`p-3 rounded-2xl text-[13px] leading-relaxed break-words shadow-sm ${
+                              isStaff
+                                ? "bg-gradient-to-tr from-[#8B1A1A] to-[#b91c1c] text-white rounded-tr-none"
+                                : isBot
+                                ? "bg-[#181d2a] border border-cyan-500/20 text-gray-200 rounded-tl-none"
+                                : "bg-[#1a1f2e] border border-white/[0.08] text-gray-100 rounded-tl-none"
                             }`}
                           >
-                            {formatTimestamp(msg.timestamp)}
+                            {/* Attached Image if any */}
+                            {msg.image && (
+                              <div className="mb-2 rounded-xl overflow-hidden cursor-pointer" onClick={() => setZoomImage(msg.image || null)}>
+                                <img
+                                  src={msg.image}
+                                  alt="Attached"
+                                  className="max-h-56 w-auto object-cover rounded-xl border border-white/10 hover:opacity-90 transition-opacity"
+                                />
+                              </div>
+                            )}
+
+                            {/* Multiple Images if any */}
+                            {msg.images && msg.images.length > 1 && (
+                              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                                {msg.images.map((imgUrl, iIdx) => (
+                                  <img
+                                    key={iIdx}
+                                    src={imgUrl}
+                                    alt={`Attachment ${iIdx + 1}`}
+                                    onClick={() => setZoomImage(imgUrl)}
+                                    className="h-28 w-full object-cover rounded-lg border border-white/10 cursor-pointer hover:opacity-90"
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            <p className="whitespace-pre-wrap">{msg.text}</p>
                           </div>
                         </div>
                       </div>
@@ -1041,104 +877,150 @@ export default function AdminRealtimeChatPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Quick Replies Carousel */}
-              <div className="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                <span className="text-[10px] font-black uppercase text-gray-400 shrink-0 mr-1">
-                  ឆ្លើយរហ័ស:
+              {/* ── Quick Responses Canned Bar ── */}
+              <div className="px-3 py-2 bg-[#0e111a] border-t border-white/[0.06] overflow-x-auto flex items-center gap-2 scrollbar-none">
+                <span className="text-[10px] font-bold text-gray-500 shrink-0 uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles size={11} className="text-amber-400" />
+                  <span>ឆ្លើយរហ័ស:</span>
                 </span>
-                {QUICK_REPLIES.map((qr, idx) => (
+                {QUICK_RESPONSES.map((qr, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => handleSendMessage(qr)}
-                    className="shrink-0 px-2.5 py-1 bg-gray-100 hover:bg-red-50 hover:text-[#8B1A1A] text-gray-700 rounded-full text-[11px] font-medium transition-colors border border-gray-200 hover:border-red-200 cursor-pointer"
+                    onClick={() => handleSendReply(qr)}
+                    className="shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-white/[0.05] hover:bg-white/[0.12] text-gray-300 hover:text-white border border-white/[0.08] transition-all active:scale-95 cursor-pointer truncate max-w-[240px]"
                   >
                     {qr}
                   </button>
                 ))}
               </div>
 
-              {/* Input Area */}
+              {/* Attached Preview */}
+              {attachedImage && (
+                <div className="px-4 py-2 bg-[#121622] border-t border-white/[0.06] flex items-center gap-3">
+                  <div className="relative">
+                    <img
+                      src={attachedImage}
+                      alt="Preview"
+                      className="w-12 h-12 object-cover rounded-lg border border-white/20"
+                    />
+                    <button
+                      onClick={() => setAttachedImage(null)}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-400">រូបភាពត្រៀមផ្ញើជូនអតិថិជន...</span>
+                </div>
+              )}
+
+              {/* ── Input Box & Send Button ── */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  handleSendMessage();
+                  handleSendReply();
                 }}
-                className="p-3 bg-white border-t border-gray-100 flex items-center gap-2"
+                className="p-3 bg-[#11141f] border-t border-white/[0.08] flex items-center gap-2"
               >
                 <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-gray-300 hover:text-white transition-all active:scale-95"
+                  title="ភ្ជាប់រូបភាព (Attach Image)"
+                >
+                  <Paperclip size={18} />
+                </button>
+
+                <input
                   type="text"
+                  placeholder="វាយសារឆ្លើយតបទៅកាន់អតិថិជន... (Enter to send)"
                   value={replyInput}
                   onChange={(e) => setReplyInput(e.target.value)}
-                  placeholder="វាយសារឆ្លើយតបទៅកាន់អតិថិជន... (Type message and press Enter)"
-                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#8B1A1A] focus:bg-white focus:ring-2 focus:ring-red-100 transition-all"
+                  className="flex-1 bg-[#181d2a] border border-white/[0.08] rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#8B1A1A] transition-all"
                 />
+
                 <button
                   type="submit"
-                  disabled={!replyInput.trim() || sending}
-                  className="px-5 py-2.5 bg-[#8B1A1A] hover:bg-[#6B1010] disabled:opacity-40 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                  disabled={(!replyInput.trim() && !attachedImage) || isSending}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#8B1A1A] to-red-600 hover:from-[#a11e1e] hover:to-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-md shadow-red-950/40 active:scale-95 cursor-pointer"
                 >
-                  <Send size={14} />
-                  <span>ផ្ញើ • Send</span>
+                  {isSending ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Send size={15} />
+                      <span className="hidden sm:inline">ផ្ញើ</span>
+                    </>
+                  )}
                 </button>
               </form>
-
-              {/* Delete Confirmation Popup Modal */}
-              {deleteConfirmOpen && (
-                <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-                  <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
-                        <AlertTriangle size={24} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-gray-900">
-                          លុបប្រវត្តិសន្ទនានេះ?
-                        </h3>
-                        <p className="text-xs text-gray-500">
-                          ការសន្ទនាជាមួយ <b className="text-gray-800">{activeChat.userName}</b>
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-gray-600 leading-relaxed mb-6 bg-red-50/50 p-3 rounded-xl border border-red-100">
-                      សកម្មភាពនេះនឹងលុបសារ និងប្រវត្តិសន្ទនាទាំងអស់ចេញពី Database ជាស្ថាពរ ហើយមិនអាចត្រឡប់មកវិញបានទេ។
-                    </p>
-
-                    <div className="flex items-center justify-end gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setDeleteConfirmOpen(false)}
-                        disabled={isDeleting}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors cursor-pointer border-none"
-                      >
-                        បោះបង់
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteChat}
-                        disabled={isDeleting}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer border-none flex items-center gap-1.5 shadow-sm"
-                      >
-                        <Trash2 size={13} />
-                        <span>{isDeleting ? "កំពុងលុប..." : "លុបជាស្ថាពរ"}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-400">
-              <MessageSquare size={48} className="text-gray-300 mb-3 stroke-1" />
-              <h3 className="text-base font-bold text-gray-700">សូមជ្រើសរើសការសន្ទនាណាមួយ</h3>
-              <p className="text-xs text-gray-400 max-w-sm mt-1">
-                ជ្រើសរើសអតិថិជនពីបញ្ជីខាងឆ្វេង ដើម្បីមើលសារ និងឆ្លើយតបភ្លាមៗជូនអតិថិជន
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-500">
+              <div className="w-16 h-16 rounded-3xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-gray-600 mb-4">
+                <MessageSquare size={32} className="stroke-1" />
+              </div>
+              <h3 className="text-sm font-bold text-gray-300">សូមជ្រើសរើសការសន្ទនា</h3>
+              <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                ជ្រើសរើសអតិថិជនពីបញ្ជីខាងឆ្វេង ដើម្បីមើលប្រវត្តិឆាត ឆ្លើយតបផ្ទាល់ ឬគ្រប់គ្រង Ticket។
               </p>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Image Zoom Preview Modal ── */}
+      <AnimatePresence>
+        {zoomImage && (
+          <div
+            className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setZoomImage(null)}
+          >
+            <div className="relative max-w-3xl max-h-[90vh]">
+              <img
+                src={zoomImage}
+                alt="Zoomed"
+                className="max-h-[85vh] w-auto rounded-2xl shadow-2xl object-contain border border-white/20"
+              />
+              <button
+                onClick={() => setZoomImage(null)}
+                className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-bold shadow-lg"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Toast Alerts ── */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className={`fixed bottom-6 right-6 z-[99999] px-4 py-2.5 rounded-xl shadow-2xl text-xs font-bold border flex items-center gap-2 ${
+              toast.type === "success"
+                ? "bg-emerald-950/90 text-emerald-200 border-emerald-500/40"
+                : toast.type === "error"
+                ? "bg-red-950/90 text-red-200 border-red-500/40"
+                : "bg-neutral-900/90 text-white border-white/20"
+            }`}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

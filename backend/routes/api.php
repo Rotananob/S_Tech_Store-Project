@@ -52,7 +52,7 @@ Route::post('/chat/request-agent', function (Request $request) {
     \Illuminate\Support\Facades\Cache::put("bypass_chat_token_{$bypassToken}", [
         'chat_id' => $chatId,
         'user_name' => $validated['name'] ?? 'Website Customer',
-        'uses' => 3, // Max 3 uses
+        'uses' => 15, // Allow up to 15 uses so admin can open the chat multiple times
         'created_at' => now()->toIso8601String(),
     ], 120 * 60); // 2 hours expiration
 

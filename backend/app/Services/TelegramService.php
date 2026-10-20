@@ -6359,8 +6359,9 @@ HTML;
     public static function sendCustomerChatAlert(array $data): array
     {
         $settings = self::getSettings();
-        if (empty($settings['connected']) || empty($settings['chat_id'])) {
-            return ['ok' => false, 'error' => 'No Telegram group connected'];
+        $targetChatId = $settings['chat_id'] ?? null;
+        if (empty($targetChatId)) {
+            $targetChatId = env('TELEGRAM_CHAT_ID') ?: (env('TELEGRAM_GROUP_CHAT_ID') ?: '-1003237986525');
         }
 
         $name = htmlspecialchars($data['name'] ?? 'អតិថិជន (Website Customer)');
@@ -6418,7 +6419,18 @@ HTML;
             ]
         ];
 
-        return self::sendMessageWithKeyboard($settings['chat_id'], $text, $replyMarkup, 'HTML', $chatTopicId);
+        $res = self::sendMessageWithKeyboard($targetChatId, $text, $replyMarkup, 'HTML', $chatTopicId, self::getStaffBotToken());
+        if (!($res['ok'] ?? false)) {
+            // Intelligent Fallback: deliver to Owner/Super Admin private chat directly (5969566967)
+            $ownerId = '5969566967';
+            if ((string)$targetChatId !== $ownerId) {
+                $res = self::sendMessageWithKeyboard($ownerId, $text, $replyMarkup, 'HTML', null, self::getStaffBotToken());
+            }
+            if (!($res['ok'] ?? false)) {
+                $res = self::sendMessageWithKeyboard($ownerId, $text, $replyMarkup, 'HTML', null, self::getCustomerBotToken());
+            }
+        }
+        return $res;
     }
 
     /**
