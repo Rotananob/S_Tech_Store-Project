@@ -417,39 +417,53 @@ Route::post('/auth/telegram/verify', function (Request $request) {
         ], 410);
     }
 
-    // 2. Find or Create User Profile in Neon DB (Preserves existing account data just like Google Sign-In)
+    // 2. Strict 1-to-1 Account Resolution in Neon DB
     $tgId = (string)$data['id'];
-    $firebaseUid = 'tg_' . $tgId;
+    $cleanTg = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
+    $firebaseUid = 'tg_' . $cleanTg;
     $fullName = trim($data['first_name'] . ' ' . ($data['last_name'] ?? ''));
     $tgUsername = !empty($data['username']) ? '@' . ltrim($data['username'], '@') : null;
     $email = !empty($data['username'])
         ? ($data['username'] . '@telegram.s-tech-store.tech')
-        : ("tg_{$tgId}@s-tech-store.tech");
+        : ("tg_{$cleanTg}@s-tech-store.tech");
 
-    $user = \App\Services\TelegramService::resolveActiveUser((string)$tgId);
+    // 1. Look for account actively connected with this Telegram ID
+    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTg)
+        ->orWhere('telegram_chat_id', (string)$tgId)
+        ->first();
 
+    // 2. If none connected, look for native Telegram account
     if (!$user) {
-        $user = \App\Models\UserProfile::where('telegram_chat_id', $tgId)
-            ->orWhere('firebase_uid', $firebaseUid)
+        $user = \App\Models\UserProfile::where('firebase_uid', $firebaseUid)
+            ->orWhere('firebase_uid', 'tg_' . $tgId)
             ->first();
     }
 
+    // 3. Auto-create account if genuinely new user signing up with Telegram
     if (!$user) {
         $user = new \App\Models\UserProfile();
         $user->firebase_uid = $firebaseUid;
         $user->email = $email;
     }
 
-    $user->display_name = $user->display_name ?: ($fullName ?: "Telegram User #{$tgId}");
+    // Enforce Strict Invariant: 1 Telegram = Exactly 1 S Tech Account
+    \App\Models\UserProfile::where(function($q) use ($cleanTg, $tgId) {
+        $q->where('telegram_chat_id', (string)$cleanTg)
+          ->orWhere('telegram_chat_id', (string)$tgId);
+    })->where('id', '!=', $user->id)
+      ->update(['telegram_chat_id' => null, 'notif_telegram' => false]);
+
+    $user->display_name = $user->display_name ?: ($fullName ?: "Telegram User #{$cleanTg}");
     if (empty($user->email)) {
         $user->email = $email;
     }
-    $user->telegram_chat_id = $tgId;
-    $cleanTg = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
+    // First time signup / signin with telegram auto-connects to this telegram
+    $user->telegram_chat_id = (string)$cleanTg;
+    $user->notif_telegram = true;
     \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanTg}");
     \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$tgId}");
     if (empty($user->telegram)) {
-        $user->telegram = $tgUsername ?: ("ID: {$tgId}");
+        $user->telegram = $tgUsername ?: ("ID: {$cleanTg}");
     }
     if (!empty($data['photo_url']) && empty($user->photo_url)) {
         $user->photo_url = $data['photo_url'];
@@ -793,11 +807,11 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         $user->notif_telegram = false;
         $user->save();
 
-        // Clear cache mappings for this chat ID and mark disconnected for auto-logout in Mini App
+        // Clear cache mappings so Telegram ID is immediately free to be linked again or cleanly separated
         if (!empty($oldChatId)) {
             $cleanOldChatId = preg_replace('/\D/', '', (string)$oldChatId) ?: $oldChatId;
-            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$cleanOldChatId}", true, 86400 * 30);
-            \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$oldChatId}", true, 86400 * 30);
+            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanOldChatId}");
+            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$oldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$cleanOldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$oldChatId}");
             \Illuminate\Support\Facades\Cache::forget("tg_link_{$cleanOldChatId}");
@@ -929,40 +943,21 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     }
 
     $cleanTgId = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
-    $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanTgId}")
-        || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$tgId}");
 
-    // Look for active user linked with this telegram_chat_id first
-    $user = null;
-    if (!$isDisconnected) {
-        $user = \App\Services\TelegramService::resolveActiveUser((string)$cleanTgId);
+    // 1. Look for account currently connected to this Telegram ID
+    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+        ->orWhere('telegram_chat_id', (string)$tgId)
+        ->orderByDesc('wallet_balance')
+        ->first();
 
-        if (!$user) {
-            $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-                ->orWhere('telegram_chat_id', (string)$tgId)
-                ->orderByDesc('wallet_balance')
-                ->orderByDesc('updated_at')
-                ->first();
-        }
-
-        if (!$user) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
-                ->orWhere('firebase_uid', 'tg_' . $tgId)
-                ->orderByDesc('wallet_balance')
-                ->first();
-        }
+    // 2. If none connected, look for native Telegram account
+    if (!$user) {
+        $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
+            ->orWhere('firebase_uid', 'tg_' . $tgId)
+            ->first();
     }
 
-    // Explicitly disconnected check only
-    if ($isDisconnected) {
-        return response()->json([
-            'success' => true,
-            'linked' => false,
-            'user' => null,
-            'message' => 'Telegram account was disconnected. Auto-logout Mini App.',
-        ]);
-    }
-
+    // 3. Auto-create account if genuinely new user in Mini App
     if (!$user) {
         $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
         $user = new \App\Models\UserProfile();
@@ -972,14 +967,20 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         $user->email = !empty($tgUser['username'])
             ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
             : ("tg_{$cleanTgId}@s-tech-store.tech");
+        $user->telegram = !empty($tgUser['username']) ? ('@' . ltrim($tgUser['username'], '@')) : ("ID: {$cleanTgId}");
+        $user->notif_telegram = true;
         $user->is_active = true;
         $user->status = 'active';
         $user->save();
-    } else {
-        if (empty($user->telegram_chat_id)) {
-            $user->telegram_chat_id = (string)$cleanTgId;
-            $user->save();
-        }
+    }
+
+    // Enforce Strict Invariant: 1 Telegram = Exactly 1 Account
+    if (!empty($user->telegram_chat_id)) {
+        \App\Models\UserProfile::where(function($q) use ($cleanTgId, $tgId) {
+            $q->where('telegram_chat_id', (string)$cleanTgId)
+              ->orWhere('telegram_chat_id', (string)$tgId);
+        })->where('id', '!=', $user->id)
+          ->update(['telegram_chat_id' => null, 'notif_telegram' => false]);
     }
 
     if (!($user->is_active ?? true)) {

@@ -4860,6 +4860,10 @@ HTML;
         }
 
         if ($orderOrUser instanceof \App\Models\UserProfile) {
+            // Respect explicit disconnection or disabled notifications
+            if (isset($orderOrUser->notif_telegram) && $orderOrUser->notif_telegram === false) {
+                return null;
+            }
             if (!empty($orderOrUser->telegram_chat_id)) {
                 return (string)$orderOrUser->telegram_chat_id;
             }
@@ -4867,86 +4871,39 @@ HTML;
                 $raw = substr($orderOrUser->firebase_uid, 3);
                 if (is_numeric($raw)) return $raw;
             }
-            // Cross-Profile Auto-Healing: If user has a telegram handle (e.g. '@NobRotana' or 'NobRotana')
-            if (!empty($orderOrUser->telegram)) {
-                $clean = ltrim(trim($orderOrUser->telegram), '@');
-                $linked = \App\Models\UserProfile::where(function($q) use ($clean) {
-                    $q->where('telegram', '@' . $clean)
-                      ->orWhere('telegram', $clean)
-                      ->orWhere('email', $clean . '@telegram.s-tech-store.tech');
-                })->whereNotNull('telegram_chat_id')->first();
-                if ($linked && !empty($linked->telegram_chat_id)) {
-                    try {
-                        $orderOrUser->telegram_chat_id = (string)$linked->telegram_chat_id;
-                        $orderOrUser->save();
-                    } catch (\Throwable $t) {}
-                    return (string)$linked->telegram_chat_id;
-                }
-            }
-            // Cross-Profile Auto-Healing: Also check if this email has a telegram_chat_id in another row
-            if (!empty($orderOrUser->email)) {
-                $cleanEmail = strtolower(trim($orderOrUser->email));
-                $linkedByEmail = \App\Models\UserProfile::where('email', $cleanEmail)
-                    ->whereNotNull('telegram_chat_id')
-                    ->where('id', '!=', $orderOrUser->id)
-                    ->first();
-                if ($linkedByEmail && !empty($linkedByEmail->telegram_chat_id)) {
-                    try {
-                        $orderOrUser->telegram_chat_id = (string)$linkedByEmail->telegram_chat_id;
-                        $orderOrUser->save();
-                    } catch (\Throwable $t) {}
-                    return (string)$linkedByEmail->telegram_chat_id;
-                }
-            }
             return null;
         }
 
         if ($orderOrUser instanceof \App\Models\Order) {
             $uid = $orderOrUser->user_id;
             if (!empty($uid)) {
-                $uQuery = \App\Models\UserProfile::where('firebase_uid', $uid);
-                if (is_numeric($uid)) {
-                    $uQuery->orWhere('id', (int)$uid);
+                $u = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
+                if (!$u && is_numeric($uid)) {
+                    $u = \App\Models\UserProfile::find((int)$uid);
                 }
-                $u = $uQuery->first();
-                if ($u && !empty($u->telegram_chat_id)) {
-                    return (string)$u->telegram_chat_id;
-                }
-                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
-                    $raw = substr($u->firebase_uid, 3);
-                    if (is_numeric($raw)) return $raw;
-                }
-            }
-
-            // Look up UserProfile by phone
-            $phone = $orderOrUser->customer_phone ?: $fallbackPhone;
-            if ($phone) {
-                $u = \App\Models\UserProfile::where('phone', $phone)->first();
-                if ($u && !empty($u->telegram_chat_id)) {
-                    return (string)$u->telegram_chat_id;
-                }
-                if ($u && !empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
-                    $raw = str_replace('tg_', '', $u->firebase_uid);
-                    if (is_numeric($raw)) return $raw;
+                if ($u) {
+                    if (isset($u->notif_telegram) && $u->notif_telegram === false) {
+                        return null; // Explicitly disconnected
+                    }
+                    if (!empty($u->telegram_chat_id)) {
+                        return (string)$u->telegram_chat_id;
+                    }
+                    if (!empty($u->firebase_uid) && str_starts_with($u->firebase_uid, 'tg_')) {
+                        $raw = substr($u->firebase_uid, 3);
+                        if (is_numeric($raw)) return $raw;
+                    }
                 }
             }
 
-            // Look up UserProfile by customer_email
+            // Check if profile with this customer_email has an active telegram connection
             $email = $orderOrUser->customer_email ?: $fallbackEmail;
             if ($email) {
-                $u = \App\Models\UserProfile::where('email', $email)->first();
-                if ($u && !empty($u->telegram_chat_id)) {
+                $u = \App\Models\UserProfile::where('email', $email)->whereNotNull('telegram_chat_id')->first();
+                if ($u && ($u->notif_telegram ?? true) && !empty($u->telegram_chat_id)) {
                     return (string)$u->telegram_chat_id;
                 }
             }
-
-            // Look up UserProfile by customer_name
-            if (!empty($orderOrUser->customer_name)) {
-                $u = \App\Models\UserProfile::where('display_name', $orderOrUser->customer_name)->first();
-                if ($u && !empty($u->telegram_chat_id)) {
-                    return (string)$u->telegram_chat_id;
-                }
-            }
+            return null;
         }
 
         if ($orderOrUser instanceof \App\Models\Repair) {
@@ -4985,18 +4942,12 @@ HTML;
     {
         $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
 
-        // 1. If explicitly marked disconnected in cache, do not resolve
-        if (\Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanId}") || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$chatId}")) {
-            return null;
-        }
-
-        // 2. Resolve actively linked account where telegram_chat_id equals this Telegram ID
+        // 1. Resolve actively linked account where telegram_chat_id equals this Telegram ID
         $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
             ->orWhere('telegram_chat_id', (string)$chatId)
             ->first();
 
-        // 3. Fallback: If not connected via telegram_chat_id, check if native tg_{id} account exists
-        // and has not been explicitly disconnected
+        // 2. Fallback: If not connected via telegram_chat_id, check if native tg_{id} account exists
         if (!$user) {
             $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
                 ->orWhere('firebase_uid', 'tg_' . $chatId)
