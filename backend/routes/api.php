@@ -921,7 +921,27 @@ Route::post('/user/telegram/unlink', function (Request $request) {
         ]);
     }
 
-    return response()->json(['success' => false, 'error' => 'User not found'], 404);
+    // If user was not found or already unlinked, still guarantee clean state and return success!
+    $cleanOldChatId = $chatId ? (preg_replace('/\D/', '', (string)$chatId) ?: $chatId) : null;
+    if (!empty($cleanOldChatId)) {
+        \Illuminate\Support\Facades\Cache::put("tg_disconnected_{$cleanOldChatId}", true, 86400 * 30);
+        \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanOldChatId)
+            ->update(['telegram' => null, 'telegram_chat_id' => null, 'notif_telegram' => false]);
+        \Illuminate\Support\Facades\Cache::forget("tg_u_prof_{$cleanOldChatId}");
+        \Illuminate\Support\Facades\Cache::forget("tg_link_{$cleanOldChatId}");
+        \Illuminate\Support\Facades\Cache::forget("customer_sess_{$cleanOldChatId}");
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'គណនី Telegram ត្រូវបានផ្តាច់រួចរាល់!',
+        'user' => [
+            'telegram' => null,
+            'telegram_chat_id' => null,
+            'has_telegram' => false,
+            'provider' => 'email',
+        ],
+    ]);
 });
 
 // Instant 1-Click Telegram Token Login (from Bot Web links & Mini App)

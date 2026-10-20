@@ -169,12 +169,13 @@ api.interceptors.request.use(
             config.headers["X-Firebase-Photo"] = toSafeHeader(tgUser.photo_url);
           }
         } else if (!config.headers["X-Telegram-Chat-ID"]) {
+          const isConnected = typeof window !== "undefined" && localStorage.getItem("stech_telegram_connected") === "true";
           const sUserStr = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
           if (sUserStr) {
             try {
               const sUser = JSON.parse(sUserStr);
               const tid = sUser?.telegram_chat_id || sUser?.telegram_id;
-              if (tid) {
+              if (tid && (isConnected || sUser?.provider === "telegram")) {
                 config.headers["X-Telegram-Chat-ID"] = toSafeHeader(tid);
               }
             } catch (_) {}

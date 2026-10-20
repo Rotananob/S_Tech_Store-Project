@@ -5,6 +5,14 @@ import { NextRequest, NextResponse } from 'next/server';
 const intlMiddleware = createMiddleware(routing);
 
 export default function middleware(request: NextRequest) {
+  // Always canonicalize domain to www.s-tech-store.tech to prevent cross-subdomain sessionStorage partitioning
+  const host = request.headers.get('host') || '';
+  if (host === 's-tech-store.tech') {
+    const url = request.nextUrl.clone();
+    url.host = 'www.s-tech-store.tech';
+    url.protocol = 'https';
+    return NextResponse.redirect(url, 301);
+  }
   const { pathname } = request.nextUrl;
 
   // Strict Security Lockdown: Completely block public access to legacy /admin and old portal paths

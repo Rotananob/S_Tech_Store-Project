@@ -68,29 +68,18 @@ class WalletController extends Controller
         if ($uid) {
             $user = UserProfile::where('firebase_uid', $uid)->first();
             if ($user) return $user;
-
-            // If uid starts with tg_, resolve by telegram_chat_id or native
-            if (str_starts_with((string)$uid, 'tg_')) {
-                $rawTgId = preg_replace('/\D/', '', (string)$uid);
-                if (!empty($rawTgId)) {
-                    $user = \App\Services\TelegramService::resolveActiveUser($rawTgId);
-                    if ($user) return $user;
-                }
-            }
         }
 
-        // 3. Third Priority: Telegram Mini App via X-Telegram-Chat-ID
+        // 3. Third Priority: Telegram Mini App via X-Telegram-Chat-ID (ONLY if actively connected and NOT disconnected)
         $tgChatId = $request->header('X-Telegram-Chat-ID') 
             ?: $request->input('telegram_chat_id') 
             ?: $request->input('chat_id');
 
         if (!empty($tgChatId)) {
             $cleanChatId = preg_replace('/\D/', '', (string)$tgChatId);
-            if (!empty($cleanChatId)) {
+            if (!empty($cleanChatId) && !\Illuminate\Support\Facades\Cache::has("tg_disconnected_{$cleanChatId}")) {
                 $user = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
                 if ($user) return $user;
-                $nativeTg = UserProfile::where('firebase_uid', 'tg_' . $cleanChatId)->first();
-                if ($nativeTg) return $nativeTg;
             }
         }
 

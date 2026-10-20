@@ -7,11 +7,17 @@ import { getDatabase } from "firebase/database";
 const DEFAULT_RTDB_URL = "https://fir-tech-store-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 const getAuthDomain = () => {
-  const envDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  if (envDomain && envDomain.includes("firebaseapp.com")) {
-    return envDomain;
+  if (typeof window !== "undefined") {
+    const host = window.location.host;
+    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+      return "fir-tech-store.firebaseapp.com";
+    }
+    // Match window.location.host for 100% same-origin auth cookies and sessionStorage
+    return host;
   }
-  return "fir-tech-store.firebaseapp.com";
+  const envDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+  if (envDomain) return envDomain;
+  return "www.s-tech-store.tech";
 };
 
 const firebaseConfig = {

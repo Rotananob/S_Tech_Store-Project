@@ -18,57 +18,43 @@ class UserController extends Controller
      * Extract firebase_uid from request header.
      * Every frontend request sends X-Firebase-UID header.
      */
+    /**
+     * Resolve genuine customer firebase_uid reliably without accidental account swapping
+     */
     private function getUid(Request $request): ?string
     {
-        $uid = $request->header('X-Firebase-UID');
-        if (!empty($uid)) {
-            if (str_starts_with($uid, 'tg_')) {
-                $cleanId = preg_replace('/\D/', '', $uid);
-                $active = \App\Services\TelegramService::resolveActiveUser($cleanId);
-                if ($active && !empty($active->firebase_uid)) {
-                    return $active->firebase_uid;
-                }
-            }
-            // If incoming UID does not exist, check if X-Firebase-Email matches existing consolidated account
+        // 1. Top Priority: Explicit Firebase UID (URL decode safe)
+        $rawUid = $request->header('X-Firebase-UID');
+        if (!empty($rawUid)) {
+            $uid = urldecode(trim((string)$rawUid));
             $exists = UserProfile::where('firebase_uid', $uid)->exists();
-            if (!$exists) {
-                $email = $request->header('X-Firebase-Email');
-                if (!empty($email)) {
-                    $userByEmail = UserProfile::where('email', $email)
-                        ->where('is_active', true)
-                        ->orderByDesc('wallet_balance')
-                        ->orderByDesc('id')
-                        ->first();
-                    if (!$userByEmail) {
-                        $userByEmail = UserProfile::where('email', $email)
-                            ->orderByDesc('wallet_balance')
-                            ->orderByDesc('id')
-                            ->first();
-                    }
-                    if ($userByEmail && !empty($userByEmail->firebase_uid)) {
-                        return $userByEmail->firebase_uid;
-                    }
+            if ($exists) {
+                return $uid;
+            }
+            $rawEmail = $request->header('X-Firebase-Email');
+            if (!empty($rawEmail)) {
+                $email = urldecode(trim((string)$rawEmail));
+                $userByEmail = UserProfile::where('email', $email)
+                    ->where('is_active', true)
+                    ->orderByDesc('wallet_balance')
+                    ->orderByDesc('id')
+                    ->first();
+                if ($userByEmail && !empty($userByEmail->firebase_uid)) {
+                    return $userByEmail->firebase_uid;
                 }
             }
             return $uid;
         }
 
-        $chatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
-        if (!empty($chatId)) {
-            $active = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
-            if ($active && !empty($active->firebase_uid)) {
-                return $active->firebase_uid;
-            }
-            return 'tg_' . preg_replace('/\D/', '', $chatId);
-        }
-
-        $token = $request->header('X-Customer-Token')
+        // 2. Second Priority: Authenticated Customer Session Token
+        $rawToken = $request->header('X-Customer-Token')
             ?: $request->bearerToken()
             ?: $request->cookie('customer_token')
             ?: $request->query('token')
             ?: $request->query('tg_token');
 
-        if (!empty($token)) {
+        if (!empty($rawToken)) {
+            $token = urldecode(trim((string)$rawToken));
             $userId = \Illuminate\Support\Facades\Cache::get("customer_sess_{$token}");
             $user = null;
             if ($userId) {
@@ -77,16 +63,20 @@ class UserController extends Controller
             if (!$user) {
                 $user = UserProfile::where('magic_login_token', $token)->first();
             }
-            if ($user) {
-                if (!empty($user->telegram_chat_id)) {
-                    $active = \App\Services\TelegramService::resolveActiveUser((string)$user->telegram_chat_id);
-                    if ($active) $user = $active;
-                }
-                if (empty($user->firebase_uid)) {
-                    $user->firebase_uid = 'stech_u_' . $user->id;
-                    $user->save();
-                }
+            if ($user && !empty($user->firebase_uid)) {
                 return $user->firebase_uid;
+            }
+        }
+
+        // 3. Third Priority: Telegram Mini App WebApp context (ONLY if actively connected and NOT disconnected)
+        $rawChatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
+        if (!empty($rawChatId)) {
+            $cleanChatId = preg_replace('/\D/', '', (string)$rawChatId);
+            if (!empty($cleanChatId) && !\Illuminate\Support\Facades\Cache::has("tg_disconnected_{$cleanChatId}")) {
+                $active = \App\Services\TelegramService::resolveActiveUser((string)$cleanChatId);
+                if ($active && !empty($active->firebase_uid)) {
+                    return $active->firebase_uid;
+                }
             }
         }
 

@@ -200,14 +200,16 @@ class OrderController extends Controller
                 }
             }
 
-            // 2. If still empty, check X-Telegram-Chat-ID
+            // 2. If still empty, check X-Telegram-Chat-ID (ONLY if actively connected and NOT disconnected)
             if (empty($orderUserUid)) {
                 $rawChatId = $request->header('X-Telegram-Chat-ID') ?: $request->query('chat_id');
                 if (!empty($rawChatId)) {
                     $cleanChatId = preg_replace('/\D/', '', (string)$rawChatId);
-                    $active = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
-                    if ($active && !empty($active->firebase_uid)) {
-                        $orderUserUid = $active->firebase_uid;
+                    if (!empty($cleanChatId) && !\Illuminate\Support\Facades\Cache::has("tg_disconnected_{$cleanChatId}")) {
+                        $active = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
+                        if ($active && !empty($active->firebase_uid)) {
+                            $orderUserUid = $active->firebase_uid;
+                        }
                     }
                 }
             }

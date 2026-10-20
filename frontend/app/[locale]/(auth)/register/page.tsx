@@ -381,6 +381,10 @@ export default function RegisterPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (typeof navigator !== "undefined" && /Telegram/i.test(navigator.userAgent)) {
+      setError("គណនី Google មិនអនុញ្ញាតឱ្យចូលក្នុង Telegram In-App Browser ឡើយ។ សូមចុច 'ចុះឈ្មោះដោយ Telegram' (1-Click) ឬបើកគេហទំព័រក្នុង Safari / Chrome ដើម្បីចុះឈ្មោះដោយ Google។");
+      return;
+    }
     setError("");
     setLoading(true);
     setAuthOverlay({
@@ -392,6 +396,7 @@ export default function RegisterPage() {
 
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       const cred = await signInWithPopup(auth, provider);
       
       setAuthOverlay({

@@ -358,6 +358,10 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (typeof navigator !== "undefined" && /Telegram/i.test(navigator.userAgent)) {
+      setError("គណនី Google មិនអនុញ្ញាតឱ្យចូលក្នុង Telegram In-App Browser ឡើយ។ សូមចុច 'ចូលដោយ Telegram' (1-Click) ឬបើកគេហទំព័រក្នុង Safari / Chrome ដើម្បីចូលដោយ Google។");
+      return;
+    }
     setError("");
     setLoading(true);
     setAuthOverlay({
@@ -369,6 +373,7 @@ export default function LoginPage() {
 
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       const cred = await signInWithPopup(auth, provider);
 
       // Verify if customer account is active in database
