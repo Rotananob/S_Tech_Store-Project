@@ -192,9 +192,11 @@ api.interceptors.request.use(
         }
         if (customerToken) {
           config.headers["X-Customer-Token"] = toSafeHeader(customerToken);
-          if (!config.params) config.params = {};
-          if (!config.params.tg_token) {
-            config.params.tg_token = customerToken;
+          if (config.method && config.method.toLowerCase() === "get") {
+            if (!config.params) config.params = {};
+            if (!config.params.tg_token) {
+              config.params.tg_token = customerToken;
+            }
           }
         }
       } catch (e) {

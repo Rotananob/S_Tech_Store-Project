@@ -23,6 +23,7 @@ return [
     ],
 
     'allowed_headers' => [
+        '*',
         'Content-Type',
         'X-Requested-With',
         'Authorization',
@@ -32,7 +33,12 @@ return [
         'X-Firebase-Email',
         'X-Firebase-Name',
         'X-Firebase-Photo',
+        'X-Telegram-Chat-ID',
         'X-Customer-Token',
+        'X-User-Email',
+        'X-User-Name',
+        'X-Owner-Bypass',
+        'X-Order-ID',
         'X-Telegram-Bot-Api-Secret-Token',
         'Accept',
         'Origin',
@@ -41,6 +47,8 @@ return [
     'exposed_headers' => [
         'X-Admin-Token',
         'X-Firebase-UID',
+        'X-Customer-Token',
+        'X-Telegram-Chat-ID',
     ],
 
     'max_age' => 86400,

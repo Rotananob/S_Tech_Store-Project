@@ -5,7 +5,29 @@ import { NextRequest, NextResponse } from 'next/server';
 const intlMiddleware = createMiddleware(routing);
 
 export default function middleware(request: NextRequest) {
-  // Always canonicalize domain to www.s-tech-store.tech to prevent cross-subdomain sessionStorage partitioning
+  const { pathname } = request.nextUrl;
+
+  // 1. Firebase Auth handler, system reverse-proxy, and root PWA / SEO asset bypass
+  if (
+    pathname.startsWith('/__') ||
+    pathname.includes('/__/auth') ||
+    pathname === '/sw.js' ||
+    pathname === '/manifest.json' ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/version.json' ||
+    pathname === '/favicon.ico' ||
+    pathname === '/logo.jpg' ||
+    pathname === '/logo.png' ||
+    pathname === '/icon.png' ||
+    pathname === '/apple-icon.png' ||
+    pathname === '/apple-touch-icon.png'
+  ) {
+    return NextResponse.next();
+  }
+
+  // 2. Always canonicalize domain to www.s-tech-store.tech to prevent cross-subdomain sessionStorage partitioning
   const host = request.headers.get('host') || '';
   if (host === 's-tech-store.tech') {
     const url = request.nextUrl.clone();
@@ -13,7 +35,6 @@ export default function middleware(request: NextRequest) {
     url.protocol = 'https';
     return NextResponse.redirect(url, 301);
   }
-  const { pathname } = request.nextUrl;
 
   // Strict Security Lockdown: Completely block public access to legacy /admin and old portal paths
   // Return standard 404 Not Found so scanners, bots, and unauthorized users cannot discover or enter the admin portal
@@ -51,21 +72,6 @@ export default function middleware(request: NextRequest) {
     } catch {}
 
     return new NextResponse('404 Not Found', { status: 404 });
-  }
-
-  // Firebase Auth handler, system reverse-proxy, and root PWA / SEO asset bypass
-  if (
-    pathname.startsWith('/__') ||
-    pathname === '/sw.js' ||
-    pathname === '/manifest.json' ||
-    pathname === '/manifest.webmanifest' ||
-    pathname === '/robots.txt' ||
-    pathname === '/sitemap.xml' ||
-    pathname === '/version.json' ||
-    pathname === '/favicon.ico' ||
-    pathname === '/logo.jpg'
-  ) {
-    return NextResponse.next();
   }
 
   return intlMiddleware(request);
