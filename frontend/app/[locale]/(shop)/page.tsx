@@ -16,8 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Primary SEO target keyword: "S Tech" / "s tech" + "S Tech Store"
   const title = isKm 
-    ? 'S Tech | Official Store Cambodia — Laptops, Gaming PC & IT Services' 
-    : 'S Tech | Official Store Cambodia — Laptops, Gaming PC & IT Services';
+    ? 'S Tech — #1 Laptop, Gaming PC & Tech Store in Cambodia' 
+    : 'S Tech — #1 Laptop, Gaming PC & Tech Store in Cambodia';
 
   const description = isKm 
     ? 'S Tech (S Tech Store Cambodia) គឺជាហាងកុំព្យូទ័រ និងបច្ចេកវិទ្យាឈានមុខគេនៅកម្ពុជា។ ផ្គត់ផ្គង់ Laptops, Custom Gaming PC, Monitors, គ្រឿងបន្លាស់កុំព្យូទ័រ និងសេវាជួសជុលរហ័សទាន់ចិត្ត ធានាត្រឹមត្រូវ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង។' 
@@ -35,6 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       "s_tech",
       "S Tech Store",
       "s tech store",
+      "S-Tech Store",
+      "STech Store",
       "S Tech Cambodia",
       "s tech cambodia",
       "s tech phnom penh",
@@ -118,21 +120,25 @@ export default async function HomePage({ params }: Props) {
         "name": "S Tech",
         "legalName": "S Tech Store Cambodia",
         "alternateName": [
-          "S Tech Store",
           "s tech",
+          "S Tech Store",
+          "s tech store",
           "STech",
           "S-Tech",
           "stech",
           "s_tech",
           "S Tech Cambodia",
+          "s tech cambodia",
           "S Tech Store Cambodia",
+          "S-Tech Store",
+          "STech Store",
           "ហាង S Tech",
           "ហាងកុំព្យូទ័រ S Tech",
           "កុំព្យូទ័រ S Tech",
           "S Tech Computer"
         ],
         "url": `https://www.s-tech-store.tech/${locale}`,
-        "logo": "https://www.s-tech-store.tech/logo.jpg",
+        "logo": "https://www.s-tech-store.tech/logo.png",
         "image": "https://www.s-tech-store.tech/og-image.png",
         "description": "Leading computer, laptop, custom gaming PC, and IT repair store in Phnom Penh, Cambodia. Fast delivery nationwide.",
         "telephone": "+855-12-345-678",
@@ -167,7 +173,7 @@ export default async function HomePage({ params }: Props) {
         "brand": {
           "@type": "Brand",
           "name": "S Tech",
-          "alternateName": ["STech", "S-Tech", "S Tech Store", "s tech"]
+          "alternateName": ["s tech", "STech", "S-Tech", "S Tech Store"]
         },
         "aggregateRating": {
           "@type": "AggregateRating",
@@ -189,12 +195,16 @@ export default async function HomePage({ params }: Props) {
         "url": "https://www.s-tech-store.tech",
         "name": "S Tech",
         "alternateName": [
-          "S Tech Store",
           "s tech",
           "STech",
           "S-Tech",
           "stech",
-          "S Tech Cambodia"
+          "S Tech Store",
+          "s tech store",
+          "S-Tech Store",
+          "STech Store",
+          "S Tech Cambodia",
+          "s tech cambodia"
         ],
         "publisher": { "@id": "https://www.s-tech-store.tech/#store" },
         "potentialAction": {
@@ -272,12 +282,12 @@ export default async function HomePage({ params }: Props) {
       {/* ── Semantic SEO Headings & Brand Keywords for Search Crawlers (Googlebot / Bingbot) ── */}
       <h1 className="sr-only">
         {isKm 
-          ? "S Tech — ហាងកុំព្យូទ័រ Laptop, Gaming PC និងគ្រឿងបន្លាស់ផ្លូវការនៅកម្ពុជា (S Tech Store Cambodia)" 
-          : "S Tech — Official Computer, Laptop & Gaming PC Store in Cambodia (S Tech Store)"}
+          ? "S Tech — ហាងកុំព្យូទ័រ Laptops, Gaming PC និងគ្រឿងបន្លាស់ផ្លូវការនៅកម្ពុជា (S Tech Store Cambodia)" 
+          : "S Tech — Cambodia's #1 Computer, Laptop & Gaming PC Store (S Tech Store)"}
       </h1>
       <div className="sr-only">
         <p>S Tech (S Tech Store Cambodia) គឺជាប្រភពបច្ចេកវិទ្យាផ្លូវការសម្រាប់ទិញ Laptops, Gaming PC, Computer Parts, Monitors និងគ្រឿងបន្លាស់កុំព្យូទ័រនៅរាជធានីភ្នំពេញ កម្ពុជា។</p>
-        <p>Brand keywords: S Tech, s tech, STech, S-Tech, stech, S Tech Store, s tech store, S Tech Cambodia, s tech laptop, s tech pc, s tech phnom penh.</p>
+        <p>Brand keywords: S Tech, s tech, STech, S-Tech, stech, s_tech, S Tech Store, s tech store, S-Tech Store, STech Store, S Tech Cambodia, s tech laptop, s tech pc, s tech phnom penh.</p>
       </div>
 
       {/* Structured Data for SEO Keyword Dominance */}

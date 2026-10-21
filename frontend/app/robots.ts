@@ -26,6 +26,19 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
       {
+        userAgent: 'Googlebot-Image',
+        allow: [
+          '/',
+          '/favicon.ico',
+          '/icons/',
+          '/logo.png',
+          '/icon.png',
+          '/apple-touch-icon.png',
+          '/og-image.png',
+          '/images/',
+        ],
+      },
+      {
         userAgent: 'Bingbot',
         allow: '/',
         disallow: [

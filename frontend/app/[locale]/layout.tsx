@@ -31,8 +31,8 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.s-tech-store.tech'),
   title: {
-    default: "S Tech | Official Store Cambodia — Laptops, Gaming PC & IT Services",
-    template: "%s | S Tech Store Cambodia",
+    default: "S Tech — #1 Laptop, Gaming PC & Tech Store in Cambodia",
+    template: "%s | S Tech",
   },
   applicationName: "S Tech",
   description:
@@ -46,6 +46,8 @@ export const metadata: Metadata = {
     "s_tech",
     "S Tech Store",
     "s tech store",
+    "S-Tech Store",
+    "STech Store",
     "S Tech Cambodia",
     "s tech cambodia",
     "s tech phnom penh",
@@ -69,16 +71,16 @@ export const metadata: Metadata = {
     "គ្រឿងបន្លាស់ pc",
     "s-tech-store.tech"
   ],
-  authors: [{ name: "S Tech Store Cambodia", url: "https://www.s-tech-store.tech" }],
-  creator: "S Tech Store",
-  publisher: "S Tech Store",
+  authors: [{ name: "S Tech", url: "https://www.s-tech-store.tech" }],
+  creator: "S Tech",
+  publisher: "S Tech",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
   openGraph: {
-    title: "S Tech | Official Store Cambodia — Laptops, Gaming PC & IT Services",
+    title: "S Tech — #1 Laptop, Gaming PC & Tech Store in Cambodia",
     description: "S Tech (S Tech Store Cambodia) ផ្គត់ផ្គង់ Laptops, Custom Gaming PC, Monitors, គ្រឿងបន្លាស់កុំព្យូទ័រ និងសេវាជួសជុលរហ័សទាន់ចិត្ត ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង។",
     url: "https://www.s-tech-store.tech",
     siteName: "S Tech",
@@ -98,7 +100,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "S Tech | Genuine Laptops, Gaming PCs & Tech Hub Cambodia",
+    title: "S Tech — #1 Laptop, Gaming PC & Tech Store in Cambodia",
     description: "Laptops, Gaming PC Builds, Accessories & Professional Repair Services in Phnom Penh, Cambodia.",
     images: ["https://www.s-tech-store.tech/og-image.png"],
     creator: "@STechStore",
@@ -139,9 +141,17 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.webmanifest',
   icons: {
-    icon: '/logo.jpg',
-    shortcut: '/logo.jpg',
-    apple: '/icons/icon-192.png',
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
+      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
   },
   verification: {
     google: '3660d58f4e2bffb0',
@@ -157,13 +167,17 @@ const organizationSchema = {
       "name": "S Tech",
       "legalName": "S Tech Store Cambodia",
       "alternateName": [
-        "S Tech Store",
         "s tech",
         "STech",
         "S-Tech",
         "stech",
         "s_tech",
+        "S Tech Store",
+        "s tech store",
+        "S-Tech Store",
+        "STech Store",
         "S Tech Cambodia",
+        "s tech cambodia",
         "S Tech Store Cambodia",
         "ហាង S Tech Store",
         "ហាងកុំព្យូទ័រ S Tech",
@@ -174,7 +188,10 @@ const organizationSchema = {
       "logo": {
         "@type": "ImageObject",
         "@id": "https://www.s-tech-store.tech/#logo",
-        "url": "https://www.s-tech-store.tech/logo.jpg",
+        "url": "https://www.s-tech-store.tech/logo.png",
+        "contentUrl": "https://www.s-tech-store.tech/logo.png",
+        "width": 512,
+        "height": 512,
         "caption": "S Tech Logo"
       },
       "image": "https://www.s-tech-store.tech/og-image.png",
@@ -230,7 +247,7 @@ const organizationSchema = {
       "brand": {
         "@type": "Brand",
         "name": "S Tech",
-        "alternateName": ["STech", "S-Tech", "S Tech Store", "s tech"]
+        "alternateName": ["s tech", "STech", "S-Tech", "S Tech Store"]
       },
       "aggregateRating": {
         "@type": "AggregateRating",
@@ -246,12 +263,16 @@ const organizationSchema = {
       "url": "https://www.s-tech-store.tech",
       "name": "S Tech",
       "alternateName": [
-        "S Tech Store",
         "s tech",
         "STech",
         "S-Tech",
         "stech",
-        "S Tech Cambodia"
+        "S Tech Store",
+        "s tech store",
+        "S-Tech Store",
+        "STech Store",
+        "S Tech Cambodia",
+        "s tech cambodia"
       ],
       "publisher": { "@id": "https://www.s-tech-store.tech/#organization" },
       "potentialAction": {
@@ -266,7 +287,7 @@ const organizationSchema = {
     {
       "@type": "ItemList",
       "@id": "https://www.s-tech-store.tech/#sitelinks",
-      "name": "S Tech Store Navigation",
+      "name": "S Tech Navigation",
       "itemListElement": [
         {
           "@type": "SiteNavigationElement",
@@ -337,9 +358,12 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <link rel="icon" href="/logo.jpg" />
-        <link rel="shortcut icon" href="/logo.jpg" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        {/* Google & Browser Favicons (Standards compliant: ICO & 48px square multiples) */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
