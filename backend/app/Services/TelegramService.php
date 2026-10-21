@@ -5196,12 +5196,28 @@ HTML;
     public static function resolveActiveUser(string $chatId): ?\App\Models\UserProfile
     {
         $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
+        if (empty($cleanId)) return null;
 
-        // Strict: ONLY resolve account where telegram_chat_id equals this Telegram ID
+        // 1. Strict 1-to-1: Resolve account where telegram_chat_id equals this Telegram ID
         $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
             ->orWhere('telegram_chat_id', (string)$chatId)
             ->orderByDesc('wallet_balance')
             ->first();
+
+        // 2. Native Telegram Account resolution by firebase_uid (tg_{cleanId})
+        if (!$user) {
+            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
+                ->orWhere('firebase_uid', 'tg_' . $chatId)
+                ->first();
+        }
+
+        // 3. Self-heal: Ensure telegram_chat_id is populated on native Telegram store account
+        if ($user && empty($user->telegram_chat_id)) {
+            $user->telegram_chat_id = (string)$cleanId;
+            $user->notif_telegram = true;
+            try { $user->save(); } catch (\Throwable $t) {}
+            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanId}");
+        }
 
         return $user;
     }
@@ -5214,36 +5230,45 @@ HTML;
         $cleanChatId = preg_replace('/\D/', '', $chatId) ?: $chatId;
         $user = $user ?: self::resolveActiveUser((string)$cleanChatId);
 
-        // If Telegram is disconnected or not connected to an S Tech account, return 0 orders
-        if (!$user) {
+        if (!$user && empty($cleanChatId)) {
             return \App\Models\Order::whereRaw('1 = 0');
         }
 
         $userIds = [];
-        if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
-        if (!empty($user->id)) $userIds[] = (string)$user->id;
-        if (!empty($user->telegram_chat_id)) {
-            $userIds[] = (string)$user->telegram_chat_id;
-            $userIds[] = 'tg_' . $user->telegram_chat_id;
+        if ($user) {
+            if (!empty($user->firebase_uid)) $userIds[] = $user->firebase_uid;
+            if (!empty($user->id)) $userIds[] = (string)$user->id;
+            if (!empty($user->telegram_chat_id)) {
+                $userIds[] = (string)$user->telegram_chat_id;
+                $userIds[] = 'tg_' . $user->telegram_chat_id;
+            }
+            if (!empty($user->email)) {
+                $siblingUids = \App\Models\UserProfile::where('email', $user->email)
+                    ->pluck('firebase_uid')
+                    ->filter()
+                    ->toArray();
+                $userIds = array_merge($userIds, $siblingUids);
+            }
         }
-        if (!empty($user->email)) {
-            $siblingUids = \App\Models\UserProfile::where('email', $user->email)
-                ->pluck('firebase_uid')
-                ->filter()
-                ->toArray();
-            $userIds = array_merge($userIds, $siblingUids);
+        if (!empty($cleanChatId)) {
+            $userIds[] = (string)$cleanChatId;
+            $userIds[] = 'tg_' . $cleanChatId;
         }
         $userIds = array_unique(array_filter($userIds));
 
-        return \App\Models\Order::where(function ($q) use ($userIds, $user) {
+        return \App\Models\Order::where(function ($q) use ($userIds, $user, $cleanChatId) {
             $q->whereIn('user_id', $userIds);
             if ($user) {
                 if (!empty($user->phone)) {
                     $q->orWhere('customer_phone', $user->phone);
                 }
-                if (!empty($user->email) && !str_ends_with($user->email, '@telegram.s-tech-store.tech') && !str_ends_with($user->email, '@s-tech-store.tech')) {
+                if (!empty($user->email)) {
                     $q->orWhere('customer_email', $user->email);
                 }
+            }
+            if (!empty($cleanChatId)) {
+                $q->orWhere('user_id', 'tg_' . $cleanChatId)
+                  ->orWhere('user_id', (string)$cleanChatId);
             }
         });
     }

@@ -11,6 +11,7 @@ export interface CreateOrderPayload {
   payment_method: string;
   name: string;
   phone: string;
+  email?: string;
   address: string;
   items: OrderItemPayload[];
   subtotal: number;

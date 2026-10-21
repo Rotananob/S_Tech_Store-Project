@@ -995,7 +995,7 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
     ]);
 });
 
-// Telegram Mini App Instant Sync & Auto-Login
+// Telegram Mini App Instant Sync & Auto-Login (Full 1st-Class Store Account)
 Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     $tgUser = $request->input('telegram_user') ?? [];
     $tgId = (string)($tgUser['id'] ?? '');
@@ -1005,27 +1005,52 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
 
     $cleanTgId = preg_replace('/\D/', '', (string)$tgId) ?: $tgId;
 
-    // 1. Check if user is explicitly disconnected or unlinked
-    $isDisconnected = \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$cleanTgId}")
-        || \Illuminate\Support\Facades\Cache::get("tg_disconnected_{$tgId}");
+    // Purge any disconnected flag since user is actively inside Telegram Mini App interacting with store!
+    \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanTgId}");
+    \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$tgId}");
 
-    // 2. Strict 1-to-1: ONLY resolve account actively connected with this Telegram ID
-    $user = null;
-    if (!$isDisconnected) {
-        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-            ->orWhere('telegram_chat_id', (string)$tgId)
-            ->orderByDesc('wallet_balance')
+    // Strict 1-to-1 Account Resolution:
+    // 1. Search by telegram_chat_id
+    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
+        ->orWhere('telegram_chat_id', (string)$tgId)
+        ->orderByDesc('wallet_balance')
+        ->first();
+
+    // 2. Search by native telegram firebase_uid ('tg_' . cleanTgId)
+    if (!$user) {
+        $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
+            ->orWhere('firebase_uid', 'tg_' . $tgId)
             ->first();
     }
 
-    // 3. If disconnected or not connected to any S Tech account, return linked: false (NEVER auto-create dummy accounts)
+    $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
+    $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
+    $email = !empty($tgUser['username'])
+        ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
+        : ("tg_{$cleanTgId}@s-tech-store.tech");
+
+    // 3. If new Telegram user, auto-create complete store account with 5 free coins!
     if (!$user) {
-        return response()->json([
-            'success' => true,
-            'linked' => false,
-            'message' => 'គណនី Telegram នេះមិនទាន់ត្រូវបានភ្ជាប់ជាមួយគណនី Website ណាមួយឡើយ ឬត្រូវបានផ្តាច់រួចរាល់។',
-        ]);
+        $user = new \App\Models\UserProfile();
+        $user->firebase_uid = 'tg_' . $cleanTgId;
+        $user->email = $email;
+        $user->display_name = $fullName;
+        $user->points = 5;
+        $user->wallet_balance = 0;
     }
+
+    $user->telegram_chat_id = (string)$cleanTgId;
+    $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+    $user->notif_telegram = true;
+    $user->is_active = true;
+    $user->status = 'active';
+
+    if (!empty($tgUser['photo_url'])) {
+        $user->photo_url = $tgUser['photo_url'];
+        $user->avatar_url = $tgUser['photo_url'];
+    }
+
+    $user->save();
 
     if (!($user->is_active ?? true)) {
         return response()->json([

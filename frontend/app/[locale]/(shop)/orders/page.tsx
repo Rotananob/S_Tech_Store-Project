@@ -166,8 +166,18 @@ export default function OrdersPage() {
       const urlChatId = urlParams?.get("chat_id");
       
       const tgUser = typeof window !== "undefined" ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
-      const rawChatId = urlChatId || (tgUser?.id ? String(tgUser.id) : null);
-      const cleanChatId = rawChatId ? rawChatId.replace(/\D/g, "") : null;
+      let sessionTgId: string | null = null;
+      if (typeof window !== "undefined") {
+        try {
+          const s = localStorage.getItem("stech_user_session") || localStorage.getItem("user_session");
+          if (s) {
+            const p = JSON.parse(s);
+            sessionTgId = p.telegram_chat_id || p.telegram_id || (typeof p.firebase_uid === "string" && p.firebase_uid.startsWith("tg_") ? p.firebase_uid.slice(3) : null);
+          }
+        } catch (_) {}
+      }
+      const rawChatId = urlChatId || (tgUser?.id ? String(tgUser.id) : sessionTgId);
+      const cleanChatId = rawChatId ? String(rawChatId).replace(/\D/g, "") : null;
 
       const queryParams: Record<string, string> = {};
       if (tgToken) queryParams.tg_token = tgToken;

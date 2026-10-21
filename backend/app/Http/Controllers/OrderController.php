@@ -233,6 +233,27 @@ class OrderController extends Controller
                 }
             }
 
+            // ACC STORE ALL: Automatically store customer contact info on their Store Account
+            if ($matchedUser) {
+                $userNeedsUpdate = false;
+                if (empty($matchedUser->phone) && !empty($validated['phone'])) {
+                    $matchedUser->phone = $validated['phone'];
+                    $userNeedsUpdate = true;
+                }
+                if (empty($matchedUser->address) && !empty($validated['address'])) {
+                    $matchedUser->address = $validated['address'];
+                    $userNeedsUpdate = true;
+                }
+                if (str_starts_with((string)$matchedUser->firebase_uid, 'tg_') && empty($matchedUser->telegram_chat_id)) {
+                    $matchedUser->telegram_chat_id = substr($matchedUser->firebase_uid, 3);
+                    $matchedUser->notif_telegram = true;
+                    $userNeedsUpdate = true;
+                }
+                if ($userNeedsUpdate) {
+                    try { $matchedUser->save(); } catch (\Throwable $t) {}
+                }
+            }
+
             // Create Order
             $order = Order::create([
                 'user_id' => $orderUserUid,

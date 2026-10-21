@@ -2226,18 +2226,22 @@ class UserController extends Controller
             }
         }
 
+        $uid = $this->getUid($request);
+        if (!$user && $uid) {
+            $user = UserProfile::where('firebase_uid', $uid)
+                ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
+                ->first();
+        }
+
         if (!$user && !empty($chatId)) {
             $user = \App\Services\TelegramService::resolveActiveUser((string)$chatId);
         }
 
-        $uid = null;
-        if (!$user) {
-            $uid = $this->getUid($request);
-            if ($uid) {
-                $user = UserProfile::where('firebase_uid', $uid)
-                    ->orWhere('id', is_numeric($uid) ? (int)$uid : 0)
-                    ->first();
-            }
+        if ($user && empty($user->telegram_chat_id) && !empty($chatId)) {
+            $user->telegram_chat_id = (string)$chatId;
+            $user->notif_telegram = true;
+            try { $user->save(); } catch (\Throwable $t) {}
+            \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$chatId}");
         }
 
         // Support direct lookup of an order by order_id or id if supplied (e.g. from Telegram alert direct link)
