@@ -15,12 +15,14 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
+  cartUserId: string | null;
   loading: boolean;
   fetchCart: () => Promise<void>;
   addItem: (item: CartItem) => Promise<boolean>;
   removeItem: (id: number) => Promise<void>;
   updateQuantity: (id: number, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
+  resetLocalCart: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
   isOpen: boolean;
@@ -32,16 +34,39 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      cartUserId: null,
       loading: false,
       isOpen: false,
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setIsOpen: (open: boolean) => set({ isOpen: open }),
 
+      resetLocalCart: () => {
+        set({ items: [], cartUserId: null, loading: false });
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem('stech_cart_storage');
+          } catch (_) {}
+        }
+      },
+
       fetchCart: async () => {
         const user = getEffectiveUser();
-        if (!user) {
-          // Guest users retain their locally persisted cart items
+        const currentUserId = user ? String(user.firebase_uid || user.uid || user.id) : null;
+        const previousCartUserId = get().cartUserId;
+
+        // If guest (not logged in):
+        if (!currentUserId) {
+          // If items in local storage belonged to an authenticated account that is now logged out,
+          // immediately reset local cart so guest visitors never see an old account's cart!
+          if (previousCartUserId) {
+            get().resetLocalCart();
+          }
           return;
+        }
+
+        // If account switched, do not retain previous account's items
+        if (previousCartUserId && previousCartUserId !== currentUserId) {
+          set({ items: [], cartUserId: currentUserId });
         }
 
         try {
@@ -60,8 +85,8 @@ export const useCartStore = create<CartState>()(
               image_url: item.product?.image || item.product?.image_url || item.image_url,
             }));
 
-            // Merge server items with local items so added products never disappear
-            const localItems = get().items;
+            // Only merge local items if they were accumulated as an anonymous guest before login
+            const localItems = previousCartUserId === null ? get().items : [];
             const mergedMap = new Map<number, CartItem>();
 
             for (const si of mappedItems) {
@@ -69,26 +94,34 @@ export const useCartStore = create<CartState>()(
               if (pid) mergedMap.set(pid, si);
             }
 
-            for (const li of localItems) {
-              const pid = (li as any).product_id || (li as any).product?.id || li.id;
-              if (pid) {
-                if (!mergedMap.has(pid)) {
-                  mergedMap.set(pid, li);
-                  addToCart(pid, li.quantity).catch(() => {});
+            if (previousCartUserId === null && localItems.length > 0) {
+              for (const li of localItems) {
+                const pid = (li as any).product_id || (li as any).product?.id || li.id;
+                if (pid) {
+                  if (!mergedMap.has(pid)) {
+                    mergedMap.set(pid, li);
+                    addToCart(pid, li.quantity).catch(() => {});
+                  }
                 }
               }
             }
 
-            set({ items: Array.from(mergedMap.values()), loading: false });
+            set({
+              items: Array.from(mergedMap.values()),
+              cartUserId: currentUserId,
+              loading: false,
+            });
           } else {
-            set({ loading: false });
+            set({ cartUserId: currentUserId, loading: false });
           }
         } catch {
-          set({ loading: false });
+          set({ cartUserId: currentUserId, loading: false });
         }
       },
 
       addItem: async (item) => {
+        const user = getEffectiveUser();
+        const currentUserId = user ? String(user.firebase_uid || user.uid || user.id) : null;
         const productId = (item as any).product_id || (item as any).product?.id || item.id;
         const qtyToAdd = item.quantity || 1;
         const prevItems = get().items;
@@ -125,10 +158,9 @@ export const useCartStore = create<CartState>()(
           updated = [...prevItems, newItem];
         }
 
-        set({ items: updated });
+        set({ items: updated, cartUserId: currentUserId });
 
         // If authenticated, sync with server cart in background
-        const user = getEffectiveUser();
         if (user) {
           try {
             await addToCart(productId, qtyToAdd);
@@ -198,20 +230,41 @@ export const useCartStore = create<CartState>()(
       },
 
       getTotalItems: () => {
-        return get().items.reduce((total, item) => total + item.quantity, 0);
+        return (get().items || []).reduce((total, item) => total + (item.quantity || 1), 0);
       },
 
       getTotalPrice: () => {
-        return get().items.reduce((total, item) => {
+        return (get().items || []).reduce((total, item) => {
           const price = item.product?.sale_price ?? item.product?.price ?? item.price ?? 0;
-          return total + price * item.quantity;
+          return total + price * (item.quantity || 1);
         }, 0);
       },
     }),
     {
       name: 'stech_cart_storage',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({ items: state.items, cartUserId: state.cartUserId }),
     }
   )
 );
+
+// Global browser listener: When user logs out or session changes, immediately reconcile cart state
+if (typeof window !== 'undefined') {
+  window.addEventListener('user_session_updated', () => {
+    try {
+      const user = getEffectiveUser();
+      const store = useCartStore.getState();
+      if (!user) {
+        if (store.cartUserId) {
+          store.resetLocalCart();
+        }
+      } else {
+        const uid = String(user.firebase_uid || user.uid || user.id);
+        if (store.cartUserId && store.cartUserId !== uid) {
+          store.resetLocalCart();
+        }
+        store.fetchCart();
+      }
+    } catch (_) {}
+  });
+}

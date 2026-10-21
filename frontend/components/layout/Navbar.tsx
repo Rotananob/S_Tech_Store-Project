@@ -103,7 +103,9 @@ export default function Navbar() {
       }
 
       setUser(null);
-      // Keep cart intact in localStorage for guest visitors
+      if (useCartStore.getState().cartUserId) {
+        useCartStore.getState().resetLocalCart();
+      }
       useWishlistStore.getState().clearWishlist();
     };
 
@@ -575,6 +577,8 @@ export default function Navbar() {
                     localStorage.removeItem("stech_cached_orders");
                     localStorage.removeItem("stech_cached_wallet");
                     document.cookie = "customer_token=; path=/; max-age=0;";
+                    useCartStore.getState().resetLocalCart();
+                    useWishlistStore.getState().clearWishlist();
                     signOut(auth);
                     setUser(null);
                     window.dispatchEvent(new Event("user_session_updated"));

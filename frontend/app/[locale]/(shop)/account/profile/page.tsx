@@ -1637,9 +1637,12 @@ export default function UserProfilePage() {
         localStorage.removeItem("stech_cached_orders");
         localStorage.removeItem("stech_cached_wallet");
         document.cookie = "customer_token=; path=/; max-age=0;";
+        useCartStore.getState().resetLocalCart();
+        useWishlistStore.getState().clearWishlist();
         await signOut(auth);
         window.location.href = "/";
       } catch (e) {
+        useCartStore.getState().resetLocalCart();
         window.location.href = "/";
       }
     }
@@ -4796,6 +4799,8 @@ export default function UserProfilePage() {
                     localStorage.removeItem("stech_cached_orders");
                     localStorage.removeItem("stech_cached_wallet");
                     document.cookie = "customer_token=; path=/; max-age=0;";
+                    useCartStore.getState().resetLocalCart();
+                    useWishlistStore.getState().clearWishlist();
                     signOut(auth);
                     setUser(null);
                     setShowLogoutModal(false);
