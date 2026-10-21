@@ -7,11 +7,26 @@ import { getDatabase } from "firebase/database";
 const DEFAULT_RTDB_URL = "https://fir-tech-store-default-rtdb.asia-southeast1.firebasedatabase.app";
 
 const getAuthDomain = () => {
+  // If explicitly configured with a custom brand domain
   const envDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-  if (envDomain && envDomain.includes("firebaseapp.com")) {
+  if (envDomain && !envDomain.includes("firebaseapp.com") && !envDomain.includes("localhost")) {
     return envDomain;
   }
-  return "fir-tech-store.firebaseapp.com";
+
+  if (typeof window !== "undefined") {
+    const host = window.location.host;
+    // When running on the official production domain (e.g. www.s-tech-store.tech)
+    if (host.includes("s-tech-store.tech")) {
+      return host;
+    }
+    // In local development or preview environments, fallback to Firebase project domain
+    if (host.includes("localhost") || host.includes("127.0.0.1") || host.startsWith("192.168.") || host.startsWith("10.")) {
+      return "fir-tech-store.firebaseapp.com";
+    }
+    return host;
+  }
+
+  return "www.s-tech-store.tech";
 };
 
 const firebaseConfig = {
