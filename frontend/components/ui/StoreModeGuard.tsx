@@ -27,7 +27,10 @@ import {
   Cpu,
   Zap,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  Radio,
+  Server
 } from "lucide-react";
 
 interface TimeRemaining {
@@ -248,6 +251,28 @@ export default function StoreModeGuard() {
     return { total: diff, days, hours, minutes, seconds, isExpired: false };
   }, [storeStatus?.night_lock?.reopen_at, now]);
 
+  // Compute countdown to maintenance end time
+  const maintenanceCountdown: TimeRemaining = useMemo(() => {
+    const endTime = storeStatus?.maintenance?.end_time;
+    if (!endTime) {
+      return { total: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+    }
+
+    const end = new Date(endTime).getTime();
+    const diff = end - now;
+
+    if (diff <= 0) {
+      return { total: 0, days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+    }
+
+    const seconds = Math.floor((diff / 1000) % 60);
+    const minutes = Math.floor((diff / 1000 / 60) % 60);
+    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    return { total: diff, days, hours, minutes, seconds, isExpired: false };
+  }, [storeStatus?.maintenance?.end_time, now]);
+
   // Auto-Redirect / Auto-Open when vacation countdown expires
   useEffect(() => {
     if (
@@ -281,6 +306,23 @@ export default function StoreModeGuard() {
       return () => clearTimeout(timer);
     }
   }, [storeStatus?.status, storeStatus?.night_lock?.active, storeStatus?.night_lock?.reopen_at, nightLockCountdown.isExpired]);
+
+  // Auto-Redirect / Auto-Open when maintenance countdown expires
+  useEffect(() => {
+    if (
+      storeStatus?.status === "maintenance" && 
+      storeStatus.maintenance?.active && 
+      storeStatus.maintenance?.end_time && 
+      maintenanceCountdown.isExpired
+    ) {
+      const timer = setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [storeStatus?.status, storeStatus?.maintenance?.active, storeStatus?.maintenance?.end_time, maintenanceCountdown.isExpired]);
 
   // If normal online mode or owner decided to bypass, don't block
   if (!storeStatus || storeStatus.status === "online" || isOwnerBypassed) {
@@ -356,8 +398,18 @@ export default function StoreModeGuard() {
           {/* Store Logo & Grand Title */}
           <div className="flex flex-col items-center justify-center">
             <div className="relative mb-3 flex items-center justify-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-orange-500/20 to-rose-500/20 border border-amber-400/40 flex items-center justify-center shadow-[0_0_35px_rgba(245,158,11,0.3)]">
-                <Cpu className="text-amber-400" size={30} />
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl p-1 bg-gradient-to-tr from-amber-400 via-orange-500 to-amber-300 shadow-[0_0_40px_rgba(245,158,11,0.4)] flex items-center justify-center">
+                <div className="w-full h-full rounded-[22px] bg-[#0c101c] overflow-hidden flex items-center justify-center p-1.5 border border-amber-400/30">
+                  <img 
+                    src="/logo.png" 
+                    alt="S Tech Store" 
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/logo.jpg'; }}
+                    className="w-full h-full object-contain rounded-xl drop-shadow-md"
+                  />
+                </div>
+                <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-[#0a0f1d] border-2 border-amber-400 flex items-center justify-center text-amber-300 shadow-md">
+                  <Sparkles size={14} className="text-amber-400" />
+                </div>
               </div>
             </div>
             
@@ -793,67 +845,261 @@ export default function StoreModeGuard() {
     const m = storeStatus.maintenance;
 
     return (
-      <div className="fixed inset-0 z-[99999] overflow-y-auto bg-[#070509] text-white flex flex-col items-center justify-center p-3 sm:p-6 select-none font-sans">
+      <div className="fixed inset-0 z-[99999] overflow-y-auto bg-[#07040a] text-white flex flex-col items-center justify-center p-3 sm:p-6 select-none font-sans">
         {/* Futuristic Cyber Mesh Grid Background */}
         <div 
           className="fixed inset-0 pointer-events-none opacity-20"
           style={{
-            backgroundImage: `radial-gradient(rgba(239, 68, 68, 0.25) 1px, transparent 1px), radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(rgba(239, 68, 68, 0.28) 1px, transparent 1px), radial-gradient(rgba(245, 158, 11, 0.12) 1px, transparent 1px)`,
             backgroundSize: "32px 32px",
             backgroundPosition: "0 0, 16px 16px"
           }}
         />
 
-        {/* Deep Crimson Ambient Nebula Gradients */}
-        <div className="fixed top-[-20%] left-[-15%] w-[65vw] h-[65vw] rounded-full bg-gradient-to-br from-red-600/25 via-rose-600/20 to-orange-500/10 blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: "8s" }} />
-        <div className="fixed bottom-[-20%] right-[-15%] w-[65vw] h-[65vw] rounded-full bg-gradient-to-tl from-red-800/25 via-rose-700/20 to-amber-900/15 blur-[160px] pointer-events-none animate-pulse" style={{ animationDuration: "10s" }} />
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[45vw] h-[45vw] rounded-full bg-red-500/5 blur-[130px] pointer-events-none" />
+        {/* Deep Crimson & Solar Ambient Nebula Gradients */}
+        <div className="fixed top-[-20%] left-[-15%] w-[68vw] h-[68vw] rounded-full bg-gradient-to-br from-red-600/25 via-rose-600/20 to-orange-500/10 blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: "8s" }} />
+        <div className="fixed bottom-[-20%] right-[-15%] w-[68vw] h-[68vw] rounded-full bg-gradient-to-tl from-rose-800/25 via-red-700/20 to-amber-900/15 blur-[160px] pointer-events-none animate-pulse" style={{ animationDuration: "10s" }} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[48vw] h-[48vw] rounded-full bg-red-500/5 blur-[130px] pointer-events-none" />
 
-        {/* Master Maintenance Card */}
-        <div className="relative w-full max-w-2xl my-auto bg-gradient-to-b from-[#180e14]/95 via-[#120a10]/95 to-[#090508]/98 border border-red-500/35 rounded-3xl sm:rounded-[36px] p-5 sm:p-10 shadow-[0_30px_100px_rgba(239,68,68,0.25)] backdrop-blur-3xl text-center overflow-hidden">
+        {/* Master Luxury Maintenance Card Container */}
+        <div className="relative w-full max-w-3xl my-auto bg-gradient-to-b from-[#170912]/95 via-[#0f060c]/95 to-[#070306]/98 border border-red-500/35 rounded-3xl sm:rounded-[36px] p-5 sm:p-10 shadow-[0_30px_100px_rgba(239,68,68,0.28)] backdrop-blur-3xl text-center overflow-hidden">
           
           {/* Top Holographic Edge Glow Line */}
           <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
           
           {/* Corner Tech Accents */}
-          <div className="absolute top-4 left-4 w-3 h-3 border-t-2 border-l-2 border-red-400/40" />
-          <div className="absolute top-4 right-4 w-3 h-3 border-t-2 border-r-2 border-red-400/40" />
-          <div className="absolute bottom-4 left-4 w-3 h-3 border-b-2 border-l-2 border-red-400/40" />
-          <div className="absolute bottom-4 right-4 w-3 h-3 border-b-2 border-r-2 border-red-400/40" />
+          <div className="absolute top-4 left-4 w-3.5 h-3.5 border-t-2 border-l-2 border-red-400/50" />
+          <div className="absolute top-4 right-4 w-3.5 h-3.5 border-t-2 border-r-2 border-red-400/50" />
+          <div className="absolute bottom-4 left-4 w-3.5 h-3.5 border-b-2 border-l-2 border-red-400/50" />
+          <div className="absolute bottom-4 right-4 w-3.5 h-3.5 border-b-2 border-r-2 border-red-400/50" />
 
-          {/* Animated Repair Icon */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-red-500/15 border border-red-500/30 text-red-400 flex items-center justify-center mx-auto mb-4 shadow-[0_0_40px_rgba(239,68,68,0.3)]">
-            <Wrench size={34} className="animate-spin text-red-500" style={{ animationDuration: "8s" }} />
+          {/* Top Engineering Status Beacon */}
+          <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-gradient-to-r from-red-500/15 via-rose-500/15 to-amber-500/15 border border-red-500/35 text-red-300 text-xs sm:text-sm font-black mb-5 shadow-[inset_0_1px_10px_rgba(239,68,68,0.15)]">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+            </span>
+            <span className="tracking-wide">
+              {m.title || "ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)"}
+            </span>
+            <Sparkles size={14} className="text-amber-400 animate-spin" style={{ animationDuration: "12s" }} />
           </div>
 
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/20 text-red-300 text-xs font-black uppercase tracking-wider border border-red-500/30 mb-3 shadow-[inset_0_1px_10px_rgba(239,68,68,0.15)]">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            <span>Under Technical Maintenance</span>
-          </div>
+          {/* Animated Cyber Reactor & S Tech Store Logo */}
+          <div className="flex flex-col items-center justify-center">
+            <div className="relative mb-3 flex items-center justify-center">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl p-1 bg-gradient-to-tr from-rose-500 via-red-600 to-amber-500 shadow-[0_0_45px_rgba(239,68,68,0.45)] flex items-center justify-center">
+                <div className="w-full h-full rounded-[22px] bg-[#12070e] overflow-hidden flex items-center justify-center p-1.5 border border-red-500/30">
+                  <img 
+                    src="/logo.png" 
+                    alt="S Tech Store" 
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/logo.jpg'; }}
+                    className="w-full h-full object-contain rounded-xl drop-shadow-md"
+                  />
+                </div>
+                <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0e050a] border-2 border-red-500 flex items-center justify-center text-red-400 shadow-xl">
+                  <Wrench size={15} className="text-red-400 animate-spin" style={{ animationDuration: "10s" }} />
+                </div>
+              </div>
+            </div>
+            
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white m-0 leading-tight">
+              ហាងកុំព្យូទ័រ <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-rose-300 to-amber-400 drop-shadow-[0_2px_15px_rgba(239,68,68,0.4)]">S Tech Store</span>
+            </h1>
 
-          <h2 className="text-2xl sm:text-4xl font-black text-white m-0 leading-tight">
-            {m.title || "ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព"}
-          </h2>
-
-          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-red-500/5 via-white/[0.02] to-red-500/5 border border-red-500/20 max-w-lg mx-auto shadow-inner">
-            <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-medium">
-              {m.reason || "យើងខ្ញុំកំពុងធ្វើការកែលម្អប្រព័ន្ធ Server និងបច្ចេកវិទ្យាទូទាត់ប្រាក់ជូនលោកអ្នក។ ប្រព័ន្ធនឹងត្រឡប់មកវិញក្នុងពេលដ៏ខ្លី!"}
+            <p className="mt-1 text-[11px] sm:text-xs font-black tracking-widest text-red-400/90 uppercase">
+              Official System Maintenance & High-Performance Cloud Upgrade
             </p>
           </div>
 
-          {/* Actions */}
-          <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* Custom Announcement Message Box */}
+          <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-red-500/10 via-white/[0.02] to-red-500/10 border border-red-500/25 max-w-2xl mx-auto shadow-inner">
+            <p className="text-xs sm:text-sm text-gray-200 leading-relaxed font-medium">
+              {m.reason || "យើងខ្ញុំកំពុងធ្វើការកែលម្អប្រព័ន្ធ Server, Security Firewall និងបច្ចេកវិទ្យាទូទាត់ប្រាក់ជូនលោកអ្នក។ ប្រព័ន្ធនឹងត្រឡប់មកវិញក្នុងពេលដ៏ខ្លី!"}
+            </p>
+          </div>
+
+          {/* ── LIVE SYSTEM OPTIMIZATION STATUS RADAR (3 PODS) ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-2xl mx-auto my-5 text-left">
+            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-red-500/20 hover:border-red-400/40 transition-all flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                <Zap size={18} className="text-amber-400 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Cloud Engine</div>
+                <div className="text-xs font-bold text-white truncate flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+                  <span>Optimizing API & DB</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-red-500/20 hover:border-red-400/40 transition-all flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} className="text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">FinTech Security</div>
+                <div className="text-xs font-bold text-emerald-300 truncate flex items-center gap-1.5 mt-0.5">
+                  <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                  <span>KHQR 100% Secured</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-red-500/20 hover:border-red-400/40 transition-all flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center shrink-0">
+                <Cpu size={18} className="text-sky-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Catalog & Stock</div>
+                <div className="text-xs font-bold text-white truncate flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse shrink-0" />
+                  <span>Real-Time Sync</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── LIVE HUD COUNTDOWN OR AUTO-RECOVERY RADAR ── */}
+          {m.end_time && !maintenanceCountdown.isExpired ? (
+            <div className="my-6 sm:my-8">
+              <div className="text-[11px] font-black uppercase tracking-widest text-red-400/90 mb-3.5 flex items-center justify-center gap-2">
+                <Clock size={14} className="text-red-400 animate-pulse" />
+                <span>រាប់ថយក្រោយបញ្ចប់ការថែទាំប្រព័ន្ធ (Countdown to Completion)</span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-xl mx-auto">
+                {/* DAYS */}
+                <div className="relative group overflow-hidden bg-gradient-to-b from-[#220d18] to-[#14060e] border border-red-500/30 hover:border-red-400/60 rounded-2xl p-3 sm:p-4.5 flex flex-col items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.5)] transition-all">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent opacity-80" />
+                  <span className="text-2xl sm:text-4xl md:text-5xl font-black text-red-400 font-mono tracking-tight drop-shadow-[0_0_12px_rgba(239,68,68,0.5)]">
+                    {String(maintenanceCountdown.days).padStart(2, "0")}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-gray-300 font-bold uppercase mt-1">
+                    ថ្ងៃ <span className="text-gray-500 text-[9px]">/ DAYS</span>
+                  </span>
+                </div>
+
+                {/* HOURS */}
+                <div className="relative group overflow-hidden bg-gradient-to-b from-[#220d18] to-[#14060e] border border-red-500/30 hover:border-red-400/60 rounded-2xl p-3 sm:p-4.5 flex flex-col items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.5)] transition-all">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent opacity-80" />
+                  <span className="text-2xl sm:text-4xl md:text-5xl font-black text-white font-mono tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                    {String(maintenanceCountdown.hours).padStart(2, "0")}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-gray-300 font-bold uppercase mt-1">
+                    ម៉ោង <span className="text-gray-500 text-[9px]">/ HOURS</span>
+                  </span>
+                </div>
+
+                {/* MINUTES */}
+                <div className="relative group overflow-hidden bg-gradient-to-b from-[#220d18] to-[#14060e] border border-red-500/30 hover:border-red-400/60 rounded-2xl p-3 sm:p-4.5 flex flex-col items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.5)] transition-all">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-red-400 to-transparent opacity-80" />
+                  <span className="text-2xl sm:text-4xl md:text-5xl font-black text-white font-mono tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                    {String(maintenanceCountdown.minutes).padStart(2, "0")}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-gray-300 font-bold uppercase mt-1">
+                    នាទី <span className="text-gray-500 text-[9px]">/ MINS</span>
+                  </span>
+                </div>
+
+                {/* SECONDS */}
+                <div className="relative group overflow-hidden bg-gradient-to-b from-[#220d18] to-[#14060e] border border-red-400/60 rounded-2xl p-3 sm:p-4.5 flex flex-col items-center justify-center shadow-[0_10px_30px_rgba(239,68,68,0.25)] transition-all">
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-rose-400 to-transparent" />
+                  <span className="text-2xl sm:text-4xl md:text-5xl font-black text-rose-300 font-mono tracking-tight animate-pulse drop-shadow-[0_0_16px_rgba(239,68,68,0.6)]">
+                    {String(maintenanceCountdown.seconds).padStart(2, "0")}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-rose-300 font-bold uppercase mt-1">
+                    វិនាទី <span className="text-rose-500/70 text-[9px]">/ SECS</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Target Completion Time */}
+              <div className="inline-flex items-center gap-2 mt-4 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] sm:text-xs text-gray-300">
+                <Calendar size={13} className="text-red-400" />
+                <span>
+                  គ្រោងនឹងបើកបម្រើវិញវេលាម៉ោង៖{" "}
+                  <strong className="text-red-300 font-bold">
+                    {new Date(m.end_time).toLocaleString("km-KH", {
+                      dateStyle: "full",
+                      timeStyle: "short",
+                    })}
+                  </strong>
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* Live Auto-Recovery Radar Banner (When no specific end time) */
+            <div className="my-5 p-3.5 rounded-2xl bg-gradient-to-r from-red-500/10 via-amber-500/5 to-red-500/10 border border-red-500/25 max-w-xl mx-auto flex items-center justify-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+              </span>
+              <div className="text-left">
+                <div className="text-xs font-black text-red-300">ប្រព័ន្ធនឹងបើកដំណើរការឡើងវិញភ្លាមៗពេលបញ្ចប់ (Auto-Live Ready)</div>
+                <div className="text-[11px] text-gray-400">វិស្វករកំពុងធ្វើតេស្តសុវត្ថិភាពចុងក្រោយ • Ping: ~24ms (Asia-Phnom Penh)</div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STORE INFORMATION LUXURY STRIP ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-w-2xl mx-auto my-5 text-left">
+            <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-400/20 flex items-center justify-center shrink-0">
+                <MapPin size={16} className="text-red-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">ទីតាំងហាង</div>
+                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ (Phnom Penh)</div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-400/20 flex items-center justify-center shrink-0">
+                <Clock size={16} className="text-red-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">ម៉ោងបម្រើការធម្មតា</div>
+                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM (រាល់ថ្ងៃ)</div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-400/20 flex items-center justify-center shrink-0">
+                <ShieldCheck size={16} className="text-red-400" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold text-gray-400 uppercase">ទិន្នន័យ & Orders</div>
+                <div className="text-xs font-extrabold text-white truncate">រក្សាទុកសុវត្ថិភាព ១០០%</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── HIGH-TECH ACTION HUB ── */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
+            {/* 1-Click Telegram Assistant Button */}
             <a
               href="https://t.me/S_TECH_ASSISTANTBOT"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(239,68,68,0.35)] transition-all cursor-pointer group"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(239,68,68,0.35)] transition-all cursor-pointer group"
             >
               <Send size={16} className="group-hover:translate-x-0.5 transition-transform" />
-              <span>ជំនួយបច្ចេកទេស Telegram</span>
+              <span>ជំនួយការ Telegram (ឆ្លើយតប ២៤/៧)</span>
               <ExternalLink size={13} className="opacity-75" />
             </a>
 
+            {/* Hotline Call */}
+            <a
+              href="tel:0968689597"
+              className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-red-500/30 text-red-300 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <Phone size={15} />
+              <span>ទាក់ទង៖ 096 868 9597</span>
+            </a>
+
+            {/* Live Re-check Status */}
             <button
               type="button"
               onClick={() => checkStatus(true)}
@@ -865,9 +1111,13 @@ export default function StoreModeGuard() {
             </button>
           </div>
 
-          {/* Owner Bypass Trigger */}
+          {/* ── FOOTER: SYSTEM OWNER ACCESS ── */}
           <div className="mt-8 pt-5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
-            <span className="text-[11px] text-gray-400">ម្ចាស់ប្រព័ន្ធអាចចូលមើលទំនិញបានជាធម្មតា</span>
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400">
+              <ShieldCheck size={14} className="text-red-400" />
+              <span>ប្រព័ន្ធការពារបច្ចេកវិទ្យា S Tech Sentinel Shield</span>
+            </div>
+
             {isSuperAdminUser ? (
               <button
                 type="button"
@@ -878,7 +1128,7 @@ export default function StoreModeGuard() {
                 className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold border border-red-500/40 flex items-center gap-1.5 cursor-pointer transition-all text-xs"
               >
                 <Eye size={13} />
-                <span>Owner Bypass</span>
+                <span>មើលហាងជាមុន (Owner Bypass)</span>
               </button>
             ) : (
               <button
