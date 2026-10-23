@@ -1165,13 +1165,20 @@ class UserController extends Controller
             ]);
         }
 
-        $res = \App\Services\EmailService::sendWelcomeEmail($email, $username);
         \Illuminate\Support\Facades\Cache::put($cacheKey, true, 30 * 24 * 60 * 60);
+
+        app()->terminating(function () use ($email, $username) {
+            try {
+                \App\Services\EmailService::sendWelcomeEmail($email, $username);
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Async welcome email error: " . $t->getMessage());
+            }
+        });
 
         return response()->json([
             'success' => true,
             'message' => "បានផ្ញើអ៊ីមែលស្វាគមន៍ដោយជោគជ័យទៅកាន់ {$email}!",
-            'data' => $res,
+            'data' => ['success' => true, 'queued' => true],
         ]);
     }
 

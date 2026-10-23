@@ -778,28 +778,12 @@ class OrderController extends Controller
             }
         }
 
-        // 2. Telegram Notification (Direct to customer chat if connected)
+        // 2. Telegram & Email Notifications (Dispatched asynchronously after response flush for 0ms UI delay)
         $chatId = \App\Services\TelegramService::resolveCustomerChatId($user ?: $order, $order->customer_phone, $customerEmail);
         if ($chatId) {
             $hasTelegram = true;
             if ($wantTelegram) {
-                try {
-                    $tgRes = \App\Services\TelegramService::sendCustomerDirectNotification(
-                        $user ?: $order,
-                        $notificationTitle,
-                        $validated['message'],
-                        '/orders'
-                    );
-                    $sentToTelegram = ($tgRes['ok'] ?? false) === true;
-                } catch (\Throwable $t) {
-                    \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
-                }
-
-                if ($oldStatus !== $order->status) {
-                    try {
-                        \App\Services\TelegramService::sendCustomerDirectOrderAlert($order->fresh(['items.product']), 'status_updated');
-                    } catch (\Throwable $t) {}
-                }
+                $sentToTelegram = true;
             }
         }
 
@@ -811,19 +795,57 @@ class OrderController extends Controller
 
         $emailError = null;
         if ($wantEmail && !empty($customerEmail) && !$isSyntheticEmail && filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-            try {
-                $emailRes = self::sendOrderEmail($order, $customerEmail, $notificationTitle, $validated['message']);
-                $sentToEmail = ($emailRes['success'] ?? false) === true;
-                if (!$sentToEmail) {
-                    $emailError = $emailRes['error'] ?? 'បរាជ័យក្នុងការបញ្ជូន Email';
-                }
-            } catch (\Throwable $t) {
-                \Illuminate\Support\Facades\Log::warning("Real email order notification failed: " . $t->getMessage());
-                $sentToEmail = false;
-                $emailError = $t->getMessage();
-            }
+            $sentToEmail = true;
         } elseif ($wantEmail && ($isSyntheticEmail || empty($customerEmail))) {
             $emailError = "អ៊ីមែលអតិថិជនជា Synthetic Placeholder (មិនមែន Real Gmail)";
+        }
+
+        // Asynchronously dispatch external network calls post-response
+        $orderId = $order->id;
+        $orderUserId = $user?->id;
+        $orderOldStatus = $oldStatus;
+        $orderNewStatus = $order->status;
+        $rawMessage = $validated['message'];
+        $doTelegram = $wantTelegram && $hasTelegram;
+        $doEmail = $sentToEmail;
+
+        if ($doTelegram || $doEmail) {
+            app()->terminating(function () use ($orderId, $orderUserId, $orderOldStatus, $orderNewStatus, $notificationTitle, $rawMessage, $customerEmail, $doTelegram, $doEmail) {
+                try {
+                    $order = Order::with('items.product')->find($orderId);
+                    if (!$order) return;
+                    $user = $orderUserId ? \App\Models\UserProfile::find($orderUserId) : null;
+
+                    if ($doTelegram) {
+                        try {
+                            \App\Services\TelegramService::sendCustomerDirectNotification(
+                                $user ?: $order,
+                                $notificationTitle,
+                                $rawMessage,
+                                '/orders'
+                            );
+                        } catch (\Throwable $t) {
+                            \Illuminate\Support\Facades\Log::warning("Customer direct telegram push notification failed: " . $t->getMessage());
+                        }
+
+                        if ($orderOldStatus !== $orderNewStatus) {
+                            try {
+                                \App\Services\TelegramService::sendCustomerDirectOrderAlert($order, 'status_updated');
+                            } catch (\Throwable $t) {}
+                        }
+                    }
+
+                    if ($doEmail && !empty($customerEmail)) {
+                        try {
+                            self::sendOrderEmail($order, $customerEmail, $notificationTitle, $rawMessage);
+                        } catch (\Throwable $t) {
+                            \Illuminate\Support\Facades\Log::warning("Real email order notification failed: " . $t->getMessage());
+                        }
+                    }
+                } catch (\Throwable $bgErr) {
+                    \Illuminate\Support\Facades\Log::error("Background updateStatus dispatch error: " . $bgErr->getMessage());
+                }
+            });
         }
 
         // Build friendly Khmer message
@@ -1346,10 +1368,10 @@ HTML;
 </html>
 HTML;
 
-            // Prepare attachments: Fetch high-resolution JPG/PNG invoice image
+            // Prepare attachments: Fetch high-resolution JPG/PNG invoice image with fast failover
             $attachments = [];
             try {
-                $imageRes = Http::timeout(6)->get("{$domain}/api/invoice-image?order_id={$order->order_id}");
+                $imageRes = Http::connectTimeout(1.0)->timeout(2.0)->get("{$domain}/api/invoice-image?order_id={$order->order_id}");
                 if ($imageRes->successful() && strlen($imageRes->body()) > 500) {
                     $attachments[] = [
                         'name' => "Invoice_{$order->order_id}.png",

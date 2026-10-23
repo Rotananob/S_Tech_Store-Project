@@ -1024,6 +1024,29 @@ HTML;
     }
 
     /**
+     * Dispatch HTML email asynchronously post-response flush so the client UI never blocks.
+     */
+    public static function dispatchAsyncHtmlEmail(string $to, string $subject, string $html, array $options = []): void
+    {
+        if (app()->runningInConsole()) {
+            try {
+                self::dispatchHtmlEmail($to, $subject, $html, $options);
+            } catch (\Throwable $e) {
+                Log::warning("[Email Async CLI Error] " . $e->getMessage());
+            }
+            return;
+        }
+
+        app()->terminating(function () use ($to, $subject, $html, $options) {
+            try {
+                self::dispatchHtmlEmail($to, $subject, $html, $options);
+            } catch (\Throwable $e) {
+                Log::warning("[Email Async Terminating Error] " . $e->getMessage());
+            }
+        });
+    }
+
+    /**
      * Universal Dispatcher: Sends HTML email with auto-failover
      * 1. Native SMTP (Gmail with App Password / Custom SMTP)
      * 2. Resend HTTPS API (Port 443 - 100% compatible with Render Free Tier)
@@ -1090,7 +1113,7 @@ HTML;
                     'mail.mailers.smtp.username' => $smtpUsername,
                     'mail.mailers.smtp.password' => $cleanPassword,
                     'mail.mailers.smtp.encryption' => $smtpEncryption,
-                    'mail.mailers.smtp.timeout' => 12,
+                    'mail.mailers.smtp.timeout' => 5,
                     'mail.from.address' => $displayFromEmail,
                     'mail.from.name' => $fromName,
                 ]);

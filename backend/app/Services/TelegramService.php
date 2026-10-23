@@ -76,6 +76,30 @@ class TelegramService
     }
 
     /**
+     * Non-blocking background dispatcher.
+     * Executes immediately in CLI, or defers execution to after FastCGI client disconnect in HTTP requests.
+     */
+    public static function dispatchAsync(callable $callback): void
+    {
+        if (app()->runningInConsole()) {
+            try {
+                $callback();
+            } catch (\Throwable $e) {
+                Log::warning("[Telegram Async CLI Error] " . $e->getMessage());
+            }
+            return;
+        }
+
+        app()->terminating(function () use ($callback) {
+            try {
+                $callback();
+            } catch (\Throwable $e) {
+                Log::warning("[Telegram Async Terminating Error] " . $e->getMessage());
+            }
+        });
+    }
+
+    /**
      * Get current Telegram bot settings & pairing status
      */
     public static function getSettings(): array
@@ -120,7 +144,7 @@ class TelegramService
                     $merged = array_merge($default, $saved);
                     $merged['bot_token'] = self::sanitizeBotToken($merged['bot_token'] ?? null);
                     $merged['bot_username'] = self::sanitizeBotUsername($merged['bot_username'] ?? null);
-                    \Illuminate\Support\Facades\Cache::put('tg_settings_cache_v2', $merged, 60);
+                    \Illuminate\Support\Facades\Cache::put('tg_settings_cache_v2', $merged, 300);
                     return self::$cachedSettings = $merged;
                 }
             }
@@ -4512,7 +4536,7 @@ class TelegramService
                 $payload['message_thread_id'] = $threadId;
             }
 
-            $response = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $response = Http::connectTimeout(1.5)->timeout(3.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
             // Fallback retry & auto-heal if thread does not exist or was closed/deleted
@@ -4538,7 +4562,7 @@ class TelegramService
                 }
 
                 unset($payload['message_thread_id']);
-                $response = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $response = Http::connectTimeout(1.5)->timeout(3.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
             }
 
@@ -4550,7 +4574,7 @@ class TelegramService
                     $ownerPayload['chat_id'] = $ownerChatId;
                     unset($ownerPayload['message_thread_id']);
                     try {
-                        $fallbackResp = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
+                        $fallbackResp = Http::connectTimeout(1.5)->timeout(3.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
                         if ($fallbackResp->successful()) {
                             Log::info("[Telegram] Delivered alert to Owner private chat ({$ownerChatId}) as fallback for group {$chatId}.");
                             return $fallbackResp->json() ?? ['ok' => true];
@@ -4596,7 +4620,7 @@ class TelegramService
                 $payload['message_thread_id'] = $threadId;
             }
 
-            $response = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+            $response = Http::connectTimeout(1.5)->timeout(3.5)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
             $json = $response->json();
 
             // Fallback retry & auto-heal if thread does not exist or was closed/deleted
@@ -4622,7 +4646,7 @@ class TelegramService
                 }
 
                 unset($payload['message_thread_id']);
-                $response = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
+                $response = Http::connectTimeout(1.5)->timeout(3.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
                 $json = $response->json();
             }
 
@@ -4634,7 +4658,7 @@ class TelegramService
                     $ownerPayload['chat_id'] = $ownerChatId;
                     unset($ownerPayload['message_thread_id']);
                     try {
-                        $fallbackResp = Http::timeout(8.0)->connectTimeout(4.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
+                        $fallbackResp = Http::connectTimeout(1.5)->timeout(3.0)->post("https://api.telegram.org/bot{$token}/sendMessage", $ownerPayload);
                         if ($fallbackResp->successful()) {
                             Log::info("[Telegram] Delivered keyboard alert to Owner private chat ({$ownerChatId}) as fallback for group {$chatId}.");
                             return $fallbackResp->json() ?? ['ok' => true];
@@ -4683,11 +4707,11 @@ class TelegramService
                 if ($replyMarkup) $payload['reply_markup'] = json_encode($replyMarkup);
                 if ($threadId) $payload['message_thread_id'] = $threadId;
 
-                $response = Http::timeout(6.0)->connectTimeout(3.0)->post($url, $payload);
+                $response = Http::connectTimeout(1.5)->timeout(4.0)->post($url, $payload);
                 $json = $response->json();
             } else {
                 $photoData = is_file($photo) ? file_get_contents($photo) : $photo;
-                $req = Http::timeout(8.0)->connectTimeout(3.0)->attach('photo', $photoData, 'photo.jpg');
+                $req = Http::connectTimeout(2.0)->timeout(5.0)->attach('photo', $photoData, 'photo.jpg');
                 $params = ['chat_id' => $chatId];
                 if ($caption !== null) $params['caption'] = $caption;
                 if ($parseMode) $params['parse_mode'] = $parseMode;
@@ -4741,11 +4765,11 @@ class TelegramService
                 if ($replyMarkup) $payload['reply_markup'] = json_encode($replyMarkup);
                 if ($threadId) $payload['message_thread_id'] = $threadId;
 
-                $response = Http::timeout(8.0)->connectTimeout(3.0)->post($url, $payload);
+                $response = Http::connectTimeout(1.5)->timeout(4.0)->post($url, $payload);
                 $json = $response->json();
             } else {
                 $fileData = is_file($document) ? file_get_contents($document) : $document;
-                $req = Http::timeout(10.0)->connectTimeout(3.0)->attach('document', $fileData, $filename);
+                $req = Http::connectTimeout(2.0)->timeout(5.0)->attach('document', $fileData, $filename);
                 $params = ['chat_id' => $chatId];
                 if ($caption !== null) $params['caption'] = $caption;
                 if ($parseMode) $params['parse_mode'] = $parseMode;
@@ -6067,7 +6091,7 @@ HTML;
                 $payload['reply_markup'] = json_encode($replyMarkup);
             }
 
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$token}/editMessageText", $payload);
+            $response = Http::connectTimeout(1.5)->timeout(3.5)->post("https://api.telegram.org/bot{$token}/editMessageText", $payload);
             $json = $response->json();
             return $json ?? ['ok' => $response->successful()];
         } catch (\Throwable $e) {
