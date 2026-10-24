@@ -147,9 +147,12 @@ class OrderController extends Controller
                 $product->decrement('stock', $item['quantity']);
                 $newStock = (int)$product->fresh()->stock;
                 if ($newStock <= 3) {
-                    try {
-                        \App\Services\TelegramService::sendLowStockAlert($product->fresh(), $newStock);
-                    } catch (\Throwable $t) {}
+                    $freshProd = $product->fresh();
+                    \App\Services\TelegramService::dispatchAsync(function () use ($freshProd, $newStock) {
+                        try {
+                            \App\Services\TelegramService::sendLowStockAlert($freshProd, $newStock);
+                        } catch (\Throwable $t) {}
+                    });
                 }
             }
 

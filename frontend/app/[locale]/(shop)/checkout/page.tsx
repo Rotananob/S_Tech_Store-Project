@@ -1104,8 +1104,8 @@ export default function CheckoutPage() {
           if (walletPayRes.remaining_balance !== undefined) {
             setWalletBalance(Number(walletPayRes.remaining_balance));
           }
-          setLoading(false);
-          await finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
+          setLoadingMsg("✓ កាត់ប្រាក់ពីកាបូបជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
+          finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
         } catch (err: any) {
           setLoading(false);
           const errorMsg = err.response?.data?.message || err.message || "មិនអាចកាត់ប្រាក់ពីកាបូបបានទេ។ សូមពិនិត្យសមតុល្យរបស់អ្នក។";
@@ -1120,8 +1120,6 @@ export default function CheckoutPage() {
       setLoading(false);
       const errorMsg = err.response?.data?.message || err.message || "មានបញ្ហាបច្ចេកទេសក្នុងការកត់ត្រាការបញ្ជាទិញ។ សូមសាកល្បងម្ដងទៀត។";
       alert(errorMsg);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -1151,15 +1149,21 @@ export default function CheckoutPage() {
       total_amount: Number(total),
     };
 
-    const res = await createOrder(payload);
-    setLoading(false);
+    try {
+      const res = await createOrder(payload);
 
-    if (res.success) {
-      const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
-      setOrderId(newOrderId);
-      await finishSuccessfulOrder(newOrderId, "COD_DOORSTEP");
-    } else {
-      alert(res.error || t("alertFailed"));
+      if (res.success) {
+        setLoadingMsg("✓ ការបញ្ជាទិញជោគជ័យ! កំពុងបើកវិក្កយបត្រអេឡិចត្រូនិច...");
+        const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
+        setOrderId(newOrderId);
+        finishSuccessfulOrder(newOrderId, "COD_DOORSTEP");
+      } else {
+        setLoading(false);
+        alert(res.error || t("alertFailed"));
+      }
+    } catch (err: any) {
+      setLoading(false);
+      alert(err.message || "មានបញ្ហាក្នុងការបញ្ជូនការបញ្ជាទិញ");
     }
   };
 
@@ -1209,13 +1213,13 @@ export default function CheckoutPage() {
       name: cardHolder.trim() || name.trim(),
     });
 
-    setLoading(false);
-
     if (cardRes.success) {
+      setLoadingMsg("✓ ការទូទាត់តាមកាតជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
       const txn = cardRes.data?.transaction_id || `TXN_${Date.now()}`;
       setTransactionId(txn);
-      await finishSuccessfulOrder(newOrderId, txn);
+      finishSuccessfulOrder(newOrderId, txn);
     } else {
+      setLoading(false);
       const errMsg = cardRes.error || "ការទូទាត់ត្រូវបានបដិសេធ សូមពិនិត្យកាតឡើងវិញ";
       markOrderFailed(newOrderId, errMsg);
       setCardError(errMsg);
@@ -1363,10 +1367,12 @@ export default function CheckoutPage() {
         const txn = statusRes.data.transaction_id || `TXN_${Date.now()}`;
         setTransactionId(txn);
 
-        setTimeout(async () => {
+        setTimeout(() => {
           setShowKHQRModal(false);
-          await finishSuccessfulOrder(targetOrderId, txn);
-        }, 1000);
+          setLoading(true);
+          setLoadingMsg("✓ ការទូទាត់ទទួលបានជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
+          finishSuccessfulOrder(targetOrderId, txn);
+        }, 500);
       } else {
         setCheckPaymentMessage({
           type: "error",
@@ -1396,14 +1402,16 @@ export default function CheckoutPage() {
     } catch (_) {}
 
     const res = await confirmManualPayment(orderId, payment);
-    setLoading(false);
-    setShowKHQRModal(false);
 
     if (res.success) {
+      setLoadingMsg("✓ បានទទួលការផ្ទៀងផ្ទាត់! កំពុងបើកវិក្កយបត្រ...");
+      setShowKHQRModal(false);
       const txn = res.data?.transaction_id || `TXN_CONFIRMED`;
       setTransactionId(txn);
-      await finishSuccessfulOrder(orderId, txn);
+      finishSuccessfulOrder(orderId, txn);
     } else {
+      setLoading(false);
+      setShowKHQRModal(false);
       alert("បរាជ័យក្នុងការផ្ទៀងផ្ទាត់ សូមទាក់ទងមកកាន់ហាង");
     }
   };
@@ -1457,7 +1465,7 @@ export default function CheckoutPage() {
   };
 
   // ─── Finish Order & Show Done Screen ─────────────────────────────────────────
-  const finishSuccessfulOrder = async (finalOrderId: string, txn: string) => {
+  const finishSuccessfulOrder = (finalOrderId: string, txn: string) => {
     try {
       localStorage.removeItem(CHECKOUT_KHQR_STORAGE_KEY);
     } catch (_) {}
@@ -1499,21 +1507,21 @@ export default function CheckoutPage() {
       }),
     };
 
+    // ⚡ REAL-TIME INSTANT POPUP (0ms UX Delay):
+    // Atomically set all states in the exact same render batch so the receipt modal pops up immediately
     setReceiptData(snapshotReceipt);
-    setShowReceiptModal(true);
-
-    await clearCart();
-
-    try {
-      await api.post("/user/notifications", {
-        title: "Order Placed Successfully! 📦",
-        message: `Order #${finalOrderId} ចំនួន $${total.toFixed(2)} ត្រូវបានទទួលជោគជ័យ។ ក្រុមការងារនឹងទាក់ទងមក ${phone}។`,
-        type: "order",
-      });
-    } catch (e) {}
-
     setConfirmed(true);
     setStep(3);
+    setShowReceiptModal(true);
+    setLoading(false);
+
+    // Asynchronously clear cart and sync notification in background without blocking
+    clearCart().catch(() => {});
+    api.post("/user/notifications", {
+      title: "Order Placed Successfully! 📦",
+      message: `Order #${finalOrderId} ចំនួន $${total.toFixed(2)} ត្រូវបានទទួលជោគជ័យ។ ក្រុមការងារនឹងទាក់ទងមក ${phone}។`,
+      type: "order",
+    }).catch(() => {});
   };
 
   const formatTimer = (secs: number) => {
@@ -1612,6 +1620,15 @@ export default function CheckoutPage() {
 
   return (
     <div className="bg-[#f8f9fa] dark:bg-[#090a0f] min-h-screen text-gray-900 dark:text-gray-100 pb-36 lg:pb-20 font-sans">
+      {/* ── Real-Time Order Receipt Modal ── */}
+      <OrderReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receipt={receiptData}
+        onTrackOrder={() => router.push("/orders")}
+        onContinueShopping={() => router.push("/")}
+      />
+
       {/* ── Top Header & Trust Banner ── */}
       <div className="bg-white/90 dark:bg-[#12151e]/90 backdrop-blur-xl border-b border-gray-200/80 dark:border-white/10 pt-6 pb-4 shadow-xs sticky top-0 z-30">
         <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -3142,22 +3159,72 @@ export default function CheckoutPage() {
       {/* ── Processing Overlay ── */}
       <AnimatePresence>
         {loading && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#151922] rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center border border-gray-100 dark:border-white/10"
+              initial={{ scale: 0.92, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="relative bg-white dark:bg-[#131722] rounded-3xl p-7 sm:p-8 max-w-sm w-full shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] flex flex-col items-center text-center border border-gray-100 dark:border-white/10 overflow-hidden"
             >
-              <div className="w-16 h-16 bg-red-50 dark:bg-red-950/40 text-[#8B1A1A] dark:text-red-400 rounded-full flex items-center justify-center mb-5">
-                <Loader2 size={32} className="animate-spin" />
+              {/* Top ambient glow bar */}
+              <div className={`absolute top-0 left-0 right-0 h-1.5 transition-colors duration-500 ${
+                loadingMsg.includes("✓")
+                  ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500"
+                  : "bg-gradient-to-r from-red-600 via-rose-500 to-amber-500"
+              }`} />
+
+              {/* Pulsing Center Icon */}
+              <div className="relative mb-5 flex items-center justify-center">
+                {loadingMsg.includes("✓") ? (
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl animate-pulse" />
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-lg shadow-emerald-500/10">
+                      <CheckCircle2 size={40} className="stroke-[2.2] animate-bounce" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl animate-pulse" />
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-600/15 via-[#8B1A1A]/10 to-transparent border border-red-500/30 flex items-center justify-center text-red-600 dark:text-red-400 shadow-lg shadow-red-500/10">
+                      <Loader2 size={38} className="animate-spin stroke-[2.2]" />
+                    </div>
+                  </div>
+                )}
               </div>
-              <h3 className="text-base font-black text-gray-900 dark:text-white mb-2">{loadingMsg}</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                Securing invoice and synchronizing with Telegram delivery queue.
+
+              {/* Message Header */}
+              <h3 className="text-base sm:text-lg font-black text-gray-900 dark:text-white mb-2 leading-snug">
+                {loadingMsg}
+              </h3>
+
+              {/* Sub-description */}
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+                {loadingMsg.includes("✓")
+                  ? "ការបញ្ជាក់ជោគជ័យ 100% • កំពុងបង្ហាញវិក្កយបត្រផ្លូវការ..."
+                  : "កំពុងភ្ជាប់ទៅកាន់ Gateway ប្រព័ន្ធសុវត្ថិភាព និងរៀបចំទិន្នន័យវិក្កយបត្រ..."}
               </p>
-              <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg w-full">
-                <Lock size={12} /> 256-bit Secure Gateway
+
+              {/* Shimmer progress bar */}
+              <div className="w-full bg-gray-100 dark:bg-white/5 rounded-full h-1.5 mb-5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    loadingMsg.includes("✓")
+                      ? "w-full bg-emerald-500"
+                      : "w-3/4 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 animate-pulse"
+                  }`}
+                />
+              </div>
+
+              {/* Footer Trust Badges */}
+              <div className="flex items-center justify-between text-[11px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/[0.03] px-3.5 py-2 rounded-xl w-full border border-gray-100 dark:border-white/5">
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <Lock size={12} /> 256-bit SSL
+                </span>
+                <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500 text-[10px]">
+                  <Sparkles size={11} className="text-amber-500" /> Real-time Sync
+                </span>
               </div>
             </motion.div>
           </div>
