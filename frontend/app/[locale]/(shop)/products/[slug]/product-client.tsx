@@ -136,7 +136,7 @@ export function ProductDetailClient({ product: initialProduct }: { product: any 
         );
 
         // First prioritize same category, then others
-        let related = validProds.filter(p => p.category_id === product.category_id).slice(0, 8);
+        const related = validProds.filter(p => p.category_id === product.category_id).slice(0, 8);
         if (related.length < 8) {
            const others = validProds.filter(p => p.category_id !== product.category_id).slice(0, 8 - related.length);
            related.push(...others);

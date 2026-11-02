@@ -340,6 +340,22 @@ const sanitizeTgAppLink = (link?: string | null, token?: string | null): string 
   return `tg://resolve?domain=${OFFICIAL_CUSTOMER_BOT}${token ? `&start=${token}` : ""}`;
 };
 
+const ProfileToggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
+  <button
+    type="button"
+    onClick={onChange}
+    className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer border-none p-0.5 ${
+      value ? "bg-gradient-to-r from-[#8B1A1A] to-[#c0392b]" : "bg-gray-300 dark:bg-gray-700"
+    }`}
+  >
+    <span
+      className={`block w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
+        value ? "translate-x-6" : "translate-x-0"
+      }`}
+    />
+  </button>
+);
+
 export default function UserProfilePage() {
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<FirebaseUser | null>(() => {
@@ -2064,22 +2080,6 @@ export default function UserProfilePage() {
     );
   }
 
-  const Toggle = ({ value, onChange }: { value: boolean; onChange: () => void }) => (
-    <button
-      type="button"
-      onClick={onChange}
-      className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer border-none p-0.5 ${
-        value ? "bg-gradient-to-r from-[#8B1A1A] to-[#c0392b]" : "bg-gray-300 dark:bg-gray-700"
-      }`}
-    >
-      <span
-        className={`block w-5 h-5 bg-white rounded-full shadow-md transition-transform ${
-          value ? "translate-x-6" : "translate-x-0"
-        }`}
-      />
-    </button>
-  );
-
   const memberId = `#ST-${(user?.uid || "88294").slice(0, 6).toUpperCase()}`;
   const filteredOrders = orders.filter((o) => {
     if (orderFilter === "all") return true;
@@ -3320,7 +3320,7 @@ export default function UserProfilePage() {
                     តម្រូវឱ្យបញ្ចូលលេខកូដសុវត្ថិភាព ៦ ខ្ទង់ដែលផ្ញើទៅ Email & Telegram រាល់ពេលចូលប្រើលើឧបករណ៍ថ្មី។
                   </p>
                 </div>
-                <Toggle value={profile.two_fa_enabled} onChange={() => handleToggle2FA()} />
+                <ProfileToggle value={profile.two_fa_enabled} onChange={() => handleToggle2FA()} />
               </div>
 
               {/* Active Device Sessions List */}
@@ -3626,7 +3626,7 @@ export default function UserProfilePage() {
                         Receive instant alerts when orders are processed, packed, or out for delivery.
                       </span>
                     </div>
-                    <Toggle
+                    <ProfileToggle
                       value={profile.notif_orders}
                       onChange={() => setProfile((p) => ({ ...p, notif_orders: !p.notif_orders }))}
                     />
@@ -3641,7 +3641,7 @@ export default function UserProfilePage() {
                         Get notified when laptops, PC builds, and parts go on exclusive VIP sale.
                       </span>
                     </div>
-                    <Toggle
+                    <ProfileToggle
                       value={profile.notif_promos}
                       onChange={() => setProfile((p) => ({ ...p, notif_promos: !p.notif_promos }))}
                     />
@@ -3682,7 +3682,7 @@ export default function UserProfilePage() {
                         </button>
                       )}
                     </div>
-                    <Toggle
+                    <ProfileToggle
                       value={profile.notif_telegram}
                       onChange={() => setProfile((p) => ({ ...p, notif_telegram: !p.notif_telegram }))}
                     />

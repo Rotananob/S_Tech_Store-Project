@@ -462,7 +462,7 @@ export async function POST(req: NextRequest) {
 
       // Dispatch security alert to Laravel Telegram topic in background
       try {
-        let backendUrl = process.env.BACKEND_URL || (process.env.NODE_ENV === "production" ? "https://stech-backend-xz6j.onrender.com/api" : "http://127.0.0.1:8000/api");
+        const backendUrl = process.env.BACKEND_URL || (process.env.NODE_ENV === "production" ? "https://stech-backend-xz6j.onrender.com/api" : "http://127.0.0.1:8000/api");
         if (backendUrl && backendUrl.startsWith("http")) {
           fetch(`${backendUrl.replace(/\/$/, "")}/security/alert`, {
             method: "POST",

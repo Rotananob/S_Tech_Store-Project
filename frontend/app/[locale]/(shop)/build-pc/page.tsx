@@ -194,7 +194,7 @@ export default function BuildPCPage() {
              if (specs.includes("LGA1700")) socket = "LGA1700";
              if (specs.includes("AM5")) socket = "AM5";
           }
-          let memType = specs.match(/(DDR[45])/)?.[1];
+          const memType = specs.match(/(DDR[45])/)?.[1];
           return {
             id: p.id.toString(),
             name: p.name,

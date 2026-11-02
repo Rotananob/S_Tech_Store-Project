@@ -19,7 +19,7 @@ function ProductsContent() {
     setLoading(true);
     api.get("/products", { params: { fresh: 1, _t: Date.now() } })
       .then((res) => {
-        let allProducts = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const allProducts = Array.isArray(res.data) ? res.data : (res.data?.data || []);
 
         // Apply sorting
         if (sort === "LowToHigh") {

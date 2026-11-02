@@ -32,6 +32,21 @@ const ACTIVE_TABS = [
   "Email & Gmail Delivery"
 ];
 
+function SettingToggle({ value, onChange, disabled }: { value: boolean; onChange: () => void; disabled?: boolean }) {
+  return (
+    <button 
+      type="button"
+      onClick={onChange} 
+      disabled={disabled}
+      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer disabled:opacity-50 ${value ? "bg-[#8B1A1A]" : "bg-gray-300"}`}
+    >
+      <div 
+        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${value ? "left-6" : "left-1"}`}
+      />
+    </button>
+  );
+}
+
 export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState("Store Profile");
   
@@ -442,19 +457,6 @@ export default function SystemSettingsPage() {
     "Email & Gmail Delivery": <Mail size={17} className="text-emerald-600" />,
   };
 
-  const Toggle = ({ value, onChange, disabled }: { value: boolean; onChange: () => void; disabled?: boolean }) => (
-    <button 
-      type="button"
-      onClick={onChange} 
-      disabled={disabled}
-      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 cursor-pointer disabled:opacity-50 ${value ? "bg-[#8B1A1A]" : "bg-gray-300"}`}
-    >
-      <div 
-        className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${value ? "left-6" : "left-1"}`}
-      />
-    </button>
-  );
-
   return (
     <div className="font-sans max-w-5xl mx-auto px-2 sm:px-4 py-2 sm:py-4">
       {/* Toast Alert */}
@@ -728,7 +730,7 @@ export default function SystemSettingsPage() {
                     <span className="text-xs font-bold text-gray-700">
                       {twoFA ? "បើកដំណើរការ" : "បិទ"}
                     </span>
-                    <Toggle 
+                    <SettingToggle 
                       value={twoFA} 
                       onChange={handleToggle2FA} 
                       disabled={isToggling2FA} 
@@ -924,7 +926,7 @@ export default function SystemSettingsPage() {
                       <div className="text-xs sm:text-sm font-extrabold text-gray-900 mb-1">{label}</div>
                       <div className="text-xs text-gray-500 leading-relaxed">{desc}</div>
                     </div>
-                    <Toggle value={value} onChange={set} />
+                    <SettingToggle value={value} onChange={set} />
                   </div>
                 ))}
               </div>

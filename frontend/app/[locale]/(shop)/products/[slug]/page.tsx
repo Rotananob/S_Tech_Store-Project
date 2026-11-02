@@ -9,19 +9,19 @@ type Props = {
   params: Promise<{ slug: string; locale: string }>;
 };
 
-export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
+export async function generateMetadata({ params }: Props, _parent: ResolvingMetadata): Promise<Metadata> {
   const { slug, locale } = await params;
   const productRes: any = await getProduct(slug);
   const product = productRes?.data ? productRes.data : productRes;
   
   if (!product) {
     return {
-      title: "ទំនិញរកមិនឃើញ / Product Not Found | S Tech Store",
+      title: "ទំនិញរកមិនឃើញ - Product Not Found | S Tech Store",
     };
   }
 
   const priceFormatted = product.sale_price ? `$${product.sale_price}` : (product.price ? `$${product.price}` : "");
-  const title = priceFormatted ? `${product.name} (${priceFormatted}) | S Tech Store` : `${product.name} | S Tech Store Cambodia`;
+  const title = priceFormatted ? `${product.name} - ${priceFormatted} | S Tech Store` : `${product.name} | S Tech Store Cambodia`;
   const description = product.description 
     ? `${product.name} ${priceFormatted ? `តម្លៃត្រឹមតែ ${priceFormatted}` : ""} — ${product.description.replace(/\r?\n|\r/g, " ").slice(0, 150)}... មានធានាត្រឹមត្រូវ ដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia`
     : `ទិញ ${product.name} ${priceFormatted ? `តម្លៃពិសេស ${priceFormatted}` : ""} ជាមួយការធានាផ្លូវការ និងសេវាដឹកជញ្ជូន ២៥ ខេត្ត-ក្រុង នៅ S Tech Store Cambodia។`;
@@ -90,62 +90,58 @@ export default async function ProductDetailPage({
 }: Props) {
   const { slug, locale } = await params;
   
+  let product: any = null;
   try {
     const productRes: any = await getProduct(slug);
-    const product = productRes?.data ? productRes.data : productRes;
-
-    if (!product) {
-      return (
-        <div style={{ minHeight: "100vh", background: "#111", display: "flex", justifyContent: "center", alignItems: "center", color: "white" }}>
-          Product not found
-        </div>
-      );
-    }
-
-    const rawImage = product.images?.[0] || product.image || "/og-image.png";
-    const imageUrl = rawImage.startsWith("http") 
-      ? rawImage 
-      : `https://www.s-tech-store.tech${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
-
-    const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      name: product.name,
-      image: [imageUrl],
-      description: product.description || `Buy ${product.name} at S Tech Store Cambodia`,
-      brand: {
-        "@type": "Brand",
-        name: product.brand || "S Tech",
-      },
-      offers: {
-        "@type": "Offer",
-        url: `https://www.s-tech-store.tech/${locale}/products/${product.slug || slug}`,
-        priceCurrency: "USD",
-        price: product.price,
-        itemCondition: "https://schema.org/NewCondition",
-        availability: (product.stock ?? 1) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-        seller: {
-          "@type": "Organization",
-          name: "S Tech Store Cambodia",
-        },
-      },
-    };
-
-    return (
-      <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <ProductDetailClient product={product} />
-      </>
-    );
+    product = productRes?.data ? productRes.data : productRes;
   } catch (error) {
     console.error("Failed to fetch product:", error);
+  }
+
+  if (!product) {
     return (
       <div style={{ minHeight: "100vh", background: "#111", display: "flex", justifyContent: "center", alignItems: "center", color: "white" }}>
-        Error loading product
+        Product not found
       </div>
     );
   }
+
+  const rawImage = product.images?.[0] || product.image || "/og-image.png";
+  const imageUrl = rawImage.startsWith("http") 
+    ? rawImage 
+    : `https://www.s-tech-store.tech${rawImage.startsWith("/") ? "" : "/"}${rawImage}`;
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    image: [imageUrl],
+    description: product.description || `Buy ${product.name} at S Tech Store Cambodia`,
+    brand: {
+      "@type": "Brand",
+      name: product.brand || "S Tech",
+    },
+    offers: {
+      "@type": "Offer",
+      url: `https://www.s-tech-store.tech/${locale}/products/${product.slug || slug}`,
+      priceCurrency: "USD",
+      price: product.price,
+      itemCondition: "https://schema.org/NewCondition",
+      availability: (product.stock ?? 1) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      seller: {
+        "@type": "Organization",
+        name: "S Tech Store Cambodia",
+      },
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ProductDetailClient product={product} />
+    </>
+  );
 }

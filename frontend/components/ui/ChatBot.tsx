@@ -426,7 +426,9 @@ export default function ChatBot({ onClose, productInfo }: ChatBotProps) {
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
   const sessionsRef = useRef<ChatSessionItem[]>([]);
-  sessionsRef.current = sessions;
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
   const userStorageKeyRef = useRef<string>("guest");
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [sessionSearch, setSessionSearch] = useState("");

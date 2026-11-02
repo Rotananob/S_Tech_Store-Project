@@ -1050,7 +1050,7 @@ export function CategorySection({ categories: initialCategories = [] }: { catego
   });
 
   // Always produce EXACTLY 6 categories by merging DB categories with defaultCategoryList
-  let merged: any[] = [...filteredCategories];
+  const merged: any[] = [...filteredCategories];
   for (const def of defaultCategoryList) {
     if (merged.length >= 6) break;
     const exists = merged.some((c) => {
