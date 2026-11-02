@@ -55,7 +55,7 @@ class ProductReviewController extends Controller
 
         $profile = \App\Models\UserProfile::where('firebase_uid', $uid)->first();
         $rawAuthorName = $validated['user_name'] 
-            ?? $profile->display_name 
+            ?? $profile?->display_name 
             ?? $request->header('X-Firebase-Name') 
             ?? ('User ' . substr($uid, 0, 6));
 
@@ -75,8 +75,8 @@ class ProductReviewController extends Controller
             'id' => $review->id,
             'product_id' => $review->product_id,
             'firebase_uid' => $review->firebase_uid,
-            'user_name' => $authorName,
-            'user_avatar' => $profile->photo_url ?? null,
+            'user_name' => $cleanAuthorName,
+            'user_avatar' => $profile?->photo_url ?? null,
             'rating' => (int)$review->rating,
             'comment' => $review->comment,
             'verified_buyer' => true,
