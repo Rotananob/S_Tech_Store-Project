@@ -218,6 +218,7 @@ class OrderController extends Controller
             }
 
             // Cross-check with UserProfile if UID is known or if email matches an existing account
+            $matchedUser = null;
             if (!empty($orderUserUid)) {
                 $matchedUser = \App\Models\UserProfile::where('firebase_uid', $orderUserUid)->first();
                 if (!$matchedUser && !empty($customerEmail)) {
