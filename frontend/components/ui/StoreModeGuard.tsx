@@ -391,7 +391,7 @@ export default function StoreModeGuard() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500" />
             </span>
-            <span className="tracking-wide">{v.title || "ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)"}</span>
+            <span className="tracking-wide">{v.title || "ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed"}</span>
             <Sparkles size={14} className="text-amber-400 animate-spin" style={{ animationDuration: "12s" }} />
           </div>
 
@@ -433,7 +433,7 @@ export default function StoreModeGuard() {
           <div className="my-6 sm:my-8">
             <div className="text-[11px] font-black uppercase tracking-widest text-amber-400/90 mb-3.5 flex items-center justify-center gap-2">
               <Clock size={14} className="text-amber-400 animate-pulse" />
-              <span>រាប់ថយក្រោយបើកដំណើរការហាងឡើងវិញ (Countdown to Re-open)</span>
+              <span>រាប់ថយក្រោយបើកដំណើរការហាងឡើងវិញ - Countdown to Re-open</span>
             </div>
 
             <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-xl mx-auto">
@@ -507,7 +507,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ទីតាំងហាង</div>
-                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ (Phnom Penh)</div>
+                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ - Phnom Penh</div>
               </div>
             </div>
 
@@ -517,7 +517,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ម៉ោងបម្រើការធម្មតា</div>
-                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM (រាល់ថ្ងៃ)</div>
+                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM - រាល់ថ្ងៃ</div>
               </div>
             </div>
 
@@ -542,7 +542,7 @@ export default function StoreModeGuard() {
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-sky-500 to-blue-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(2,132,199,0.35)] transition-all cursor-pointer group"
             >
               <Send size={16} className="group-hover:translate-x-0.5 transition-transform" />
-              <span>ជំនួយការ Telegram (ឆ្លើយតប ២៤/៧)</span>
+              <span>ជំនួយការ Telegram - ឆ្លើយតប ២៤/៧</span>
               <ExternalLink size={13} className="opacity-75" />
             </a>
 
@@ -584,7 +584,7 @@ export default function StoreModeGuard() {
                 className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 flex items-center gap-1.5 cursor-pointer transition-all text-xs"
               >
                 <Eye size={13} />
-                <span>មើលហាងជាមុន (Owner Bypass)</span>
+                <span>មើលហាងជាមុន - Owner Bypass</span>
               </button>
             ) : (
               <button
@@ -646,7 +646,7 @@ export default function StoreModeGuard() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-400" />
             </span>
-            <span className="tracking-wide">{nl.title || "សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)"}</span>
+            <span className="tracking-wide">{nl.title || "សុវត្ថិភាពពេលរាត្រី - Cybersecurity Night Lockdown"}</span>
             <Moon size={14} className="text-cyan-400 animate-pulse" />
           </div>
 
@@ -666,7 +666,7 @@ export default function StoreModeGuard() {
           {/* Subtitle / Mode Explanation */}
           <div className="mt-2 text-xs sm:text-sm font-bold text-cyan-300/90 flex items-center justify-center gap-2">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            <span>ប្រព័ន្ធកំពុងសម្រាក & ចាក់សោសុវត្ថិភាព ({nl.start_time || "02:00"} – {nl.end_time || "06:00"})</span>
+            <span>ប្រព័ន្ធកំពុងសម្រាក & ចាក់សោសុវត្ថិភាព: {nl.start_time || "02:00"} – {nl.end_time || "06:00"}</span>
           </div>
 
           <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-cyan-500/5 via-white/[0.02] to-cyan-500/5 border border-cyan-500/20 max-w-2xl mx-auto shadow-inner">
@@ -679,7 +679,7 @@ export default function StoreModeGuard() {
           <div className="my-6 sm:my-8">
             <div className="text-[11px] font-black uppercase tracking-widest text-cyan-400/90 mb-3.5 flex items-center justify-center gap-2">
               <Clock size={14} className="text-cyan-400 animate-pulse" />
-              <span>រាប់ថយក្រោយបើកដំណើរការហាងឡើងវិញ (Countdown to Re-open)</span>
+              <span>រាប់ថយក្រោយបើកដំណើរការហាងឡើងវិញ - Countdown to Re-open</span>
             </div>
 
             <div className="grid grid-cols-3 gap-2.5 sm:gap-4 max-w-md mx-auto">
@@ -728,7 +728,7 @@ export default function StoreModeGuard() {
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
-                    })} (ម៉ោង {nl.end_time || "06:00"} ព្រឹកនេះ)
+                    })} - ម៉ោង {nl.end_time || "06:00"} ព្រឹកនេះ
                   </strong>
                 </span>
               </div>
@@ -743,7 +743,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ទីតាំងហាង</div>
-                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ (Phnom Penh)</div>
+                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ - Phnom Penh</div>
               </div>
             </div>
 
@@ -753,7 +753,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ម៉ោងបម្រើការធម្មតា</div>
-                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM (រាល់ថ្ងៃ)</div>
+                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM - រាល់ថ្ងៃ</div>
               </div>
             </div>
 
@@ -777,7 +777,7 @@ export default function StoreModeGuard() {
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 via-cyan-600 to-blue-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(6,182,212,0.35)] transition-all cursor-pointer group"
             >
               <Send size={16} className="group-hover:translate-x-0.5 transition-transform" />
-              <span>ជំនួយការ Telegram (ឆ្លើយតប ២៤/៧)</span>
+              <span>ជំនួយការ Telegram - ឆ្លើយតប ២៤/៧</span>
               <ExternalLink size={13} className="opacity-75" />
             </a>
 
@@ -817,7 +817,7 @@ export default function StoreModeGuard() {
                 className="px-3.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40 flex items-center gap-1.5 cursor-pointer transition-all text-xs"
               >
                 <Eye size={13} />
-                <span>ចូលមើលហាង (Owner Bypass)</span>
+                <span>ចូលមើលហាង - Owner Bypass</span>
               </button>
             ) : (
               <button
@@ -880,7 +880,7 @@ export default function StoreModeGuard() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
             </span>
             <span className="tracking-wide">
-              {m.title || "ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)"}
+              {m.title || "ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព - Under Technical Maintenance"}
             </span>
             <Sparkles size={14} className="text-amber-400 animate-spin" style={{ animationDuration: "12s" }} />
           </div>
@@ -966,7 +966,7 @@ export default function StoreModeGuard() {
             <div className="my-6 sm:my-8">
               <div className="text-[11px] font-black uppercase tracking-widest text-red-400/90 mb-3.5 flex items-center justify-center gap-2">
                 <Clock size={14} className="text-red-400 animate-pulse" />
-                <span>រាប់ថយក្រោយបញ្ចប់ការថែទាំប្រព័ន្ធ (Countdown to Completion)</span>
+                <span>រាប់ថយក្រោយបញ្ចប់ការថែទាំប្រព័ន្ធ - Countdown to Completion</span>
               </div>
 
               <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-xl mx-auto">
@@ -1037,8 +1037,8 @@ export default function StoreModeGuard() {
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
               </span>
               <div className="text-left">
-                <div className="text-xs font-black text-red-300">ប្រព័ន្ធនឹងបើកដំណើរការឡើងវិញភ្លាមៗពេលបញ្ចប់ (Auto-Live Ready)</div>
-                <div className="text-[11px] text-gray-400">វិស្វករកំពុងធ្វើតេស្តសុវត្ថិភាពចុងក្រោយ • Ping: ~24ms (Asia-Phnom Penh)</div>
+                <div className="text-xs font-black text-red-300">ប្រព័ន្ធនឹងបើកដំណើរការឡើងវិញភ្លាមៗពេលបញ្ចប់ - Auto-Live Ready</div>
+                <div className="text-[11px] text-gray-400">វិស្វករកំពុងធ្វើតេស្តសុវត្ថិភាពចុងក្រោយ • Ping: ~24ms - Asia-Phnom Penh</div>
               </div>
             </div>
           )}
@@ -1051,7 +1051,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ទីតាំងហាង</div>
-                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ (Phnom Penh)</div>
+                <div className="text-xs font-extrabold text-white truncate">រាជធានីភ្នំពេញ - Phnom Penh</div>
               </div>
             </div>
 
@@ -1061,7 +1061,7 @@ export default function StoreModeGuard() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-gray-400 uppercase">ម៉ោងបម្រើការធម្មតា</div>
-                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM (រាល់ថ្ងៃ)</div>
+                <div className="text-xs font-extrabold text-white truncate">8:00 AM – 8:00 PM - រាល់ថ្ងៃ</div>
               </div>
             </div>
 
@@ -1086,7 +1086,7 @@ export default function StoreModeGuard() {
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:opacity-95 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-[0_10px_30px_rgba(239,68,68,0.35)] transition-all cursor-pointer group"
             >
               <Send size={16} className="group-hover:translate-x-0.5 transition-transform" />
-              <span>ជំនួយការ Telegram (ឆ្លើយតប ២៤/៧)</span>
+              <span>ជំនួយការ Telegram - ឆ្លើយតប ២៤/៧</span>
               <ExternalLink size={13} className="opacity-75" />
             </a>
 
@@ -1128,7 +1128,7 @@ export default function StoreModeGuard() {
                 className="px-3.5 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold border border-red-500/40 flex items-center gap-1.5 cursor-pointer transition-all text-xs"
               >
                 <Eye size={13} />
-                <span>មើលហាងជាមុន (Owner Bypass)</span>
+                <span>មើលហាងជាមុន - Owner Bypass</span>
               </button>
             ) : (
               <button
@@ -1227,7 +1227,7 @@ export default function StoreModeGuard() {
 
           {unlockError && (
             <div className="text-[11px] text-red-400 font-bold mb-2 flex items-center gap-1.5">
-              <span>⚠️</span>
+              <ShieldAlert size={13} className="text-red-400" />
               <span>{unlockError}</span>
             </div>
           )}

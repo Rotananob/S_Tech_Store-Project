@@ -79,7 +79,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
     mode: "online",
     maintenance_mode: false,
     vacation_mode: false,
-    vacation_title: "ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)",
+    vacation_title: "ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed",
     vacation_reason: "ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!",
     vacation_days: 3,
     vacation_end_time: null,
@@ -99,7 +99,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
   const [vacationModalOpen, setVacationModalOpen] = useState(false);
   const [vacationFormDays, setVacationFormDays] = useState(3);
   const [vacationFormHours, setVacationFormHours] = useState(0);
-  const [vacationFormTitle, setVacationFormTitle] = useState("ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)");
+  const [vacationFormTitle, setVacationFormTitle] = useState("ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed");
   const [vacationFormReason, setVacationFormReason] = useState("ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗស្វ័យប្រវត្តិ!");
 
   // Live Vacation Countdown State
@@ -259,7 +259,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
       setDeniedModal({
         show: true,
         buttonName: buttonTitle,
-        description: `លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការប៊ូតុង "${buttonTitle}" នេះបានឡើយ។ សិទ្ធិនេះត្រូវបានរក្សាទុកសម្រាប់តែម្ចាស់ប្រព័ន្ធ (Super Admin / System Owner) ប៉ុណ្ណោះ!`,
+        description: `លោកអ្នកជា Admin ធម្មតា - Limited Administrator អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការប៊ូតុង "${buttonTitle}" នេះបានឡើយ។ សិទ្ធិនេះត្រូវបានរក្សាទុកសម្រាប់តែម្ចាស់ប្រព័ន្ធ - Super Admin / System Owner ប៉ុណ្ណោះ!`,
       });
       return;
     }
@@ -326,12 +326,12 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             {isSuperAdmin ? (
               <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-black uppercase flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
-                <span>សិទ្ធិម្ចាស់ប្រព័ន្ធកំពូល (Master Active)</span>
+                <span>សិទ្ធិម្ចាស់ប្រព័ន្ធកំពូល - Master Active</span>
               </span>
             ) : (
               <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-gray-300 text-[10px] font-bold uppercase flex items-center gap-1.5">
                 <Lock size={11} className="text-amber-400" />
-                <span>Admin ធម្មតា (View-Only Mode)</span>
+                <span>Admin ធម្មតា - View-Only Mode</span>
               </span>
             )}
           </div>
@@ -343,7 +343,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
           <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-2xl leading-relaxed">
             {isSuperAdmin
               ? "លោកអ្នកមានសិទ្ធិបញ្ជាគ្រប់គ្រងពេញលេញលើប្រព័ន្ធហាង សុវត្ថិភាពសាច់ប្រាក់ Cache និងការបិទ/បើកហាងបន្ទាន់។"
-              : "លោកអ្នកជា Admin ធម្មតាអាចមើលឃើញស្ថានភាពបច្ចុប្បន្នបាន ប៉ុន្តែរាល់ប៊ូតុងបញ្ជាទាំងអស់ត្រូវបានការពារ (View-Only)។"}
+              : "លោកអ្នកជា Admin ធម្មតាអាចមើលឃើញស្ថានភាពបច្ចុប្បន្នបាន ប៉ុន្តែរាល់ប៊ូតុងបញ្ជាទាំងអស់ត្រូវបានការពារ - View-Only។"}
           </p>
         </div>
 
@@ -381,7 +381,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               {state.maintenance_mode 
                 ? "Maintenance UI" 
                 : state.vacation_mode 
-                ? `សម្រាក (${countdown.days}d ${countdown.hours}h left)` 
+                ? `សម្រាក: ${countdown.days}d ${countdown.hours}h left` 
                 : "Normal Live 24/7"}
             </span>
           </span>
@@ -426,7 +426,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               </span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white mt-1 m-0">
-              មជ្ឈមណ្ឌលគ្រប់គ្រងស្ថានភាពហាង (Master Store Operations)
+              មជ្ឈមណ្ឌលគ្រប់គ្រងស្ថានភាពហាង - Master Store Operations
             </h3>
             <p className="text-xs text-slate-400 mt-0.5 m-0">
               ការបញ្ជាផ្ទាល់លើ Storefront សាធារណៈ: បើកដំណើរការ, ឈប់សម្រាកតាមកាលកំណត់, បិទជួសជុល, ឬចាក់សោរពេលរាត្រី។
@@ -499,7 +499,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 DISPATCH // 01
               </div>
               <h4 className="text-sm font-bold text-white m-0">
-                ដំណើរការធម្មតា (Normal 24/7 Live)
+                ដំណើរការធម្មតា - Normal 24/7 Live
               </h4>
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
                 Storefront បើកដំណើរការពេញលេញ។ អតិថិជនអាចរុករកទំនិញ ផ្គុំកុំព្យូទ័រ និងធ្វើការ Checkout បានគ្រប់ពេលវេលា។
@@ -538,7 +538,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 {!isSuperAdmin ? (
                   <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
                 ) : !state.vacation_mode && !state.maintenance_mode && !state.night_lock_forced ? (
-                  <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ (Current Active)</span></>
+                  <><CheckCircle2 size={13} className="text-emerald-400" /><span>កំពុងដំណើរការ - Current Active</span></>
                 ) : (
                   <><Power size={13} /><span>ប្តូរមក Normal Live វិញ</span></>
                 )}
@@ -577,7 +577,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 DISPATCH // 02
               </div>
               <h4 className="text-sm font-bold text-white m-0">
-                បិទឈប់សម្រាក (Vacation & Break)
+                បិទឈប់សម្រាក - Vacation & Break
               </h4>
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
                 កំណត់កាលវិភាគសម្រាកបណ្តោះអាសន្ន។ Storefront បង្ហាញផ្ទាំងផ្លូវការជាមួយ Live Countdown និង auto direct បើកវិញពេលដល់ម៉ោង។
@@ -639,7 +639,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                     setDeniedModal({
                       show: true,
                       buttonName: "កំណត់ការឈប់សម្រាក & UI Countdown",
-                      description: "លោកអ្នកជា Admin ធម្មតា (Limited Administrator) អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការបិទហាងសម្រាកបានឡើយ!",
+                      description: "លោកអ្នកជា Admin ធម្មតា - Limited Administrator អាចត្រឹមតែមើលឃើញស្ថានភាព ប៉ុន្តែគ្មានសិទ្ធិម្ចាស់ប្រព័ន្ធចុចដំណើរការបិទហាងសម្រាកបានឡើយ!",
                     });
                     return;
                   }
@@ -696,7 +696,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 DISPATCH // 03
               </div>
               <h4 className="text-sm font-bold text-white m-0">
-                បិទជួសជុល (Maintenance Mode)
+                បិទជួសជុល - Maintenance Mode
               </h4>
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
                 ផ្អាកដំណើរការ Storefront សម្រាប់បច្ចុប្បន្នភាពប្រព័ន្ធ Database, APIs, ឬហេដ្ឋារចនាសម្ព័ន្ធទូទាត់ប្រាក់។
@@ -734,7 +734,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 {!isSuperAdmin ? (
                   <><Lock size={12} className="text-amber-400" /><span>សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ</span></>
                 ) : state.maintenance_mode ? (
-                  <><Power size={13} /><span>បិទ Maintenance (Go Live)</span></>
+                  <><Power size={13} /><span>បិទ Maintenance - Go Live</span></>
                 ) : (
                   <><Wrench size={13} /><span>បើក Maintenance Mode</span></>
                 )}
@@ -782,7 +782,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 DISPATCH // 04
               </div>
               <h4 className="text-sm font-bold text-white m-0">
-                សុវត្ថិភាពពេលរាត្រី (Night Lock)
+                សុវត្ថិភាពពេលរាត្រី - Night Lock
               </h4>
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed m-0">
                 ការពារ Storefront & Checkout ពីម៉ោង {state.night_lock_start || "02:00"} ដល់ {state.night_lock_end || "06:00"} AM ICT ប្រឆាំងនឹង Bot Attacks និងសន្សំ Cloud Quota។
@@ -803,7 +803,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                       await loadStatus();
                     },
                     true,
-                    newForced ? "ចាក់សោ Night Lock ភ្លាមៗ (Test Lockdown)" : "ដោះសោ Night Lock ភ្លាមៗ",
+                    newForced ? "ចាក់សោ Night Lock ភ្លាមៗ - Test Lockdown" : "ដោះសោ Night Lock ភ្លាមៗ",
                     newForced 
                       ? "តើអ្នកចង់ចាក់សោ Storefront ចូលក្នុងរបៀប Night Lock ភ្លាមៗដើម្បីតេស្តមើល UI ឬការពារបន្ទាន់មែនទេ?" 
                       : "តើអ្នកចង់ដោះសោ Night Lock ភ្លាមៗមែនទេ?",
@@ -824,7 +824,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 ) : state.night_lock_forced ? (
                   <><Power size={13} /><span>ដោះសោ Force Lock</span></>
                 ) : (
-                  <><Moon size={13} /><span>សាកល្បងចាក់សោ (Force Lock)</span></>
+                  <><Moon size={13} /><span>សាកល្បងចាក់សោ - Force Lock</span></>
                 )}
               </button>
 
@@ -841,7 +841,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                       await loadStatus();
                     },
                     true,
-                    newEnabled ? "បើក Auto Night Lock (02:00 - 06:00)" : "បិទ Auto Night Lock",
+                    newEnabled ? "បើក Auto Night Lock: 02:00 - 06:00" : "បិទ Auto Night Lock",
                     newEnabled
                       ? "តើអ្នកចង់បើកកាលវិភាគ Night Lock ស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ជារៀងរាល់ថ្ងៃមែនទេ?"
                       : "តើអ្នកចង់បិទកាលវិភាគ Night Lock ស្វ័យប្រវត្តិមែនទេ?",
@@ -887,18 +887,18 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                   <span>{state.staff_lockdown ? "STAFF LOCKDOWN ACTIVE" : "STAFF NORMAL PERMISSIONS"}</span>
                 </span>
                 <span className="text-xs text-gray-400 font-bold">
-                  (សិទ្ធិផ្តាច់មុខរបស់ម្ចាស់ប្រព័ន្ធ)
+                  - សិទ្ធិផ្តាច់មុខរបស់ម្ចាស់ប្រព័ន្ធ
                 </span>
               </div>
 
               <h4 className="text-sm sm:text-base font-black text-white m-0">
                 {state.staff_lockdown 
-                  ? "សកម្មភាពបុគ្គលិក និង Sub-Admin ទាំងអស់ត្រូវបានបង្កក (Staff Activity Frozen)"
-                  : "បិទសកម្មភាពពួក Admin ឬ Staff ផ្សេងៗទាំងអស់ (Global Staff Lockdown)"}
+                  ? "សកម្មភាពបុគ្គលិក និង Sub-Admin ទាំងអស់ត្រូវបានបង្កក - Staff Activity Frozen"
+                  : "បិទសកម្មភាពពួក Admin ឬ Staff ផ្សេងៗទាំងអស់ - Global Staff Lockdown"}
               </h4>
               <p className="text-xs text-gray-300 max-w-3xl leading-relaxed">
                 {state.staff_lockdown
-                  ? "រាល់សកម្មភាពបង្កើត កែប្រែ ឬលុបទិន្នន័យពីសំណាក់ Admin និង Staff ទាំងអស់ត្រូវបានបិទទាំងស្រុង (Status 423 Locked)។ មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន!"
+                  ? "រាល់សកម្មភាពបង្កើត កែប្រែ ឬលុបទិន្នន័យពីសំណាក់ Admin និង Staff ទាំងអស់ត្រូវបានបិទទាំងស្រុង - Status 423 Locked។ មានតែម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះដែលអាចបញ្ជាបាន!"
                   : "នៅពេលបើកដំណើរការ ប្រព័ន្ធនឹងកាត់ផ្តាច់ Session របស់ពួក Admin និង Staff ទាំងអស់ និងបិទមិនឱ្យកែប្រែទិន្នន័យអ្វីទាំងអស់ក្នុងប្រព័ន្ធហាងភ្លាមៗ។"}
               </p>
             </div>
@@ -915,7 +915,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                   showToast(res.message);
                 },
                 true,
-                state.staff_lockdown ? "ដោះលែងសកម្មភាព Admin & Staff ទាំងអស់" : "បង្កកសកម្មភាព Admin & Staff ទាំងអស់ (LOCKDOWN)",
+                state.staff_lockdown ? "ដោះលែងសកម្មភាព Admin & Staff ទាំងអស់" : "បង្កកសកម្មភាព Admin & Staff ទាំងអស់ - LOCKDOWN",
                 state.staff_lockdown
                   ? "តើអ្នកចង់ដោះលែងសិទ្ធិ និងអនុញ្ញាតឱ្យ Admin និង Staff ទាំងអស់បំពេញភារកិច្ចឡើងវិញមែនទេ?"
                   : "ប្រយ័ត្នខ្ពស់បំផុត! ប្រព័ន្ធនឹងកាត់ផ្តាច់ Login Token របស់បុគ្គលិក និង Admin ទាំងអស់ភ្លាមៗ ហើយបិទរាល់សកម្មភាពកែប្រែទិន្នន័យទាំងអស់។ តើអ្នកចង់ដំណើរការ Lockdown ទេ?",
@@ -942,10 +942,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)"
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked"
                 : state.staff_lockdown 
-                ? "ដោះលែង Staff ទាំងអស់ (Deactivate Lockdown)" 
-                : "បិទសកម្មភាពពួក Admin/Staff ទាំងអស់ (Activate Lockdown)"}
+                ? "ដោះលែង Staff ទាំងអស់ - Deactivate Lockdown" 
+                : "បិទសកម្មភាពពួក Admin/Staff ទាំងអស់ - Activate Lockdown"}
             </span>
           </button>
         </div>
@@ -1015,9 +1015,9 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" 
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" 
                 : state.maintenance_mode 
-                ? "បិទ Maintenance (Go Live)" 
+                ? "បិទ Maintenance - Go Live" 
                 : "បើក Maintenance Mode"}
             </span>
           </button>
@@ -1069,7 +1069,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Zap size={13} />
             )}
-            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "កម្ទេច Cache ទាំងអស់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" : "កម្ទេច Cache ទាំងអស់"}</span>
           </button>
         </div>
 
@@ -1134,10 +1134,10 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             )}
             <span>
               {!isSuperAdmin 
-                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" 
+                ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" 
                 : state.financial_freeze 
-                ? "ដោះលែងហិរញ្ញវត្ថុ (Unfreeze)" 
-                : "បង្កកហិរញ្ញវត្ថុ (Freeze)"}
+                ? "ដោះលែងហិរញ្ញវត្ថុ - Unfreeze" 
+                : "បង្កកហិរញ្ញវត្ថុ - Freeze"}
             </span>
           </button>
         </div>
@@ -1190,7 +1190,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Download size={13} />
             )}
-            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Export Snapshot ភ្លាមៗ"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" : "Export Snapshot ភ្លាមៗ"}</span>
           </button>
         </div>
 
@@ -1243,7 +1243,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Radio size={13} />
             )}
-            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Broadcast Force Update"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" : "Broadcast Force Update"}</span>
           </button>
         </div>
 
@@ -1296,7 +1296,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <Radio size={13} />
             )}
-            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "បាញ់សារ SOS បន្ទាន់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" : "បាញ់សារ SOS បន្ទាន់"}</span>
           </button>
         </div>
 
@@ -1349,7 +1349,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             ) : (
               <UserX size={13} />
             )}
-            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ (Locked)" : "Logout បុគ្គលិកទាំងអស់"}</span>
+            <span>{!isSuperAdmin ? "សិទ្ធិម្ចាស់ប្រព័ន្ធប៉ុណ្ណោះ - Locked" : "Logout បុគ្គលិកទាំងអស់"}</span>
           </button>
         </div>
 
@@ -1368,7 +1368,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             </div>
             <h4 className="text-sm font-bold text-white m-0">Coin Multiplier Promo</h4>
             <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-              បច្ចុប្បន្ន: {state.coin_multiplier}x (កែប្រែដើម្បីបើក Campaign ផ្ដល់ Coin ច្រើន)
+              បច្ចុប្បន្ន: {state.coin_multiplier}x - កែប្រែដើម្បីបើក Campaign ផ្ដល់ Coin ច្រើន
             </p>
           </div>
 
@@ -1416,7 +1416,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             </div>
             <h4 className="text-sm font-bold text-white m-0">Email Delivery & Gmail Probe</h4>
             <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
-              ប្រព័ន្ធបញ្ជូនសារ Email ផ្លូវការ (Order Receipts, 2FA Alerts) ទៅកាន់ Real Gmail តាម Resend HTTPS API ឬ SMTP។
+              ប្រព័ន្ធបញ្ជូនសារ Email ផ្លូវការ: Order Receipts, 2FA Alerts ទៅកាន់ Real Gmail តាម Resend HTTPS API ឬ SMTP។
             </p>
           </div>
 
@@ -1426,7 +1426,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             className="mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-600/80 to-red-600/80 hover:from-rose-600 hover:to-red-600 text-white font-bold text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-md transition-all border border-rose-500/30"
           >
             <Mail size={13} />
-            <span>គ្រប់គ្រង &amp; តេស្ត Gmail (Configure &amp; Test)</span>
+            <span>គ្រប់គ្រង &amp; តេស្ត Gmail - Configure &amp; Test</span>
           </button>
         </div>
 
@@ -1469,7 +1469,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               </div>
               <div className="flex justify-between">
                 <span>សិទ្ធិប្រតិបត្តិការ:</span>
-                <span className="font-bold text-amber-400">View-Only (ត្រឹមតែមើល)</span>
+                <span className="font-bold text-amber-400">View-Only - ត្រឹមតែមើល</span>
               </div>
               <div className="flex justify-between">
                 <span>សិទ្ធិបញ្ជាកំពូល:</span>
@@ -1482,7 +1482,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
               onClick={() => setDeniedModal(null)}
               className="w-full py-3 rounded-2xl bg-[#8B1A1A] hover:bg-[#6b1111] text-white font-bold text-xs transition-all shadow-md cursor-pointer border-none"
             >
-              ខ្ញុំបានយល់ច្បាស់ (Acknowledge)
+              ខ្ញុំបានយល់ច្បាស់ - Acknowledge
             </button>
           </div>
         </div>
@@ -1515,14 +1515,14 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 onClick={() => setConfirmModal(null)}
                 className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs transition-all cursor-pointer border-none"
               >
-                បោះបង់ (Cancel)
+                បោះបង់ - Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmModal.onConfirm}
                 className="flex-1 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition-all shadow-md shadow-red-950/50 cursor-pointer border-none"
               >
-                យល់ព្រមដំណើរការ (Execute)
+                យល់ព្រមដំណើរការ - Execute
               </button>
             </div>
           </div>
@@ -1567,7 +1567,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             {/* Preset Days Quick Selector */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
-                ជ្រើសរើសរយៈពេលរហ័ស (Preset Days):
+                ជ្រើសរើសរយៈពេលរហ័ស - Preset Days:
               </label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {[1, 2, 3, 5, 7, 14].map((d) => (
@@ -1594,7 +1594,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                  ចំនួនថ្ងៃ (Days):
+                  ចំនួនថ្ងៃ - Days:
                 </label>
                 <input
                   type="number"
@@ -1608,7 +1608,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
 
               <div>
                 <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1">
-                  ម៉ោងបន្ថែម (Hours):
+                  ម៉ោងបន្ថែម - Hours:
                 </label>
                 <input
                   type="number"
@@ -1639,7 +1639,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             {/* Title Input */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
-                ចំណងជើងជូនដំណឹង (Title Notice):
+                ចំណងជើងជូនដំណឹង - Title Notice:
               </label>
               <input
                 type="text"
@@ -1653,7 +1653,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
             {/* Reason Textarea */}
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block">
-                សារជូនដំណឹងដល់អតិថិជន (Customer Notice Message):
+                សារជូនដំណឹងដល់អតិថិជន - Customer Notice Message:
               </label>
               <textarea
                 rows={2}
@@ -1671,7 +1671,7 @@ export default function GrandMasterCommandConsole({ isSuperAdminProp, onRefreshS
                 onClick={() => setVacationModalOpen(false)}
                 className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-gray-300 font-bold text-xs transition-all cursor-pointer border-none"
               >
-                បោះបង់ (Cancel)
+                បោះបង់ - Cancel
               </button>
 
               <button
