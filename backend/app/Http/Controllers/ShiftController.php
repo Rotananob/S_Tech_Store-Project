@@ -8,7 +8,7 @@ use App\Models\Shift;
 class ShiftController extends Controller
 {
     /**
-     * List all working shifts & schedules (វេនធ្វើការ)
+     * List all working shifts & schedules - វេនធ្វើការ
      */
     public function index()
     {
@@ -16,12 +16,12 @@ class ShiftController extends Controller
     }
 
     /**
-     * Store new shift (Admin Only)
+     * Store new shift - Admin and Super Admin
      */
     public function store(Request $request)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can create shifts.'], 403);
         }
 
@@ -44,12 +44,12 @@ class ShiftController extends Controller
     }
 
     /**
-     * Update shift (Admin Only)
+     * Update shift - Admin and Super Admin
      */
     public function update(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can update shifts.'], 403);
         }
 
@@ -74,12 +74,12 @@ class ShiftController extends Controller
     }
 
     /**
-     * Delete shift (Admin Only)
+     * Delete shift - Admin and Super Admin
      */
     public function destroy(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can delete shifts.'], 403);
         }
 

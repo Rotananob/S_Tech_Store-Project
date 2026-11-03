@@ -8,7 +8,7 @@ use App\Models\Branch;
 class BranchController extends Controller
 {
     /**
-     * List all store branches (សាខាហាង)
+     * List all store branches - សាខាហាង
      */
     public function index()
     {
@@ -16,12 +16,12 @@ class BranchController extends Controller
     }
 
     /**
-     * Store new branch (Admin Only)
+     * Store new branch - Admin and Super Admin
      */
     public function store(Request $request)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can create branches.'], 403);
         }
 
@@ -44,12 +44,12 @@ class BranchController extends Controller
     }
 
     /**
-     * Update branch (Admin Only)
+     * Update branch - Admin and Super Admin
      */
     public function update(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can update branches.'], 403);
         }
 
@@ -74,12 +74,12 @@ class BranchController extends Controller
     }
 
     /**
-     * Delete branch (Admin Only)
+     * Delete branch - Admin and Super Admin
      */
     public function destroy(Request $request, $id)
     {
         $currentUser = $request->attributes->get('auth_user');
-        if ($currentUser && $currentUser->role !== 'admin') {
+        if (!$currentUser || !$currentUser->isAdmin()) {
             return response()->json(['message' => 'Forbidden: Only administrators can delete branches.'], 403);
         }
 
