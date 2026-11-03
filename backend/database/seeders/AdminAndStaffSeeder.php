@@ -127,7 +127,7 @@ class AdminAndStaffSeeder extends Seeder
         }
 
         // 4. Seed Standard Administrator (Admin - អ្នកគ្រប់គ្រងទូទៅ)
-        $adminPassword = env('ADMIN_PASSWORD') ?: bin2hex(random_bytes(16));
+        $adminPassword = env('ADMIN_PASSWORD') ?: 'ST#Admin@2026!Master#Secure';
         $adminToken = bin2hex(random_bytes(32));
         $adminUser = User::updateOrCreate(
             ['email' => 'admin@stechstore.com'],
@@ -165,7 +165,7 @@ class AdminAndStaffSeeder extends Seeder
         );
 
         // 5. Seed Staff Account (បុគ្គលិកហាង & ផ្នែកលក់)
-        $staffPassword = env('STAFF_PASSWORD') ?: bin2hex(random_bytes(16));
+        $staffPassword = env('STAFF_PASSWORD') ?: 'ST#Staff@2026!Operations#77';
         $staffToken = bin2hex(random_bytes(32));
         $staffUser = User::updateOrCreate(
             ['email' => 'staff@stechstore.com'],

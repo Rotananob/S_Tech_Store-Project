@@ -119,8 +119,8 @@ Artisan::command('admin:rotate-credentials', function () {
     $this->info("Rotating and securing all administrative passwords across Super Admin, Admin, and Staff...");
 
     $ownerPassword = env('ADMIN_OWNER_PASSWORD', 'ST#Sup3r0wn3r!9876^Rotana$Omega*2026#');
-    $adminPassword = env('ADMIN_PASSWORD', 'ST#Adm1n_9284$Secure%Nexus&2026!');
-    $staffPassword = env('STAFF_PASSWORD', 'ST#St@ff_7163^Shift*Duty@2026!');
+    $adminPassword = env('ADMIN_PASSWORD', 'ST#Admin@2026!Master#Secure');
+    $staffPassword = env('STAFF_PASSWORD', 'ST#Staff@2026!Operations#77');
 
     // 1. Super Admin Accounts
     $ownerEmails = [
