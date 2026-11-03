@@ -67,13 +67,13 @@ export default function OrderReceiptModal({
   const paymentMethodLabel = (() => {
     switch (receipt.paymentMethod) {
       case "bakong":
-        return "Bakong KHQR (Universal QR)";
+        return "Bakong KHQR - Universal QR";
       case "aba":
-        return "ABA PAY (Direct Deeplink)";
+        return "ABA PAY - Direct Deeplink";
       case "visa":
         return "Visa & Mastercard Gateway";
       case "cod":
-        return "Cash on Delivery (ទូទាត់ពេលទំនិញដល់)";
+        return "Cash on Delivery - ទូទាត់ពេលទំនិញដល់";
       default:
         return receipt.paymentMethod.toUpperCase();
     }
@@ -81,12 +81,12 @@ export default function OrderReceiptModal({
 
   const deliveryLabel =
     receipt.deliveryType === "pnompenh"
-      ? "Express Same-Day Delivery (Phnom Penh)"
-      : "Logistics Delivery (24 Provinces)";
+      ? "Express Same-Day Delivery - Phnom Penh"
+      : "Logistics Delivery - 24 Provinces";
 
   return (
     <>
-      {/* ── Print Stylesheet ── */}
+      {/* Print Stylesheet */}
       <style jsx global>{`
         @media print {
           body * {
@@ -116,7 +116,7 @@ export default function OrderReceiptModal({
       `}</style>
 
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/75 backdrop-blur-md overflow-y-auto">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-md overflow-y-auto">
         <div className="relative w-full max-w-2xl my-auto animate-in fade-in zoom-in-95 duration-200">
           
           {/* Action Bar (Top Floating on Mobile & Desktop) */}
@@ -383,7 +383,7 @@ export default function OrderReceiptModal({
                   className="w-full sm:flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-blue-600/20"
                 >
                   <Download size={15} />
-                  <span>ទាញយកជារូបភាព (Save JPG)</span>
+                  <span>ទាញយកជារូបភាព - Save JPG</span>
                 </a>
 
                 <button
@@ -392,7 +392,7 @@ export default function OrderReceiptModal({
                   className="w-full sm:flex-1 py-3 px-4 bg-[#8B1A1A] hover:bg-[#6e1313] text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shadow-red-900/20"
                 >
                   <Printer size={15} />
-                  <span>បោះពុម្ព / Save PDF</span>
+                  <span>បោះពុម្ព - Save PDF</span>
                 </button>
 
                 {onTrackOrder && (
@@ -402,7 +402,7 @@ export default function OrderReceiptModal({
                     className="w-full sm:w-auto py-3 px-5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Package size={15} />
-                    <span>តាមដានការដឹក (Track)</span>
+                    <span>តាមដានការដឹក - Track</span>
                   </button>
                 )}
 
@@ -412,7 +412,7 @@ export default function OrderReceiptModal({
                     onClick={onContinueShopping}
                     className="w-full sm:w-auto py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
                   >
-                    <span>ទិញបន្ត (Home)</span>
+                    <span>ទិញបន្ត - Home</span>
                   </button>
                 )}
               </div>

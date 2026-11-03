@@ -20,7 +20,10 @@ use App\Http\Middleware\SuperAdminMiddleware;
 
 // Public Routes
 Route::get('/categories', function () {
-    return response()->json(Category::withCount('products')->get());
+    $categories = \Illuminate\Support\Facades\Cache::remember('public_categories_list', 1800, function () {
+        return Category::withCount('products')->get();
+    });
+    return response()->json($categories);
 });
 
 Route::get('/products', [ProductController::class, 'index']);
@@ -59,7 +62,16 @@ Route::post('/chat/request-agent', function (Request $request) {
     $validated['bypass_token'] = $bypassToken;
     $validated['chat_id'] = $chatId;
 
-    \App\Services\TelegramService::sendCustomerChatAlert($validated);
+    // Fast-path non-blocking background dispatch
+    $asyncValidated = $validated;
+    app()->terminating(function () use ($asyncValidated) {
+        try {
+            \App\Services\TelegramService::sendCustomerChatAlert($asyncValidated);
+        } catch (\Throwable $t) {
+            \Illuminate\Support\Facades\Log::warning("Customer chat alert background dispatch error: " . $t->getMessage());
+        }
+    });
+
     return response()->json([
         'success' => true,
         'message' => 'Your request has been forwarded to our support team on Telegram! We will reach out shortly.',
@@ -112,25 +124,31 @@ Route::post('/chat/admin-reply-alert', function (Request $request) {
         $validated['customer_email'] ?? null
     );
 
-    $telegramAlerted = false;
-    if ($targetChatId) {
-        $res = \App\Services\TelegramService::sendAdminChatReplyAlertToCustomer(
-            $targetChatId,
-            $validated['reply_text'],
-            $validated['staff_name'] ?? 'S Tech Staff'
-        );
-        $telegramAlerted = ($res['ok'] ?? false) === true;
-    }
-
     $customerEmail = $validated['customer_email'] ?? ($user->email ?? null);
-    $emailAlerted = false;
-    if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_starts_with($customerEmail, 'tg_')) {
-        try {
-            $staffName = htmlspecialchars($validated['staff_name'] ?? 'ក្រុមការងារ S Tech');
-            $replyHtml = nl2br(htmlspecialchars($validated['reply_text']));
-            $subject = "[S Tech Store] សារឆ្លើយតបពីក្រុមការងារ {$staffName}";
-            $domain = 'https://www.s-tech-store.tech';
-            $html = <<<HTML
+    $replyText = $validated['reply_text'];
+    $staffNameInput = $validated['staff_name'] ?? 'S Tech Staff';
+
+    // Fast-path non-blocking background dispatch
+    app()->terminating(function () use ($targetChatId, $replyText, $staffNameInput, $customerEmail) {
+        if ($targetChatId) {
+            try {
+                \App\Services\TelegramService::sendAdminChatReplyAlertToCustomer(
+                    $targetChatId,
+                    $replyText,
+                    $staffNameInput
+                );
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Live chat telegram reply alert failed: " . $t->getMessage());
+            }
+        }
+
+        if (!empty($customerEmail) && filter_var($customerEmail, FILTER_VALIDATE_EMAIL) && !str_starts_with($customerEmail, 'tg_')) {
+            try {
+                $staffName = htmlspecialchars($staffNameInput ?: 'ក្រុមការងារ S Tech');
+                $replyHtml = nl2br(htmlspecialchars($replyText));
+                $subject = "[S Tech Store] សារឆ្លើយតបពីក្រុមការងារ {$staffName}";
+                $domain = 'https://www.s-tech-store.tech';
+                $html = <<<HTML
 <!DOCTYPE html>
 <html lang="km">
 <head>
@@ -180,17 +198,17 @@ Route::post('/chat/admin-reply-alert', function (Request $request) {
 </body>
 </html>
 HTML;
-            $emailRes = \App\Services\EmailService::dispatchHtmlEmail($customerEmail, $subject, $html);
-            $emailAlerted = ($emailRes['success'] ?? false) === true;
-        } catch (\Throwable $t) {
-            \Illuminate\Support\Facades\Log::warning("Live chat email alert exception: " . $t->getMessage());
+                \App\Services\EmailService::dispatchHtmlEmail($customerEmail, $subject, $html);
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::warning("Live chat email alert exception: " . $t->getMessage());
+            }
         }
-    }
+    });
 
     return response()->json([
         'success' => true,
-        'telegram_alerted' => $telegramAlerted,
-        'email_alerted' => $emailAlerted,
+        'telegram_alerted' => !empty($targetChatId),
+        'email_alerted' => !empty($customerEmail),
         'chat_id' => $targetChatId,
         'customer_email' => $customerEmail,
         'message' => 'បានដំណើរការជូនដំណឹងទៅកាន់ Telegram និង Gmail របស់អតិថិជនរួចរាល់!',
@@ -210,7 +228,7 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
     if (!$data || !is_array($data)) {
         return response()->json([
             'success' => false,
-            'error' => 'តំណភ្ជាប់ Bypass នេះមិនត្រឹមត្រូវ ឬបានផុតកំណត់សុពលភាពហើយ (Invalid or expired token)!',
+            'error' => 'តំណភ្ជាប់ Bypass នេះមិនត្រឹមត្រូវ ឬបានផុតកំណត់សុពលភាពហើយ - Invalid or expired token!',
         ], 403);
     }
 
@@ -219,7 +237,7 @@ Route::post('/admin/verify-bypass-token', function (Request $request) {
         \Illuminate\Support\Facades\Cache::forget($cacheKey);
         return response()->json([
             'success' => false,
-            'error' => 'តំណភ្ជាប់នេះត្រូវបានប្រើប្រាស់គ្រប់ចំនួនកំណត់ ៣ ដងរួចហើយ (Max uses exceeded)! សូម Login តាមទម្រង់ធម្មតា។',
+            'error' => 'តំណភ្ជាប់នេះត្រូវបានប្រើប្រាស់គ្រប់ចំនួនកំណត់ ៣ ដងរួចហើយ - Max uses exceeded! សូម Login តាមទម្រង់ធម្មតា។',
         ], 403);
     }
 
@@ -328,7 +346,7 @@ Route::post('/auth/customer-login', function (Request $request) {
     if (!$user || !$user->password || !\Illuminate\Support\Facades\Hash::check($password, $user->password)) {
         return response()->json([
             'success' => false,
-            'message' => 'អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវឡើយ (Invalid email or password)',
+            'message' => 'អ៊ីមែល ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវឡើយ - Invalid email or password',
         ], 401);
     }
 
@@ -405,7 +423,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     if (strcmp($calculatedHash, $checkHash) !== 0) {
         return response()->json([
             'success' => false,
-            'error' => 'ការផ្ទៀងផ្ទាត់ Telegram Hash Handshake មិនត្រឹមត្រូវ (Signature mismatch)។',
+            'error' => 'ការផ្ទៀងផ្ទាត់ Telegram Hash Handshake មិនត្រឹមត្រូវ - Signature mismatch។',
         ], 403);
     }
 
@@ -413,7 +431,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
     if ((time() - (int)$data['auth_date']) > 86400) {
         return response()->json([
             'success' => false,
-            'error' => 'ការផ្ទៀងផ្ទាត់បានផុតកំណត់សុពលភាព (Telegram Auth expired)។ សូមព្យាយាមម្តងទៀត។',
+            'error' => 'ការផ្ទៀងផ្ទាត់បានផុតកំណត់សុពលភាព - Telegram Auth expired។ សូមព្យាយាមម្តងទៀត។',
         ], 410);
     }
 
@@ -870,21 +888,21 @@ Route::post('/user/telegram/unlink', function (Request $request) {
                 try {
                     $botToken = \App\Services\TelegramService::getCustomerBotToken();
                     $custName = htmlspecialchars($user->display_name ?: 'អតិថិជន');
-                    $alertText = "ℹ️ <b>[S TECH STORE] គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ជោគជ័យ!</b>\n"
+                    $alertText = "<b>[S TECH STORE] គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ជោគជ័យ!</b>\n"
                         . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                        . "🤖 <b>ផ្ញើចេញពី:</b> Customer Assistant Bot (@" . \App\Services\TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME . ")\n"
+                        . "<b>ផ្ញើចេញពី:</b> Customer Assistant Bot - @" . \App\Services\TelegramService::OFFICIAL_CUSTOMER_BOT_USERNAME . "\n"
                         . "ជម្រាបសួរ <b>{$custName}</b>!\n\n"
                         . "គណនី Telegram នេះត្រូវបានផ្តាច់ចេញពីគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
-                        . "🔒 <b>ព័ត៌មានសុវត្ថិភាព៖</b>\n"
-                        . "• Bot នឹងលែងផ្ញើវិក្កយបត្រ (E-Receipts) ឬដំណឹងបញ្ជាទិញចូល Telegram នេះទៀតហើយ\n"
+                        . "<b>ព័ត៌មានសុវត្ថិភាព៖</b>\n"
+                        . "• Bot នឹងលែងផ្ញើវិក្កយបត្រ - E-Receipts ឬដំណឹងបញ្ជាទិញចូល Telegram នេះទៀតហើយ\n"
                         . "• គណនី Telegram នេះឥឡូវនេះនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល\n\n"
-                        . "👉 <i>ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ឡើងវិញ សូមចូលទៅកាន់ទំព័រ Profile Setting លើ Website ឬ Mini App ហើយចុច \"ភ្ជាប់ Official Bot\"។</i>";
+                        . "<i>ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ឡើងវិញ សូមចូលទៅកាន់ទំព័រ Profile Setting លើ Website ឬ Mini App ហើយចុច \"ភ្ជាប់ Official Bot\"។</i>";
 
                     $kb = [
                         'inline_keyboard' => [
-                            [['text' => '🛍️ បើកមើលហាងទំនិញ (Store)', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
-                            [['text' => '🌐 ចូលគេហទំព័រផ្លូវការ', 'url' => 'https://www.s-tech-store.tech/account/profile']],
-                            [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                            [['text' => 'បើកមើលហាងទំនិញ - Store', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]],
+                            [['text' => 'ចូលគេហទំព័រផ្លូវការ', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                            [['text' => 'មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                         ]
                     ];
                     \App\Services\TelegramService::sendMessageWithKeyboard($oldChatId, $alertText, $kb, 'HTML', null, $botToken);
@@ -1449,8 +1467,8 @@ Route::get('/auth/tiktok/callback', function (Request $request) {
             try {
                 \App\Models\UserNotification::create([
                     'firebase_uid' => $firebaseUid,
-                    'title' => 'Welcome via TikTok! 🎵🎉',
-                    'message' => "ស្វាគមន៍មកកាន់ S Tech Store! គណនី TikTok របស់អ្នក ({$displayName}) ត្រូវបានតភ្ជាប់ដោយជោគជ័យ។",
+                    'title' => 'Welcome via TikTok!',
+                    'message' => "ស្វាគមន៍មកកាន់ S Tech Store! គណនី TikTok របស់អ្នក: {$displayName} ត្រូវបានតភ្ជាប់ដោយជោគជ័យ។",
                     'type' => 'welcome',
                     'is_read' => false,
                 ]);
@@ -1570,12 +1588,12 @@ Route::post('/auth/check-register-limit', function (Request $request) {
             'device' => $request->userAgent() ?? 'Unknown Device',
             'user' => 'Visitor registering beyond daily quota',
             'action' => 'Registration Blocked (429)',
-            'details' => "ឧបករណ៍នេះបានចុះឈ្មោះគណនីលើស ៥ ក្នុងថ្ងៃតែមួយ ({$currentCount}/5 accounts created today).",
+            'details' => "ឧបករណ៍នេះបានចុះឈ្មោះគណនីលើស ៥ ក្នុងថ្ងៃតែមួយ - {$currentCount}/5 accounts created today.",
         ]);
 
         return response()->json([
             'allowed' => false,
-            'error' => 'ឧបករណ៍ ឬបណ្តាញរបស់អ្នកបានចុះឈ្មោះលើសកំណត់ ៥ គណនីក្នុងមួយថ្ងៃហើយ (Device limit: max 5 accounts/day)! សូមសាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក។',
+            'error' => 'ឧបករណ៍ ឬបណ្តាញរបស់អ្នកបានចុះឈ្មោះលើសកំណត់ ៥ គណនីក្នុងមួយថ្ងៃហើយ - Device limit: max 5 accounts/day! សូមសាកល្បងម្ដងទៀតនៅថ្ងៃស្អែក។',
         ], 429);
     }
 

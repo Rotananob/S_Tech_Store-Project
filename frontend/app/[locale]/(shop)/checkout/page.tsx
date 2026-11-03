@@ -39,22 +39,22 @@ const CHECKOUT_KHQR_STORAGE_KEY = "stech_active_khqr_checkout_session";
 
 // ─── Quick Delivery Note Suggestions ──────────────────────────────────────────
 const DELIVERY_NOTE_SUGGESTIONS = [
-  { id: "call_before", label: "📞 ខលមកមុន 10 នាទី", text: "សូមខលមកមុនពេលមកដល់ 10 នាទី" },
-  { id: "leave_door", label: "📦 ទុកនៅមុខផ្ទះ/បន្ទប់", text: "ទុកទំនិញនៅមុខផ្ទះ ឬមុខបន្ទប់" },
-  { id: "security_desk", label: "🏢 ផ្ញើនៅតុសន្តិសុខ/Reception", text: "ផ្ញើនៅតុសន្តិសុខ ឬ Reception" },
-  { id: "office_hours", label: "⏰ ដឹកម៉ោងធ្វើការ (8am-5pm)", text: "ដឹកជញ្ជូនក្នុងម៉ោងធ្វើការ (8:00 AM - 5:00 PM)" },
-  { id: "clear_gate", label: "🏠 ផ្ទះមានស្លាកលេខច្បាស់", text: "ផ្ទះមានស្លាកលេខ និងរបងច្បាស់លាស់" },
-  { id: "express_fast", label: "⚡ ត្រូវការដឹកលឿន Express", text: "ត្រូវការដឹកជញ្ជូនរហ័សទាន់ចិត្ត (Express)" },
-  { id: "fragile_wrap", label: "🛡️ ខ្ចប់ការពារក្រាស់ម៉ត់ចត់", text: "សូមខ្ចប់ការពារកញ្ចប់ទំនិញឱ្យក្រាស់" },
-  { id: "exact_cash", label: "💵 មានត្រៀមលុយរាយស្រាប់", text: "មានត្រៀមលុយរាយគ្រប់ចំនួនស្រាប់" },
+  { id: "call_before", label: "ខលមកមុន 10 នាទី", text: "សូមខលមកមុនពេលមកដល់ 10 នាទី" },
+  { id: "leave_door", label: "ទុកនៅមុខផ្ទះ ឬមុខបន្ទប់", text: "ទុកទំនិញនៅមុខផ្ទះ ឬមុខបន្ទប់" },
+  { id: "security_desk", label: "ផ្ញើនៅតុសន្តិសុខ ឬ Reception", text: "ផ្ញើនៅតុសន្តិសុខ ឬ Reception" },
+  { id: "office_hours", label: "ដឹកម៉ោងធ្វើការ: 8am-5pm", text: "ដឹកជញ្ជូនក្នុងម៉ោងធ្វើការ: 8:00 AM - 5:00 PM" },
+  { id: "clear_gate", label: "ផ្ទះមានស្លាកលេខច្បាស់", text: "ផ្ទះមានស្លាកលេខ និងរបងច្បាស់លាស់" },
+  { id: "express_fast", label: "ត្រូវការដឹកលឿន Express", text: "ត្រូវការដឹកជញ្ជូនរហ័សទាន់ចិត្ត - Express" },
+  { id: "fragile_wrap", label: "ខ្ចប់ការពារក្រាស់ម៉ត់ចត់", text: "សូមខ្ចប់ការពារកញ្ចប់ទំនិញឱ្យក្រាស់" },
+  { id: "exact_cash", label: "មានត្រៀមលុយរាយស្រាប់", text: "មានត្រៀមលុយរាយគ្រប់ចំនួនស្រាប់" },
 ];
 
 // ─── Payment Methods (Aligned with Top-Up: Bakong KHQR, ABA PAY, Credit/Debit Card, COD) ──
 const PAYMENT_METHODS = [
   {
     id: "bakong",
-    label: "Bakong KHQR • គ្រប់ធនាគារ (All Banks)",
-    sub: "ស្កេនបានជាមួយ 36+ ធនាគារក្នុងស្រុក (ABA, ACLEDA, Wing, Canadia...)",
+    label: "Bakong KHQR • គ្រប់ធនាគារ - All Banks",
+    sub: "ស្កេនបានជាមួយ 36+ ធនាគារក្នុងស្រុក: ABA, ACLEDA, Wing, Canadia...",
     badge: "NBC KHQR Universal",
     theme: "border-red-500 bg-red-50/40 dark:bg-red-950/20",
     icon: (
@@ -78,7 +78,7 @@ const PAYMENT_METHODS = [
   {
     id: "visa",
     label: "Credit / Debit Card • Visa & Mastercard",
-    sub: "ទូទាត់តាមកាតធនាគារអន្តរជាតិ និងក្នុងស្រុក (3D Secure)",
+    sub: "ទូទាត់តាមកាតធនាគារអន្តរជាតិ និងក្នុងស្រុក - 3D Secure",
     badge: "3D Secure 2.0",
     theme: "border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20",
     icon: (
@@ -1104,7 +1104,7 @@ export default function CheckoutPage() {
           if (walletPayRes.remaining_balance !== undefined) {
             setWalletBalance(Number(walletPayRes.remaining_balance));
           }
-          setLoadingMsg("✓ កាត់ប្រាក់ពីកាបូបជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
+          setLoadingMsg("កាត់ប្រាក់ពីកាបូបជោគជ័យ - កំពុងបើកវិក្កយបត្រ...");
           finishSuccessfulOrder(newOrderId, `WALLET_${Date.now()}`);
         } catch (err: any) {
           setLoading(false);
@@ -1126,7 +1126,7 @@ export default function CheckoutPage() {
   // ─── Execute Standard COD Order ──────────────────────────────────────────────
   const executeStandardOrder = async () => {
     setLoading(true);
-    setLoadingMsg("កំពុងបញ្ជូនការបញ្ជាទិញ... (Recording Order)");
+    setLoadingMsg("កំពុងបញ្ជូនការបញ្ជាទិញ - Recording Order");
 
     const fullAddress = buildFullAddress();
 
@@ -1153,7 +1153,7 @@ export default function CheckoutPage() {
       const res = await createOrder(payload);
 
       if (res.success) {
-        setLoadingMsg("✓ ការបញ្ជាទិញជោគជ័យ! កំពុងបើកវិក្កយបត្រអេឡិចត្រូនិច...");
+        setLoadingMsg("ការបញ្ជាទិញជោគជ័យ - កំពុងបើកវិក្កយបត្រអេឡិចត្រូនិច...");
         const newOrderId = res.data?.order?.order_id || `ORD-${Date.now().toString().slice(-6)}`;
         setOrderId(newOrderId);
         finishSuccessfulOrder(newOrderId, "COD_DOORSTEP");
@@ -1170,7 +1170,7 @@ export default function CheckoutPage() {
   // ─── Execute Visa/Mastercard Order ───────────────────────────────────────────
   const executeCardOrder = async () => {
     setLoading(true);
-    setLoadingMsg("កំពុងទូទាត់ជាមួយ Visa/Mastercard Gateway (Processing Card)...");
+    setLoadingMsg("កំពុងទូទាត់ជាមួយ Visa/Mastercard Gateway - Processing Card");
 
     const fullAddress = buildFullAddress();
 
@@ -1214,7 +1214,7 @@ export default function CheckoutPage() {
     });
 
     if (cardRes.success) {
-      setLoadingMsg("✓ ការទូទាត់តាមកាតជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
+      setLoadingMsg("ការទូទាត់តាមកាតជោគជ័យ - កំពុងបើកវិក្កយបត្រ...");
       const txn = cardRes.data?.transaction_id || `TXN_${Date.now()}`;
       setTransactionId(txn);
       finishSuccessfulOrder(newOrderId, txn);
@@ -1229,7 +1229,7 @@ export default function CheckoutPage() {
   // ─── Execute Dynamic KHQR / ABA Order ────────────────────────────────────────
   const executeKHQROrder = async () => {
     setLoading(true);
-    setLoadingMsg("កំពុងបង្កើត Dynamic KHQR និង Deeplink... (Generating KHQR Session)");
+    setLoadingMsg("កំពុងបង្កើត Dynamic KHQR និង Deeplink - Generating KHQR Session");
 
     const fullAddress = buildFullAddress();
 
@@ -1361,18 +1361,15 @@ export default function CheckoutPage() {
         setPollStatus("paid");
         setCheckPaymentMessage({
           type: "success",
-          text: "ការទូទាត់ទទួលបានជោគជ័យ! (Payment Verified)",
+          text: "ការទូទាត់ទទួលបានជោគជ័យ - Payment Verified",
         });
 
         const txn = statusRes.data.transaction_id || `TXN_${Date.now()}`;
         setTransactionId(txn);
-
-        setTimeout(() => {
-          setShowKHQRModal(false);
-          setLoading(true);
-          setLoadingMsg("✓ ការទូទាត់ទទួលបានជោគជ័យ! កំពុងបើកវិក្កយបត្រ...");
-          finishSuccessfulOrder(targetOrderId, txn);
-        }, 500);
+        setShowKHQRModal(false);
+        setLoading(true);
+        setLoadingMsg("ការទូទាត់ទទួលបានជោគជ័យ - កំពុងបើកវិក្កយបត្រ...");
+        finishSuccessfulOrder(targetOrderId, txn);
       } else {
         setCheckPaymentMessage({
           type: "error",
@@ -1393,7 +1390,7 @@ export default function CheckoutPage() {
   const handleManualConfirmPayment = async () => {
     if (!orderId) return;
     setLoading(true);
-    setLoadingMsg("កំពុងផ្ទៀងផ្ទាត់ប្រតិបត្តិការ... (Verifying Transaction)");
+    setLoadingMsg("កំពុងផ្ទៀងផ្ទាត់ប្រតិបត្តិការ - Verifying Transaction");
 
     if (pollingRef.current) clearInterval(pollingRef.current);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -1404,7 +1401,8 @@ export default function CheckoutPage() {
     const res = await confirmManualPayment(orderId, payment);
 
     if (res.success) {
-      setLoadingMsg("✓ បានទទួលការផ្ទៀងផ្ទាត់! កំពុងបើកវិក្កយបត្រ...");
+      setLoading(true);
+      setLoadingMsg("បានទទួលការផ្ទៀងផ្ទាត់ - កំពុងបើកវិក្កយបត្រ...");
       setShowKHQRModal(false);
       const txn = res.data?.transaction_id || `TXN_CONFIRMED`;
       setTransactionId(txn);
@@ -1507,18 +1505,18 @@ export default function CheckoutPage() {
       }),
     };
 
-    // ⚡ REAL-TIME INSTANT POPUP (0ms UX Delay):
-    // Atomically set all states in the exact same render batch so the receipt modal pops up immediately
+    // Real-time instant popup - 0ms delay:
     setReceiptData(snapshotReceipt);
     setConfirmed(true);
     setStep(3);
     setShowReceiptModal(true);
+    setShowKHQRModal(false);
     setLoading(false);
 
     // Asynchronously clear cart and sync notification in background without blocking
     clearCart().catch(() => {});
     api.post("/user/notifications", {
-      title: "Order Placed Successfully! 📦",
+      title: "Order Placed Successfully",
       message: `Order #${finalOrderId} ចំនួន $${total.toFixed(2)} ត្រូវបានទទួលជោគជ័យ។ ក្រុមការងារនឹងទាក់ទងមក ${phone}។`,
       type: "order",
     }).catch(() => {});
@@ -1595,7 +1593,7 @@ export default function CheckoutPage() {
               className="w-full mb-3 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Printer size={15} />
-              <span>មើល & បោះពុម្ពវិក្កយបត្រ (View & Print Receipt)</span>
+              <span>មើល & បោះពុម្ពវិក្កយបត្រ - View & Print Receipt</span>
             </button>
 
             <div className="w-full space-y-2.5">
@@ -3169,14 +3167,14 @@ export default function CheckoutPage() {
             >
               {/* Top ambient glow bar */}
               <div className={`absolute top-0 left-0 right-0 h-1.5 transition-colors duration-500 ${
-                loadingMsg.includes("✓")
+                (loadingMsg.includes("ជោគជ័យ") || loadingMsg.includes("Success"))
                   ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500"
                   : "bg-gradient-to-r from-red-600 via-rose-500 to-amber-500"
               }`} />
 
               {/* Pulsing Center Icon */}
               <div className="relative mb-5 flex items-center justify-center">
-                {loadingMsg.includes("✓") ? (
+                {(loadingMsg.includes("ជោគជ័យ") || loadingMsg.includes("Success")) ? (
                   <div className="relative">
                     <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl animate-pulse" />
                     <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-lg shadow-emerald-500/10">
@@ -3200,7 +3198,7 @@ export default function CheckoutPage() {
 
               {/* Sub-description */}
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
-                {loadingMsg.includes("✓")
+                {(loadingMsg.includes("ជោគជ័យ") || loadingMsg.includes("Success"))
                   ? "ការបញ្ជាក់ជោគជ័យ 100% • កំពុងបង្ហាញវិក្កយបត្រផ្លូវការ..."
                   : "កំពុងភ្ជាប់ទៅកាន់ Gateway ប្រព័ន្ធសុវត្ថិភាព និងរៀបចំទិន្នន័យវិក្កយបត្រ..."}
               </p>
@@ -3209,7 +3207,7 @@ export default function CheckoutPage() {
               <div className="w-full bg-gray-100 dark:bg-white/5 rounded-full h-1.5 mb-5 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    loadingMsg.includes("✓")
+                    (loadingMsg.includes("ជោគជ័យ") || loadingMsg.includes("Success"))
                       ? "w-full bg-emerald-500"
                       : "w-3/4 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 animate-pulse"
                   }`}

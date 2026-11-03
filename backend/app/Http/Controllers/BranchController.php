@@ -12,7 +12,10 @@ class BranchController extends Controller
      */
     public function index()
     {
-        return response()->json(Branch::withCount('staff')->orderBy('id', 'asc')->get());
+        $branches = \Illuminate\Support\Facades\Cache::remember('public_branches_list', 1800, function () {
+            return Branch::withCount('staff')->orderBy('id', 'asc')->get();
+        });
+        return response()->json($branches);
     }
 
     /**
@@ -36,6 +39,7 @@ class BranchController extends Controller
         ]);
 
         $branch = Branch::create($validated);
+        \Illuminate\Support\Facades\Cache::forget('public_branches_list');
 
         return response()->json([
             'message' => 'Branch created successfully',
@@ -66,6 +70,7 @@ class BranchController extends Controller
         ]);
 
         $branch->update($validated);
+        \Illuminate\Support\Facades\Cache::forget('public_branches_list');
 
         return response()->json([
             'message' => 'Branch updated successfully',
@@ -85,6 +90,7 @@ class BranchController extends Controller
 
         $branch = Branch::findOrFail($id);
         $branch->delete();
+        \Illuminate\Support\Facades\Cache::forget('public_branches_list');
 
         return response()->json(['message' => 'Branch deleted successfully']);
     }

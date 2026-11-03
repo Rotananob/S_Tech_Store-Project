@@ -1,17 +1,47 @@
 # S Tech Store
 
-[![Release Version](https://img.shields.io/badge/Release-v1.3.0-emerald.svg)](https://www.s-tech-store.tech)
-[![Build](https://img.shields.io/badge/Build-20261019.01-blue.svg)](https://www.s-tech-store.tech)
+[![Release Version](https://img.shields.io/badge/Release-v1.4.0-emerald.svg)](https://www.s-tech-store.tech)
+[![Build](https://img.shields.io/badge/Build-20261103.01-blue.svg)](https://www.s-tech-store.tech)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2.10-black.svg)](https://nextjs.org/)
 [![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com/)
+[![PHP](https://img.shields.io/badge/PHP-8.3-indigo.svg)](https://www.php.net/)
 [![Bakong KHQR](https://img.shields.io/badge/Bakong-KHQR_EMVCo-crimson.svg)](https://bakong.nbc.org.kh/)
 [![Status](https://img.shields.io/badge/Production-Verified-success.svg)]()
 
 Production hardware retail platform, custom computer builder, and store management system built for the Cambodian technology market. The system connects a Next.js 16 storefront with a Laravel 11 backend, integrating National Bank of Cambodia Bakong KHQR payments, dual Telegram bot automation, progressive web applications, and an obfuscated operations portal.
 
-📖 **Staff & Operations Manual**: [ADMIN_AND_STAFF_TRAINING_GUIDE.md](file:///d:/WEB%20Development/S%20Tech%20Store/ADMIN_AND_STAFF_TRAINING_GUIDE.md)  
-📘 **Comprehensive Client & Features Manual**: [CLIENT_MANUAL_AND_FEATURES.md](file:///d:/WEB%20Development/S%20Tech%20Store/CLIENT_MANUAL_AND_FEATURES.md)  
-📊 **Project Cost Estimation 2026**: [PROJECT_COST_ESTIMATION_2026.md](file:///d:/WEB%20Development/S%20Tech%20Store/PROJECT_COST_ESTIMATION_2026.md)
+📖 **Staff & Operations Manual**: [ADMIN_AND_STAFF_TRAINING_GUIDE.md](https://github.com/Rotananob/S_Tech_Store-Project/blob/main/ADMIN_AND_STAFF_TRAINING_GUIDE.md)  
+📘 **Comprehensive Client & Features Manual**: [CLIENT_MANUAL_AND_FEATURES.md](https://github.com/Rotananob/S_Tech_Store-Project/blob/main/CLIENT_MANUAL_AND_FEATURES.md)  
+📊 **Project Cost Estimation 2026**: [PROJECT_COST_ESTIMATION_2026.md](https://github.com/Rotananob/S_Tech_Store-Project/blob/main/PROJECT_COST_ESTIMATION_2026.md)
+
+---
+
+## 🚀 Release v1.4.0 (Production Ultra Edition & Unified Omnichannel Ecosystem)
+
+* **Version**: `v1.4.0`
+* **Build Identifier**: `20261103.01`
+* **Release Date**: November 03, 2026
+* **Status**: Production Stable (Live)
+
+### 🌟 Key Highlights & Changelog in v1.4.0:
+1. **🤝 Unified Multi-Auth Engine & Zero-Duplicate Telegram Auto-Merge**:
+   - Engineered seamless bidirectional account resolution unifying direct Telegram Mini App accounts and Google/Gmail web authenticated accounts.
+   - Intelligent automatic consolidation automatically merges duplicate profiles matching phone, handle, or email without losing customer VIP loyalty tiers, S-Coins balances, or purchase history.
+   - Enforced strict 1-to-1 account mapping with async unlinking and Safari iOS storage partitioning protection.
+2. **⚡ Real-Time Checkout HUD & Instant Receipt Modal**:
+   - Eliminated post-checkout UI latency with an instant interactive order receipt HUD modal.
+   - Instant 1-click digital receipt export (PDF & JPG) directly from the browser, paired with non-blocking asynchronous dispatch to Telegram and Gmail.
+3. **💬 Real-Time Live Support Chat Engine (`/rok-mix-khernh/chat`)**:
+   - Integrated full-featured administrative live chat console within the Operations Portal.
+   - Enables direct, low-latency two-way communication between customers on the web storefront or Telegram Mini App and store staff.
+4. **🛡️ Enterprise RBAC Isolation for Shifts, Branches & Master Controls**:
+   - Hardened Super Admin and Store Manager permissions for cash drawer shifts and multi-branch configuration.
+   - Sanitized telemetry alerts in `MasterSystemController` paired with comprehensive automated feature test suites covering orders, repairs, promo codes, and shifts.
+5. **🏎️ PHP 8.3 & Neon Connection Pooling Performance Stack**:
+   - Upgraded backend container to PHP 8.3 for optimized memory allocation and execution speed.
+   - Implemented database connection pooling on Neon PostgreSQL with decoupled asynchronous notification workers.
+6. **🔍 Google Brand Compliance & High-Resolution SEO Assets**:
+   - Standardized Google-compliant multi-resolution `favicon.ico` and apple touch icon sets, optimizing search visibility for "S Tech Store" and Cambodian tech market retail queries.
 
 ---
 

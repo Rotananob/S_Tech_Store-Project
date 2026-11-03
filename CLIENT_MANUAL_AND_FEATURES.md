@@ -1,10 +1,11 @@
 # 📘 S Tech Store — សៀវភៅណែនាំការប្រើប្រាស់ និងលក្ខណៈពិសេសទាំងមូល (Master Features & User Manual)
 
 > **ឯកសារផ្លូវការសម្រាប់អតិថិជន និងម្ចាស់អាជីវកម្ម (Official Client & Operations Manual)**  
-> កំណែប្រែ៖ **Version 1.2.0 (Build 20261016.01) — Production Master Edition**  
+> កំណែប្រែ៖ **Version 1.4.0 (Build 20261103.01) — Production Ultra Edition**  
 > ស្ថានភាព៖ **Production Verified & Live**  
+> កាលបរិច្ឆេទធ្វើបច្ចុប្បន្នភាព៖ **ថ្ងៃទី ០៣ ខែ វិច្ឆិកា ឆ្នាំ ២០២៦**  
 > ភាសា៖ **ខ្មែរ (Khmer) & English Reference**  
-> 📖 **សៀវភៅបណ្តុះបណ្តាលបុគ្គលិកលម្អិត៖** [ADMIN_AND_STAFF_TRAINING_GUIDE.md](file:///d:/WEB%20Development/S%20Tech%20Store/ADMIN_AND_STAFF_TRAINING_GUIDE.md)
+> 📖 **សៀវភៅបណ្តុះបណ្តាលបុគ្គលិកលម្អិត៖** [ADMIN_AND_STAFF_TRAINING_GUIDE.md](https://github.com/Rotananob/S_Tech_Store-Project/blob/main/ADMIN_AND_STAFF_TRAINING_GUIDE.md)
 
 ---
 
@@ -23,6 +24,7 @@
    - [២.១០ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)](#២១០-ប្រព័ន្ធចូលគណនីឆ្លាតវៃ-1-click-telegram-handshake--social-auth)
    - [២.១១ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)](#២១១-ការដំឡើង-app-លើទូរស័ព្ទ-pwa---add-to-home-screen)
    - [២.១២ ទិញទំនិញផ្ទាល់ក្នុង Telegram Mini App (In-Telegram Smart Shopping)](#២១២-ទិញទំនិញផ្ទាល់ក្នុង-telegram-mini-app-in-telegram-smart-shopping)
+   - [២.១៣ ប្រព័ន្ធឆាតជំនួយផ្ទាល់ Real-Time (Live Support Chat & Mini App Companion)](#២១៣-ប្រព័ន្ធឆាតជំនួយផ្ទាល់-real-time-live-support-chat--mini-app-companion)
 3. [ផ្នែកគ្រប់គ្រងហាង និងបុគ្គលិក (Admin & Staff Portal — `/rok-mix-khernh`)](#3-ផ្នែកគ្រប់គ្រងហាង-និងបុគ្គលិក-admin--staff-portal--rok-mix-khernh)
    - [៣.១ ផ្លូវសម្ងាត់ និងការការពារសុវត្ថិភាព (Secret Route & RBAC Permissions)](#៣១-ផ្លូវសម្ងាត់-និងការការពារសុវត្ថិភាព-secret-route--rbac-permissions)
    - [៣.២ ផ្ទាំងស្ថិតិទូទៅ (Real-time Analytics Dashboard)](#៣២-ផ្ទាំងស្ថិតិទូទៅ-real-time-analytics-dashboard)
@@ -31,11 +33,12 @@
    - [៣.៥ ការគ្រប់គ្រងគណនីអតិថិជន និង Pagination (Users & Dual Auth DB)](#៣៥-ការគ្រប់គ្រងគណនីអតិថិជន-និង-pagination-users--dual-auth-db)
    - [៣.៦ ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ (Hardware Repair Management)](#៣៦-ប្រព័ន្ធគ្រប់គ្រងការជួសជុលកុំព្យូទ័រ-hardware-repair-management)
    - [៣.៧ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)](#៣៧-ការគ្រប់គ្រងវេនការងារ-និងប្រអប់លុយ-staff-shifts--cash-register-pos)
-   - [៣.៨ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)](#៣៨-ការគ្រប់គ្រងប្រូម៉ូសិន-និងគូប៉ុង-coupons--promotions)
-   - [៣.៩ ការកំណត់សាខាហាង (Branches Management)](#៣៩-ការកំណត់សាខាហាង-branches-management)
-   - [៣.១០ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)](#៣១០-ការគ្រប់គ្រង-telegram-bot--របាយការណ៍ស្វ័យប្រវត្តិ-telegram-alerts--auto-reports)
-   - [៣.១១ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Owner Only)](#៣១១-ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ)
-   - [៣.១២ Admin PWA សម្រាប់បុគ្គលិកហាង](#៣១២-admin-pwa-សម្រាប់បុគ្គលិកហាង)
+   - [៣.៨ ផ្ទាំងគ្រប់គ្រងការឆាតផ្ទាល់ជាមួយអតិថិជន (Live Support Chat Management — `/rok-mix-khernh/chat`)](#៣៨-ផ្ទាំងគ្រប់គ្រងការឆាតផ្ទាល់ជាមួយអតិថិជន-live-support-chat-management--rok-mix-khernhchat)
+   - [៣.៩ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)](#៣៩-ការគ្រប់គ្រងប្រូម៉ូសិន-និងគូប៉ុង-coupons--promotions)
+   - [៣.១០ ការកំណត់សាខាហាង (Branches Management)](#៣១០-ការកំណត់សាខាហាង-branches-management)
+   - [៣.១១ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)](#៣១១-ការគ្រប់គ្រង-telegram-bot--របាយការណ៍ស្វ័យប្រវត្តិ-telegram-alerts--auto-reports)
+   - [៣.១២ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Executive Cockpit Rack)](#៣១២-ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ-grand-master-console--executive-cockpit-rack)
+   - [៣.១៣ Admin PWA សម្រាប់បុគ្គលិកហាង](#៣១៣-admin-pwa-សម្រាប់បុគ្គលិកហាង)
 4. [ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម Dual Telegram Bot](#4-ប្រព័ន្ធស្វ័យប្រវត្តិកម្ម-dual-telegram-bot)
 5. [ប្រព័ន្ធសុវត្ថិភាពកម្រិតខ្ពស់ (5-Stage Red Team Hardening)](#5-ប្រព័ន្ធសុវត្ថិភាពកម្រិតខ្ពស់-5-stage-red-team-hardening)
 6. [សំណួរញឹកញាប់ និងការដោះស្រាយបញ្ហា (FAQ & Troubleshooting)](#6-សំណួរញឹកញាប់-និងការដោះស្រាយបញ្ហា-faq--troubleshooting)
@@ -103,6 +106,10 @@
   3. **ផ្ទេរប្រាក់ផ្ទាល់តាមគណនីធនាគារ (Direct Bank Transfer)**៖ បង្ហាញព័ត៌មានកុងធនាគារ និងអាច Upload បង្កាន់ដៃបង់ប្រាក់បាន។
 * **Digital Invoice & Instant Telegram Dispatch**៖
   - ពេល Order ជោគជ័យ វិក្កយបត្រឌីជីថលពេញលេញនឹងត្រូវបានផ្ញើជូនអតិថិជនភ្លាមៗចូលទៅក្នុង **Telegram Bot `@S_TECH_ASSISTANTBOT`** របស់ពួកគាត់។
+* **Instant Checkout HUD & Real-Time Receipt Modal (ផ្ទាំងវិក្កយបត្រភ្លាមៗលើអេក្រង់)**៖
+  - បំបាត់ភាពរអាក់រអួលរង់ចាំ (Zero UI Lag) ដោយប្រព័ន្ធបង្ហាញផ្ទាំងវិក្កយបត្រឌីជីថលលើអេក្រង់ទូរស័ព្ទ ឬកុំព្យូទ័រភ្លាមៗពេលចុចបញ្ជាទិញរួចរាល់។
+  - អតិថិជនអាចត្រួតពិនិត្យមុខទំនិញ ស្ថានភាពទូទាត់ប្រាក់ និងចុចទាញយកវិក្កយបត្រជា file PDF ឬ JPG ដោយផ្ទាល់ពីលើ Browser សម្រាប់រក្សាទុកជាភស្តុតាង។
+  - ប្រព័ន្ធធ្វើការផ្ញើវិក្កយបត្រឌីជីថលស្វ័យប្រវត្តិតាម Telegram Bot `@S_TECH_ASSISTANTBOT` និង Real Gmail Engine ស្របពេលគ្នាភ្លាមៗ។
 
 ### ២.៧ ឧបករណ៍ផ្គុំកុំព្យូទ័រតាមចិត្ត (Interactive Custom PC Builder)
 * ចូលទៅកាន់ `/build-pc` ដើម្បីជ្រើសរើសគ្រឿងបន្លាស់មួយឈុតដោយខ្លួនឯង៖
@@ -136,7 +143,8 @@
 
 ### ២.១០ ប្រព័ន្ធចូលគណនីឆ្លាតវៃ (1-Click Telegram Handshake & Social Auth)
 * **Telegram 1-Click Handshake Login**៖ មិនបាច់វាយ Email ឬ Password ឡើយ! គ្រាន់តែចុចប៊ូតុង "ចូលដោយប្រើ Telegram" វានឹងបើក Bot `@S_TECH_ASSISTANTBOT` រួច Log in ចូលវេបសាយដោយស្វ័យប្រវត្តិតាមបច្ចេកវិទ្យា Cryptographic Handshake។
-* **Google Sign-In ជាមួយ Real Gmail Auto-Welcome**៖ អតិថិជនដែល Sign up តាម Google/Gmail ពិតប្រាកដ នឹងទទួលបានលិខិតស្វាគមន៍ Welcome Email ផ្លូវការពី `stech.supporter@gmail.com` ដែលមានភ្ជាប់ Logo ហាង និងកាត 1-Click Telegram Bot ផ្ទាល់។
+* **Unified Multi-Auth & Zero-Duplicate Engine**៖ ប្រព័ន្ធរួមបញ្ចូលគណនីឆ្លាតវៃ ដោយស្វ័យប្រវត្តិ (Auto-Merge)។ មិនថាអតិថិជនចុះឈ្មោះលើកដំបូងតាមរយៈ Telegram Mini App ឬតាម Google Sign-In លើ Browser ទេ ប្រព័ន្ធនឹងផ្គូផ្គង និងបង្រួបបង្រួមគណនីទាំងពីរជាមួយគ្នាដោយស្វ័យប្រវត្តិ ដោយរក្សាទុកកម្រិតសមាជិកភាព VIP, កាក់រង្វាន់ S-Coins, និងប្រវត្តិបញ្ជាទិញទាំងស្រុង មិនបាត់បង់ទិន្នន័យឡើយ។
+* **Google Sign-In ជាមួយ Real Gmail Auto-Welcome**៖ អតិថិជនដែល Sign up តាម Google/Gmail ពិតប្រាកដ នឹងទទួលបានលិខិតស្វាគមន៍ Welcome Email ផ្លូវការពី `stech.supporter@gmail.com` ដែលមានភ្ជាប់ Logo ហាង និងកាត 1-Click Telegram Bot ផ្ទាល់។ លើសពីនេះ ការ Login តាម Google បង្ហាញឈ្មោះ Domain ផ្លូវការ `www.s-tech-store.tech` ផ្ទាល់ បង្កើនទំនុកចិត្តខ្ពស់ដល់អតិថិជន។
 * **Traditional Email & Password**៖ មានប្រព័ន្ធ Password Strength Meter និង Magic Login / Reset Password ទាំងតាម Gmail និង Telegram។
 
 ### ២.១១ ការដំឡើង App លើទូរស័ព្ទ (PWA - Add to Home Screen)
@@ -149,6 +157,11 @@
 * **ទិញទំនិញដោយផ្ទាល់ក្នុងកម្មវិធី Telegram** ដោយគ្រាន់តែចុចចូល Bot `@S_TECH_ASSISTANTBOT` រួចចុចប៊ូតុង Menu **"🛒 បើកហាង S Tech Store"**។
 * **Auto-Authenticated** មិនបាច់វាយលេខសម្ងាត់ ដោយប្រព័ន្ធភ្ជាប់ជាមួយគណនី Telegram របស់គាត់ដោយស្វ័យប្រវត្តិ។
 * គាំទ្រការស្កេនបង់ប្រាក់ Bakong KHQR ក្នុង Telegram និងទទួលវិក្កយបត្រឌីជីថលភ្លាមៗក្នុងប្រអប់ Chat។
+
+### ២.១៣ ប្រព័ន្ធឆាតជំនួយផ្ទាល់ Real-Time (Live Support Chat & Mini App Companion)
+* **Real-time Live Chat Widget**៖ នៅជ្រុងខាងក្រោមស្តាំនៃគ្រប់ទំព័រលើវេបសាយ និងនៅក្នុង Telegram Mini App អតិថិជនអាចចុចបើកផ្ទាំង Chat ដើម្បីជជែកផ្ទាល់ជាមួយបុគ្គលិកបច្ចេកទេស និងផ្នែកលក់របស់ S Tech Store។
+* **ជំនួយបច្ចេកទេស ២៤/៧**៖ អាចសាកសួរតម្លៃទំនិញ, ពិគ្រោះគ្រឿងបន្លាស់ផ្គុំកុំព្យូទ័រ, ឬតាមដានស្ថានភាពសំបុត្រជួសជុល ទទួលបានចម្លើយភ្លាមៗទាន់ចិត្ត។
+* **Omnichannel Synchronization**៖ សារដែលអតិថិជនផ្ញើចេញពី Web ឬពី Telegram Mini App ត្រូវបានបញ្ជូនចូលផ្ទាំងគ្រប់គ្រងរបស់បុគ្គលិកហាងភ្លាមៗ ធានាការឆ្លើយតបបានគ្រប់ទីកន្លែង។
 
 ---
 
@@ -202,29 +215,37 @@
   * កំណត់ជាងទទួលខុសត្រូវ (Assign Technician)។
   * ធ្វើបច្ចុប្បន្នភាពដំណាក់កាល៖ បានទទួលម៉ាស៊ីន → កំពុងត្រួតពិនិត្យ → រង់ចាំគ្រឿងបន្លាស់ → កំពុងជួសជុល → ជួសជុលរួចរាល់រង់ចាំយក → ប្រគល់ជូនអតិថិជន។
   * កត់ត្រាតម្លៃគ្រឿងបន្លាស់ និងថ្លៃឈ្នួលជួសជុលចេញជាវិក្កយបត្រ។
+  * **Automated Telegram Tracking & Alerts**៖ រាល់ការផ្លាស់ប្តូរស្ថានភាពជួសជុល ប្រព័ន្ធនឹងផ្ញើសារជូនដំណឹងទៅកាន់ Telegram របស់អតិថិជន និងគ្រុប Telegram បុគ្គលិកហាងដោយស្វ័យប្រវត្តិ។
 
 ### ៣.៧ ការគ្រប់គ្រងវេនការងារ និងប្រអប់លុយ (Staff Shifts & Cash Register POS)
 * ចូលទៅកាន់ `/rok-mix-khernh/shifts`៖
   * **បើកវេន (Open Shift)**៖ បុគ្គលិកគិតលុយបញ្ចូលចំនួនទឹកប្រាក់ដើមគ្រាក្នុងកេស (Opening Cash Drawer Balance)។
   * **តាមដានប្រាក់ចំណូលតាមវេន**៖ ប្រព័ន្ធកត់ត្រាចំនួនទឹកប្រាក់ដែលទទួលបានពី Cash និង Bakong KHQR ដាច់ដោយឡែកពីគ្នា។
   * **បិទវេន (Close Shift & Reconcile)**៖ រាប់ចំនួនទឹកប្រាក់ចុងក្រោយ ប្រព័ន្ធនឹងផ្ទៀងផ្ទាត់ថាតើទឹកប្រាក់គ្រប់, លើស ឬខ្វះ និងបង្កើតរបាយការណ៍បិទវេនជាស្វ័យប្រវត្តិ។
+  * **Strict Role-Based Security**៖ ប្រព័ន្ធការពារសិទ្ធិយ៉ាងតឹងរ៉ឹង ដោយអនុញ្ញាតឱ្យតែម្ចាស់ប្រព័ន្ធ (Super Admin) និងអ្នកគ្រប់គ្រងសាខាពិនិត្យរបាយការណ៍បិទវេន និងកែសម្រួលទិន្នន័យហិរញ្ញវត្ថុ។
 
-### ៣.៨ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)
+### ៣.៨ ផ្ទាំងគ្រប់គ្រងការឆាតផ្ទាល់ជាមួយអតិថិជន (Live Support Chat Management — `/rok-mix-khernh/chat`)
+* ចូលទៅកាន់ `/rok-mix-khernh/chat` ដើម្បីគ្រប់គ្រង និងឆ្លើយតបសារផ្ទាល់ជាមួយអតិថិជន៖
+  * **Real-Time Customer Inbox**៖ បង្ហាញបញ្ជីអតិថិជនដែលកំពុងឆាតចូលមកពីគ្រប់ទំព័រលើ Website និងពី Telegram Mini App។
+  * **Quick Customer Info Preview**៖ បង្ហាញឈ្មោះ, អ៊ីមែល, លេខទូរស័ព្ទ, និងកម្រិត VIP របស់អតិថិជននៅចំហៀងផ្ទាំងឆាត ជួយឱ្យបុគ្គលិកផ្តល់ការប្រឹក្សាបានត្រឹមត្រូវ និងរហ័ស។
+  * **Status Toggles & Shortcuts**៖ បុគ្គលិកអាចសម្គាល់សារថាបានដោះស្រាយរួច (Resolved) ឬបញ្ជូនបន្តទៅកាន់ជាងបច្ចេកទេស។
+
+### ៣.៩ ការគ្រប់គ្រងប្រូម៉ូសិន និងគូប៉ុង (Coupons & Promotions)
 * បង្កើតកូដបញ្ចុះតម្លៃ (ឧទាហរណ៍៖ `STECH2026`, `GAMINGPRO`)៖
   * កំណត់ការបញ្ចុះតម្លៃជាភាគរយ (%) ឬជាទឹកប្រាក់ជាក់លាក់ ($)។
   * កំណត់លក្ខខណ្ឌចំណាយអប្បបរមា (Minimum Spend)។
   * កំណត់ចំនួនដងដែលអាចប្រើប្រាស់បាន និងកាលបរិច្ឆេទផុតកំណត់។
   * **Real-time Eviction**៖ ពេលលុបប្រូម៉ូសិន វានឹងរលុបបាត់ភ្លាមៗពី Website និង Checkout UI។
 
-### ៣.៩ ការកំណត់សាខាហាង (Branches Management)
-* គ្រប់គ្រងព័ត៌មានសាខាហាងនីមួយៗ (អាសយដ្ឋាន, លេខទូរស័ព្ទទំនាក់ទំនង, ម៉ោងបើក/បិទ, និងទីតាំងលើ Google Map)។
+### ៣.១០ ការកំណត់សាខាហាង (Branches Management)
+* គ្រប់គ្រងព័ត៌មានសាខាហាងនីមួយៗ (អាសយដ្ឋាន, លេខទូរស័ព្ទទំនាក់ទំនង, ម៉ោងបើក/បិទ, និងទីតាំងលើ Google Map) ជាមួយសិទ្ធិការពារ Super Admin។
 
-### ៣.១០ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)
+### ៣.១១ ការគ្រប់គ្រង Telegram Bot & របាយការណ៍ស្វ័យប្រវត្តិ (Telegram Alerts & Auto Reports)
 * ចូលទៅកាន់ `/rok-mix-khernh/telegram-bot` ដើម្បីត្រួតពិនិត្យ និងតេស្តការបញ្ជូនដំណឹងរបស់ Official Bot (`@S_TECH_ASSISTANTBOT`) ចូលក្នុងគ្រុបបុគ្គលិកហាង។
 * **របាយការណ៍ស្វ័យប្រវត្តិម៉ោង ៨:០០ យប់ (ច័ន្ទ-សៅរ៍)**៖ គណនាផលបូកអ្នកចូលមើល, Order, ចំណូល, និងទំនិញលក់ដាច់។
 * **របាយការណ៍សប្តាហ៍ថ្ងៃអាទិត្យ**៖ សង្ខេបទំនិញពេញនិយម និងស្ថិតិអតិថិជនថ្មី។
 
-### ៣.១១ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Owner Only)
+### ៣.១២ ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ (Grand Master Console — Executive Cockpit Rack)
 * ផ្ទាំងបញ្ជាពិសេសរបស់ម្ចាស់ប្រព័ន្ធ ត្រូវបានរចនាឡើងយ៉ាងម៉ត់ចត់បំផុតតាមបែប **Executive Hardware Console / Cockpit Rack** (bg-[#0c1017], គ្មាន Emoji និងគ្មាន Vibe AI Glow) ដោយចែកចេញជា ៤ Decks សំខាន់ៗ៖
   * **DISPATCH // 01 — ដំណើរការធម្មតា (Normal 24/7 Live)**៖ អំពូល LED `SYS.ACTIVE` ពណ៌ Emerald ដំណើរការទទួលការកុម្ម៉ង់ ២៤/៧។
   * **DISPATCH // 02 — បិទឈប់សម្រាក (Vacation & Break Mode)**៖ កំណត់ចំនួនថ្ងៃសម្រាកបុណ្យ ជាមួយ **នាឡិកាឌីជីថលរាប់ថយក្រោយ Monospace `[ 03d : 00h : 00m : 00s ]`** និងប្រព័ន្ធ Auto-Reopen បើកហាងឡើងវិញដោយស្វ័យប្រវត្តិ។
@@ -232,7 +253,7 @@
   * **DISPATCH // 04 — សុវត្ថិភាពពេលរាត្រី (Night Lock)**៖ កាលវិភាគស្វ័យប្រវត្តិចន្លោះម៉ោង 02:00 – 06:00 AM ICT ការពារការកុម្ម៉ង់ និងសុវត្ថិភាពពេលយប់ជ្រៅ។
   * **Master Staff Activity Lockdown**៖ ប៊ូតុងចុចតែមួយ Click សម្រាប់បង្កកសិទ្ធិបុគ្គលិកទាំងអស់ពេលមានអាសន្ន ឬសវនកម្មផ្ទៃក្នុង (HTTP 423 Locked)។
 
-### ៣.១២ Admin PWA សម្រាប់បុគ្គលិកហាង
+### ៣.១៣ Admin PWA សម្រាប់បុគ្គលិកហាង
 * ផ្ទាំងគ្រប់គ្រង Admin ក៏គាំទ្រមុខងារ **PWA (Progressive Web App)** ផងដែរ៖
 * ម្ចាស់ហាង និងបុគ្គលិកអាច Add ផ្ទាំង Admin ទៅកាន់អេក្រង់ដើមរបស់ iPad, Tablet, ឬទូរស័ព្ទដៃ ដើម្បីប្រើប្រាស់ដូចជាម៉ាស៊ីន POS ចល័តក្នុងហាង ដើរឆែកមើលស្តុក និងស្កេនទំនិញបានគ្រប់ពេលវេលា!
 * បំពាក់ប្រព័ន្ធការពារ Session មិនឱ្យជួបបញ្ហា 401 Unauthorized ពេលទុកចោលយូរឡើយ។

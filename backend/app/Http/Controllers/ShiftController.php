@@ -12,7 +12,10 @@ class ShiftController extends Controller
      */
     public function index()
     {
-        return response()->json(Shift::withCount('staff')->orderBy('id', 'asc')->get());
+        $shifts = \Illuminate\Support\Facades\Cache::remember('public_shifts_list', 1800, function () {
+            return Shift::withCount('staff')->orderBy('id', 'asc')->get();
+        });
+        return response()->json($shifts);
     }
 
     /**
@@ -36,6 +39,7 @@ class ShiftController extends Controller
         ]);
 
         $shift = Shift::create($validated);
+        \Illuminate\Support\Facades\Cache::forget('public_shifts_list');
 
         return response()->json([
             'message' => 'Shift created successfully',
@@ -66,6 +70,7 @@ class ShiftController extends Controller
         ]);
 
         $shift->update($validated);
+        \Illuminate\Support\Facades\Cache::forget('public_shifts_list');
 
         return response()->json([
             'message' => 'Shift updated successfully',
@@ -85,6 +90,7 @@ class ShiftController extends Controller
 
         $shift = Shift::findOrFail($id);
         $shift->delete();
+        \Illuminate\Support\Facades\Cache::forget('public_shifts_list');
 
         return response()->json(['message' => 'Shift deleted successfully']);
     }

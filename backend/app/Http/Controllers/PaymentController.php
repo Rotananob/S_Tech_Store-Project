@@ -64,7 +64,7 @@ class PaymentController extends Controller
         if ($order->payment_status === 'paid') {
             return response()->json([
                 'success' => true,
-                'message' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់រួចរាល់ហើយ (Already Paid)',
+                'message' => 'ការបញ្ជាទិញនេះត្រូវបានទូទាត់រួចរាល់ហើយ - Already Paid',
                 'order' => $order,
             ]);
         }
@@ -101,7 +101,7 @@ class PaymentController extends Controller
         if (!empty($order->user_id) && !empty($clientUid) && $order->user_id !== $clientUid) {
             return response()->json([
                 'success' => false,
-                'message' => 'គ្មានសិទ្ធិផ្ទៀងផ្ទាត់ Order របស់គណនីផ្សេងឡើយ (Forbidden)',
+                'message' => 'គ្មានសិទ្ធិផ្ទៀងផ្ទាត់ Order របស់គណនីផ្សេងឡើយ - Forbidden',
             ], 403);
         }
 
@@ -110,7 +110,7 @@ class PaymentController extends Controller
         if ($statusCheck['paid'] ?? false) {
             return response()->json([
                 'success' => true,
-                'message' => 'បានផ្ទៀងផ្ទាត់ការទូទាត់ជាមួយធនាគារជោគជ័យ! (Payment Auto-Verified by Bank Gateway)',
+                'message' => 'បានផ្ទៀងផ្ទាត់ការទូទាត់ជាមួយធនាគារជោគជ័យ! - Payment Auto-Verified by Bank Gateway',
                 'order' => $order->fresh(),
             ]);
         }
@@ -131,16 +131,19 @@ class PaymentController extends Controller
         ]);
         $order->save();
 
-        // Dispatch instant Telegram alert with 1-click Approve button to Admin
-        try {
-            \App\Services\TelegramService::sendOrderPaymentVerificationAlert($order, $tranId, $method);
-        } catch (\Throwable $t) {
-            Log::warning("Order payment verification alert failed: " . $t->getMessage());
-        }
+        // Dispatch instant Telegram alert with 1-click Approve button to Admin in background
+        $freshOrder = $order;
+        app()->terminating(function () use ($freshOrder, $tranId, $method) {
+            try {
+                \App\Services\TelegramService::sendOrderPaymentVerificationAlert($freshOrder, $tranId, $method);
+            } catch (\Throwable $t) {
+                Log::warning("Order payment verification alert failed: " . $t->getMessage());
+            }
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'បានទទួលការបញ្ជាក់ការបង់ប្រាក់! ក្រុមការងារនឹងផ្ទៀងផ្ទាត់ជាមួយធនាគាររួចរៀបចំទំនិញជូនលោកអ្នក (Awaiting Bank Verification)',
+            'message' => 'បានទទួលការបញ្ជាក់ការបង់ប្រាក់! ក្រុមការងារនឹងផ្ទៀងផ្ទាត់ជាមួយធនាគាររួចរៀបចំទំនិញជូនលោកអ្នក - Awaiting Bank Verification',
             'order' => $order,
             'transaction_id' => $tranId,
         ]);

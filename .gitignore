@@ -63,3 +63,5 @@ cloudflared.exe
 *.sqlite3
 .agent_tasks/
 GEMINI.md
+*.pdf
+build_manual_pdf.js

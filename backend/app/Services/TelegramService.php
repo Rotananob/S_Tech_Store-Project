@@ -109,6 +109,10 @@ class TelegramService
     public static function getSettings(): array
     {
         if (app()->environment('testing')) {
+            $testOverride = \Illuminate\Support\Facades\Cache::get('test_telegram_settings_override');
+            if (is_array($testOverride)) {
+                return $testOverride;
+            }
             return [
                 'connected' => false,
                 'chat_id' => null,
@@ -1161,6 +1165,60 @@ class TelegramService
     }
 
     /**
+     * Verify whether a Telegram user or chat has Staff/Admin permissions.
+     * Role A: Staff / Admin (super_admin, admin, staff)
+     * Role B: Customer
+     */
+    public static function isStaffOrAdminTelegramUser(string $tgUserId, ?string $chatId = null): bool
+    {
+        $settings = self::getSettings();
+
+        // 1. Group Origin Guard: Actions originating inside the official paired staff group are staff-authorized
+        if (!empty($settings['connected']) && !empty($settings['chat_id']) && (string)$settings['chat_id'] === (string)$chatId) {
+            return true;
+        }
+
+        // 2. Check User model - Internal Staff and Admin Accounts
+        $cleanTgId = preg_replace('/\D/', '', $tgUserId);
+        if (!empty($cleanTgId)) {
+            $isStaffUser = \App\Models\User::where('status', 'active')
+                ->where(function ($q) use ($cleanTgId) {
+                    $q->where('phone', $cleanTgId)
+                      ->orWhere('phone', '+' . $cleanTgId)
+                      ->orWhereJsonContains('permissions', "tg_{$cleanTgId}");
+                })
+                ->whereIn('role', ['super_admin', 'admin', 'staff'])
+                ->exists();
+
+            if ($isStaffUser) {
+                return true;
+            }
+        }
+
+        // 3. Check UserProfile model - Customer Profile with is_admin = true
+        if (!empty($cleanTgId)) {
+            $isAdminProfile = \App\Models\UserProfile::where('is_admin', true)
+                ->where(function ($q) use ($cleanTgId) {
+                    $q->where('telegram_chat_id', $cleanTgId)
+                      ->orWhere('firebase_uid', "tg_{$cleanTgId}");
+                })
+                ->exists();
+
+            if ($isAdminProfile) {
+                return true;
+            }
+        }
+
+        // 4. Check explicit Admin ID whitelist from environment
+        $adminList = array_filter(array_map('trim', explode(',', (string)env('TELEGRAM_ADMIN_IDS', env('TELEGRAM_OWNER_ID', '')))));
+        if (!empty($adminList) && in_array((string)$cleanTgId, $adminList, true)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Process an individual update received from Telegram Webhook or Long Polling
      */
     public static function processUpdate(array $up, ?string $botParam = null): void
@@ -1179,15 +1237,19 @@ class TelegramService
             $fromName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? '')) ?: 'អតិថិជន';
             $fromUsername = $from['username'] ?? '';
 
-            // Clean Token Routing:
-            // Private chats strictly route to Customer Assistant Bot.
-            // Group chats strictly route to Staff Forum Notification Bot.
-            if ($chatType === 'private') {
-                $activeToken = self::getCustomerBotToken();
-                $activeBotUsername = self::getCustomerBotUsername();
+            // Clean 2-Bot Token Routing:
+            if (!empty($botParam)) {
+                $isStaffBot = in_array(strtolower($botParam), ['main', 'staff']);
             } else {
+                $isStaffBot = ($chatType !== 'private');
+            }
+
+            if ($isStaffBot) {
                 $activeToken = self::getStaffBotToken();
                 $activeBotUsername = self::OFFICIAL_STAFF_BOT_USERNAME;
+            } else {
+                $activeToken = self::getCustomerBotToken();
+                $activeBotUsername = self::getCustomerBotUsername();
             }
 
             // STRICT DISCONNECT ISOLATION: In group chat, if disconnected, ignore completely!
@@ -1198,15 +1260,31 @@ class TelegramService
                 }
             }
 
-            // ⚡ Instant Tactile Feedback: If not already answered in webhook HTTP response, answer it:
+            // Instant Tactile Feedback: If not already answered in webhook HTTP response, answer it:
             if ($callbackId && !app()->bound('tg_cb_answered_' . $callbackId)) {
                 $quickToast = self::getQuickToast($callbackData);
                 self::answerCallbackQuery($callbackId, $quickToast, $activeToken);
             }
 
-            // ⚡ Instant Typing Indicator: Show active typing status in Telegram header
+            // Instant Typing Indicator: Show active typing status in Telegram header
             if ($chatType === 'private' && $chatId) {
                 self::sendChatAction($chatId, 'typing', $activeToken);
+            }
+
+            // Strict Role Guard: RBAC Enforcement for Admin Actions
+            $isAdminCallback = str_starts_with($callbackData, 'admin_')
+                || str_starts_with($callbackData, 'approve_')
+                || str_starts_with($callbackData, 'reject_')
+                || $callbackData === 'setup_topics';
+
+            if ($isAdminCallback) {
+                $callerTgId = (string)($from['id'] ?? $chatId);
+                if (!self::isStaffOrAdminTelegramUser($callerTgId, (string)$chatId)) {
+                    if ($callbackId) {
+                        self::answerCallbackQuery($callbackId, 'សិទ្ធិត្រូវបានបដិសេធ: មុខងារនេះសម្រាប់តែក្រុមការងារ Admin និង Staff ប៉ុណ្ណោះ!', $activeToken, true);
+                    }
+                    return;
+                }
             }
 
 
@@ -2611,31 +2689,31 @@ class TelegramService
                 Cache::forget("customer_sess_{$cleanTgId}");
                 Cache::forget("customer_sess_{$tgId}");
 
-                $disconnectMsg = "✅ <b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
+                $disconnectMsg = "<b>បានផ្តាច់គណនី Telegram ដោយជោគជ័យ!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "• 👤 <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($userDisplayName) . "</b>\n"
-                    . "• 🔌 <b>ស្ថានភាព:</b> <b>ផ្តាច់រួចរាល់ (Disconnected)</b>\n\n"
+                    . "• <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($userDisplayName) . "</b>\n"
+                    . "• <b>ស្ថានភាព:</b> <b>ផ្តាច់រួចរាល់ - Disconnected</b>\n\n"
                     . "គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ចេញពី Website S Tech Store រួចរាល់ហើយ។\n"
                     . "ឥឡូវនេះ Telegram របស់អ្នកនៅទំនេរ និងអាចយកទៅភ្ជាប់ជាមួយគណនី Website ផ្សេងបានគ្រប់ពេល។\n\n"
-                    . "👉 លោកអ្នកអាចភ្ជាប់ឡើងវិញបានគ្រប់ពេល តាមរយៈ Profile Setting លើ Website។";
+                    . "លោកអ្នកអាចភ្ជាប់ឡើងវិញបានគ្រប់ពេល តាមរយៈ Profile Setting លើ Website។";
 
                 $disconnectKb = [
                     'inline_keyboard' => [
-                        [['text' => '🌐 ចូលគេហទំព័រ (Website)', 'url' => 'https://www.s-tech-store.tech/account/profile']],
-                        [['text' => '🔙 មឺនុយមេ (Main Menu)', 'callback_data' => 'cust_main_menu']],
+                        [['text' => 'ចូលគេហទំព័រ - Website', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                        [['text' => 'មឺនុយមេ - Main Menu', 'callback_data' => 'cust_main_menu']],
                     ]
                 ];
 
                 self::sendMessageWithKeyboard($chatId, $disconnectMsg, $disconnectKb, 'HTML', null, $activeToken);
                 return;
             } else {
-                $notLinkedMsg = "ℹ️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ</b> (Not Connected)។\n\n"
-                    . "👉 ប្រសិនបើអ្នកចង់ភ្ជាប់ជាមួយគណនីលើ Website សូមចូលទៅកាន់គេហទំព័រ រួចចុច <b>\"ភ្ជាប់ Official Bot\"</b> ក្នុង Profile Setting។";
+                $notLinkedMsg = "<b>សេចក្តីជូនដំណឹង: គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយ Website ណាមួយឡើយ - Not Connected</b>\n\n"
+                    . "ប្រសិនបើអ្នកចង់ភ្ជាប់ជាមួយគណនីលើ Website សូមចូលទៅកាន់គេហទំព័រ រួចចុច <b>\"ភ្ជាប់ Official Bot\"</b> ក្នុង Profile Setting។";
 
                 $notLinkedKb = [
                     'inline_keyboard' => [
-                        [['text' => '🌐 ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        [['text' => 'ចូលគេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => 'មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ]
                 ];
 
@@ -4362,17 +4440,17 @@ class TelegramService
 
         // 1. Set commands (11 interactive customer commands)
         $commands = [
-            ['command' => 'start', 'description' => '🏠 មឺនុយមេ & បើក Mini App (Main Menu)'],
-            ['command' => 'shop', 'description' => '💻 មើលផលិតផល Laptops, PC, Parts (Shop)'],
-            ['command' => 'orders', 'description' => '📦 តាមដានការបញ្ជាទិញ (My Orders)'],
-            ['command' => 'wallet', 'description' => '💰 កាបូបលុយ & សមតុល្យ (My Balance)'],
-            ['command' => 'points', 'description' => '🪙 ពិន្ទុ S-Coins & VIP Rewards'],
-            ['command' => 'promo', 'description' => '🔥 ប្រូម៉ូសិន & កូដបញ្ចុះតម្លៃ (Discounts)'],
-            ['command' => 'repair', 'description' => '🔧 សេវាជួសជុល & Upgrade (Repairs)'],
-            ['command' => 'ask', 'description' => '❓ សំណួរញឹកញាប់ & ជំនួយរហ័ស (FAQ)'],
-            ['command' => 'contact', 'description' => '📞 ទំនាក់ទំនង & ទីតាំងហាង (Contact)'],
-            ['command' => 'help', 'description' => '📋 របៀបប្រើប្រាស់ពាក្យបញ្ជា (Help)'],
-            ['command' => 'unlink', 'description' => '🔌 ផ្តាច់គណនី Telegram (Disconnect)'],
+            ['command' => 'start', 'description' => 'មឺនុយមេ និងបើក Mini App - Main Menu'],
+            ['command' => 'shop', 'description' => 'មើលផលិតផល Laptops, PC, Parts - Shop'],
+            ['command' => 'orders', 'description' => 'តាមដានការបញ្ជាទិញ - My Orders'],
+            ['command' => 'wallet', 'description' => 'កាបូបលុយ និងសមតុល្យ - My Balance'],
+            ['command' => 'points', 'description' => 'ពិន្ទុ S-Coins និង VIP Rewards'],
+            ['command' => 'promo', 'description' => 'ប្រូម៉ូសិន និងកូដបញ្ចុះតម្លៃ - Discounts'],
+            ['command' => 'repair', 'description' => 'សេវាជួសជុល និង Upgrade - Repairs'],
+            ['command' => 'ask', 'description' => 'សំណួរញឹកញាប់ និងជំនួយរហ័ស - FAQ'],
+            ['command' => 'contact', 'description' => 'ទំនាក់ទំនង និងទីតាំងហាង - Contact'],
+            ['command' => 'help', 'description' => 'របៀបប្រើប្រាស់ពាក្យបញ្ជា - Help'],
+            ['command' => 'unlink', 'description' => 'ផ្តាច់គណនី Telegram - Disconnect'],
         ];
 
         try {
@@ -4389,7 +4467,7 @@ class TelegramService
             $menuResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setChatMenuButton", [
                 'menu_button' => [
                     'type' => 'web_app',
-                    'text' => '🛍️ S Tech Store',
+                    'text' => 'S Tech Store',
                     'web_app' => [
                         'url' => 'https://www.s-tech-store.tech',
                     ],
@@ -4422,19 +4500,19 @@ class TelegramService
         $settings = self::getSettings();
         $botToken = $token ?: ($settings['bot_token'] ?? env('TELEGRAM_BOT_TOKEN'));
         if (empty($botToken)) {
-            return ['success' => false, 'error' => 'Staff Bot token is missing (សូមកំណត់ Bot Token ក្នុង Settings ជាមុនសិន)'];
+            return ['success' => false, 'error' => 'Staff Bot token is missing - សូមកំណត់ Bot Token ក្នុង Settings ជាមុនសិន'];
         }
 
         $results = [];
 
         // 1. Set commands (Interactive admin & staff commands)
         $commands = [
-            ['command' => 'chat', 'description' => '💬 បើក Live Chat Mini App (ឆ្លើយតបអតិថិជន)'],
-            ['command' => 'orders', 'description' => '📦 បើក Orders Mini App (គ្រប់គ្រងការកុម្ម៉ង់)'],
-            ['command' => 'dashboard', 'description' => '📊 បើក Admin Dashboard Mini App'],
-            ['command' => 'stock', 'description' => '⚠️ ស្កេនទំនិញជិតអស់ពីស្តុក (Low Stock)'],
-            ['command' => 'report', 'description' => '📈 របាយការណ៍សង្ខេបអាជីវកម្ម (Daily Report)'],
-            ['command' => 'start', 'description' => '🏠 មឺនុយមេ Admin/Staff & Mini App Hub'],
+            ['command' => 'chat', 'description' => 'បើក Live Chat Mini App - ឆ្លើយតបអតិថិជន'],
+            ['command' => 'orders', 'description' => 'បើក Orders Mini App - គ្រប់គ្រងការកុម្ម៉ង់'],
+            ['command' => 'dashboard', 'description' => 'បើក Admin Dashboard Mini App'],
+            ['command' => 'stock', 'description' => 'ស្កេនទំនិញជិតអស់ពីស្តុក - Low Stock'],
+            ['command' => 'report', 'description' => 'របាយការណ៍សង្ខេបអាជីវកម្ម - Daily Report'],
+            ['command' => 'start', 'description' => 'មឺនុយមេ Admin និង Staff Mini App Hub'],
         ];
 
         try {
@@ -4451,7 +4529,7 @@ class TelegramService
             $menuResp = Http::timeout(8)->post("https://api.telegram.org/bot{$botToken}/setChatMenuButton", [
                 'menu_button' => [
                     'type' => 'web_app',
-                    'text' => '⚡ S Tech Live Chat',
+                    'text' => 'S Tech Live Chat',
                     'web_app' => [
                         'url' => 'https://www.s-tech-store.tech/km/rok-mix-khernh/chat',
                     ],
@@ -7836,21 +7914,21 @@ HTML;
 
         $financeTopicId = self::resolveTopicId('finance') ?? self::resolveTopicId('orders');
 
-        $msg = "⚡ <b>[TOP-UP VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការបញ្ចូលលុយ Wallet!</b>\n"
+        $msg = "<b>[TOP-UP VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការបញ្ចូលលុយ Wallet!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "អតិថិជនបានផ្ទេរប្រាក់តាម <b>{$method}</b> (ABA On-Us / Bakong) ហើយកំពុងរង់ចាំការផ្ទៀងផ្ទាត់សមតុល្យ៖\n\n"
-            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>+\${$amount} USD</b>\n"
-            . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
-            . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
-            . "🔖 <b>Ref Deposit ID:</b> <code>{$depositId}</code>\n"
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($tx->created_at ?? null) . "\n\n"
-            . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
+            . "អតិថិជនបានផ្ទេរប្រាក់តាម <b>{$method}</b> - ABA On-Us ឬ Bakong ហើយកំពុងរង់ចាំការផ្ទៀងផ្ទាត់សមតុល្យ៖\n\n"
+            . "• <b>ចំនួនទឹកប្រាក់:</b> <b>+\${$amount} USD</b>\n"
+            . "• <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
+            . "• <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "• <b>Ref Deposit ID:</b> <code>{$depositId}</code>\n"
+            . "• <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($tx->created_at ?? null) . "\n\n"
+            . "<i>សូមពិនិត្យមើល App ធនាគារ ABA ឬ Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "✅ អនុម័ត +\${$amount} USD ភ្លាមៗ", 'callback_data' => "admin_approve_topup:{$tx->reference_id}"],
-                    ['text' => "❌ បដិសេធ", 'callback_data' => "admin_reject_topup:{$tx->reference_id}"],
+                    ['text' => "អនុម័ត +\${$amount} USD ភ្លាមៗ", 'callback_data' => "admin_approve_topup:{$tx->reference_id}"],
+                    ['text' => "បដិសេធ", 'callback_data' => "admin_reject_topup:{$tx->reference_id}"],
                 ]
             ]
         ];
@@ -7868,14 +7946,14 @@ HTML;
             $tx = \App\Models\WalletTransaction::where('reference_id', $depositId)->lockForUpdate()->first();
             if (!$tx) {
                 return [
-                    'toast' => '❌ រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
+                    'toast' => 'រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
                     'new_text' => null,
                 ];
             }
 
             if ($tx->status === 'completed') {
                 return [
-                    'toast' => '⚠️ ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ!',
+                    'toast' => 'ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ!',
                     'new_text' => null,
                 ];
             }
@@ -7883,7 +7961,7 @@ HTML;
             $user = \App\Models\UserProfile::where('firebase_uid', $tx->firebase_uid)->lockForUpdate()->first();
             if (!$user) {
                 return [
-                    'toast' => '❌ រកមិនឃើញគណនីអតិថិជនឡើយ!',
+                    'toast' => 'រកមិនឃើញគណនីអតិថិជនឡើយ!',
                     'new_text' => null,
                 ];
             }
@@ -7908,7 +7986,7 @@ HTML;
             try {
                 \App\Models\UserNotification::create([
                     'firebase_uid' => $user->firebase_uid,
-                    'title' => '💳 បញ្ចូលទឹកប្រាក់ជោគជ័យ! (Wallet Funded)',
+                    'title' => 'បញ្ចូលទឹកប្រាក់ជោគជ័យ - Wallet Funded',
                     'message' => "ទឹកប្រាក់ $" . number_format($amount, 2) . " ត្រូវបានអនុម័ត និងបញ្ចូលទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។ សមតុល្យបច្ចុប្បន្ន: $" . number_format($user->wallet_balance, 2),
                     'type' => 'system',
                     'read' => false,
@@ -7917,14 +7995,14 @@ HTML;
 
             // Send notification to customer's personal Telegram if linked
             if (!empty($user->telegram_chat_id)) {
-                $custMsg = "🎉 <b>ការបញ្ចូលទឹកប្រាក់ត្រូវបានអនុម័ត! (Approved)</b>\n"
+                $custMsg = "<b>ការបញ្ចូលទឹកប្រាក់ត្រូវបានអនុម័ត - Approved</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "សួស្តី <b>" . htmlspecialchars($user->display_name) . "</b>! ការបញ្ចូលទឹកប្រាក់ចំនួន <b>\$" . number_format($amount, 2) . " USD</b> តាមរយៈ ABA / Bakong (Ref: <code>{$depositId}</code>) ត្រូវបាន Admin អនុម័ត និងបញ្ចូលទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។\n\n"
-                    . "💵 <b>សមតុល្យបច្ចុប្បន្ន:</b> <b>\$" . number_format($user->wallet_balance, 2) . " USD</b>\n\n"
-                    . "👉 លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញទំនិញក្នុង Mini App បានភ្លាមៗ!";
+                    . "សួស្តី <b>" . htmlspecialchars($user->display_name) . "</b>! ការបញ្ចូលទឹកប្រាក់ចំនួន <b>\$" . number_format($amount, 2) . " USD</b> តាមរយៈ ABA ឬ Bakong - Ref: <code>{$depositId}</code> ត្រូវបាន Admin អនុម័ត និងបញ្ចូលទៅកាន់កាបូប S-Tech Wallet ដោយជោគជ័យ។\n\n"
+                    . "• <b>សមតុល្យបច្ចុប្បន្ន:</b> <b>\$" . number_format($user->wallet_balance, 2) . " USD</b>\n\n"
+                    . "លោកអ្នកអាចប្រើប្រាស់ទឹកប្រាក់នេះដើម្បីទិញទំនិញក្នុង Mini App បានភ្លាមៗ!";
                 $custKb = [
                     'inline_keyboard' => [
-                        [['text' => '🛍️ ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]]
+                        [['text' => 'ចូលទិញទំនិញក្នុង Mini App', 'web_app' => ['url' => 'https://www.s-tech-store.tech']]]
                     ]
                 ];
                 try {
@@ -7932,18 +8010,18 @@ HTML;
                 } catch (\Throwable $t) {}
             }
 
-            $newText = "✅ <b>[APPROVED] បានអនុម័តការបញ្ចូលទឹកប្រាក់ជោគជ័យ!</b>\n"
+            $newText = "<b>[APPROVED] បានអនុម័តការបញ្ចូលទឹកប្រាក់ជោគជ័យ!</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>+\$" . number_format($amount, 2) . " USD</b>\n"
-                . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($user->display_name) . " (" . htmlspecialchars($user->phone ?: $user->email) . ")\n"
-                . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
-                . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($tx->payment_method ?: 'ABA/KHQR') . "\n"
-                . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-                . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
-                . "💰 <b>សមតុល្យថ្មីរបស់អតិថិជន:</b> \$" . number_format($user->wallet_balance, 2) . " USD";
+                . "• <b>ចំនួនទឹកប្រាក់:</b> <b>+\$" . number_format($amount, 2) . " USD</b>\n"
+                . "• <b>អតិថិជន:</b> " . htmlspecialchars($user->display_name) . " - " . htmlspecialchars($user->phone ?: $user->email) . "\n"
+                . "• <b>Ref ID:</b> <code>{$depositId}</code>\n"
+                . "• <b>វិធីសាស្ត្រ:</b> " . strtoupper($tx->payment_method ?: 'ABA/KHQR') . "\n"
+                . "• <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+                . "• <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
+                . "• <b>សមតុល្យថ្មីរបស់អតិថិជន:</b> \$" . number_format($user->wallet_balance, 2) . " USD";
 
             return [
-                'toast' => "✅ បានអនុម័ត +$" . number_format($amount, 2) . " ចូល Wallet ជោគជ័យ!",
+                'toast' => "បានអនុម័ត +$" . number_format($amount, 2) . " ចូល Wallet ជោគជ័យ!",
                 'new_text' => $newText,
                 'new_kb' => ['inline_keyboard' => []],
             ];
@@ -7958,14 +8036,14 @@ HTML;
         $tx = \App\Models\WalletTransaction::where('reference_id', $depositId)->first();
         if (!$tx) {
             return [
-                'toast' => '❌ រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
+                'toast' => 'រកមិនឃើញប្រតិបត្តិការនេះឡើយ!',
                 'new_text' => null,
             ];
         }
 
         if ($tx->status === 'completed') {
             return [
-                'toast' => '⚠️ ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ មិនអាចបដិសេធបានទេ!',
+                'toast' => 'ប្រតិបត្តិការនេះត្រូវបានអនុម័តរួចរាល់ហើយ មិនអាចបដិសេធបានទេ!',
                 'new_text' => null,
             ];
         }
@@ -7980,16 +8058,16 @@ HTML;
 
         \Illuminate\Support\Facades\Cache::forget("wallet_deposit_{$depositId}");
 
-        $newText = "❌ <b>[REJECTED] បានបដិសេធការបញ្ចូលទឹកប្រាក់!</b>\n"
+        $newText = "<b>[REJECTED] បានបដិសេធការបញ្ចូលទឹកប្រាក់!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$tx->amount, 2) . " USD</b>\n"
-            . "🔖 <b>Ref ID:</b> <code>{$depositId}</code>\n"
-            . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
-            . "⚠️ <i>ប្រតិបត្តិការនេះត្រូវបានច្រានចោល មិនមានការបញ្ចូលទឹកប្រាក់ឡើយ។</i>";
+            . "• <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$tx->amount, 2) . " USD</b>\n"
+            . "• <b>Ref ID:</b> <code>{$depositId}</code>\n"
+            . "• <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "• <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
+            . "<i>ប្រតិបត្តិការនេះត្រូវបានច្រានចោល មិនមានការបញ្ចូលទឹកប្រាក់ឡើយ។</i>";
 
         return [
-            'toast' => '❌ បានបដិសេធប្រតិបត្តិការនេះ!',
+            'toast' => 'បានបដិសេធប្រតិបត្តិការនេះ!',
             'new_text' => $newText,
         ];
     }
@@ -8026,7 +8104,7 @@ HTML;
 
         $itemsSummary = "";
         if (!empty($items) && is_countable($items) && count($items) > 0) {
-            $itemsSummary = "📦 <b>មុខទំនិញបញ្ជាទិញ (" . count($items) . " មុខ):</b>\n";
+            $itemsSummary = "<b>មុខទំនិញបញ្ជាទិញ: " . count($items) . " មុខ</b>\n";
             foreach ($items as $idx => $it) {
                 $p = $it->product ?? null;
                 $pName = htmlspecialchars($p->name ?? ('Product #' . ($it->product_id ?? ($idx + 1))));
@@ -8041,23 +8119,23 @@ HTML;
 
         $ordersTopicId = self::resolveTopicId('orders') ?? self::resolveTopicId('finance');
 
-        $msg = "⚡ <b>[ORDER PAYMENT VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការទូទាត់ទំនិញ!</b>\n"
+        $msg = "<b>[ORDER PAYMENT VERIFICATION] សំណើផ្ទៀងផ្ទាត់ការទូទាត់ទំនិញ!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "អតិថិជនបានចុចបញ្ជាក់ការផ្ទេរប្រាក់ <b>{$methodName}</b> (ABA / Bakong) សម្រាប់ការបញ្ជាទិញ៖\n\n"
-            . "🧾 <b>Order ID:</b> <b>#{$orderId}</b>\n"
-            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
-            . "👤 <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
-            . "📞 <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
-            . "🔖 <b>Ref Tran ID:</b> <code>{$tranId}</code>\n\n"
+            . "អតិថិជនបានចុចបញ្ជាក់ការផ្ទេរប្រាក់ <b>{$methodName}</b> - ABA ឬ Bakong សម្រាប់ការបញ្ជាទិញ៖\n\n"
+            . "• <b>Order ID:</b> <b>#{$orderId}</b>\n"
+            . "• <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
+            . "• <b>អតិថិជន:</b> <b>{$customerName}</b>\n"
+            . "• <b>លេខទូរស័ព្ទ:</b> <code>{$phone}</code>\n"
+            . "• <b>Ref Tran ID:</b> <code>{$tranId}</code>\n\n"
             . $itemsSummary
-            . "⏰ <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
-            . "👉 <i>សូមពិនិត្យមើល App ធនាគារ ABA / Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
+            . "• <b>កាលបរិច្ឆេទ:</b> " . self::khmerTime($order->created_at ?? null) . "\n\n"
+            . "<i>សូមពិនិត្យមើល App ធនាគារ ABA ឬ Bakong រួចចុច 'អនុម័ត' ខាងក្រោម៖</i>";
 
         $replyMarkup = [
             'inline_keyboard' => [
                 [
-                    ['text' => "✅ អនុម័តទូទាត់ \${$amount} USD", 'callback_data' => "admin_approve_order:{$order->id}"],
-                    ['text' => "❌ បដិសេធ", 'callback_data' => "admin_reject_order:{$order->id}"],
+                    ['text' => "អនុម័តទូទាត់ \${$amount} USD", 'callback_data' => "admin_approve_order:{$order->id}"],
+                    ['text' => "បដិសេធ", 'callback_data' => "admin_reject_order:{$order->id}"],
                 ]
             ]
         ];
@@ -8076,11 +8154,11 @@ HTML;
         $order = $orderQuery->first();
 
         if (!$order) {
-            return ['toast' => '❌ រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
+            return ['toast' => 'រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
         }
 
         if ($order->payment_status === 'paid') {
-            return ['toast' => '⚠️ Order នេះត្រូវបានទូទាត់រួចរាល់ហើយ!', 'new_text' => null];
+            return ['toast' => 'Order នេះត្រូវបានទូទាត់រួចរាល់ហើយ!', 'new_text' => null];
         }
 
         $tranId = 'ADMIN_APPV_' . strtoupper(uniqid());
@@ -8094,18 +8172,18 @@ HTML;
         $amount = number_format((float)$order->total_amount, 2);
         $cleanOrderId = htmlspecialchars($order->order_id ?: ('#' . $order->id));
 
-        $newText = "✅ <b>[APPROVED] បានអនុម័តការទូទាត់ Order ជោគជ័យ!</b>\n"
+        $newText = "<b>[APPROVED] បានអនុម័តការទូទាត់ Order ជោគជ័យ!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "🧾 <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
-            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
-            . "👤 <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . " (" . htmlspecialchars($order->customer_phone) . ")\n"
-            . "💳 <b>វិធីសាស្ត្រ:</b> " . strtoupper($order->payment_method ?: 'KHQR') . "\n"
-            . "👮 <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
-            . "🚀 <i>ស្ថានភាព Order ត្រូវបានផ្លាស់ប្តូរទៅ Processing រួចរាល់!</i>";
+            . "• <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
+            . "• <b>ចំនួនទឹកប្រាក់:</b> <b>\${$amount} USD</b>\n"
+            . "• <b>អតិថិជន:</b> " . htmlspecialchars($order->customer_name) . " - " . htmlspecialchars($order->customer_phone) . "\n"
+            . "• <b>វិធីសាស្ត្រ:</b> " . strtoupper($order->payment_method ?: 'KHQR') . "\n"
+            . "• <b>អនុម័តដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "• <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
+            . "<i>ស្ថានភាព Order ត្រូវបានផ្លាស់ប្តូរទៅ Processing រួចរាល់!</i>";
 
         return [
-            'toast' => "✅ បានអនុម័ត Order #{$cleanOrderId} ជោគជ័យ!",
+            'toast' => "បានអនុម័ត Order #{$cleanOrderId} ជោគជ័យ!",
             'new_text' => $newText,
         ];
     }
@@ -8120,23 +8198,23 @@ HTML;
         $order = $orderQuery->first();
 
         if (!$order) {
-            return ['toast' => '❌ រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
+            return ['toast' => 'រកមិនឃើញ Order នេះឡើយ!', 'new_text' => null];
         }
 
         $order->payment_status = 'failed';
         $order->save();
 
         $cleanOrderId = htmlspecialchars($order->order_id ?: ('#' . $order->id));
-        $newText = "❌ <b>[REJECTED] បានបដិសេធការទូទាត់ Order!</b>\n"
+        $newText = "<b>[REJECTED] បានបដិសេធការទូទាត់ Order!</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
-            . "🧾 <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
-            . "💵 <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$order->total_amount, 2) . " USD</b>\n"
-            . "👮 <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
-            . "⏰ <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
-            . "⚠️ <i>ការទូទាត់ត្រូវបានច្រានចោល។</i>";
+            . "• <b>Order ID:</b> <b>#{$cleanOrderId}</b>\n"
+            . "• <b>ចំនួនទឹកប្រាក់:</b> <b>\$" . number_format((float)$order->total_amount, 2) . " USD</b>\n"
+            . "• <b>បដិសេធដោយ Admin:</b> <b>" . htmlspecialchars($adminName) . "</b>\n"
+            . "• <b>ពេលវេលា:</b> " . self::khmerTime() . "\n\n"
+            . "<i>ការទូទាត់ត្រូវបានច្រានចោល។</i>";
 
         return [
-            'toast' => "❌ បានបដិសេធការទូទាត់ Order #{$cleanOrderId}!",
+            'toast' => "បានបដិសេធការទូទាត់ Order #{$cleanOrderId}!",
             'new_text' => $newText,
         ];
     }
@@ -8158,13 +8236,13 @@ HTML;
                 $lines = [];
                 foreach ($activePromos as $ap) {
                     $valStr = $ap->type === 'percentage' ? "{$ap->value}%" : "\${$ap->value}";
-                    $lines[] = "   - <code>{$ap->code}</code> — បញ្ចុះ {$valStr} ({$ap->name})";
+                    $lines[] = "   - <code>{$ap->code}</code> — បញ្ចុះ {$valStr} - {$ap->name}";
                 }
                 return implode("\n", $lines);
             }
         } catch (\Throwable $e) {}
 
-        return "   - <i>បច្ចុប្បន្នពុំមានកូដប្រូម៉ូសិនសកម្មទេ (No active promo codes)</i>";
+        return "   - <i>បច្ចុប្បន្នពុំមានកូដប្រូម៉ូសិនសកម្មទេ - No active promo codes</i>";
     }
 }
 
