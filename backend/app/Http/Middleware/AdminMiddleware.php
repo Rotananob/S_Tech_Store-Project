@@ -71,7 +71,7 @@ class AdminMiddleware
                     return response()->json([
                         'success' => false,
                         'code' => 'STAFF_LOCKDOWN_ACTIVE',
-                        'message' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ (System Owner)!',
+                        'message' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ - System Owner!',
                         'reason' => $masterState['staff_lockdown_reason'] ?? 'Emergency Staff Lockdown by System Owner',
                     ], 423);
                 }
@@ -91,7 +91,7 @@ class AdminMiddleware
 
             // Security Alert: Non-privileged user attempting to access admin APIs
             \App\Services\TelegramService::sendSecurityAlert([
-                'type' => '🚨 Privilege Escalation Attempt Detected',
+                'type' => 'Privilege Escalation Attempt Detected',
                 'ip' => $request->ip() ?? 'Unknown IP',
                 'device' => $request->userAgent() ?? 'Unknown Device',
                 'user' => "{$user->name} ({$user->email}) [Role: {$user->role}]",
@@ -111,7 +111,7 @@ class AdminMiddleware
 
         if ($probes === 3 || $probes === 10) {
             \App\Services\TelegramService::sendSecurityAlert([
-                'type' => '🚨 Unauthorized Admin API Probing / Scanner',
+                'type' => 'Unauthorized Admin API Probing / Scanner',
                 'ip' => $request->ip() ?? 'Unknown IP',
                 'device' => $request->userAgent() ?? 'Scanner Bot',
                 'user' => 'Probe on /' . ltrim($request->path(), '/'),

@@ -100,7 +100,7 @@ class RepairController extends Controller
                 try {
                     UserNotification::create([
                         'firebase_uid' => $uid,
-                        'title' => "🔧 បង្កើតប័ណ្ណជួសជុល {$repair->ticket_code}",
+                        'title' => "បង្កើតប័ណ្ណជួសជុល {$repair->ticket_code}",
                         'message' => "ឧបករណ៍ {$repair->device_name} ត្រូវបានកត់ត្រាជួសជុល។ ស្ថានភាព: {$repair->status}",
                         'type' => 'repair',
                         'link' => '/warranty',
@@ -178,7 +178,7 @@ class RepairController extends Controller
                 try {
                     UserNotification::create([
                         'firebase_uid' => $uid,
-                        'title' => "🔧 បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
+                        'title' => "បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
                         'message' => "ឧបករណ៍ {$repair->device_name} របស់អ្នកស្ថិតក្នុងស្ថានភាព: {$repair->status}។",
                         'type' => 'repair',
                         'link' => '/warranty',
@@ -247,7 +247,7 @@ class RepairController extends Controller
                 try {
                     UserNotification::create([
                         'firebase_uid' => $uid,
-                        'title' => "🔧 បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
+                        'title' => "បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
                         'message' => "ឧបករណ៍ {$repair->device_name} របស់អ្នកស្ថិតក្នុងស្ថានភាព: {$repair->status}។ តម្លៃប៉ាន់ស្មាន: $" . number_format((float)$repair->estimated_cost, 2),
                         'type' => 'repair',
                         'link' => '/warranty',
@@ -259,13 +259,13 @@ class RepairController extends Controller
         }
 
         $delivered = [];
-        if ($sentEmail) $delivered[] = "Email ({$email})";
+        if ($sentEmail) $delivered[] = "Email [{$email}]";
         if ($sentTelegram) $delivered[] = "Telegram Direct Bot";
         if ($sentWeb) $delivered[] = "Account Website";
 
         $msg = !empty($delivered)
             ? "ការជូនដំណឹងត្រូវបានបញ្ជូនជោគជ័យទៅកាន់: " . implode(" + ", $delivered)
-            : "បានកត់ត្រាការជូនដំណឹង (គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង)";
+            : "បានកត់ត្រាការជូនដំណឹង - គ្មាន Channel ណាត្រូវបានជ្រើសរើស ឬរកឃើញព័ត៌មានទំនាក់ទំនង";
 
         return response()->json([
             'success' => $sentEmail || $sentTelegram || $sentWeb,
@@ -292,7 +292,7 @@ class RepairController extends Controller
     public static function sendTicketEmail(Repair $repair, string $toEmail): bool
     {
         try {
-            $subject = "🔧 [S Tech Store] របាយការណ៍សំបុត្រជួសជុល {$repair->ticket_code} — {$repair->device_name}";
+            $subject = "[S Tech Store] របាយការណ៍សំបុត្រជួសជុល {$repair->ticket_code} — {$repair->device_name}";
 
             $statusBadgeColor = match ($repair->status) {
                 'Ready' => '#16a34a',
@@ -333,7 +333,7 @@ class RepairController extends Controller
                 </div>
                 <div class='content'>
                   <p>ជំរាបសួរលោកអ្នក <b>{$repair->customer_name}</b>,</p>
-                  <p>យើងខ្ញុំសូមជម្រាបជូននូវព័ត៌មានលម្អិតនៃសំបុត្រជួសជុល (Repair & Service Ticket) របស់អ្នកដូចខាងក្រោម៖</p>
+                  <p>យើងខ្ញុំសូមជម្រាបជូននូវព័ត៌មានលម្អិតនៃសំបុត្រជួសជុល - Repair & Service Ticket - របស់អ្នកដូចខាងក្រោម៖</p>
                   
                   <div class='ticket-card'>
                     <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;'>
@@ -342,19 +342,19 @@ class RepairController extends Controller
                     </div>
 
                     <div class='info-row'>
-                      <span class='info-label'>ឧបករណ៍ (Device):</span>
+                      <span class='info-label'>ឧបករណ៍ - Device:</span>
                       <span class='info-val'>{$repair->device_name}</span>
                     </div>
                     <div class='info-row'>
-                      <span class='info-label'>អតិថិជន (Customer):</span>
-                      <span class='info-val'>{$repair->customer_name} (" . ($repair->customer_phone ?: 'N/A') . ")</span>
+                      <span class='info-label'>អតិថិជន - Customer:</span>
+                      <span class='info-val'>{$repair->customer_name} - " . ($repair->customer_phone ?: 'N/A') . "</span>
                     </div>
                     <div class='info-row'>
-                      <span class='info-label'>ជាងទទួលខុសត្រូវ (Technician):</span>
+                      <span class='info-label'>ជាងទទួលខុសត្រូវ - Technician:</span>
                       <span class='info-val'>{$repair->technician_name}</span>
                     </div>
                     <div class='info-row'>
-                      <span class='info-label'>តម្លៃប៉ាន់ស្មាន (Est. Cost):</span>
+                      <span class='info-label'>តម្លៃប៉ាន់ស្មាន - Est. Cost:</span>
                       <span class='info-val' style='color: #8B1A1A;'>$" . number_format((float)$repair->estimated_cost, 2) . "</span>
                     </div>
 
@@ -366,8 +366,8 @@ class RepairController extends Controller
                   </div>
 
                   <p style='font-size: 13px; line-height: 1.6; color: #475569;'>
-                    📍 <b>ទីតាំងហាង:</b> ផ្លូវ ២៧១ រាជធានីភ្នំពេញ<br>
-                    📞 <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 12 345 678 | Telegram Bot: @S_TECH_ASSISTANTBOT
+                    <b>ទីតាំងហាង:</b> ផ្លូវ ២៧១ រាជធានីភ្នំពេញ<br>
+                    <b>ទូរស័ព្ទទំនាក់ទំនង:</b> +855 12 345 678 | Telegram Bot: @S_TECH_ASSISTANTBOT
                   </p>
                 </div>
                 <div class='footer'>
@@ -385,7 +385,7 @@ class RepairController extends Controller
                 try {
                     UserNotification::create([
                         'firebase_uid' => $uid,
-                        'title' => "🔧 បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
+                        'title' => "បច្ចុប្បន្នភាពសំបុត្រជួសជុល {$repair->ticket_code}",
                         'message' => "ឧបករណ៍ {$repair->device_name} របស់អ្នកស្ថិតក្នុងស្ថានភាព: {$repair->status}។",
                         'type' => 'system',
                         'link' => '/warranty',
@@ -487,10 +487,10 @@ class RepairController extends Controller
 
         if ($repair) {
             $statusKh = match($repair->status) {
-                'Ready' => 'រួចរាល់អាចមកទទួលយកបាន (Ready for Pickup)',
-                'In Progress' => 'កំពុងជួសជុល (In Progress)',
-                'Completed' => 'បានប្រគល់ជូនរួចរាល់ (Completed)',
-                default => 'កំពុងពិនិត្យរោគសញ្ញា (Pending Assessment)',
+                'Ready' => 'រួចរាល់អាចមកទទួលយកបាន - Ready for Pickup',
+                'In Progress' => 'កំពុងជួសជុល - In Progress',
+                'Completed' => 'បានប្រគល់ជូនរួចរាល់ - Completed',
+                default => 'កំពុងពិនិត្យរោគសញ្ញា - Pending Assessment',
             };
 
             $stepIndex = match($repair->status) {
@@ -513,7 +513,7 @@ class RepairController extends Controller
                     'customer_email' => $repair->customer_email,
                     'device_name' => $repair->device_name,
                     'issue_description' => $repair->issue_description,
-                    'technician_name' => $repair->technician_name ?: 'ជាងជំនាញ (S Tech Lab)',
+                    'technician_name' => $repair->technician_name ?: 'ជាងជំនាញ - S Tech Lab',
                     'estimated_cost' => (float)($repair->estimated_cost ?? 0),
                     'status' => $repair->status,
                     'status_kh' => $statusKh,
@@ -555,7 +555,7 @@ class RepairController extends Controller
                         'purchased' => $created->format('M d, Y'),
                         'expires' => $expires->format('M d, Y'),
                         'status' => $isExpired ? 'expired' : 'active',
-                        'period' => '6 ខែ (6 Months Coverage)',
+                        'period' => '6 ខែ - 6 Months Coverage',
                         'items_count' => $order->items->count(),
                     ],
                 ]);

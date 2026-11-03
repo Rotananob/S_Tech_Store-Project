@@ -81,6 +81,10 @@ class TelegramService
      */
     public static function dispatchAsync(callable $callback): void
     {
+        if (app()->environment('testing')) {
+            return;
+        }
+
         if (app()->runningInConsole()) {
             try {
                 $callback();
@@ -104,6 +108,28 @@ class TelegramService
      */
     public static function getSettings(): array
     {
+        if (app()->environment('testing')) {
+            return [
+                'connected' => false,
+                'chat_id' => null,
+                'chat_title' => null,
+                'chat_type' => null,
+                'connected_at' => null,
+                'connected_by' => null,
+                'bot_username' => null,
+                'bot_token' => null,
+                'notify_orders' => false,
+                'notify_low_stock' => false,
+                'notify_repairs' => false,
+                'notify_shifts' => false,
+                'notify_auto_reports' => false,
+                'notify_promotions' => false,
+                'notify_errors' => false,
+                'topics' => [],
+                'pending_tokens' => [],
+            ];
+        }
+
         if (self::$cachedSettings !== null) {
             return self::$cachedSettings;
         }

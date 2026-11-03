@@ -297,8 +297,8 @@ Route::post('/admin/users/{id}/send-reset-token', function (Request $request, $i
         try {
             \App\Models\UserNotification::create([
                 'firebase_uid' => $user->firebase_uid,
-                'title' => '🔑 តំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញ',
-                'message' => 'Admin បានបង្កើតតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ជូនលោកអ្នក (មានសុពលភាព ២៤ ម៉ោង)។',
+                'title' => 'តំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ឡើងវិញ',
+                'message' => 'Admin បានបង្កើតតំណភ្ជាប់ចូលគណនី និងកំណត់ពាក្យសម្ងាត់ជូនលោកអ្នក - មានសុពលភាព ២៤ ម៉ោង។',
                 'type' => 'system',
                 'link' => "/magic-login?token={$token}",
                 'read' => false,
@@ -482,7 +482,7 @@ Route::post('/auth/telegram/verify', function (Request $request) {
 
     // 4. Send Customer Login Activity Notification (Topic: Users)
     \App\Services\TelegramService::sendCustomerLoginAlert([
-        'method' => '👤 Telegram OAuth Login (ចូលតាមគេហទំព័រ)',
+        'method' => 'Telegram OAuth Login - ចូលតាមគេហទំព័រ',
         'ip' => \App\Services\TelegramService::getRealClientIp(null, $request, (string)$tgId),
         'device' => $request->header('User-Agent') ?? 'Telegram Client',
         'user' => "{$user->display_name} (" . ($user->telegram ?: "ID: {$tgId}") . ")",
@@ -1752,13 +1752,13 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::put('/admin/staff/{id}/toggle-status', [AdminAuthController::class, 'toggleStaffStatus']);
     Route::delete('/admin/staff/{id}', [AdminAuthController::class, 'deleteStaff']);
 
-    // Branch Management (សាខាហាង)
+    // Branch Management - សាខាហាង
     Route::get('/admin/branches', [BranchController::class, 'index']);
     Route::post('/admin/branches', [BranchController::class, 'store']);
     Route::put('/admin/branches/{id}', [BranchController::class, 'update']);
     Route::delete('/admin/branches/{id}', [BranchController::class, 'destroy']);
 
-    // Shift & Schedule Management (វេនធ្វើការ)
+    // Shift & Schedule Management - វេនធ្វើការ
     Route::get('/admin/shifts', [ShiftController::class, 'index']);
     Route::post('/admin/shifts', [ShiftController::class, 'store']);
     Route::put('/admin/shifts/{id}', [ShiftController::class, 'update']);
@@ -1771,14 +1771,14 @@ Route::middleware(AdminMiddleware::class)->group(function () {
     Route::put('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'update']);
     Route::delete('/promo-codes/{id}', [\App\Http\Controllers\PromoCodeController::class, 'destroy']);
 
-    // Repairs & Maintenance Management (សេវាជួសជុល)
+    // Repairs & Maintenance Management - សេវាជួសជុល
     Route::get('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'index']);
     Route::post('/admin/repairs', [\App\Http\Controllers\RepairController::class, 'store']);
     Route::put('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'update']);
     Route::post('/admin/repairs/{id}/send-email', [\App\Http\Controllers\RepairController::class, 'sendEmail']);
     Route::delete('/admin/repairs/{id}', [\App\Http\Controllers\RepairController::class, 'destroy']);
 
-    // Customer Users Management (គ្រប់គ្រងអតិថិជន)
+    // Customer Users Management - គ្រប់គ្រងអតិថិជន
     Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index']);
     Route::post('/admin/users', [\App\Http\Controllers\UserController::class, 'store']);
     Route::put('/admin/users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
