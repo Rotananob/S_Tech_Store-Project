@@ -34,16 +34,16 @@ class MasterSystemController extends Controller
         $defaults = [
             'mode' => 'online',
             'maintenance_mode' => false,
-            'maintenance_title' => 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)',
+            'maintenance_title' => 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព - Under Technical Maintenance',
             'maintenance_reason' => 'កំពុង Upgrade Server និងប្រព័ន្ធទូទាត់ប្រាក់ជូនលោកអ្នក។',
             'vacation_mode' => false,
-            'vacation_title' => 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
+            'vacation_title' => 'ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed',
             'vacation_reason' => 'ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!',
             'vacation_end_time' => null,
             'vacation_days' => 3,
             'vacation_started_at' => null,
             'staff_lockdown' => false,
-            'staff_lockdown_reason' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ (System Owner)!',
+            'staff_lockdown_reason' => 'សកម្មភាពបុគ្គលិក និង Admin ទាំងអស់ត្រូវបានផ្អាកបណ្តោះអាសន្នដោយម្ចាស់ប្រព័ន្ធ - System Owner!',
             'financial_freeze' => false,
             'coin_multiplier' => 1.0,
             'force_app_version' => '1.1.0',
@@ -51,8 +51,8 @@ class MasterSystemController extends Controller
             'night_lock_forced' => false,
             'night_lock_start' => '02:00',
             'night_lock_end' => '06:00',
-            'night_lock_title' => 'សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)',
-            'night_lock_reason' => 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត (Automated Cyber Attacks & Vulnerability Probing)។',
+            'night_lock_title' => 'សុវត្ថិភាពពេលរាត្រី - Cybersecurity Night Lockdown',
+            'night_lock_reason' => 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត - Automated Cyber Attacks & Vulnerability Probing។',
             'last_cache_purge' => null,
             'last_backup_at' => null,
             'last_backup_file' => null,
@@ -146,8 +146,8 @@ class MasterSystemController extends Controller
             'start_time' => $startStr,
             'end_time' => $endStr,
             'reopen_at' => $reopenAt,
-            'title' => $state['night_lock_title'] ?? 'សុវត្ថិភាពពេលរាត្រី (Cybersecurity Night Lockdown)',
-            'reason' => $state['night_lock_reason'] ?? 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត (Automated Cyber Attacks & Vulnerability Probing)។',
+            'title' => $state['night_lock_title'] ?? 'សុវត្ថិភាពពេលរាត្រី - Cybersecurity Night Lockdown',
+            'reason' => $state['night_lock_reason'] ?? 'ប្រព័ន្ធត្រូវបានការពារ និងបិទប្រតិបត្តិការពេលយប់ដោយស្វ័យប្រវត្តិចាប់ពីម៉ោង 02:00 AM ដល់ 06:00 AM ដើម្បីការពារការវាយប្រហារតាមអ៊ីនធឺណិត - Automated Cyber Attacks & Vulnerability Probing។',
             'cambodia_time' => $cambodiaNow->format('Y-m-d H:i:s'),
         ];
     }
@@ -225,7 +225,7 @@ class MasterSystemController extends Controller
             'night_lock' => $resolved['nightLock'],
             'vacation' => [
                 'active' => $resolved['vacationActive'],
-                'title' => $state['vacation_title'] ?? 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)',
+                'title' => $state['vacation_title'] ?? 'ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed',
                 'reason' => $state['vacation_reason'] ?? 'ហាង S Tech Store សូមឈប់សម្រាកបណ្តោះអាសន្ន។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!',
                 'end_time' => $resolved['vacationEndTime'],
                 'days' => (int)($state['vacation_days'] ?? 3),
@@ -233,7 +233,7 @@ class MasterSystemController extends Controller
             ],
             'maintenance' => [
                 'active' => $resolved['maintenanceActive'],
-                'title' => $state['maintenance_title'] ?? 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)',
+                'title' => $state['maintenance_title'] ?? 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព - Under Technical Maintenance',
                 'reason' => $state['maintenance_reason'] ?? 'កំពុង Upgrade Server និងប្រព័ន្ធទូទាត់ប្រាក់ជូនលោកអ្នក។',
                 'end_time' => $state['maintenance_end_time'] ?? null,
             ],
@@ -254,8 +254,8 @@ class MasterSystemController extends Controller
     public function toggleMaintenance(Request $request)
     {
         $enabled = (bool)$request->input('enabled', false);
-        $title = trim((string)$request->input('title', 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព (Under Technical Maintenance)'));
-        $reason = trim((string)$request->input('reason', 'ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពតាមកាលវិភាគផ្លូវការ (Scheduled System Maintenance)'));
+        $title = trim((string)$request->input('title', 'ប្រព័ន្ធកំពុងជួសជុល និងធ្វើបច្ចុប្បន្នភាព - Under Technical Maintenance'));
+        $reason = trim((string)$request->input('reason', 'ប្រព័ន្ធកំពុងធ្វើបច្ចុប្បន្នភាពតាមកាលវិភាគផ្លូវការ - Scheduled System Maintenance'));
         $endTime = $request->input('end_time');
 
         $currentMaster = Cache::get('master_system_state') ?? [];
@@ -280,10 +280,10 @@ class MasterSystemController extends Controller
 
         // Push Alert to Telegram Sentinel
         try {
-            $statusKh = $enabled ? "🔴 បានបើកដំណើរការ MAINTENANCE MODE (ហាងត្រូវបានបិទសម្រាប់ជួសជុល)" : "🟢 បានបិទ MAINTENANCE MODE (ហាងបានបើកដំណើរការធម្មតាឡើងវិញ)";
+            $statusKh = $enabled ? "បានបើកដំណើរការ MAINTENANCE MODE - ហាងត្រូវបានបិទសម្រាប់ជួសជុល" : "បានបិទ MAINTENANCE MODE - ហាងបានបើកដំណើរការធម្មតាឡើងវិញ";
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => $enabled ? 'Store Lockdown Activated' : 'Store Opened to Public',
                 'details' => "មូលហេតុ: {$reason} | ពេលវេលា: " . now()->format('Y-m-d H:i:s'),
             ]);
@@ -308,7 +308,7 @@ class MasterSystemController extends Controller
         $days = max(1, (int)$request->input('days', 3));
         $hours = (int)$request->input('hours', 0);
         $customEndTime = $request->input('end_time');
-        $title = trim((string)$request->input('title', 'ហាងសូមសម្រាកបណ្តោះអាសន្ន (Store Temporarily Closed)'));
+        $title = trim((string)$request->input('title', 'ហាងសូមសម្រាកបណ្តោះអាសន្ន - Store Temporarily Closed'));
         $reason = trim((string)$request->input('reason', "ហាង S Tech Store សូមឈប់សម្រាករយៈពេល {$days} ថ្ងៃ។ យើងនឹងបើកបម្រើលោកអ្នកវិញក្នុងពេលឆាប់ៗ!"));
 
         $endTime = null;
@@ -348,11 +348,11 @@ class MasterSystemController extends Controller
 
         try {
             $statusKh = $enabled
-                ? "🏖️ បានបើក STORE VACATION MODE (បិទសម្រាក {$days} ថ្ងៃ — Countdown ដល់: {$endTime})"
-                : "🟢 បានបិទ VACATION MODE (ហាងបានបើកដំណើរការឡើងវិញជាធម្មតា)";
+                ? "បានបើក STORE VACATION MODE - បិទសម្រាក {$days} ថ្ងៃ — Countdown ដល់: {$endTime}"
+                : "បានបិទ VACATION MODE - ហាងបានបើកដំណើរការឡើងវិញជាធម្មតា";
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => $enabled ? "Store Closed for {$days} Days" : 'Store Re-Opened',
                 'details' => "មូលហេតុ: {$reason} | ពេលបើកវិញ: " . ($endTime ?: 'ភ្លាមៗ'),
             ]);
@@ -375,7 +375,7 @@ class MasterSystemController extends Controller
     public function toggleStaffLockdown(Request $request)
     {
         $enabled = (bool)$request->input('enabled', false);
-        $reason = trim((string)$request->input('reason', 'ការត្រួតពិនិត្យសុវត្ថិភាពសរុប និងបង្កកសកម្មភាពបុគ្គលិកដោយម្ចាស់ប្រព័ន្ធ (Emergency Staff Lockdown by System Owner)'));
+        $reason = trim((string)$request->input('reason', 'ការត្រួតពិនិត្យសុវត្ថិភាពសរុប និងបង្កកសកម្មភាពបុគ្គលិកដោយម្ចាស់ប្រព័ន្ធ - Emergency Staff Lockdown by System Owner'));
 
         $this->updateMasterState([
             'staff_lockdown' => $enabled,
@@ -392,13 +392,13 @@ class MasterSystemController extends Controller
 
         try {
             $statusKh = $enabled 
-                ? "🔒 បិទផ្អាកសកម្មភាព Admin & Staff ទាំងអស់ (STAFF ACTIVITY FROZEN)" 
-                : "🔓 ដោះសោសកម្មភាព Admin & Staff ធម្មតាវិញ (STAFF ACTIVITY RESTORED)";
+                ? "បិទផ្អាកសកម្មភាព Admin & Staff ទាំងអស់ - STAFF ACTIVITY FROZEN" 
+                : "ដោះសោសកម្មភាព Admin & Staff ធម្មតាវិញ - STAFF ACTIVITY RESTORED";
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => $enabled ? 'Staff Activity Global Lockdown Activated' : 'Staff Activity Restored',
-                'details' => "មូលហេតុ: {$reason} | សិទ្ធិប្រតិបត្តិការបុគ្គលិក: " . ($enabled ? "FROZEN (ម្ចាស់ប្រព័ន្ធគ្រប់គ្រងតែម្នាក់ឯង)" : "ACTIVE"),
+                'details' => "មូលហេតុ: {$reason} | សិទ្ធិប្រតិបត្តិការបុគ្គលិក: " . ($enabled ? "FROZEN - ម្ចាស់ប្រព័ន្ធគ្រប់គ្រងតែម្នាក់ឯង" : "ACTIVE"),
             ]);
         } catch (\Throwable $t) {}
 
@@ -427,8 +427,8 @@ class MasterSystemController extends Controller
 
         try {
             TelegramService::sendSecurityAlert([
-                'type' => '⚡ Global System Cache Purged',
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'type' => 'Global System Cache Purged',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Cache Storage Flush Executed',
                 'details' => "បានសម្អាត Application Cache, Session Cache និង Temporary Buffers ទាំងអស់ស្អាត 100%។",
             ]);
@@ -437,7 +437,7 @@ class MasterSystemController extends Controller
         return response()->json([
             'success' => true,
             'last_cache_purge' => $timestamp,
-            'message' => 'បានសម្អាត Cache ប្រព័ន្ធទាំងមូល (Global System Cache & SW Storage) ជោគជ័យ 100%!',
+            'message' => 'បានសម្អាត Cache ប្រព័ន្ធទាំងមូល - Global System Cache & SW Storage - ជោគជ័យ 100%!',
         ]);
     }
 
@@ -447,7 +447,7 @@ class MasterSystemController extends Controller
     public function toggleFinancialFreeze(Request $request)
     {
         $enabled = (bool)$request->input('enabled', false);
-        $reason = $request->input('reason', 'ការត្រួតពិនិត្យសុវត្ថិភាពសាច់ប្រាក់បន្ទាន់ (Emergency Security Audit)');
+        $reason = $request->input('reason', 'ការត្រួតពិនិត្យសុវត្ថិភាពសាច់ប្រាក់បន្ទាន់ - Emergency Security Audit');
 
         $this->updateMasterState([
             'financial_freeze' => $enabled,
@@ -456,10 +456,10 @@ class MasterSystemController extends Controller
         ]);
 
         try {
-            $statusKh = $enabled ? "🚨 បង្កកប្រតិបត្តិការហិរញ្ញវត្ថុទាំងអស់ (FINANCIAL FREEZE ARMED)" : "✅ ដោះលែងប្រតិបត្តិការហិរញ្ញវត្ថុធម្មតា (FINANCIAL UNFREEZE)";
+            $statusKh = $enabled ? "បង្កកប្រតិបត្តិការហិរញ្ញវត្ថុទាំងអស់ - FINANCIAL FREEZE ARMED" : "ដោះលែងប្រតិបត្តិការហិរញ្ញវត្ថុធម្មតា - FINANCIAL UNFREEZE";
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => $enabled ? 'Financial Operations Frozen' : 'Financial Operations Resumed',
                 'details' => "មូលហេតុ: {$reason} | Topup, Checkout & Withdrawals Status: " . ($enabled ? "FROZEN" : "ACTIVE"),
             ]);
@@ -469,7 +469,7 @@ class MasterSystemController extends Controller
             'success' => true,
             'financial_freeze' => $enabled,
             'message' => $enabled 
-                ? 'បានបង្កកប្រតិបត្តិការហិរញ្ញវត្ថុបន្ទាន់ (Checkout, Topup, Wallet) រួចរាល់!' 
+                ? 'បានបង្កកប្រតិបត្តិការហិរញ្ញវត្ថុបន្ទាន់ - Checkout, Topup, Wallet - រួចរាល់!' 
                 : 'បានដោះលែងប្រតិបត្តិការហិរញ្ញវត្ថុឲ្យដំណើរការធម្មតាវិញជោគជ័យ!',
         ]);
     }
@@ -515,8 +515,8 @@ class MasterSystemController extends Controller
 
         try {
             TelegramService::sendSecurityAlert([
-                'type' => '💾 Cloud Database Snapshot Created',
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'type' => 'Cloud Database Snapshot Created',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Database Backup Exported',
                 'details' => "ឯកសារ: {$filename} | Orders: {$ordersCount}, Customers: {$usersCount}, Products: {$productsCount}",
             ]);
@@ -561,8 +561,8 @@ class MasterSystemController extends Controller
 
         try {
             TelegramService::sendSecurityAlert([
-                'type' => "🚀 App Update Broadcast Triggered: v{$version}",
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'type' => "App Update Broadcast Triggered: v{$version}",
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Global PWA Update Broadcast',
                 'details' => "Version គោលដៅ: v{$version} | Force Reload: " . ($force ? "YES" : "NO"),
             ]);
@@ -571,7 +571,7 @@ class MasterSystemController extends Controller
         return response()->json([
             'success' => true,
             'version' => $version,
-            'message' => "បានបញ្ជូនសញ្ញា Force Update ទៅកាន់ App អតិថិជនទូទាំងប្រទេសជោគជ័យ (Target: v{$version})!",
+            'message' => "បានបញ្ជូនសញ្ញា Force Update ទៅកាន់ App អតិថិជនទូទាំងប្រទេសជោគជ័យ - Target: v{$version}!",
         ]);
     }
 
@@ -581,7 +581,7 @@ class MasterSystemController extends Controller
     public function sosBroadcast(Request $request)
     {
         $customMsg = trim((string)$request->input('message', ''));
-        $emergencyText = $customMsg ?: "🚨 [EMERGENCY SOS ALERT FROM SYSTEM OWNER]\nសូមបុគ្គលិកទាំងអស់ប្រុងប្រយ័ត្ន និងត្រួតពិនិត្យប្រព័ន្ធជាបន្ទាន់!";
+        $emergencyText = $customMsg ?: "[EMERGENCY SOS ALERT FROM SYSTEM OWNER]\nសូមបុគ្គលិកទាំងអស់ប្រុងប្រយ័ត្ន និងត្រួតពិនិត្យប្រព័ន្ធជាបន្ទាន់!";
 
         try {
             $topics = ['security', 'orders', 'chat', 'finance'];
@@ -608,8 +608,8 @@ class MasterSystemController extends Controller
 
         try {
             TelegramService::sendSecurityAlert([
-                'type' => '🔒 Emergency Staff Sessions Revoked',
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'type' => 'Emergency Staff Sessions Revoked',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Staff Account Tokens Terminated',
                 'details' => "បានកាត់ផ្តាច់ Session បុគ្គលិក និង Admin ធម្មតាចំនួន {$affected} គណនីភ្លាមៗ ដើម្បីសុវត្ថិភាព។",
             ]);
@@ -636,8 +636,8 @@ class MasterSystemController extends Controller
 
         try {
             TelegramService::sendSecurityAlert([
-                'type' => "💎 Coin Reward Multiplier Adjusted to {$multiplier}x",
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'type' => "Coin Reward Multiplier Adjusted to {$multiplier}x",
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Coin Points Multiplier Update',
                 'details' => "អតិថិជននឹងទទួលបាន Coin x{$multiplier} ដងក្នុងរាល់ការទស្សនា និងទិញទំនិញ!",
             ]);
@@ -688,16 +688,16 @@ class MasterSystemController extends Controller
 
         try {
             $statusKh = $nightLockInfo['active']
-                ? "🌙 Cybersecurity Night Lock សកម្ម (ACTIVE) — ម៉ោង {$nightLockInfo['start_time']} ដល់ {$nightLockInfo['end_time']}"
+                ? "Cybersecurity Night Lock សកម្ម - ACTIVE — ម៉ោង {$nightLockInfo['start_time']} ដល់ {$nightLockInfo['end_time']}"
                 : ($nightLockInfo['enabled'] 
-                    ? "🕒 Cybersecurity Night Lock រៀបចំរួចរាល់ (STANDBY: ដំណើរការស្វ័យប្រវត្តិនៅម៉ោង {$nightLockInfo['start_time']})" 
-                    : "⚪ Cybersecurity Night Lock ត្រូវបានបិទ (DISABLED)");
+                    ? "Cybersecurity Night Lock រៀបចំរួចរាល់ - STANDBY: ដំណើរការស្វ័យប្រវត្តិនៅម៉ោង {$nightLockInfo['start_time']}" 
+                    : "Cybersecurity Night Lock ត្រូវបានបិទ - DISABLED");
 
             TelegramService::sendSecurityAlert([
                 'type' => $statusKh,
-                'user' => '👑 ម្ចាស់ប្រព័ន្ធ (System Owner / Super Admin)',
+                'user' => 'ម្ចាស់ប្រព័ន្ធ - System Owner / Super Admin',
                 'action' => 'Cybersecurity Night Lock Configured',
-                'details' => "ស្ថានភាព: " . ($nightLockInfo['active'] ? 'LOCKED' : 'STANDBY/OFF') . " | ម៉ោងកំណត់: {$nightLockInfo['start_time']} - {$nightLockInfo['end_time']} (Asia/Phnom_Penh)",
+                'details' => "ស្ថានភាព: " . ($nightLockInfo['active'] ? 'LOCKED' : 'STANDBY/OFF') . " | ម៉ោងកំណត់: {$nightLockInfo['start_time']} - {$nightLockInfo['end_time']} [Asia/Phnom_Penh]",
             ]);
         } catch (\Throwable $t) {}
 
