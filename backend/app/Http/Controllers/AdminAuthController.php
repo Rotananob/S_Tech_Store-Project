@@ -27,43 +27,43 @@ class AdminAuthController extends Controller
 
         if ($role === 'super_admin') {
             if (strlen($password) < 12) {
-                return 'ពាក្យសម្ងាត់ Master (System Owner) ត្រូវមានយ៉ាងតិច ១២ តួអក្សរ • Super Admin password must be at least 12 characters.';
+                return 'ពាក្យសម្ងាត់ Master - System Owner ត្រូវមានយ៉ាងតិច ១២ តួអក្សរ • Super Admin password must be at least 12 characters.';
             }
             if (!preg_match('/[A-Z]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរធំយ៉ាងតិច ១ (A-Z) • Master password must contain at least 1 uppercase letter.';
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរធំយ៉ាងតិច ១ - A-Z - Master password must contain at least 1 uppercase letter.';
             }
             if (!preg_match('/[a-z]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរតូចយ៉ាងតិច ១ (a-z) • Master password must contain at least 1 lowercase letter.';
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានអក្សរតូចយ៉ាងតិច ១ - a-z - Master password must contain at least 1 lowercase letter.';
             }
             if (!preg_match('/[0-9]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Master ត្រូវមានលេខយ៉ាងតិច ១ (0-9) • Master password must contain at least 1 number.';
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានលេខយ៉ាងតិច ១ - 0-9 - Master password must contain at least 1 number.';
             }
             if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?\/\\|~`]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Master ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&) • Master password must contain at least 1 special character.';
+                return 'ពាក្យសម្ងាត់ Master ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ - @$!%*#?& - Master password must contain at least 1 special character.';
             }
         } elseif ($role === 'admin') {
             if (strlen($password) < 8) {
                 return 'ពាក្យសម្ងាត់ Admin ត្រូវមានយ៉ាងតិច ៨ តួអក្សរ • Admin password must be at least 8 characters.';
             }
             if (!preg_match('/[a-zA-Z]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានអក្សរយ៉ាងតិច ១ (A-Z or a-z) • Admin password must contain letters.';
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានអក្សរយ៉ាងតិច ១ - A-Z or a-z - Admin password must contain letters.';
             }
             if (!preg_match('/[0-9]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានលេខយ៉ាងតិច ១ (0-9) • Admin password must contain at least 1 number.';
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានលេខយ៉ាងតិច ១ - 0-9 - Admin password must contain at least 1 number.';
             }
             if (!preg_match('/[!@#$%^&*()_+\-=\[\]{};:\'",.<>?\/\\|~`]/', $password)) {
-                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ (@$!%*#?&) • Admin password must contain at least 1 special character.';
+                return 'ពាក្យសម្ងាត់ Admin ត្រូវមានសញ្ញាពិសេសយ៉ាងតិច ១ - @$!%*#?& - Admin password must contain at least 1 special character.';
             }
         } else {
             // staff, manager, etc.
             if (strlen($password) < 6) {
-                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ • Staff password must be at least 6 characters.';
+                return 'ពាក្យសម្ងាត់បុគ្គលិក - Staff ត្រូវមានយ៉ាងតិច ៦ តួអក្សរ • Staff password must be at least 6 characters.';
             }
             if (!preg_match('/[a-zA-Z]/', $password)) {
-                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានអក្សរ • Staff password must contain letters.';
+                return 'ពាក្យសម្ងាត់បុគ្គលិក - Staff ត្រូវមានអក្សរ • Staff password must contain letters.';
             }
             if (!preg_match('/[0-9]/', $password)) {
-                return 'ពាក្យសម្ងាត់បុគ្គលិក (Staff) ត្រូវមានលេខ • Staff password must contain numbers.';
+                return 'ពាក្យសម្ងាត់បុគ្គលិក - Staff ត្រូវមានលេខ • Staff password must contain numbers.';
             }
         }
 
@@ -94,14 +94,16 @@ class AdminAuthController extends Controller
 
         if ($detectedPayload) {
             RateLimiter::hit($throttleKey, 300); // 5-minute penalty
-            TelegramService::sendSecurityAlert([
-                'type' => '🚨 SQL Injection / XSS Exploit Attempt',
-                'ip' => $ip,
-                'device' => $userAgent,
-                'user' => 'Red Team / Attacker (' . htmlspecialchars(substr($rawEmail, 0, 50)) . ')',
-                'action' => 'BLOCKED (Immediate Penalty & Logged)',
-                'details' => 'Detected suspicious SQLi/XSS injection signature in admin login parameters.',
-            ]);
+            TelegramService::dispatchAsync(function () use ($ip, $userAgent, $rawEmail) {
+                TelegramService::sendSecurityAlert([
+                    'type' => 'SQL Injection / XSS Exploit Attempt',
+                    'ip' => $ip,
+                    'device' => $userAgent,
+                    'user' => 'Red Team / Attacker - ' . htmlspecialchars(substr($rawEmail, 0, 50)),
+                    'action' => 'BLOCKED - Immediate Penalty & Logged',
+                    'details' => 'Detected suspicious SQLi/XSS injection signature in admin login parameters.',
+                ]);
+            });
             return response()->json([
                 'message' => 'Malicious payload signature detected. Incident reported to security team.',
             ], 403);
@@ -110,14 +112,16 @@ class AdminAuthController extends Controller
         // 2. Rate Limiting & Brute-Force Alert
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
-            TelegramService::sendSecurityAlert([
-                'type' => '💥 Admin Login Brute-Force Attack',
-                'ip' => $ip,
-                'device' => $userAgent,
-                'user' => 'Target Email: ' . htmlspecialchars(substr($rawEmail, 0, 50)),
-                'action' => "RATE LIMITED (Blocked for {$seconds}s)",
-                'details' => "Repeated failed login attempts exceeded limit (5 attempts/min). IP temporarily banned.",
-            ]);
+            TelegramService::dispatchAsync(function () use ($ip, $userAgent, $rawEmail, $seconds) {
+                TelegramService::sendSecurityAlert([
+                    'type' => 'Admin Login Brute-Force Attack',
+                    'ip' => $ip,
+                    'device' => $userAgent,
+                    'user' => 'Target Email: ' . htmlspecialchars(substr($rawEmail, 0, 50)),
+                    'action' => "RATE LIMITED - Blocked for {$seconds}s",
+                    'details' => "Repeated failed login attempts exceeded limit - 5 attempts/min. IP temporarily banned.",
+                ]);
+            });
             return response()->json([
                 'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
             ], 429);
@@ -135,14 +139,16 @@ class AdminAuthController extends Controller
 
             // Alert on repeated failures (>= 3 attempts)
             if ($attempts >= 3) {
-                TelegramService::sendSecurityAlert([
-                    'type' => '⚠️ Suspicious Failed Admin Logins (' . $attempts . 'x)',
-                    'ip' => $ip,
-                    'device' => $userAgent,
-                    'user' => 'Attempted Email: ' . htmlspecialchars($validated['email']),
-                    'action' => 'Credentials Rejected (401)',
-                    'details' => "Multiple consecutive password failures from this IP address ({$attempts} attempts).",
-                ]);
+                TelegramService::dispatchAsync(function () use ($ip, $userAgent, $validated, $attempts) {
+                    TelegramService::sendSecurityAlert([
+                        'type' => 'Suspicious Failed Admin Logins - ' . $attempts . 'x',
+                        'ip' => $ip,
+                        'device' => $userAgent,
+                        'user' => 'Attempted Email: ' . htmlspecialchars($validated['email']),
+                        'action' => 'Credentials Rejected - 401',
+                        'details' => "Multiple consecutive password failures from this IP address - {$attempts} attempts.",
+                    ]);
+                });
             }
 
             return response()->json([
@@ -151,14 +157,16 @@ class AdminAuthController extends Controller
         }
 
         if ($user->status !== 'active') {
-            TelegramService::sendSecurityAlert([
-                'type' => '🚫 Inactive Admin Account Access Attempt',
-                'ip' => $ip,
-                'device' => $userAgent,
-                'user' => $user->name . ' (' . $user->email . ')',
-                'action' => 'Account Deactivated (403)',
-                'details' => 'User attempted login to a deactivated staff/admin account.',
-            ]);
+            TelegramService::dispatchAsync(function () use ($ip, $userAgent, $user) {
+                TelegramService::sendSecurityAlert([
+                    'type' => 'Inactive Admin Account Access Attempt',
+                    'ip' => $ip,
+                    'device' => $userAgent,
+                    'user' => $user->name . ' - ' . $user->email,
+                    'action' => 'Account Deactivated - 403',
+                    'details' => 'User attempted login to a deactivated staff/admin account.',
+                ]);
+            });
             return response()->json([
                 'message' => 'This account has been deactivated. Please contact the administrator.',
             ], 403);
@@ -166,15 +174,17 @@ class AdminAuthController extends Controller
 
         RateLimiter::clear($throttleKey);
 
-        // Audit Trail: Notify Telegram of successful Admin Login
-        TelegramService::sendSecurityAlert([
-            'type' => '✅ Admin / Staff Authenticated',
-            'ip' => $ip,
-            'device' => $userAgent,
-            'user' => "{$user->name} ({$user->role})",
-            'action' => 'AUTHORIZED (Session Granted)',
-            'details' => "Admin successfully logged into the management portal at " . date('d-m-Y H:i:s'),
-        ]);
+        // Audit Trail: Notify Telegram of successful Admin Login in background (non-blocking)
+        TelegramService::dispatchAsync(function () use ($ip, $userAgent, $user) {
+            TelegramService::sendSecurityAlert([
+                'type' => 'Admin / Staff Authenticated',
+                'ip' => $ip,
+                'device' => $userAgent,
+                'user' => "{$user->name} - {$user->role}",
+                'action' => 'AUTHORIZED - Session Granted',
+                'details' => "Admin successfully logged into the management portal at " . date('d-m-Y H:i:s'),
+            ]);
+        });
 
         // Ensure admin account is named 'Admin' / 'S Tech Admin' (Super Admin is reserved exclusively for System Owner)
         if ($user->role !== 'super_admin' && (stripos($user->name, 'super admin') !== false || stripos($user->name, 'super_admin') !== false)) {
@@ -417,7 +427,7 @@ class AdminAuthController extends Controller
             Cache::forget("admin_token_{$user->api_token}");
         }
 
-        $statusKh = ($newStatus === 'active') ? 'បើកដំណើរការឡើងវិញ' : 'ផ្អាកដំណើរការ (Suspended)';
+        $statusKh = ($newStatus === 'active') ? 'បើកដំណើរការឡើងវិញ' : 'ផ្អាកដំណើរការ - Suspended';
 
         return response()->json([
             'success' => true,
@@ -457,7 +467,7 @@ class AdminAuthController extends Controller
         if (in_array($validated['role'], ['staff', 'manager']) && $currentStaffCount >= $staffLimit) {
             return response()->json([
                 'success' => false,
-                'message' => "⚠️ មិនអាចបង្កើតគណនីបុគ្គលិកថ្មីបានឡើយ! ចំនួនបុគ្គលិកបច្ចុប្បន្នបានដល់កម្រិតកំណត់អតិបរមាហើយ ({$currentStaffCount}/{$staffLimit} នាក់)។ សូមលុប ឬផ្អាកដំណើរការ (Suspend) គណនីបុគ្គលិកចាស់ជាមុនសិន ឬទាក់ទង Admin ដើម្បីបង្កើនកម្រិតកំណត់ (Staff Limit Reached)។",
+                'message' => "មិនអាចបង្កើតគណនីបុគ្គលិកថ្មីបានឡើយ: ចំនួនបុគ្គលិកបច្ចុប្បន្នបានដល់កម្រិតកំណត់អតិបរមាហើយ - {$currentStaffCount}/{$staffLimit} នាក់។ សូមលុប ឬផ្អាកដំណើរការ - Suspend - គណនីបុគ្គលិកចាស់ជាមុនសិន ឬទាក់ទង Admin ដើម្បីបង្កើនកម្រិតកំណត់ - Staff Limit Reached។",
                 'limit' => $staffLimit,
                 'current' => $currentStaffCount,
             ], 422);
@@ -480,8 +490,8 @@ class AdminAuthController extends Controller
             'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password'], ['rounds' => 12]),
             'role' => $validated['role'],
-            'branch' => $validated['branch'] ?? 'Phnom Penh Main Branch (សាខាកណ្តាល)',
-            'shift' => $validated['shift'] ?? 'Morning Shift (វេនព្រឹក)',
+            'branch' => $validated['branch'] ?? 'Phnom Penh Main Branch - សាខាកណ្តាល',
+            'shift' => $validated['shift'] ?? 'Morning Shift - វេនព្រឹក',
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
             'permissions' => $defaultPermissions,
@@ -585,7 +595,7 @@ class AdminAuthController extends Controller
 
         // Strictly protect super_admin / owner from deletion
         if ($user->role === 'super_admin' || $user->email === 'nobrothana180703@gmail.com') {
-            return response()->json(['message' => 'Forbidden: Super-Admin (គណនីម្ចាស់ប្រព័ន្ធ) cannot be deleted.'], 403);
+            return response()->json(['message' => 'Forbidden: Super-Admin - គណនីម្ចាស់ប្រព័ន្ធ - cannot be deleted.'], 403);
         }
 
         $user->delete();
