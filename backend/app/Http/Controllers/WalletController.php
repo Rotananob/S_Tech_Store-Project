@@ -63,14 +63,7 @@ class WalletController extends Controller
             if ($userByMagic) return $userByMagic;
         }
 
-        // 2. Second Priority: Explicit Firebase UID (or native tg_)
-        $uid = $this->getUid($request);
-        if ($uid) {
-            $user = UserProfile::where('firebase_uid', $uid)->first();
-            if ($user) return $user;
-        }
-
-        // 3. Third Priority: Telegram Mini App via X-Telegram-Chat-ID (ONLY if actively connected and NOT disconnected)
+        // 2. Second Priority: Telegram Context (X-Telegram-Chat-ID or query chat_id)
         $tgChatId = $request->header('X-Telegram-Chat-ID') 
             ?: $request->input('telegram_chat_id') 
             ?: $request->input('chat_id');
@@ -81,6 +74,20 @@ class WalletController extends Controller
                 $user = \App\Services\TelegramService::resolveActiveUser($cleanChatId);
                 if ($user) return $user;
             }
+        }
+
+        // 3. Third Priority: Explicit Firebase UID (URL decode safe)
+        $uid = $this->getUid($request);
+        if ($uid) {
+            if (str_starts_with($uid, 'tg_')) {
+                $cleanTgId = preg_replace('/\D/', '', substr($uid, 3));
+                if (!empty($cleanTgId) && !\Illuminate\Support\Facades\Cache::has("tg_disconnected_{$cleanTgId}")) {
+                    $active = \App\Services\TelegramService::resolveActiveUser($cleanTgId);
+                    if ($active) return $active;
+                }
+            }
+            $user = UserProfile::where('firebase_uid', $uid)->first();
+            if ($user) return $user;
         }
 
         // 4. Check if existing user exists by email before creating a duplicate
@@ -98,13 +105,17 @@ class WalletController extends Controller
 
         // 5. Auto-create only if genuinely a new user with valid UID
         if ($uid) {
+            $cleanTgId = str_starts_with($uid, 'tg_') ? substr($uid, 3) : null;
             return UserProfile::create([
                 'firebase_uid' => $uid,
-                'display_name' => $request->header('X-Firebase-Name', 'អតិថិជន S-Tech'),
-                'email' => $request->header('X-Firebase-Email', ''),
+                'display_name' => $request->header('X-Firebase-Name', $cleanTgId ? "Telegram User #{$cleanTgId}" : 'អតិថិជន S-Tech'),
+                'email' => $request->header('X-Firebase-Email', $cleanTgId ? "tg_{$cleanTgId}@s-tech-store.tech" : ''),
                 'photo_url' => $request->header('X-Firebase-Photo', ''),
+                'telegram_chat_id' => $cleanTgId,
+                'notif_telegram' => !empty($cleanTgId),
+                'auth_provider' => $cleanTgId ? 'telegram' : 'google',
                 'wallet_balance' => 0.00,
-                'points' => 0,
+                'points' => $cleanTgId ? 5 : 0,
                 'lifetime_free_coins' => 0,
                 'daily_streak' => 0,
             ]);

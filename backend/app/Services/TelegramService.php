@@ -971,7 +971,7 @@ class TelegramService
             if (!empty($origTgId) && $origTgId !== $cleanTgId) {
                 $mismatchPayload = [
                     'status' => 'conflict',
-                    'error' => "គណនីនេះជាគណនីបង្កើតឡើងដោយ Telegram ID (#{$origTgId}) មិនអាចយក Telegram ផ្សេង (#{$cleanTgId}) មកភ្ជាប់បានឡើយ។ លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើមរបស់គណនីនេះប៉ុណ្ណោះ។",
+                    'error' => "គណនីនេះជាគណនីបង្កើតឡើងដោយ Telegram ID - លេខកូដ {$origTgId} - មិនអាចយក Telegram ផ្សេង - លេខកូដ {$cleanTgId} - មកភ្ជាប់បានឡើយ។ លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើមរបស់គណនីនេះប៉ុណ្ណោះ។",
                 ];
                 Cache::put($linkKey, $mismatchPayload, 600);
                 try {
@@ -981,17 +981,17 @@ class TelegramService
                     );
                 } catch (\Throwable $t) {}
 
-                $mismatchMsg = "⚠️ <b>មិនអាចភ្ជាប់ Telegram ផ្សេងបានឡើយ!</b>\n"
+                $mismatchMsg = "<b>មិនអាចភ្ជាប់ Telegram ផ្សេងបានឡើយ</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាពអត្តសញ្ញាណគណនី៖</b>\n"
+                    . "<b>ប្រព័ន្ធការពារសុវត្ថិភាពអត្តសញ្ញាណគណនី៖</b>\n"
                     . "គណនី S Tech នេះត្រូវបានចុះឈ្មោះបង្កើតឡើងដោយ Telegram ID ដើម <code>#{$origTgId}</code>។\n\n"
-                    . "លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើម (<code>#{$origTgId}</code>) ប៉ុណ្ណោះ មិនអាចយកគណនី Telegram ផ្សេង (<code>#{$cleanTgId}</code>) មកភ្ជាប់ជំនួសបានឡើយ ដើម្បីការពារកុំឱ្យទិន្នន័យច្រឡំគ្នា។\n\n"
-                    . "👉 <i>សូមប្រើប្រាស់ Telegram ដើមរបស់គណនីនេះដើម្បីភ្ជាប់ឡើងវិញ ឬភ្ជាប់ Telegram នេះជាមួយគណនី Gmail វិញ។</i>";
+                    . "លោកអ្នកអាចភ្ជាប់ឡើងវិញបានតែជាមួយ Telegram ដើម - <code>#{$origTgId}</code> - ប៉ុណ្ណោះ មិនអាចយកគណនី Telegram ផ្សេង - <code>#{$cleanTgId}</code> - មកភ្ជាប់ជំនួសបានឡើយ ដើម្បីការពារកុំឱ្យទិន្នន័យច្រឡំគ្នា។\n\n"
+                    . "<i>សូមប្រើប្រាស់ Telegram ដើមរបស់គណនីនេះដើម្បីភ្ជាប់ឡើងវិញ ឬភ្ជាប់ Telegram នេះជាមួយគណនី Gmail វិញ។</i>";
 
                 $mismatchKb = [
                     'inline_keyboard' => [
-                        [['text' => '🌐 ត្រឡប់ទៅ Profile Setting', 'url' => 'https://www.s-tech-store.tech/account/profile']],
-                        [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                        [['text' => 'ត្រឡប់ទៅ Profile Setting', 'url' => 'https://www.s-tech-store.tech/account/profile']],
+                        [['text' => 'មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
                     ]
                 ];
                 return ['ok' => false, 'text' => $mismatchMsg, 'reply_markup' => $mismatchKb];
@@ -1005,42 +1005,52 @@ class TelegramService
             ->first();
 
         if ($alreadyLinked) {
-            $maskedEmail = !empty($alreadyLinked->email)
-                ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
-                : 'គណនី Telegram';
+            $isNativeTelegram = str_starts_with((string)$alreadyLinked->firebase_uid, 'tg_')
+                || empty($alreadyLinked->email)
+                || str_contains((string)$alreadyLinked->email, '@telegram.s-tech-store.tech');
 
-            $conflictPayload = [
-                'status' => 'conflict',
-                'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}'! (1 Telegram = 1 Account)។ សូមចូលទៅកាន់គណនីចាស់រួចចុច ផ្តាច់ការភ្ជាប់ (Disconnect Telegram) ជាមុនសិន។",
-                'already_linked_name' => $alreadyLinked->display_name,
-                'already_linked_email' => $maskedEmail,
-            ];
+            if ($isNativeTelegram) {
+                // Seamless Auto-Merge: Native Telegram placeholder account merges directly into the authenticated web account!
+                self::mergeAccounts($user, $alreadyLinked);
+            } else {
+                // Strictly block only if this Telegram is linked to another REAL customer with separate credentials
+                $maskedEmail = !empty($alreadyLinked->email)
+                    ? (substr($alreadyLinked->email, 0, 3) . '***@' . (explode('@', $alreadyLinked->email)[1] ?? 'domain'))
+                    : 'គណនីមួយផ្សេងទៀត';
 
-            Cache::put($linkKey, $conflictPayload, 600);
-            try {
-                \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
-                    ['key' => $linkKey],
-                    ['value' => json_encode($conflictPayload), 'updated_at' => now()]
-                );
-            } catch (\Throwable $t) {}
+                $conflictPayload = [
+                    'status' => 'conflict',
+                    'error' => "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនី '{$alreadyLinked->display_name}' - ច្បាប់ ១ Telegram សម្រាប់តែ ១ គណនី។ សូមចូលទៅកាន់គណនីចាស់រួចចុច ផ្តាច់ការភ្ជាប់ ជាមុនសិន។",
+                    'already_linked_name' => $alreadyLinked->display_name,
+                    'already_linked_email' => $maskedEmail,
+                ];
 
-            $conflictMsg = "⚠️ <b>ការភ្ជាប់មិនជោគជ័យ (គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ)!</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n\n"
-                . "🔒 <b>ប្រព័ន្ធការពារសុវត្ថិភាព 1 Telegram = 1 S Tech Account៖</b>\n"
-                . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
-                . "• 👤 <b>ឈ្មោះគណនីដែលកំពុងភ្ជាប់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n\n"
-                . "💡 <b>ច្បាប់តឹងរ៉ឹង៖</b>\n"
-                . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី S Tech ១ ប៉ុណ្ណោះ មិនអាចយក ២ គណនីមកភ្ជាប់ Telegram តែ ១ ឡើយ។\n"
-                . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនី (<b>" . htmlspecialchars($user->display_name) . "</b>) សូមចូលទៅកាន់គណនីចាស់លើគេហទំព័រ រួចចុច <b>\"ផ្តាច់ការភ្ជាប់ (Disconnect Telegram)\"</b> ជាមុនសិន!\n\n"
-                . "👉 <i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីនេះបាន។</i>";
+                Cache::put($linkKey, $conflictPayload, 600);
+                try {
+                    \Illuminate\Support\Facades\DB::table('system_settings')->updateOrInsert(
+                        ['key' => $linkKey],
+                        ['value' => json_encode($conflictPayload), 'updated_at' => now()]
+                    );
+                } catch (\Throwable $t) {}
 
-            $conflictKb = [
-                'inline_keyboard' => [
-                    [['text' => '🌐 ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
-                    [['text' => '🔙 មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
-                ]
-            ];
-            return ['ok' => false, 'text' => $conflictMsg, 'reply_markup' => $conflictKb];
+                $conflictMsg = "<b>ការភ្ជាប់មិនជោគជ័យ - គណនី Telegram ត្រូវបានភ្ជាប់រួចហើយ</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    . "<b>ប្រព័ន្ធការពារសុវត្ថិភាព 1 Telegram សម្រាប់តែ 1 S Tech Account៖</b>\n"
+                    . "គណនី Telegram នេះត្រូវបានភ្ជាប់រួចហើយជាមួយគណនីមួយផ្សេងទៀតក្នុងប្រព័ន្ធ S Tech Store៖\n"
+                    . "• <b>ឈ្មោះគណនីដែលកំពុងភ្ជាប់:</b> <b>" . htmlspecialchars($alreadyLinked->display_name) . "</b>\n\n"
+                    . "<b>ច្បាប់សុវត្ថិភាព៖</b>\n"
+                    . "គណនី Telegram ១ អាចភ្ជាប់បានតែគណនី S Tech ១ ប៉ុណ្ណោះ មិនអាចយក ២ គណនីមកភ្ជាប់ Telegram តែ ១ ឡើយ។\n"
+                    . "ប្រសិនបើលោកអ្នកចង់ភ្ជាប់ជាមួយគណនី <b>" . htmlspecialchars($user->display_name) . "</b> សូមចូលទៅកាន់គណនីចាស់លើគេហទំព័រ រួចចុច <b>ផ្តាច់ការភ្ជាប់</b> ជាមុនសិន។\n\n"
+                    . "<i>បន្ទាប់ពីផ្តាច់រួច ទើបលោកអ្នកអាចយកមកភ្ជាប់ជាមួយគណនីនេះបាន។</i>";
+
+                $conflictKb = [
+                    'inline_keyboard' => [
+                        [['text' => 'ចូលទៅកាន់គេហទំព័រ S Tech Store', 'url' => 'https://www.s-tech-store.tech']],
+                        [['text' => 'មឺនុយមេ', 'callback_data' => 'cust_main_menu']],
+                    ]
+                ];
+                return ['ok' => false, 'text' => $conflictMsg, 'reply_markup' => $conflictKb];
+            }
         }
 
         // 1. CLEAR DISCONNECTED FLAG & ENSURE CLEAN 1-TO-1 MAPPING
@@ -1087,47 +1097,47 @@ class TelegramService
         $sessionToken = self::generateCustomerSessionToken((string)$tgId, $fullName);
         $miniAppUrl = "https://www.s-tech-store.tech/?tg_token={$sessionToken}";
         $profileUrl = "https://www.s-tech-store.tech/account/profile?tg_token={$sessionToken}";
-        $phoneNumber = !empty($user->phone) ? $user->phone : 'មិនទាន់បញ្ជាក់ (Auto-Syncing)';
+        $phoneNumber = !empty($user->phone) ? $user->phone : 'មិនទាន់បញ្ជាក់ - Auto-Syncing';
         $userPoints = (int)($user->points ?? 0);
         $walletBal = number_format((float)($user->wallet_balance ?? 0), 2);
         $pointsUsd = number_format($userPoints * 0.01, 2);
 
-        $linkedMsg = "✨ <b>S TECH STORE • VIP MEMBER CARD</b> ✨\n"
+        $linkedMsg = "<b>S TECH STORE - VIP MEMBER CARD</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            . "🎉 <b>ការភ្ជាប់គណនី Telegram ជោគជ័យ ១០០%!</b>\n"
-            . "👋 សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគណនី <b>" . htmlspecialchars($user->display_name) . "</b> ដោយជោគជ័យ និងមានសុវត្ថិភាពខ្ពស់បំផុត។\n\n"
-            . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100% ⚡ Instant Sync</b>\n\n"
-            . "📋 <b>ព័ត៌មានអត្តសញ្ញាណឌីជីថល (VIP Profile):</b>\n"
-            . "• 👤 <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
-            . "• 📧 <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($user->email ?: 'មិនមានអ៊ីមែល') . "</code>\n"
-            . "• 🏷️ <b>Telegram:</b> " . htmlspecialchars($tgUsername ?: $fullName) . "\n"
-            . "• 🆔 <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
-            . "• 📱 <b>លេខទូរស័ព្ទ:</b> " . htmlspecialchars($phoneNumber) . "\n"
-            . "• 🪙 <b>ពិន្ទុ S-Coins:</b> <b>{$userPoints} Coins</b> (~$" . $pointsUsd . ")\n"
-            . "• 💰 <b>សមតុល្យ Wallet:</b> <b>\${$walletBal}</b>\n"
-            . "• 🔐 <b>សុវត្ថិភាព:</b> <b>✅ 2-Factor Authentication Protected</b>\n\n"
-            . "🎁 <b>ឯកសិទ្ធិពិសេសដែលលោកអ្នកទទួលបាន (VIP Perks):</b>\n"
-            . "  🧾 <b>វិក្កយបត្រឌីជីថល:</b> ផ្ញើចូលឆាតនេះភ្លាមៗរាល់ពេលទូទាត់ប្រាក់\n"
-            . "  🚚 <b>Live Delivery Tracker:</b> ដឹងដំណឹងទំនិញចេញដឹក (PassApp / Courier) ផ្ទាល់ខ្លួន\n"
-            . "  🪙 <b>S-Coins Cashback:</b> សន្សំពិន្ទុកាក់រង្វាន់គ្រប់ការបញ្ជាទិញ\n"
-            . "  ⚡ <b>1-Click Auto-Login:</b> បើកទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយ Password ឡើយ!\n\n"
-            . "👉 <i>សូមជ្រើសរើសមុខងារអន្តរកម្មខាងក្រោមដើម្បីចាប់ផ្តើម៖</i>";
+            . "<b>ការភ្ជាប់គណនី Telegram ជោគជ័យ ១០០%</b>\n"
+            . "សួស្តី <b>" . htmlspecialchars($fullName) . "</b>! គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគណនី <b>" . htmlspecialchars($user->display_name) . "</b> ដោយជោគជ័យ និងមានសុវត្ថិភាពខ្ពស់បំផុត។\n\n"
+            . "[ ▰▰▰▰▰▰▰▰▰▰ ] <b>100% - Instant Sync</b>\n\n"
+            . "<b>ព័ត៌មានអត្តសញ្ញាណឌីជីថល - VIP Profile:</b>\n"
+            . "• <b>ឈ្មោះគណនី:</b> <b>" . htmlspecialchars($user->display_name) . "</b>\n"
+            . "• <b>អ៊ីមែល:</b> <code>" . htmlspecialchars($user->email ?: 'មិនមានអ៊ីមែល') . "</code>\n"
+            . "• <b>Telegram:</b> " . htmlspecialchars($tgUsername ?: $fullName) . "\n"
+            . "• <b>Telegram ID:</b> <code>" . htmlspecialchars($tgId) . "</code>\n"
+            . "• <b>លេខទូរស័ព្ទ:</b> " . htmlspecialchars($phoneNumber) . "\n"
+            . "• <b>ពិន្ទុ S-Coins:</b> <b>{$userPoints} Coins</b> - ស្មើ $" . $pointsUsd . " USD\n"
+            . "• <b>សមតុល្យ Wallet:</b> <b>\${$walletBal}</b>\n"
+            . "• <b>សុវត្ថិភាព:</b> <b>2-Factor Authentication Protected</b>\n\n"
+            . "<b>ឯកសិទ្ធិពិសេសដែលលោកអ្នកទទួលបាន - VIP Perks:</b>\n"
+            . "  - <b>វិក្កយបត្រឌីជីថល:</b> ផ្ញើចូលឆាតនេះភ្លាមៗរាល់ពេលទូទាត់ប្រាក់\n"
+            . "  - <b>Live Delivery Tracker:</b> ដឹងដំណឹងទំនិញចេញដឹក - PassApp ឬ Courier - ផ្ទាល់ខ្លួន\n"
+            . "  - <b>S-Coins Cashback:</b> សន្សំពិន្ទុកាក់រង្វាន់គ្រប់ការបញ្ជាទិញ\n"
+            . "  - <b>1-Click Auto-Login:</b> បើកទិញទំនិញភ្លាមៗ ដោយមិនបាច់វាយ Password ឡើយ!\n\n"
+            . "<i>សូមជ្រើសរើសមុខងារអន្តរកម្មខាងក្រោមដើម្បីចាប់ផ្តើម៖</i>";
 
         $linkedKb = [
             'inline_keyboard' => [
                 [
-                    ['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Sign In)', 'web_app' => ['url' => $miniAppUrl]]
+                    ['text' => 'បើកទិញក្នុង Mini App - Auto-Sign In', 'web_app' => ['url' => $miniAppUrl]]
                 ],
                 [
-                    ['text' => '🪙 កាបូបលុយ & កាក់រង្វាន់', 'callback_data' => 'cust_my_wallet'],
-                    ['text' => '📦 ពិនិត្យការកុម្ម៉ង់ (Orders)', 'callback_data' => 'cust_my_orders']
+                    ['text' => 'កាបូបលុយ និងកាក់រង្វាន់', 'callback_data' => 'cust_my_wallet'],
+                    ['text' => 'ពិនិត្យការកុម្ម៉ង់ - Orders', 'callback_data' => 'cust_my_orders']
                 ],
                 [
-                    ['text' => '🔥 ប្រូម៉ូសិន VIP & Flash Sale', 'callback_data' => 'cust_promo'],
-                    ['text' => '💬 ជំនួយការ AI / ក្រុមការងារ', 'callback_data' => 'cust_contact']
+                    ['text' => 'ប្រូម៉ូសិន VIP និង Flash Sale', 'callback_data' => 'cust_promo'],
+                    ['text' => 'ជំនួយការ AI និងក្រុមការងារ', 'callback_data' => 'cust_contact']
                 ],
                 [
-                    ['text' => '🌐 ត្រឡប់ទៅ Profile លើ Website វិញ', 'url' => $profileUrl]
+                    ['text' => 'ត្រឡប់ទៅ Profile លើ Website វិញ', 'url' => $profileUrl]
                 ],
             ]
         ];
@@ -4630,7 +4640,7 @@ class TelegramService
         }
         $token = self::sanitizeBotToken($token);
 
-        if (!$token || str_contains($token, 'Placeholder')) {
+        if (app()->environment('testing') || !$token || str_contains($token, 'Placeholder')) {
             Log::info("[Telegram] Mock send with keyboard to {$chatId}: {$text}");
             return ['ok' => true, 'mock' => true];
         }
@@ -5239,37 +5249,160 @@ HTML;
     }
 
     /**
+     * Merge duplicate or orphan Telegram account into primary authoritative account.
+     */
+    public static function mergeAccounts(\App\Models\UserProfile $target, \App\Models\UserProfile $orphan): void
+    {
+        if ($target->id === $orphan->id) return;
+
+        // 1. Merge wallet balance
+        $orphanBal = (float)($orphan->wallet_balance ?? 0);
+        if ($orphanBal > 0) {
+            $target->wallet_balance = ((float)($target->wallet_balance ?? 0)) + $orphanBal;
+        }
+
+        // 2. Merge points
+        $orphanPoints = (int)($orphan->points ?? 0);
+        if ($orphanPoints > 0) {
+            $target->points = ((int)($target->points ?? 0)) + $orphanPoints;
+        }
+
+        // 3. Keep photo, phone, or telegram username if primary is missing
+        if (empty($target->phone) && !empty($orphan->phone)) {
+            $target->phone = $orphan->phone;
+        }
+        if (empty($target->photo_url) && !empty($orphan->photo_url)) {
+            $target->photo_url = $orphan->photo_url;
+            $target->avatar_url = $orphan->photo_url;
+        }
+        if (empty($target->telegram) && !empty($orphan->telegram)) {
+            $target->telegram = $orphan->telegram;
+        }
+        $target->save();
+
+        // 4. Reassign wallet transactions
+        \App\Models\WalletTransaction::where('firebase_uid', $orphan->firebase_uid)
+            ->update(['firebase_uid' => $target->firebase_uid]);
+
+        // 5. Reassign orders
+        \App\Models\Order::where('user_id', $orphan->firebase_uid)
+            ->update(['user_id' => $target->firebase_uid]);
+
+        // 6. Reassign user notifications
+        \App\Models\UserNotification::where('firebase_uid', $orphan->firebase_uid)
+            ->update(['firebase_uid' => $target->firebase_uid]);
+
+        // 7. Reassign wishlists (avoid unique constraint collisions)
+        $orphanWishlists = \App\Models\Wishlist::where('firebase_uid', $orphan->firebase_uid)->get();
+        foreach ($orphanWishlists as $w) {
+            $exists = \App\Models\Wishlist::where('firebase_uid', $target->firebase_uid)
+                ->where('product_id', $w->product_id)
+                ->exists();
+            if (!$exists) {
+                $w->firebase_uid = $target->firebase_uid;
+                $w->save();
+            } else {
+                $w->delete();
+            }
+        }
+
+        // 8. Reassign cart items (avoid duplicate product items in cart)
+        $orphanCartItems = \App\Models\UserCartItem::where('firebase_uid', $orphan->firebase_uid)->get();
+        foreach ($orphanCartItems as $c) {
+            $existingItem = \App\Models\UserCartItem::where('firebase_uid', $target->firebase_uid)
+                ->where('product_id', $c->product_id)
+                ->first();
+            if (!$existingItem) {
+                $c->firebase_uid = $target->firebase_uid;
+                $c->save();
+            } else {
+                $existingItem->quantity += $c->quantity;
+                $existingItem->save();
+                $c->delete();
+            }
+        }
+
+        // 9. Reassign any session cache keys
+        if (!empty($orphan->magic_login_token)) {
+            \Illuminate\Support\Facades\Cache::put("customer_sess_{$orphan->magic_login_token}", $target->id, 30 * 24 * 60 * 60);
+        }
+
+        // 10. Cleanly remove the orphan row so it never collides again
+        try {
+            $orphan->delete();
+        } catch (\Throwable $t) {
+            $orphan->telegram_chat_id = null;
+            $orphan->telegram = null;
+            $orphan->is_active = false;
+            $orphan->save();
+        }
+
+        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$target->firebase_uid}");
+        \Illuminate\Support\Facades\Cache::forget("wallet_stats_{$orphan->firebase_uid}");
+    }
+
+    /**
      * Resolve actively linked UserProfile for a Telegram chat/user ID.
      * Enforces STRICT 1-TO-1 MAPPING: 1 Telegram ID corresponds to exactly 1 S Tech account.
-     * If user disconnected their Telegram, this strictly returns NULL.
+     * Intelligently scores candidates (giving priority to connected Google/Email accounts)
+     * and automatically merges any orphan native Telegram rows.
      */
     public static function resolveActiveUser(string $chatId): ?\App\Models\UserProfile
     {
         $cleanId = preg_replace('/\D/', '', $chatId) ?: $chatId;
         if (empty($cleanId)) return null;
 
-        // 1. Strict 1-to-1: Resolve account where telegram_chat_id equals this Telegram ID
-        $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanId)
-            ->orWhere('telegram_chat_id', (string)$chatId)
-            ->orderByDesc('wallet_balance')
-            ->first();
+        // Query all candidate accounts associated with this Telegram ID
+        $candidates = \App\Models\UserProfile::where(function ($q) use ($cleanId, $chatId) {
+            $q->where('telegram_chat_id', (string)$cleanId)
+              ->orWhere('telegram_chat_id', (string)$chatId)
+              ->orWhere('firebase_uid', 'tg_' . $cleanId)
+              ->orWhere('firebase_uid', 'tg_' . $chatId);
+        })->get();
 
-        // 2. Native Telegram Account resolution by firebase_uid (tg_{cleanId})
-        if (!$user) {
-            $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanId)
-                ->orWhere('firebase_uid', 'tg_' . $chatId)
-                ->first();
+        if ($candidates->isEmpty()) {
+            return null;
         }
 
-        // 3. Self-heal: Ensure telegram_chat_id is populated on native Telegram store account
-        if ($user && empty($user->telegram_chat_id)) {
-            $user->telegram_chat_id = (string)$cleanId;
-            $user->notif_telegram = true;
-            try { $user->save(); } catch (\Throwable $t) {}
+        // Score candidates to unambiguously select the true primary account
+        $primary = $candidates->sortByDesc(function ($u) use ($cleanId) {
+            $score = 0;
+            // Highest priority: Connected account with a real email or non-tg UID
+            $hasRealEmail = !empty($u->email) && !str_contains($u->email, '@telegram.s-tech-store.tech') && !str_starts_with($u->email, 'tg_');
+            $isNonTgUid = !empty($u->firebase_uid) && !str_starts_with($u->firebase_uid, 'tg_');
+            if ($isNonTgUid || $hasRealEmail) {
+                $score += 10000;
+            }
+            // Explicit telegram_chat_id match
+            if ((string)$u->telegram_chat_id === (string)$cleanId) {
+                $score += 2000;
+            }
+            // Wallet balance
+            $score += ((float)($u->wallet_balance ?? 0)) * 10;
+            // Points
+            $score += (int)($u->points ?? 0);
+            return $score;
+        })->first();
+
+        // If multiple candidate rows exist, merge any orphan native tg_ rows into primary
+        if ($candidates->count() > 1 && $primary) {
+            foreach ($candidates as $orphan) {
+                if ($orphan->id === $primary->id) continue;
+                if (str_starts_with((string)$orphan->firebase_uid, 'tg_') || empty($orphan->email) || str_contains((string)$orphan->email, '@telegram.s-tech-store.tech')) {
+                    self::mergeAccounts($primary, $orphan);
+                }
+            }
+        }
+
+        // Self-heal: Ensure telegram_chat_id and notif_telegram are correctly set on the primary account
+        if ($primary && (empty($primary->telegram_chat_id) || (string)$primary->telegram_chat_id !== (string)$cleanId)) {
+            $primary->telegram_chat_id = (string)$cleanId;
+            $primary->notif_telegram = true;
+            try { $primary->save(); } catch (\Throwable $t) {}
             \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanId}");
         }
 
-        return $user;
+        return $primary;
     }
 
     /**
@@ -6060,27 +6193,27 @@ HTML;
         $ordersUrl = "https://www.s-tech-store.tech/orders?tg_token={$token}";
         $name = htmlspecialchars($user->display_name ?? 'អតិថិជន');
 
-        $welcome = "🎉 <b>សូមស្វាគមន៍មកកាន់ S Tech Store Customer Hub!</b>\n"
+        $welcome = "<b>សូមស្វាគមន៍មកកាន់ S Tech Store Customer Hub</b>\n"
             . "━━━━━━━━━━━━━━━━━━━━\n\n"
             . "ជម្រាបសួរ <b>{$name}</b>!\n\n"
-            . "✨ គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
-            . "🤖 <b>តួនាទីរបស់ Bot នេះសម្រាប់អ្នក (Personal Companion Bot):</b>\n"
-            . "• 📦 <b>តាមដានការបញ្ជាទិញ:</b> ទទួលដំណឹង Real-time ភ្លាមៗរាល់ពេលកុម្ម៉ង់ ឬកញ្ចប់ទំនិញធ្វើដំណើរ\n"
-            . "• 🪙 <b>ពិន្ទុ & VIP Rewards:</b> ពិនិត្យមើល S-Coins និងកម្រិតសមាជិក VIP\n"
-            . "• 🔧 <b>សំបុត្រជួសជុល:</b> តាមដានស្ថានភាពជួសជុល ឬ Upgrade កុំព្យូទ័រ\n"
-            . "• 📢 <b>ដំណឹងពី Admin:</b> ទទួលសារ និងការឆ្លើយតបផ្ទាល់ពីហាង\n\n"
-            . "👉 <b>លោកអ្នកអាចចុចបើក Mini App ខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់ Login ម្តងទៀតឡើយ!</b>";
+            . "គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយគេហទំព័រ S Tech Store ដោយជោគជ័យ ១០០%។\n\n"
+            . "<b>តួនាទីរបស់ Bot នេះសម្រាប់អ្នក - Personal Companion Bot:</b>\n"
+            . "• <b>តាមដានការបញ្ជាទិញ:</b> ទទួលដំណឹង Real-time ភ្លាមៗរាល់ពេលកុម្ម៉ង់ ឬកញ្ចប់ទំនិញធ្វើដំណើរ\n"
+            . "• <b>ពិន្ទុ និង VIP Rewards:</b> ពិនិត្យមើល S-Coins និងកម្រិតសមាជិក VIP\n"
+            . "• <b>សំបុត្រជួសជុល:</b> តាមដានស្ថានភាពជួសជុល ឬ Upgrade កុំព្យូទ័រ\n"
+            . "• <b>ដំណឹងពី Admin:</b> ទទួលសារ និងការឆ្លើយតបផ្ទាល់ពីហាង\n\n"
+            . "<b>លោកអ្នកអាចចុចបើក Mini App ខាងក្រោមដើម្បីចូលទិញទំនិញភ្លាមៗ ដោយមិនបាច់ Login ម្តងទៀតឡើយ!</b>";
 
         $kb = [
             'inline_keyboard' => [
-                [['text' => '🛍️ បើកទិញក្នុង Mini App (Auto-Login)', 'web_app' => ['url' => $directUrl]]],
+                [['text' => 'បើកទិញក្នុង Mini App - Auto-Login', 'web_app' => ['url' => $directUrl]]],
                 [
-                    ['text' => '📦 ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
-                    ['text' => '🪙 ពិន្ទុ & VIP', 'callback_data' => 'cust_my_points'],
+                    ['text' => 'ការកុម្ម៉ង់របស់ខ្ញុំ', 'callback_data' => 'cust_my_orders'],
+                    ['text' => 'ពិន្ទុ និង VIP', 'callback_data' => 'cust_my_points'],
                 ],
                 [
-                    ['text' => '🌐 ចូលគេហទំព័រ (1-Click)', 'url' => $directUrl],
-                    ['text' => '💬 ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
+                    ['text' => 'ចូលគេហទំព័រ - 1-Click', 'url' => $directUrl],
+                    ['text' => 'ជជែកជាមួយបុគ្គលិក', 'callback_data' => 'cust_support'],
                 ],
             ],
         ];

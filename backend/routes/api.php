@@ -973,6 +973,9 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
         ], 403);
     }
 
+    $isConnected = !str_starts_with((string)$user->firebase_uid, 'tg_');
+    $provider = $user->auth_provider ?: ($isConnected ? 'google' : 'telegram');
+
     return response()->json([
         'success' => true,
         'token' => $token,
@@ -990,7 +993,10 @@ Route::get('/auth/telegram/token-login', function (Request $request) {
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
             'avatar_url' => $user->photo_url,
-            'provider' => 'telegram',
+            'provider' => $provider,
+            'is_connected_account' => $isConnected,
+            'points' => (int)($user->points ?? 0),
+            'wallet_balance' => (float)($user->wallet_balance ?? 0.00),
         ],
     ]);
 });
@@ -1009,19 +1015,8 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
     \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$cleanTgId}");
     \Illuminate\Support\Facades\Cache::forget("tg_disconnected_{$tgId}");
 
-    // Strict 1-to-1 Account Resolution:
-    // 1. Search by telegram_chat_id
-    $user = \App\Models\UserProfile::where('telegram_chat_id', (string)$cleanTgId)
-        ->orWhere('telegram_chat_id', (string)$tgId)
-        ->orderByDesc('wallet_balance')
-        ->first();
-
-    // 2. Search by native telegram firebase_uid ('tg_' . cleanTgId)
-    if (!$user) {
-        $user = \App\Models\UserProfile::where('firebase_uid', 'tg_' . $cleanTgId)
-            ->orWhere('firebase_uid', 'tg_' . $tgId)
-            ->first();
-    }
+    // Resolve authoritative account (auto-merges any orphan duplicate rows)
+    $user = \App\Services\TelegramService::resolveActiveUser((string)$cleanTgId);
 
     $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
     $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
@@ -1029,7 +1024,7 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
         : ("tg_{$cleanTgId}@s-tech-store.tech");
 
-    // 3. If new Telegram user, auto-create complete store account with 5 free coins!
+    // If new Telegram user, auto-create complete store account with 5 free coins
     if (!$user) {
         $user = new \App\Models\UserProfile();
         $user->firebase_uid = 'tg_' . $cleanTgId;
@@ -1037,20 +1032,45 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         $user->display_name = $fullName;
         $user->points = 5;
         $user->wallet_balance = 0;
+        $user->auth_provider = 'telegram';
+        $user->telegram_chat_id = (string)$cleanTgId;
+        $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+        $user->notif_telegram = true;
+        $user->is_active = true;
+        $user->status = 'active';
+        if (!empty($tgUser['photo_url'])) {
+            $user->photo_url = $tgUser['photo_url'];
+            $user->avatar_url = $tgUser['photo_url'];
+        }
+        $user->save();
+    } else {
+        $user->telegram_chat_id = (string)$cleanTgId;
+        if (str_starts_with((string)$user->firebase_uid, 'tg_') || empty($user->display_name)) {
+            $user->display_name = $fullName ?: "Telegram User #{$cleanTgId}";
+        }
+        if (empty($user->email)) $user->email = $email;
+        if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
+        $user->notif_telegram = true;
+        $user->is_active = true;
+
+        if (!empty($tgUser['photo_url'])) {
+            $user->photo_url = $tgUser['photo_url'];
+            $user->avatar_url = $tgUser['photo_url'];
+        } else {
+            $realPhoto = \App\Services\TelegramService::getUserAvatarUrl($cleanTgId);
+            if ($realPhoto && empty($user->photo_url)) {
+                $user->photo_url = $realPhoto;
+                $user->avatar_url = $realPhoto;
+            }
+        }
+
+        if (!empty($tgUser['phone_number'])) {
+            $user->phone = $tgUser['phone_number'];
+        } elseif ($request->filled('phone')) {
+            $user->phone = trim($request->input('phone'));
+        }
+        $user->save();
     }
-
-    $user->telegram_chat_id = (string)$cleanTgId;
-    $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
-    $user->notif_telegram = true;
-    $user->is_active = true;
-    $user->status = 'active';
-
-    if (!empty($tgUser['photo_url'])) {
-        $user->photo_url = $tgUser['photo_url'];
-        $user->avatar_url = $tgUser['photo_url'];
-    }
-
-    $user->save();
 
     if (!($user->is_active ?? true)) {
         return response()->json([
@@ -1059,37 +1079,12 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         ], 403);
     }
 
-    $fullName = trim(($tgUser['first_name'] ?? '') . ' ' . ($tgUser['last_name'] ?? '')) ?: 'Telegram Customer';
-    $tgUsername = !empty($tgUser['username']) ? '@' . ltrim($tgUser['username'], '@') : null;
-    $email = !empty($tgUser['username'])
-        ? ($tgUser['username'] . '@telegram.s-tech-store.tech')
-        : ("tg_{$cleanTgId}@s-tech-store.tech");
-
-    $user->telegram_chat_id = (string)$cleanTgId;
-    if (str_starts_with((string)$user->firebase_uid, 'tg_') || empty($user->display_name)) {
-        $user->display_name = $fullName ?: "Telegram User #{$cleanTgId}";
-    }
-    if (empty($user->email)) $user->email = $email;
-    if (empty($user->telegram)) $user->telegram = $tgUsername ?: ("ID: {$cleanTgId}");
-    if (!empty($tgUser['photo_url'])) {
-        $user->photo_url = $tgUser['photo_url'];
-        $user->avatar_url = $tgUser['photo_url'];
-    } else {
-        $realPhoto = \App\Services\TelegramService::getUserAvatarUrl($cleanTgId);
-        if ($realPhoto) {
-            $user->photo_url = $realPhoto;
-            $user->avatar_url = $realPhoto;
-        }
-    }
-    if (!empty($tgUser['phone_number'])) {
-        $user->phone = $tgUser['phone_number'];
-    } elseif ($request->filled('phone')) {
-        $user->phone = trim($request->input('phone'));
-    }
-    $user->save();
-
     $token = 'tg_sess_' . \Illuminate\Support\Str::random(60);
     \Illuminate\Support\Facades\Cache::put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+    try {
+        \Illuminate\Support\Facades\Cache::store('file')->put("customer_sess_{$token}", $user->id, 30 * 24 * 60 * 60);
+    } catch (\Throwable $t) {}
+
     $user->magic_login_token = $token;
     $user->save();
 
@@ -1101,9 +1096,13 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
         } catch (\Throwable $t) {}
     }
 
+    $isConnectedAccount = !str_starts_with((string)$user->firebase_uid, 'tg_');
+    $provider = $user->auth_provider ?: ($isConnectedAccount ? 'google' : 'telegram');
+
     return response()->json([
         'success' => true,
         'linked' => true,
+        'is_connected_account' => $isConnectedAccount,
         'token' => $token,
         'user' => [
             'id' => $user->id,
@@ -1119,7 +1118,10 @@ Route::post('/auth/telegram/miniapp-sync', function (Request $request) {
             'photo_url' => $user->photo_url,
             'avatar' => $user->photo_url,
             'avatar_url' => $user->photo_url,
-            'provider' => 'telegram',
+            'provider' => $provider,
+            'is_connected_account' => $isConnectedAccount,
+            'points' => (int)($user->points ?? 0),
+            'wallet_balance' => (float)($user->wallet_balance ?? 0.00),
         ],
     ]);
 });

@@ -163,7 +163,7 @@ export default function TelegramAuthBridge() {
         } catch (e) {}
 
         // Multi-Telegram Account Isolation: If stored account is from a different Telegram ID, purge immediately!
-        const existingTgId = existing?.telegram_id || (typeof existing?.uid === "string" && existing.uid.startsWith("tg_") ? existing.uid.replace("tg_", "") : null);
+        const existingTgId = existing?.telegram_id || existing?.telegram_chat_id || (typeof existing?.uid === "string" && existing.uid.startsWith("tg_") ? existing.uid.replace("tg_", "") : null);
         if (existingTgId && String(existingTgId) !== String(tgUser.id)) {
           purgeUserSession();
           try { sessionStorage.removeItem("stech_tg_synced_" + tgUser.id); } catch (_) {}

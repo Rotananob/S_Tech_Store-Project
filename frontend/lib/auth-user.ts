@@ -46,7 +46,7 @@ export function getEffectiveUser(): EffectiveUser | null {
             return {
               ...parsed,
               isTelegram: true,
-              provider: "telegram",
+              provider: parsed.provider || "telegram",
             };
           }
         } catch (e) {}
@@ -61,6 +61,7 @@ export function getEffectiveUser(): EffectiveUser | null {
         uid: `tg_${tgUser.id}`,
         firebase_uid: `tg_${tgUser.id}`,
         telegram_id: tgUser.id,
+        telegram_chat_id: String(tgUser.id),
         name: displayName,
         display_name: displayName,
         displayName: displayName,
